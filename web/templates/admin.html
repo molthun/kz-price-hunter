@@ -740,8 +740,9 @@
             const row = element('div', 'user'); row.style.flexWrap = 'wrap';
             const info = element('div', 'user-info'); info.style.minWidth = '0'; info.style.overflowWrap = 'anywhere';
             info.append(element('div', 'user-name', item.query + ' · ' + item.city));
-            info.append(element('div', 'user-meta', 'Раздел: ' + item.plan.category_name + ' · Обращений: ' + item.demand));
-            info.append(element('div', 'user-meta', 'Фильтры: ' + item.plan.fields.map(field => field.label).join(', ')));
+            info.append(element('div', 'user-meta', 'Раздел: ' + (item.plan.category_name || item.plan.category_id || 'Общий') + ' · Обращений: ' + item.demand));
+            const fieldsText = (item.plan.fields && item.plan.fields.length) ? item.plan.fields.map(field => field.label).join(', ') : 'базовые (бренд, модель, цена, город)';
+            info.append(element('div', 'user-meta', 'Фильтры: ' + fieldsText));
             const active = expansionRunning(item);
             const status = element('div', 'user-meta', active ? expansionNames.checking : (expansionNames[item.status] || item.status));
             status.setAttribute('data-expansion-state', ''); info.append(status);

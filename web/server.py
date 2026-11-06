@@ -1520,6 +1520,20 @@ def _run_search_v2_sync(
                     latency_ms=resp.latency_ms,
                 )
             )
+            if query and resp.total_products < 5 and getattr(resp, "outcome", "") != "ERROR":
+                try:
+                    from repositories.catalog_expansion_repo import CatalogExpansionRepository
+                    plan = {
+                        "category_id": category or "appliances",
+                        "category_name": "Каталог",
+                        "search_query": query,
+                        "confidence": 1.0,
+                        "fields": [],
+                        "attributes": {}
+                    }
+                    CatalogExpansionRepository(conn).propose(query, resolved_city, plan, auto_approve=True)
+                except Exception:
+                    pass
         except Exception as ex:
             print(f"[Analytics] Failed to record search event: {ex}")
         return resp
@@ -4542,6 +4556,82 @@ def _record_wave_outcome(info, keys, failed) -> None:
     print(f"[Wave] 🏁 Полный круг #{info['cycle']} завершён: все {info['total_waves']} волн выполнены. Старт круга #{next_cycle}")
 
 
+async def _poll_pending_demand_queries(max_queries: int = 5):
+    """Опрашивает поисковый спрос покупателей при каждом плановом обходе магазинов.
+    Берёт топ запросов с высоким спросом, опрашивает ритейлеров (Kaspi, Mechta, ForteMarket, 4mobile),
+    сохраняет новые товары в каталог и переводит статус в 'indexed'.
+    """
+    from database import get_connection
+    from repositories.catalog_expansion_repo import CatalogExpansionRepository
+    from search_engine import search_live_stores
+
+    def _claim():
+        conn = get_connection()
+        try:
+            repo = CatalogExpansionRepository(conn)
+            return repo.claim_batch_for_crawl(limit=max_queries)
+        finally:
+            conn.close()
+
+    tasks = await asyncio.to_thread(_claim)
+    if not tasks:
+        return
+
+    print(f"[DemandPoll] 🚀 Опрос поискового спроса при обходе: {len(tasks)} запросов ({', '.join(t['query'] for t in tasks)})")
+    for task in tasks:
+        ident = task['id']
+        query = task['query']
+        city = task.get('city') or 'Астана'
+        found_count = 0
+        status = 'indexed'
+        msg = ''
+        try:
+            # Опрос ритейлеров (Kaspi, 4mobile, ForteMarket) с сохранением в prices.db
+            items = await asyncio.wait_for(
+                search_live_stores(query, city=city if city != 'Все' else 'Астана'),
+                timeout=45.0
+            )
+            found_count = len(items or [])
+            if found_count > 0:
+                msg = f"Опрошено при обходе: найдено {found_count} товаров в магазинах"
+                status = 'indexed'
+                print(f"[DemandPoll] ✅ Спрос «{query}» ({city}): добавлено {found_count} товаров в каталог")
+                # Синхронизация атрибутов для свежих товаров
+                try:
+                    from domain.attribute_indexing import sync_all_source_attributes
+                    def _sync():
+                        conn = get_connection()
+                        try:
+                            sync_all_source_attributes(conn, limit=500)
+                        finally:
+                            conn.close()
+                    await asyncio.to_thread(_sync)
+                except Exception as ex_sync:
+                    print(f"[DemandPoll] Предупреждение: синхронизация атрибутов не выполнена: {ex_sync}")
+            else:
+                msg = "Опрошено при обходе: подходящих товаров в подключенных магазинах не найдено"
+                status = 'needs_source'
+                print(f"[DemandPoll] ℹ️ Спрос «{query}» ({city}): магазины не вернули предложений")
+        except asyncio.TimeoutError:
+            status = 'failed'
+            msg = "Таймаут опроса магазинов при обходе"
+            print(f"[DemandPoll] ⚠️ Спрос «{query}»: таймаут опроса")
+        except Exception as exc:
+            status = 'failed'
+            msg = f"Ошибка опроса: {type(exc).__name__}"
+            print(f"[DemandPoll] ❌ Спрос «{query}»: {type(exc).__name__}")
+
+        def _finish(s=status, cnt=found_count, m=msg, i=ident):
+            conn = get_connection()
+            try:
+                repo = CatalogExpansionRepository(conn)
+                repo.finish_crawl_poll(i, cnt, m, status=s)
+            finally:
+                conn.close()
+
+        await asyncio.to_thread(_finish)
+
+
 async def _scan_task_body(shop_keys, target_categories, scan_type):
     scan_state["total_scanned"] = 0
     scan_state["anomalies_found"] = 0
@@ -4689,6 +4779,12 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
                         print(f"[Wave] Ошибка обновления категории {cat['name']}: {ex}")
         except Exception as e:
             print(f"[Wave] Ошибка обновления tracked categories: {e}")
+
+        # Автоматический опрос поискового спроса покупателей при обходе (не теряя поиск)
+        try:
+            await _poll_pending_demand_queries(max_queries=5)
+        except Exception as e:
+            print(f"[DemandPoll] Ошибка опроса поискового спроса: {e}")
 
         # Сроки хранения: история цен — 180 дней, завершённые уведомления — 30 дней
         try:

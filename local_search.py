@@ -371,10 +371,21 @@ def search_sync(arguments, understanding, selected_attributes):
             data['search_help']['watch_city'] = res.parsed_query.detected_city
             data['search_help']['watch_conditions'] = ([res.parsed_query.condition.lower()]
                 if res.parsed_query.condition and res.parsed_query.condition.lower() in ('new','used','refurbished') else [])
-        # Capture missing assortment only when the model produced a validated category proposal.
-        missing_fields = plan and any(f['key'] not in (cat.attributes_schema if cat else {}) for f in plan['fields'])
-        if res.outcome != 'ERROR' and plan and plan['confidence'] >= 0.85 and (res.total_products == 0 or missing_fields):
-            request = CatalogExpansionRepository(conn).propose(original, res.parsed_query.detected_city, plan)
+        # Capture scarce or missing assortment into demand queue for crawler polling (не теряя поиск)
+        is_scarce = res.total_products < 5
+        missing_fields = bool(plan and any(f['key'] not in (cat.attributes_schema if cat else {}) for f in plan.get('fields', [])))
+        if res.outcome != 'ERROR' and original and (is_scarce or (plan and plan.get('confidence', 0) >= 0.85 and missing_fields)):
+            eff_plan = plan or {
+                'category_id': inferred_category or (cat.id if cat else 'appliances'),
+                'category_name': cat.name if cat else (inferred_category or 'Каталог'),
+                'search_query': original,
+                'confidence': 1.0,
+                'fields': [],
+                'attributes': {}
+            }
+            request = CatalogExpansionRepository(conn).propose(
+                original, res.parsed_query.detected_city, eff_plan, auto_approve=True
+            )
             if request:
                 data['search_help']['expansion'] = {k: request[k] for k in ('id', 'status', 'message')}
         # Preserve existing analytics (without recording the rewritten query as the user's demand).

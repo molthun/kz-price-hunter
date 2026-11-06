@@ -105,7 +105,7 @@ class CatalogExpansionRepository:
         finally:
             self._atomic = False
 
-    def propose(self, query, city, plan):
+    def propose(self, query, city, plan, auto_approve: bool = False):
         import search_analytics as sa
         clean = sa.storable_text(query)
         if not clean:
@@ -113,15 +113,20 @@ class CatalogExpansionRepository:
         city = sa.canonical_city(city)
         ident = hashlib.sha256((clean + '\n' + city).encode()).hexdigest()[:24]
         stamp = now()
+        initial_status = 'approved' if auto_approve else 'proposed'
         self.conn.execute(
-            """INSERT INTO catalog_expansions(id,query,city,plan_json,created_at,updated_at)
-            VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
+            """INSERT INTO catalog_expansions(id,query,city,plan_json,status,created_at,updated_at)
+            VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
             demand=CASE WHEN status='deleted' THEN 1 ELSE demand+1 END, updated_at=excluded.updated_at,
             created_at=CASE WHEN status='deleted' THEN excluded.created_at ELSE created_at END,
             generation=generation+CASE WHEN status='deleted' THEN 1 ELSE 0 END,
             plan_json=CASE WHEN status IN ('proposed','deleted') THEN excluded.plan_json ELSE plan_json END,
-            status=CASE WHEN status='deleted' THEN 'proposed' ELSE status END""",
-            (ident, clean, city, json.dumps(plan, ensure_ascii=False), stamp, stamp))
+            status=CASE
+                WHEN status='deleted' THEN excluded.status
+                WHEN status='proposed' AND ?=1 THEN 'approved'
+                ELSE status
+            END""",
+            (ident, clean, city, json.dumps(plan, ensure_ascii=False), initial_status, stamp, stamp, 1 if auto_approve else 0))
         self._commit()
         return self.get(ident)
 
@@ -205,10 +210,46 @@ class CatalogExpansionRepository:
         self.conn.execute("UPDATE catalog_expansions SET status='approved' WHERE status='checking' AND updated_at<?", (cutoff,))
         cur = self.conn.execute("""UPDATE catalog_expansions SET status='checking', generation=generation+1, attempts=attempts+1,updated_at=?
             WHERE id=(SELECT id FROM catalog_expansions WHERE status='approved'
-            ORDER BY updated_at LIMIT 1) AND status='approved' RETURNING id""", (now(),))
+            ORDER BY demand DESC, updated_at ASC LIMIT 1) AND status='approved' RETURNING id""", (now(),))
         row = cur.fetchone()
         self._commit()
         return self.get(row[0]) if row else None
+
+    def claim_batch_for_crawl(self, limit: int = 5):
+        """Claims top approved expansion tasks for polling during crawler cycle.
+        Tasks with higher demand get prioritized.
+        """
+        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+        self.conn.execute("UPDATE catalog_expansions SET status='approved' WHERE status='checking' AND updated_at<?", (cutoff,))
+        cur = self.conn.execute("""
+            SELECT id FROM catalog_expansions
+            WHERE status='approved'
+            ORDER BY demand DESC, updated_at ASC
+            LIMIT ?
+        """, (limit,))
+        rows = cur.fetchall()
+        tasks = []
+        for (ident,) in rows:
+            cur_upd = self.conn.execute("""
+                UPDATE catalog_expansions
+                SET status='checking', generation=generation+1, attempts=attempts+1, updated_at=?
+                WHERE id=? AND status='approved'
+                RETURNING id
+            """, (now(), ident))
+            r = cur_upd.fetchone()
+            if r:
+                tasks.append(self.get(r[0]))
+        self._commit()
+        return tasks
+
+    def finish_crawl_poll(self, ident: str, found: int, message: str, status: str = 'indexed'):
+        stamp = now()
+        self.conn.execute("""
+            UPDATE catalog_expansions
+            SET status=?, found=?, message=?, checked_at=?, updated_at=?
+            WHERE id=? AND status NOT IN ('rejected', 'deleted')
+        """, (status, found, message, stamp, stamp, ident))
+        self._commit()
 
     def finish(self, ident, status, found, message, scan_offset=0, failures=0, generation=None):
         """Промежуточная порция (approved) не считается завершённой проверкой."""
