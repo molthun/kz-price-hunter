@@ -90,14 +90,15 @@ def migrate_dishwashers(db_path: str, dry_run: bool = False):
             # 1. product_category_tags обновляем первым (с учетом триггера classification_category_guard)
             conn.execute(
                 """
-                INSERT INTO product_category_tags (product_id, category_id, source, updated_at)
-                VALUES (?, ?, 'rules', ?)
+                INSERT INTO product_category_tags (product_id, category_id, source, source_signature, updated_at)
+                VALUES (?, ?, 'rules', 'rules', ?)
                 ON CONFLICT(product_id) DO UPDATE SET
                     category_id = excluded.category_id,
                     source = excluded.source,
+                    source_signature = excluded.source_signature,
                     updated_at = excluded.updated_at
                 """,
-                (pid, target_cat_id, now_iso()),
+                (pid, target_cat_id, datetime.now(timezone.utc).timestamp()),
             )
 
             # 2. canonical_products
