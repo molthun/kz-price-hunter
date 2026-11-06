@@ -390,6 +390,18 @@ KNOWN_BRANDS: Dict[str, str] = {
     "король и шут": "Король и Шут",
     "ария": "Ария",
 
+    # Игрушки, обувь и аксессуары
+    "lego": "LEGO",
+    "лего": "LEGO",
+    "t.taccardi": "T.TACCARDI",
+    "alessio nesca": "Alessio Nesca",
+    "timejump": "TimeJump",
+    "daniele patrici": "Daniele Patrici",
+    "pierre cardin": "Pierre Cardin",
+    "gamerstorm": "GamerStorm",
+    "ocypus": "Ocypus",
+    "apnx": "APNX",
+
     # Инструменты и садовая техника
     "greenworks": "Greenworks",
     "гринворкс": "Greenworks",

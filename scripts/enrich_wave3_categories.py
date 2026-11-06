@@ -55,13 +55,40 @@ def run_enrichment(db_path: str) -> None:
             moved_counts["softeners_to_household_chem"] += 1
 
     # 2c. PC PSUs in ИБП и питание -> Блоки питания
+    pc_psu_pat = re.compile(
+        r"\b(atx|sfx|qdionatx|80\+|bronze|gold|platinum|titanium|deepcool|gamerstorm|ocypus|asus|msi|gigabyte|"
+        r"gamemax|cougar|aerocool|chieftec|thermaltake|cooler\s*master|be\s*quiet|zalman|1stplayer|pccooler|"
+        r"montech|formula|apnx|corsair|seasonic|fsp|silverstone|xpg|adata|powercase|gembird|crown|huntkey|"
+        r"winard|exegate|vinga|lian\s*li|nzxt|fractal|phanteks|super\s*flower|enermax|antec|biostar)\b|"
+        r"(?:[3-9]\d0|1[02356]\d0)\s*(?:w|вт\b)|"
+        r"-(?:[4-9]\d0|1[02]\d0)[a-z]?\b|"
+        r"\b(?:pf|pn|pk|pq|px|gm|vp|gp|gs|vx|smart|cylon|kcas|lux|proton|core|focus|prime|rm|cx|cv|hx|ax|sf|p)\s*-?\s*(?:[4-9]\d0|1[02]\d0)",
+        re.I,
+    )
     for r in conn.execute(
         "SELECT id, title FROM canonical_products WHERE category = 'ИБП и питание'"
     ).fetchall():
         t = r["title"] or ""
-        if re.search(r"^\s*блок\s+питания\b", t, re.I) and re.search(r"\b(atx|sfx|\d{3,4}\s*w)\b", t, re.I):
+        if re.search(r"^\s*блок\s+питания\b", t, re.I) and pc_psu_pat.search(t):
             _move_product(conn, r["id"], "psu", "Блоки питания", "device")
             moved_counts["psu_to_psu"] += 1
+
+    # 2f. Backfill LEGO and major footwear/apparel brands in canonical_products
+    lego_updated = conn.execute(
+        "UPDATE canonical_products SET brand = 'LEGO' WHERE (title LIKE 'LEGO%' OR title LIKE '% LEGO %' OR title LIKE '%Конструктор LEGO%') AND (brand IS NULL OR brand != 'LEGO')"
+    ).rowcount
+    moved_counts["lego_brand_backfill"] = lego_updated
+    for b_prefix, b_canonical in [
+        ("T.TACCARDI", "T.TACCARDI"),
+        ("Alessio Nesca", "Alessio Nesca"),
+        ("TimeJump", "TimeJump"),
+        ("Daniele Patrici", "Daniele Patrici"),
+        ("Pierre Cardin", "Pierre Cardin"),
+    ]:
+        conn.execute(
+            "UPDATE canonical_products SET brand = ? WHERE brand IS NULL AND title LIKE ?",
+            (b_canonical, f"{b_prefix}%"),
+        )
 
     # 2d. Trash bins in Мебель -> Бытовая химия и хозтовары
     for r in conn.execute(
