@@ -225,7 +225,7 @@ class CatalogExpansionRepository:
         cur = self.conn.execute("""
             SELECT id FROM catalog_expansions
             WHERE status='approved'
-               OR (status='needs_source' AND (source_health='{}' OR checked_at IS NULL OR checked_at < ?))
+               OR (status='needs_source' AND (source_health NOT LIKE '%crawled%' OR checked_at IS NULL OR checked_at < ?))
             ORDER BY demand DESC, updated_at ASC
             LIMIT ?
         """, (retry_cutoff, limit))
