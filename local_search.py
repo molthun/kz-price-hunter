@@ -74,25 +74,25 @@ def clean_plan(answer, query, categories):
         if cid in ('auto', 'auto_goods', '') and 'tires' in by_id:
             cid = 'tires'
     elif ('монитор' in q_low or 'monitor' in q_low) and not any(p in q_low for p in ('кронштейн', 'креплен', 'подставк', 'салфетк', 'кабель')):
-        if cid in ('computers', 'electronics', 'tv', 'pc_components', '') and 'monitors' in by_id:
+        if 'monitors' in by_id:
             cid = 'monitors'
     elif any(w in q_low for w in ('клавиатур', 'keyboard', 'мышь', 'мышка', 'мыши', 'геймпад', 'коврик для мыши')) and not any(p in q_low for p in ('планшет', 'ноутбук', 'моноблок', 'наклейк', 'кейкап')):
-        if cid in ('computers', 'electronics', 'accessories', 'pc_components', '') and 'peripherals' in by_id:
+        if 'peripherals' in by_id:
             cid = 'peripherals'
     elif any(w in q_low for w in ('роутер', 'маршрутизатор', 'router', 'коммутатор', 'свитч', 'mesh-систем', 'точка доступа')) and not any(p in q_low for p in ('кабель', 'патч-корд', 'разъем', 'коннектор', 'фрезер')):
-        if cid in ('computers', 'electronics', 'pc_components', '') and 'network' in by_id:
+        if 'network' in by_id:
             cid = 'network'
     elif any(w in q_low for w in ('принтер', 'мфу', 'плоттер')) and not any(p in q_low for p in ('картридж', 'тонер', 'чернил', 'бумага', 'краска', 'фотобарабан', 'кабель')):
-        if cid in ('computers', 'electronics', 'printer_ink', '') and 'printers' in by_id:
+        if 'printers' in by_id:
             cid = 'printers'
     elif any(w in q_low for w in ('кофемашин', 'кофеварк', 'электрочайник', 'чайник электрич', 'микроволнов', 'блендер', 'миксер', 'мясорубк', 'мультиварк', 'аэрогрил', 'электрогрил', 'тостер', 'соковыжималк', 'хлебопеч')) and not any(p in q_low for p in ('игрушк', 'детск', 'кружк', 'стакан', 'чашк', 'фильтр', 'таблетк', 'средств')):
-        if (cid in ('appliances', 'kitchenware', 'home', 'new', '') or cid not in by_id) and 'kitchen_appliances' in by_id:
+        if 'kitchen_appliances' in by_id:
             cid = 'kitchen_appliances'
     elif ('кондиционер' in q_low or 'сплит-систем' in q_low or 'сплит систем' in q_low) and not any(p in q_low for p in ('бель', 'волос', 'стирк', 'кронштейн', 'пульт', 'фреон', 'труб')):
-        if cid in ('appliances', 'climate', 'home', '') and 'air_conditioners' in by_id:
+        if 'air_conditioners' in by_id:
             cid = 'air_conditioners'
     elif ('планшет' in q_low or 'ipad' in q_low or 'matepad' in q_low or 'galaxy tab' in q_low) and not any(p in q_low for p in ('чехол', 'стекло', 'пленк', 'держател', 'подставк', 'сумк', 'графическ')):
-        if cid in ('electronics', 'computers', 'phones', 'peripherals', '') and 'tablets' in by_id:
+        if 'tablets' in by_id:
             cid = 'tablets'
 
     if not cid and not has_explicit_contract:
@@ -110,11 +110,12 @@ def clean_plan(answer, query, categories):
 
     # 1. Сначала берем поля из схемы существующей категории
     if cid in by_id:
+        from domain.attribute_indexing import ATTRIBUTE_LABELS
         known_fields = by_id[cid].get('fields') or {}
         if isinstance(known_fields, dict):
             for k, f_data in known_fields.items():
                 if KEY.fullmatch(k):
-                    lbl = f_data.get('label', k) if isinstance(f_data, dict) else k
+                    lbl = (f_data.get('label') if isinstance(f_data, dict) else None) or ATTRIBUTE_LABELS.get(k, k)
                     fields.append(dict(key=k, label=lbl, type='select'))
                     keys.add(k)
         elif isinstance(known_fields, list):

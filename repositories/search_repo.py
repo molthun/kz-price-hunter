@@ -1197,6 +1197,8 @@ class SearchRepository(BaseRepository):
 
                     merged_rows = [{'value': k, 'count': v} for k, v in sorted(norm_groups.items(), key=_facet_sort_key)]
                     raw_label = field.get('label') if isinstance(field, dict) else None
+                    if raw_label == key:
+                        raw_label = None
                     display_label = raw_label or ATTRIBUTE_LABELS.get(key, key)
                     facets.append({'key': key, 'label': display_label, 'values': merged_rows})
         finally:
