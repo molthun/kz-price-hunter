@@ -2,24 +2,36 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## READY_FOR_DEPLOY → Владелец / Codex: Выделение объявлений OLX/Колёса и приоритет розничных магазинов v6.28.16 (2026-11-06)
+## READY_FOR_AUDIT → Владелец / Codex: Веб-поиск SearXNG, приоритет ритейлеров над объявлениями, сквозная верификация Deals и Watches v6.28.16 (2026-11-06)
 
-- Поручение владельца: «а olx.kz». Прод не трогаем — работа только локально и на стенде.
+- Поручение владельца: «У нас еще контейнер есть searxng его тоже нужно использовать. Довести до ума его использование», «а olx.kz», «obyavleniya.kaspi.kz это же тоже рынок б/у?», «Продолжаем разработку». Прод не трогаем — работа только локально и на стенде.
 - Исполнитель: Antigravity (основной разработчик).
-- Дата и время: 2026-11-06 11:30 (Asia/Almaty).
-- Срез: ветка `codex/local-ai-catalog-growth`, версия `6.28.16`.
-- Область файлов: `domain/web_search.py`, `web/templates/search_first.html`, `tests/search/test_web_search.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- Дата и время: 2026-11-06 11:47 (Asia/Almaty).
+- Срез: ветка `codex/local-ai-catalog-growth`, коммит `1abd78b`, версия `6.28.16`.
+- Стенд: `https://shdev.molthun.ru` (контейнер `kzph-stand` обновлен бандлом `kzph-v6.28.16.bundle`, статус healthy).
+- Область файлов: `domain/web_search.py`, `web/templates/search_first.html`, `tests/search/test_web_search.py`, `docs/AGENT_HANDOFF.md`, `docs/audit_evidence/`.
 - Реализовано:
   1. `domain/web_search.py`:
-     - Доски объявлений и C2C площадки (`olx.kz`, `kolesa.kz`, `obyavleniya.kaspi.kz`) классифицированы как `channel_type: "classifieds"`, `is_classifieds: True`.
-     - Исправлена маршрутизация поддоменов в `get_shop_info`: точное совпадение проверяется первым, а поддомены сортируются по убыванию длины (предотвращено поглощение `obyavleniya.kaspi.kz` родительским магазином `kaspi.kz`).
-     - В алгоритме ранжирования `_rank_score` официальные розничные магазины с гарантией (`Kaspi`, `iSpace`, `DNS`, `Белый Ветер`, `Мечта`, `Sulpak`, `Technodom`, `Forcecom`) получают +120 баллов, а частные объявления — +35 баллов. Официальные ритейлеры всегда выводятся первыми, даже если в объявлении OLX найдена заниженная цена.
+     - **Классификация объявлений и C2C**: `olx.kz`, `kolesa.kz`, `obyavleniya.kaspi.kz` распознаются как `channel_type: "classifieds"`, `is_classifieds: True`.
+     - **Точная маршрутизация поддоменов**: точное совпадение проверяется первым, а ключи `KNOWN_KZ_SHOPS` сортируются по длине (исключено поглощение `obyavleniya.kaspi.kz` магазином `kaspi.kz`).
+     - **Ранжирование `_rank_score`**: официальные ритейлеры Казахстана (`Kaspi`, `iSpace`, `DNS`, `Белый Ветер`, `Мечта`, `Sulpak`, `Technodom`, `Forcecom`) получают +120 баллов, а частные объявления — +35 баллов. Официальные магазины с гарантией всегда выводятся выше объявлений OLX.
+     - **SearXNG движки**: стабильный квартет `duckduckgo,startpage,mojeek,bing` (<1с ответа).
   2. `web/templates/search_first.html`:
-     - В карточки результатов живого веб-поиска SearXNG (как на странице поиска, так и на странице товара) добавлен бейдж `Объявления` при `item.is_classifieds`.
-  3. Тесты:
-     - В `tests/search/test_web_search.py` добавлены тесты `test_olx_and_classifieds_metadata` и `test_retail_stores_outrank_olx_classifieds`. Все 11 тестов пройдены успешно.
+     - В карточки SearXNG добавлен визуальный бейдж `Объявления` при `item.is_classifieds`.
+     - Добавлен блок живого поиска на карточке товара (`/product/{id}`): «🌐 Найти в других магазинах Казахстана (SearXNG)».
+     - Кнопка «✕» скрытия результатов веб-поиска.
+  3. Сквозная верификация на стенде Playwright:
+     - Проверены лента скидок `/deals` (15 карточек на странице, 66 279 предложений, фильтрация по категориям и типам скидок) в Светлой и Тёмной темах на мобильном (390×844).
+     - Проверен полный цикл наблюдения за ценой (Watch): клик по кнопке `🔔` на карточке скидки → открытие модального окна с превью и текущей ценой → отправка на сервер (`/api/me/watches`) → отображение в профиле `/profile` («🔔 Мои наблюдения за ценами») → удаление наблюдения через кнопку `✕` и обновление счетчика.
+     - Зафиксированы свидетельства:
+       - `docs/audit_evidence/mobile_deals_feed_light.png`
+       - `docs/audit_evidence/mobile_deals_feed_dark.png`
+       - `docs/audit_evidence/mobile_deal_watch_modal.png`
+       - `docs/audit_evidence/mobile_profile_with_watch_dark.png`
+       - `docs/audit_evidence/mobile_profile_with_watch_light.png`
+       - `docs/audit_evidence/stand_v62816_searxng_retail_priority.png`
 - Следующий шаг:
-  - Собрать бандл `kzph-v6.28.16.bundle` и обновить стенд.
+  - Передать срез Codex для аудита и приёмки v6.28.16. Прод не трогаем.
 
 ---
 
