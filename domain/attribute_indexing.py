@@ -45,15 +45,26 @@ ATTRIBUTE_LABELS: Dict[str, str] = {
     'total_volume': 'Общий объем',
     'defrost_system': 'Система разморозки',
     'refrigeration_defrost': 'Разморозка',
+    'doors_type': 'Тип конструкции',
+    'height_cm': 'Высота',
+    'compressor_type': 'Тип компрессора',
+    'freezer_location': 'Расположение морозильника',
     'energy_class': 'Класс энергопотребления',
     'noise_level': 'Уровень шума',
     'load_capacity': 'Максимальная загрузка',
+    'drying': 'Сушка',
     'spin_speed': 'Скорость отжима',
+    'motor_type': 'Тип двигателя',
+    'depth_type': 'Глубина корпуса',
     'program_count': 'Количество программ',
     'installation_type': 'Тип установки',
     'cleaning_type': 'Тип уборки',
     'dust_collector_type': 'Тип пылесборника',
+    'suction_power': 'Мощность всасывания',
     'power': 'Мощность',
+    'tire_size': 'Типоразмер',
+    'tire_width': 'Ширина шины',
+    'tire_profile': 'Профиль шины',
     'certificate': 'Сертификат 80 PLUS',
     'panel_type': 'Тип матрицы',
     'curved': 'Изогнутый экран',
@@ -498,6 +509,61 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
         m_nl = re.search(r'(\d+)\s*(?:д[бб]|db)?', val, re.IGNORECASE)
         if m_nl:
             return f"{m_nl.group(1)} дБ"
+
+    if key == 'height_cm':
+        m_h = re.search(r'(\d{2,3})\s*(?:см|cm)?', val, re.IGNORECASE)
+        if m_h:
+            h_int = int(m_h.group(1))
+            if 80 <= h_int <= 230:
+                return f"{h_int} см"
+
+    if key == 'suction_power':
+        m_pa = re.search(r'(\d{4,5})\s*(?:па|pa)', val, re.IGNORECASE)
+        if m_pa:
+            return f"{m_pa.group(1)} Па"
+        m_aw = re.search(r'(\d{2,3})\s*(?:авт|aw)', val, re.IGNORECASE)
+        if m_aw:
+            return f"{m_aw.group(1)} аВт"
+
+    if key == 'diameter':
+        m_d = re.search(r'(?i)\b(?:r|р)?(1[2-9]|2[0-4])\b', val)
+        if m_d:
+            return f"R{m_d.group(1)}"
+
+    if key == 'tire_width':
+        m_tw = re.search(r'\b(1[3-9]\d|2\d{2}|3[0-3]\d)\b', val)
+        if m_tw:
+            return f"{m_tw.group(1)} мм"
+
+    if key == 'tire_profile':
+        m_tp = re.search(r'\b(2[5-9]|[3-8]\d|90)\b', val)
+        if m_tp:
+            return f"{m_tp.group(1)}%"
+
+    if key == 'tire_size':
+        m_ts = re.search(r'(\d{3})[/](\d{2})\s*(?:r|р|zr)?\s*(\d{2})', val, re.IGNORECASE)
+        if m_ts:
+            return f"{m_ts.group(1)}/{m_ts.group(2)} R{m_ts.group(3)}"
+
+    if key == 'season':
+        low = val.casefold()
+        if 'шип' in low or 'studded' in low:
+            return 'Зимние шипованные'
+        if 'липучк' in low or 'нешип' in low or 'фрикцион' in low or 'friction' in low:
+            return 'Зимние нешипованные (липучка)'
+        if 'всесезон' in low or 'all season' in low or 'm+s' in low:
+            return 'Всесезонные'
+        if 'летн' in low or 'summer' in low:
+            return 'Летние'
+        if 'зимн' in low or 'winter' in low:
+            return 'Зимние'
+
+    if key == 'drying':
+        low = val.casefold()
+        if any(w in low for w in ('да', 'true', 'с сушкой', 'сушильн', 'есть')):
+            return 'С сушкой'
+        if any(w in low for w in ('нет', 'false', 'без сушки')):
+            return 'Без сушки'
 
     if key == 'refrigeration_defrost':
         low = val.casefold()
@@ -1088,6 +1154,145 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         elif re.search(r'\bips\b', title, re.I):
             attrs['screen_tech'] = 'IPS'
 
+    # 15. Холодильники
+    is_fridge = bool(re.search(r'\b(холодильник\w*|морозильник\w*|refrigerator\w*|freezer\w*)\b', title, re.I))
+    if is_fridge:
+        if re.search(r'\b(?:total\s+no\s+frost|full\s+no\s+frost|no\s*frost|ноу\s*фрост)\b', title, re.I):
+            attrs['refrigeration_defrost'] = 'No Frost'
+        elif re.search(r'\b(?:low\s*frost|лоу\s*фрост)\b', title, re.I):
+            attrs['refrigeration_defrost'] = 'Low Frost'
+        elif re.search(r'\b(?:капельн\w*|статическ\w*)\b', title, re.I):
+            attrs['refrigeration_defrost'] = 'Капельная'
+
+        if re.search(r'\b(?:side[- ]by[- ]side|сайд[- ]бай[- ]сайд)\b', title, re.I):
+            attrs['doors_type'] = 'Side-by-Side'
+            attrs['freezer_location'] = 'Сбоку (Side-by-Side)'
+        elif re.search(r'\b(?:french\s+door|многодверн\w*)\b', title, re.I):
+            attrs['doors_type'] = 'Многодверный (French Door)'
+        elif re.search(r'\b(?:однокамерн\w*|мини[- ]холодильник\w*|компактный\s+холодильник\w*)\b', title, re.I):
+            attrs['doors_type'] = 'Однокамерный'
+        elif re.search(r'\b(?:двухкамерн\w*)\b', title, re.I):
+            attrs['doors_type'] = 'Двухкамерный'
+
+        if 'freezer_location' not in attrs:
+            if re.search(r'\b(?:морозильн\w*\s+камер\w*\s+снизу|нижн\w*\s+морозильн\w*)\b', title, re.I):
+                attrs['freezer_location'] = 'Снизу'
+            elif re.search(r'\b(?:морозильн\w*\s+камер\w*\s+сверху|верхн\w*\s+морозильн\w*)\b', title, re.I):
+                attrs['freezer_location'] = 'Сверху'
+            elif re.search(r'\bбез\s+морозильник\w*\b', title, re.I):
+                attrs['freezer_location'] = 'Без морозильника'
+
+        if re.search(r'\b(инвертор\w*|inverter|linear\s+inverter|smart\s+inverter)\b', title, re.I):
+            attrs['compressor_type'] = 'Инверторный'
+
+        m_h = re.search(r'\b(1[4-9]\d|20\d|210)\s*(?:см|cm)\b', title, re.I)
+        if m_h:
+            attrs['height_cm'] = f"{m_h.group(1)} см"
+
+    # 16. Стиральные машины
+    is_washer = bool(re.search(r'\b(стиральн\w*\s+машин\w*|стиралк\w*|washer)\b', title, re.I))
+    if is_washer:
+        m_load = re.search(r'\b(4|5|6|7|8|9|10|11|12)(?:[.,](\d))?\s*(?:кг|kg)\b', title, re.I)
+        if m_load:
+            dec = f".{m_load.group(2)}" if m_load.group(2) else ""
+            attrs['load_capacity'] = f"{m_load.group(1)}{dec} кг"
+
+        if re.search(r'\b(?:с\s+сушкой|сушильн\w*|стирально[- ]сушильн\w*|washer[- ]dryer)\b', title, re.I):
+            attrs['drying'] = 'С сушкой'
+        else:
+            attrs['drying'] = 'Без сушки'
+
+        m_spin = re.search(r'\b(800|1000|1200|1400|1600)\s*(?:об/?мин|rpm)\b', title, re.I)
+        if m_spin:
+            attrs['spin_speed'] = f"{m_spin.group(1)} об/мин"
+
+        if re.search(r'\b(?:узк(?:ая|ие)|slim|super\s*slim)\b', title, re.I):
+            attrs['depth_type'] = 'Узкая (до 45 см)'
+        elif re.search(r'\bвстраиваем\w*\b', title, re.I):
+            attrs['depth_type'] = 'Встраиваемая'
+            attrs['installation_type'] = 'Встраиваемая'
+        elif re.search(r'\bполноразмерн\w*\b', title, re.I):
+            attrs['depth_type'] = 'Полноразмерная (от 45 см)'
+
+        if re.search(r'\b(инвертор\w*|inverter|direct\s+drive|прямой\s+привод|экоинвертор\w*)\b', title, re.I):
+            attrs['motor_type'] = 'Инверторный'
+
+        if 'installation_type' not in attrs:
+            if re.search(r'\bотдельностоящ\w*\b', title, re.I):
+                attrs['installation_type'] = 'Отдельностоящая'
+
+    # 17. Пылесосы
+    is_vacuum = bool(re.search(r'\b(пылесос\w*|vacuum|roborock|dreame\s+bot)\b', title, re.I))
+    if is_vacuum:
+        if re.search(r'\b(робот[- ]пылесос\w*|robot\s+vacuum|roborock|dreame\s+bot)\b', title, re.I):
+            attrs['type'] = 'Робот-пылесос'
+        elif re.search(r'\b(вертикальн\w*|ручн\w*|беспроводн\w*|аккумуляторн\w*|cordless|stick|dyson)\b', title, re.I):
+            attrs['type'] = 'Вертикальный беспроводной'
+        elif re.search(r'\b(моющий\s+пылесос|с\s+аквафильтром)\b', title, re.I):
+            attrs['type'] = 'Моющий'
+        elif re.search(r'\b(циклон\w*|с\s+контейнером|без\s+мешка)\b', title, re.I):
+            attrs['type'] = 'Обычный (циклон)'
+        elif re.search(r'\b(с\s+мешком|мешков\w*)\b', title, re.I):
+            attrs['type'] = 'Обычный (с мешком)'
+
+        if re.search(r'\b(?:сухая\s+и\s+влажная|влажн\w*|vacuum[- ]mop|mop\b)\b', title, re.I):
+            attrs['cleaning_type'] = 'Сухая и влажная'
+        elif re.search(r'\bсухая\b', title, re.I):
+            attrs['cleaning_type'] = 'Только сухая'
+
+        if re.search(r'\b(аквафильтр\w*|водный\s+фильтр\w*)\b', title, re.I):
+            attrs['dust_collector_type'] = 'Аквафильтр'
+        elif re.search(r'\b(контейнер\w*|циклон\w*)\b', title, re.I):
+            attrs['dust_collector_type'] = 'Контейнер (циклон)'
+        elif re.search(r'\b(мешок|мешки|мешков\w*)\b', title, re.I):
+            attrs['dust_collector_type'] = 'Мешок'
+
+        m_pa = re.search(r'\b(3000|4000|5000|5300|6000|7000|8000|10000)\s*(?:па|pa)\b', title, re.I)
+        if m_pa:
+            attrs['suction_power'] = f"{m_pa.group(1)} Па"
+        else:
+            m_aw = re.search(r'\b(120|140|150|180|200|210|240)\s*(?:авт|aw)\b', title, re.I)
+            if m_aw:
+                attrs['suction_power'] = f"{m_aw.group(1)} аВт"
+
+        m_w = re.search(r'\b(1400|1600|1800|2000|2200|2400)\s*(?:вт|w)\b', title, re.I)
+        if m_w:
+            attrs['power'] = f"{m_w.group(1)} Вт"
+
+    # 18. Автомобильные шины
+    is_not_tire = bool(re.search(r'\b(стиральн\w*|посудомоечн\w*|пильн\w*|для\s+пил\w*|бензопил\w*|электропил\w*)\b', title, re.I))
+    is_tire = not is_not_tire and bool(re.search(
+        r'\b(автошин\w*|автомобильн\w*\s+шин\w*|зимн\w*\s+шин\w*|летн\w*\s+шин\w*|всесезонн\w*\s+шин\w*|'
+        r'шин\w*\s+(?:зимн\w*|летн\w*|всесезон\w*|шип\w*|липучк\w*)|'
+        r'\d{3}[/]\d{2}\s*(?:r|zr)\d{2}\b)\b',
+        title, re.I
+    ))
+    if is_tire:
+        m_ts = re.search(r'\b(1[5-9]\d|2\d{2}|3[0-2]\d)[/](3[0-5]|4[0-5]|5[05]|6[05]|7[05]|8[05])\s*(?:r|р|zr)?\s*(1[2-9]|2[0-4])\b', title, re.I)
+        if m_ts:
+            w_val = m_ts.group(1)
+            p_val = m_ts.group(2)
+            d_val = m_ts.group(3)
+            attrs['tire_width'] = f"{w_val} мм"
+            attrs['tire_profile'] = f"{p_val}%"
+            attrs['diameter'] = f"R{d_val}"
+            attrs['tire_size'] = f"{w_val}/{p_val} R{d_val}"
+        else:
+            m_diam = re.search(r'(?i)\b(?:r|р)(1[2-9]|2[0-4])\b', title)
+            if m_diam:
+                attrs['diameter'] = f"R{m_diam.group(1)}"
+
+        if re.search(r'\b(шип(?:ованн\w*|ы)?|studded)\b', title, re.I):
+            attrs['season'] = 'Зимние шипованные'
+        elif re.search(r'\b(липучк\w*|нешип\w*|фрикционн\w*|friction|без\s+шипов)\b', title, re.I):
+            attrs['season'] = 'Зимние нешипованные (липучка)'
+        elif re.search(r'\b(всесезон\w*|all[- ]season|4[- ]season|m\+s)\b', title, re.I):
+            attrs['season'] = 'Всесезонные'
+        elif re.search(r'\b(летн\w*|summer)\b', title, re.I):
+            attrs['season'] = 'Летние'
+        elif re.search(r'\b(зимн\w*|winter)\b', title, re.I):
+            attrs['season'] = 'Зимние'
+
     return attrs
 
 
@@ -1215,11 +1420,13 @@ def index_product_facts(conn, product_id: str, facts: List[Dict[str, Any]], prod
 
 
 _SYNC_TITLE_SCOPE = '''
-    p.category IN ('Подгузники и гигиена', 'diapers_hygiene', 'Бытовая техника', 'appliances', 'refrigerators',
-                   'washing_machines', 'dishwashers', 'Посудомоечные машины', 'vacuums', 'Мониторы', 'Комплектующие для ПК', 'Видеокарты', 'monitors',
+    p.category IN ('Подгузники и гигиена', 'diapers_hygiene', 'Бытовая техника', 'appliances', 'refrigerators', 'Холодильники',
+                   'washing_machines', 'Стиральные машины', 'dishwashers', 'Посудомоечные машины', 'vacuums', 'Пылесосы',
+                   'tires', 'Шины и диски', 'Мониторы', 'Комплектующие для ПК', 'Видеокарты', 'monitors',
                    'pc_parts', 'gpus', 'tv', 'Телевизоры', 'headphones', 'Наушники', 'air_conditioners', 'Кондиционеры', 'smartwatches', 'Смарт-часы')
     OR p.title LIKE '%подгуз%' OR p.title LIKE '%трусик%' OR p.title LIKE '%памперс%'
     OR p.title LIKE '%холодильн%' OR p.title LIKE '%стиральн%' OR p.title LIKE '%посудомо%' OR p.title LIKE '%пылесос%'
+    OR p.title LIKE '%автошин%' OR p.title LIKE '%зимн%шин%' OR p.title LIKE '%летн%шин%' OR p.title LIKE '% R1%' OR p.title LIKE '% R2%'
     OR p.title LIKE '%монитор%' OR p.title LIKE '%видеокарт%' OR p.title LIKE '%geforce%'
     OR p.title LIKE '%radeon%' OR p.title LIKE '%материнск%' OR p.title LIKE '%блок питания%'
     OR p.title LIKE '%ssd%' OR p.title LIKE '%оперативн%памят%' OR p.title LIKE '%ddr5%'

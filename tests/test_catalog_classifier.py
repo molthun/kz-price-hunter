@@ -99,6 +99,30 @@ class TestCatalogClassifier(unittest.TestCase):
                 "dishwashers",
                 "Bosch"
             ),
+            (
+                "Вакууматор Kitfort KT-1503-2",
+                "Flip: Техника для кухни",
+                "kitchen_appliances",
+                "Kitfort"
+            ),
+            (
+                "Шина для пил Greenworks 30см",
+                "Kaspi: Садовая техника",
+                "tools_repair",
+                "Greenworks"
+            ),
+            (
+                "Автошина Pirelli Ice Zero 2 225/45 R17 94H шипованная",
+                "Sulpak: Автотовары",
+                "tires",
+                "Pirelli"
+            ),
+            (
+                "Шина летняя Bridgestone Turanza T005 205/55 R16 91V",
+                "Mechta: Авто",
+                "tires",
+                "Bridgestone"
+            ),
         ]
         for title, raw_cat, expected_cat, expected_brand in cases:
             with self.subTest(title=title):

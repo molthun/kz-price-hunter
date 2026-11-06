@@ -264,12 +264,69 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         self.assertEqual(sw2.get('screen_tech'), 'AMOLED')
         self.assertEqual(sw2.get('color'), 'Серебристый')
 
+        # 5. Холодильники (Refrigerators)
+        ref1 = extract_title_attributes('Холодильник LG DoorCooling+ GA-B509CLCL NoFrost Инверторный 203 см серебристый')
+        self.assertEqual(ref1.get('refrigeration_defrost'), 'No Frost')
+        self.assertEqual(ref1.get('compressor_type'), 'Инверторный')
+        self.assertEqual(ref1.get('height_cm'), '203 см')
+        self.assertEqual(ref1.get('color'), 'Серебристый')
+
+        ref2 = extract_title_attributes('Холодильник Side-by-Side Midea MDRS710FGF02 Total No Frost белый')
+        self.assertEqual(ref2.get('doors_type'), 'Side-by-Side')
+        self.assertEqual(ref2.get('freezer_location'), 'Сбоку (Side-by-Side)')
+        self.assertEqual(ref2.get('refrigeration_defrost'), 'No Frost')
+        self.assertEqual(ref2.get('color'), 'Белый')
+
+        # 6. Стиральные машины (Washing Machines)
+        wm1 = extract_title_attributes('Стиральная машина с сушкой Haier HWD70-BP14929A 7 кг 1400 об/мин инверторная')
+        self.assertEqual(wm1.get('drying'), 'С сушкой')
+        self.assertEqual(wm1.get('load_capacity'), '7 кг')
+        self.assertEqual(wm1.get('spin_speed'), '1400 об/мин')
+        self.assertEqual(wm1.get('motor_type'), 'Инверторный')
+
+        wm2 = extract_title_attributes('Стиральная машина LG F2V5HS9B 6.5 кг 1200 об/мин узкая белый')
+        self.assertEqual(wm2.get('drying'), 'Без сушки')
+        self.assertEqual(wm2.get('load_capacity'), '6.5 кг')
+        self.assertEqual(wm2.get('spin_speed'), '1200 об/мин')
+        self.assertEqual(wm2.get('depth_type'), 'Узкая (до 45 см)')
+        self.assertEqual(wm2.get('color'), 'Белый')
+
+        # 7. Пылесосы (Vacuums)
+        vac1 = extract_title_attributes('Робот-пылесос Xiaomi Mi Robot Vacuum-Mop P с влажной уборкой 6000 Па белый')
+        self.assertEqual(vac1.get('type'), 'Робот-пылесос')
+        self.assertEqual(vac1.get('cleaning_type'), 'Сухая и влажная')
+        self.assertEqual(vac1.get('suction_power'), '6000 Па')
+        self.assertEqual(vac1.get('color'), 'Белый')
+
+        vac2 = extract_title_attributes('Вертикальный беспроводной пылесос Dyson V15 240 аВт с контейнером')
+        self.assertEqual(vac2.get('type'), 'Вертикальный беспроводной')
+        self.assertEqual(vac2.get('dust_collector_type'), 'Контейнер (циклон)')
+        self.assertEqual(vac2.get('suction_power'), '240 аВт')
+
+        # 8. Автомобильные шины (Tires)
+        tire1 = extract_title_attributes('Автошина Pirelli Ice Zero 2 225/45 R17 94H шипованная')
+        self.assertEqual(tire1.get('diameter'), 'R17')
+        self.assertEqual(tire1.get('tire_width'), '225 мм')
+        self.assertEqual(tire1.get('tire_profile'), '45%')
+        self.assertEqual(tire1.get('tire_size'), '225/45 R17')
+        self.assertEqual(tire1.get('season'), 'Зимние шипованные')
+
+        tire2 = extract_title_attributes('Шина летняя Bridgestone 205/55 R16 91V')
+        self.assertEqual(tire2.get('diameter'), 'R16')
+        self.assertEqual(tire2.get('tire_size'), '205/55 R16')
+        self.assertEqual(tire2.get('season'), 'Летние')
+
+        # Защита от ложного срабатывания на стиральные машины
+        not_tire = extract_title_attributes('Стиральная машина PANASONIC NA-21CER1WKZ белый')
+        self.assertIsNone(not_tire.get('diameter'))
+        self.assertIsNone(not_tire.get('tire_size'))
+
     def test_category_schema_and_search_priority_orders(self):
         from domain.category import MASTER_TAXONOMY
         from repositories.category_repo import CategoryRepository
 
         cats = {c.id: c for c in MASTER_TAXONOMY}
-        for cat_id in ('tv', 'headphones', 'air_conditioners', 'smartwatches'):
+        for cat_id in ('tv', 'headphones', 'air_conditioners', 'smartwatches', 'refrigerators', 'washing_machines', 'vacuums', 'tires'):
             self.assertIn(cat_id, cats)
             self.assertGreater(len(cats[cat_id].attributes_schema), 0)
 
@@ -277,16 +334,25 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         repo = CategoryRepository(conn)
         repo.sync_master_taxonomy()
 
-        tv_cat = repo.get_by_id('tv')
-        self.assertIsNotNone(tv_cat)
-        self.assertIn('screen_diagonal', tv_cat.attributes_schema)
-        self.assertIn('resolution', tv_cat.attributes_schema)
-        self.assertIn('screen_tech', tv_cat.attributes_schema)
+        ref_cat = repo.get_by_id('refrigerators')
+        self.assertIsNotNone(ref_cat)
+        self.assertIn('refrigeration_defrost', ref_cat.attributes_schema)
+        self.assertIn('doors_type', ref_cat.attributes_schema)
 
-        ac_cat = repo.get_by_id('air_conditioners')
-        self.assertIsNotNone(ac_cat)
-        self.assertIn('power_btu', ac_cat.attributes_schema)
-        self.assertIn('inverter', ac_cat.attributes_schema)
+        wm_cat = repo.get_by_id('washing_machines')
+        self.assertIsNotNone(wm_cat)
+        self.assertIn('load_capacity', wm_cat.attributes_schema)
+        self.assertIn('drying', wm_cat.attributes_schema)
+
+        vac_cat = repo.get_by_id('vacuums')
+        self.assertIsNotNone(vac_cat)
+        self.assertIn('type', vac_cat.attributes_schema)
+        self.assertIn('suction_power', vac_cat.attributes_schema)
+
+        tire_cat = repo.get_by_id('tires')
+        self.assertIsNotNone(tire_cat)
+        self.assertIn('diameter', tire_cat.attributes_schema)
+        self.assertIn('season', tire_cat.attributes_schema)
 
 
 if __name__ == "__main__":

@@ -389,6 +389,42 @@ KNOWN_BRANDS: Dict[str, str] = {
     "земфира": "Земфира",
     "король и шут": "Король и Шут",
     "ария": "Ария",
+
+    # Инструменты и садовая техника
+    "greenworks": "Greenworks",
+    "гринворкс": "Greenworks",
+    "dewalt": "DeWalt",
+    "metabo": "Metabo",
+    "karcher": "Karcher",
+    "керхер": "Karcher",
+
+    # Автошины
+    "pirelli": "Pirelli",
+    "пирелли": "Pirelli",
+    "bridgestone": "Bridgestone",
+    "бриджстоун": "Bridgestone",
+    "michelin": "Michelin",
+    "мишлен": "Michelin",
+    "continental": "Continental",
+    "континенталь": "Continental",
+    "nokian": "Nokian Tyres",
+    "nokian tyres": "Nokian Tyres",
+    "нокиан": "Nokian Tyres",
+    "goodyear": "Goodyear",
+    "гудиер": "Goodyear",
+    "hankook": "Hankook",
+    "ханкук": "Hankook",
+    "yokohama": "Yokohama",
+    "йокогама": "Yokohama",
+    "cordiant": "Cordiant",
+    "кордиант": "Cordiant",
+    "кама": "Кама",
+    "kama": "Кама",
+    "нижнекамскшина": "Кама",
+    "sailun": "Sailun",
+    "сайлун": "Sailun",
+    "triangle": "Triangle",
+    "триангл": "Triangle",
 }
 
 # Regex word boundary match pattern for brands (sorted by length desc to match multi-word first)
@@ -500,10 +536,23 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(холодильник|морозильник|морозильн(?:ая|ые)\s+камер(?:а|ы))\b", re.I), "refrigerators"),
     (re.compile(r"\b(пылесос|робот-пылесос|вертикальный\s+пылесос)\b", re.I), "vacuums"),
     (re.compile(r"\b(кондиционер(?![^,]*(?:\bдля\b|волос|бель|ткан|стирк|\d\s*мл\b|\d\s*л\b))|сплит-систем(?:а|ы))\b", re.I), "air_conditioners"),
-    (re.compile(r"\b(микроволнов(?:ка|ая\s*печь)|кофемашин(?:а|ы)|кофеварк(?:а|и)|чайник\s+электрический|блендер|мультиварк(?:а|и)|тостер|(?:электро)?мясорубк(?:а|и))\b", re.I), "kitchen_appliances"),
+    (re.compile(r"\b(микроволнов(?:ка|ая\s*печь)|кофемашин(?:а|ы)|кофеварк(?:а|и)|чайник\s+электрический|блендер|мультиварк(?:а|и)|тостер|(?:электро)?мясорубк(?:а|и)|вакууматор|вакуумный\s+упаковщик|дегидратор|сушилка\s+для\s+овощей|фритюрниц\w*|аэрогриль|электрогриль)\b", re.I), "kitchen_appliances"),
     (re.compile(r"\b(кастрюл(?:я|и)|сковород(?:а|ы))\b", re.I), "kitchenware"),
     (re.compile(r"\b(конфет(?:ы|а)|маршмелоу|шоколад|джем|печенье)\b", re.I), "food"),
     (re.compile(r"\b(шланг|тройник\s+для\s+воды|распределитель\s+воды)\b", re.I), "home"),
+    (re.compile(r"\b(шина\s+(?:для\s+пил|направляющ|пильная)|цепь\s+для\s+пил|цепи\s+для\s+пил)\b", re.I), "tools_repair"),
+
+    # Auto & Tires
+    (
+        re.compile(
+            r"^(?!.*(?:\b(?:стиральн\w*|посудомоечн\w*|пильн\w*|для\s+пил\w*|бензопил\w*|электропил\w*)\b))"
+            r"\b(автошин\w*|автомобильн\w*\s+шин\w*|зимн\w*\s+шин\w*|летн\w*\s+шин\w*|всесезонн\w*\s+шин\w*|"
+            r"шин\w*\s+(?:зимн\w*|летн\w*|всесезон\w*|шип\w*|липучк\w*)|"
+            r"\d{3}[/]\d{2}\s*(?:r|zr)\d{2}\b)\b",
+            re.I
+        ),
+        "tires"
+    ),
 ]
 
 
