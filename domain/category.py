@@ -115,7 +115,14 @@ MASTER_TAXONOMY: List[Category] = [
         icon="💻",
         search_priority=98,
         aliases=["ноутбуки", "ноутбуки и ультрабуки", "ультрабуки", "laptops", "notebooks", "macbook"],
-        attributes_schema={"cpu": "string", "ram": "list", "storage": "list", "gpu": "string", "screen_size": "float"},
+        attributes_schema={
+            "type": {"label": "Тип ноутбука", "type": "string"},
+            "screen_size": {"label": "Диагональ экрана", "type": "string"},
+            "cpu": {"label": "Процессор", "type": "string"},
+            "ram": {"label": "Оперативная память", "type": "string"},
+            "storage": {"label": "Накопитель", "type": "string"},
+            "gpu": {"label": "Видеокарта", "type": "string"},
+        },
     ),
     Category(
         id="tablets",
