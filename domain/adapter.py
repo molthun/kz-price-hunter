@@ -262,9 +262,21 @@ def prepare_legacy_offer_v2(
 
     # 2b. Canonical Category, Brand and Model Extraction
     from catalog_classifier import CatalogClassifier
+    from domain.category import MASTER_TAXONOMY
+    from domain.feed_categories import _NOT_A_SECTION_RE, section_category
     _clf = CatalogClassifier()
     _cls_res = _clf.classify_rules(title, raw_category=category)
-    clean_category = _cls_res.category_name if _cls_res else (category or "Другое")
+    if _cls_res and _cls_res.category_name:
+        clean_category = _cls_res.category_name
+    else:
+        _sec_id = section_category(category)
+        _tax_names = {c.id: c.name for c in MASTER_TAXONOMY}
+        if _sec_id and _sec_id in _tax_names:
+            clean_category = _tax_names[_sec_id]
+        elif category and _NOT_A_SECTION_RE.search(category):
+            clean_category = "Электроника"
+        else:
+            clean_category = category or "Другое"
     brand = _cls_res.brand if _cls_res else None
     model = _cls_res.model if _cls_res else None
     item_kind = _cls_res.item_kind if _cls_res else "device"
@@ -425,6 +437,9 @@ def _write_legacy_offers_v2(
             category = CASE WHEN EXISTS (
                                 SELECT 1 FROM category_ai_verdicts v
                                 WHERE v.product_id = canonical_products.id AND v.applied = 1
+                            ) OR EXISTS (
+                                SELECT 1 FROM product_category_tags t
+                                WHERE t.product_id = canonical_products.id
                             ) THEN canonical_products.category
                             WHEN canonical_products.title_offer_id IS NULL
                               OR canonical_products.title_offer_id = excluded.title_offer_id

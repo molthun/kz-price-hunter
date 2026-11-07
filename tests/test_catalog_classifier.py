@@ -509,6 +509,63 @@ class TestCatalogClassifier(unittest.TestCase):
         self.assertEqual(attrs_book.get("type"), "Книги и учебная литература")
         self.assertEqual(attrs_book.get("author"), "Мұртаза Ш.")
 
+    def test_wave9_attribute_indexing_and_drift_prevention(self):
+        from domain.attribute_indexing import extract_title_attributes
+        from domain.feed_categories import section_category
+
+        # 1. Защита от дрейфа категорий: промо-акции и слишком общие разделы отфильтровываются (None), конкретные секции мапятся
+        self.assertIsNone(section_category("Распродажа"))
+        self.assertIsNone(section_category("Все акции и скидки"))
+        self.assertIsNone(section_category("Электроника"))
+        self.assertEqual(section_category("перфораторы"), "tools_repair")
+        self.assertEqual(section_category("внешние аккумуляторы"), "cables_chargers")
+
+        # 2. Материнские платы (B550, AM4, ATX)
+        attrs_mb = extract_title_attributes("Материнская плата Gigabyte B550 AORUS ELITE V2")
+        self.assertEqual(attrs_mb.get("chipset"), "B550")
+        self.assertEqual(attrs_mb.get("socket"), "AM4")
+
+        # 3. Процессоры без слова 'процессор'
+        attrs_cpu = extract_title_attributes("AMD Ryzen 7 7800X3D OEM")
+        self.assertEqual(attrs_cpu.get("socket"), "AM5")
+        self.assertEqual(attrs_cpu.get("cpu_family"), "AMD Ryzen 7")
+
+        # 4. Видеокарты (8GD суффикс)
+        attrs_gpu = extract_title_attributes("Видеокарта Gigabyte GeForce RTX 4060 EAGLE OC 8GD")
+        self.assertEqual(attrs_gpu.get("chipset"), "GeForce RTX 4060")
+        self.assertEqual(attrs_gpu.get("vram"), "8 ГБ")
+
+        # 5. Блоки питания (PF750)
+        attrs_psu = extract_title_attributes("Блок питания Deepcool PF750L 750W")
+        self.assertEqual(attrs_psu.get("power"), "750 Вт")
+
+        # 6. Жесткие диски HDD
+        attrs_hdd = extract_title_attributes("Жесткий диск Seagate Barracuda 2TB 3.5 7200rpm")
+        self.assertEqual(attrs_hdd.get("storage"), "2 ТБ")
+        self.assertEqual(attrs_hdd.get("form_factor"), '3.5"')
+        self.assertEqual(attrs_hdd.get("type"), "Внутренний жесткий диск (HDD)")
+
+        # 7. Товары для малышей
+        attrs_baby = extract_title_attributes("Смесь молочная с 6 месяцев 400 г")
+        self.assertEqual(attrs_baby.get("type"), "Молочные смеси")
+        self.assertEqual(attrs_baby.get("age_from"), "с 6 мес.")
+        self.assertEqual(attrs_baby.get("pack_weight"), "400 г")
+
+        # 8. Обувь (Ботфорты)
+        attrs_boots = extract_title_attributes("Ботфорты женские зимние")
+        self.assertEqual(attrs_boots.get("type"), "Сапоги")
+        self.assertEqual(attrs_boots.get("gender"), "Женские")
+        self.assertEqual(attrs_boots.get("season"), "Зимние")
+
+        # 9. Зоотовары (Диспенсер)
+        attrs_pet = extract_title_attributes("Диспенсер воды для домашних животных")
+        self.assertEqual(attrs_pet.get("type"), "Аксессуары и уход")
+
+        # 10. Кабели и переходники
+        attrs_adapter = extract_title_attributes("Адаптер HDMI - VGA")
+        self.assertEqual(attrs_adapter.get("type"), "Переходник / Концентратор (Hub)")
+        self.assertEqual(attrs_adapter.get("connector"), "HDMI")
+
 
 if __name__ == "__main__":
     unittest.main()
