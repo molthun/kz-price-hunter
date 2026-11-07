@@ -66,27 +66,28 @@ def _move_product(conn: sqlite3.Connection, pid: str, target_cat: str, now_iso: 
     now_ts = datetime.now(timezone.utc).timestamp()
     conn.execute(
         """
-        UPDATE canonical_products
-        SET category = ?, updated_at = ?
-        WHERE id = ?
+        INSERT INTO product_category_tags (product_id, category_id, source, source_signature, reason, updated_at)
+        VALUES (?, ?, 'rules', 'wave10', ?, ?)
+        ON CONFLICT(product_id) DO UPDATE SET
+            category_id = excluded.category_id,
+            source = excluded.source,
+            source_signature = excluded.source_signature,
+            reason = excluded.reason,
+            updated_at = excluded.updated_at
         """,
-        (target_cat, now_iso, pid),
+        (pid, cat_id, reason, now_ts),
     )
     conn.execute(
         """
-        INSERT INTO product_category_tags (product_id, category_id, is_primary, confidence, source, created_at)
-        VALUES (?, ?, 1, 0.99, 'wave10_rule', ?)
-        ON CONFLICT(product_id, category_id) DO UPDATE SET is_primary=1, confidence=0.99
+        INSERT OR REPLACE INTO category_ai_verdicts
+            (product_id, old_category, new_category, confidence, model, applied, decided_at)
+        VALUES (?, NULL, ?, 0.99, ?, 1, ?)
         """,
-        (pid, cat_id, now_ts),
+        (pid, target_cat, reason, now_iso),
     )
     conn.execute(
-        """
-        INSERT INTO category_ai_verdicts (product_id, category_name, confidence, source, reason, created_at)
-        VALUES (?, ?, 0.99, 'wave10_rule', ?, ?)
-        ON CONFLICT(product_id) DO UPDATE SET category_name=?, confidence=0.99, reason=?, created_at=?
-        """,
-        (pid, target_cat, reason, now_iso, target_cat, reason, now_iso),
+        "UPDATE canonical_products SET category = ? WHERE id = ?",
+        (target_cat, pid),
     )
 
 
