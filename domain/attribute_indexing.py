@@ -1044,7 +1044,7 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
     if m_scr:
         attrs['screen_size'] = f'{m_scr.group(1).replace(",", ".")}"'
 
-    is_laptop_item = bool(re.search(r'\b(ноутбук\w*|ультрабук\w*|macbook|laptop|notebook)\b', title, re.I)) and not bool(
+    is_laptop_item = bool(re.search(r'\b(ноутбук\w*|ультрабук\w*|macbook|laptop|notebook|ideapad|vivobook|zenbook|thinkpad|thinkbook|elitebook|probook|victus|omen\b|legion\b|swift\b|aspire\b|travelmate|matebook|magicbook|expertbook|pavilion|spectre|latitude|vostro|inspiron)\b', title, re.I)) and not bool(
         re.search(r'\b(сумк\w*\s+для|рюкзак\w*\s+для|чехол\w*\s+для|подставк\w*\s+для|столик\s+для|зарядн\w*\s+для|блок\s+питания\s+для|аккумулятор\s+для|батарея\s+для|матрица\s+для|клавиатура\s+для|кулер\s+для|вентилятор\s+для|охлаждающ\w*\s+подставк\w*|пленк\w*\s+для|стекл\w*\s+для)\b', title, re.I)
     )
     if is_laptop_item:
