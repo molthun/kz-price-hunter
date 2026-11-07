@@ -1476,8 +1476,8 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
                 if not any(re.search(p, rest) for p, c in COLOR_PATTERNS if c == attrs['color']):
                     attrs.pop('color')
 
-        # SSD и накопители (включая внешние и внутренние HDD)
-        is_ssd = bool(re.search(r'\b(ssd|накопитель|nvme|жесткий\s+диск|жесткие\s+диски|\bhdd\b)\b', title, re.I))
+        # SSD и накопители (включая внешние и внутренние HDD, только если это не ноутбук/ПК)
+        is_ssd = bool(re.search(r'\b(ssd|накопитель|nvme|жесткий\s+диск|жесткие\s+диски|\bhdd\b)\b', title, re.I)) and not is_laptop_item and not bool(re.search(r'\b(ноутбук\w*|моноблок\w*|системн\w*\s+блок|компьютер\b)\b', title, re.I))
         if is_ssd:
             if re.search(r'\b(внешн\w*\s+жестк\w*\s+диск|внешний\s+hdd|storejet|elements\s+portable|canvio|expansion\s+portable)\b', title, re.I):
                 attrs['type'] = 'Внешний жесткий диск'
