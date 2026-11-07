@@ -101,7 +101,12 @@ MASTER_TAXONOMY: List[Category] = [
             "sip телефоны", "sip телефон", "офисные телефоны", "офисный телефон",
             "базовые станции dect", "voip телефоны", "voip телефон",
         ],
-        attributes_schema={"type": "string", "screen": "bool", "interfaces": "list"},
+        attributes_schema={
+            "type": {"label": "Тип телефона", "type": "string"},
+            "connection_type": {"label": "Тип связи", "type": "string"},
+            "poe": {"label": "Поддержка PoE", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="laptops",
@@ -422,7 +427,13 @@ MASTER_TAXONOMY: List[Category] = [
         name="Программы",
         icon="💿",
         search_priority=77,
-        aliases=["антивирусы", "операционные системы", "офисные программы"],
+        aliases=["антивирусы", "операционные системы", "офисные программы", "программное обеспечение", "лицензии"],
+        attributes_schema={
+            "type": {"label": "Вид ПО", "type": "string"},
+            "license_term": {"label": "Срок лицензии", "type": "string"},
+            "devices_count": {"label": "Количество устройств", "type": "string"},
+            "delivery_type": {"label": "Тип поставки", "type": "string"},
+        },
     ),
     Category(
         id="audio",
@@ -1182,6 +1193,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="⚽",
         search_priority=55,
         aliases=["спорт", "спорт и отдых", "тренажеры", "туризм", "велосипеды", "sport"],
+        attributes_schema={
+            "type": {"label": "Вид спорта и транспорта", "type": "string"},
+            "wheel_size": {"label": "Диаметр колес", "type": "string"},
+            "power": {"label": "Мощность", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="bicycles",
@@ -1189,7 +1206,13 @@ MASTER_TAXONOMY: List[Category] = [
         name="Велосипеды и самокаты",
         icon="🚲",
         search_priority=54,
-        aliases=["велосипеды", "самокаты", "электросамокаты", "скейтборды"],
+        aliases=["велосипеды", "самокаты", "электросамокаты", "скейтборды", "гироскутеры", "моноколеса", "беговелы"],
+        attributes_schema={
+            "type": {"label": "Тип транспорта", "type": "string"},
+            "wheel_size": {"label": "Диаметр колес", "type": "string"},
+            "power_supply": {"label": "Привод", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="fitness",
@@ -1197,7 +1220,12 @@ MASTER_TAXONOMY: List[Category] = [
         name="Фитнес и тренажеры",
         icon="🏋️",
         search_priority=53,
-        aliases=["тренажеры", "гантели", "коврики для фитнеса", "эспандеры", "беговые дорожки"],
+        aliases=["тренажеры", "гантели", "коврики для фитнеса", "эспандеры", "беговые дорожки", "дорожки для ходьбы"],
+        attributes_schema={
+            "type": {"label": "Вид тренажера / инвентаря", "type": "string"},
+            "pack_weight": {"label": "Вес", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="tourism",

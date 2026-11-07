@@ -509,6 +509,47 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         self.assertEqual(pv1.get('type'), 'Веб-камера / Стриминг')
         self.assertEqual(pv1.get('resolution'), 'Full HD 1080p')
 
+        # 18. Волна 6: ПО, Телефония, Велосипеды и самокаты, Автозапчасти, Бронепленки, Книги, Мебель, Батарейки
+        sw_lic = extract_title_attributes('Антивирус Dr. Web Security Space, 24 мес., 3 ПК, Электронный ключ')
+        self.assertEqual(sw_lic.get('type'), 'Антивирус и безопасность')
+        self.assertEqual(sw_lic.get('license_term'), '2 года (24 мес.)')
+        self.assertEqual(sw_lic.get('devices_count'), '3 ПК')
+        self.assertEqual(sw_lic.get('delivery_type'), 'Электронный ключ (ESD)')
+
+        tel1 = extract_title_attributes('Радио-телефон Panasonic KX-TG1711CAB, Black')
+        self.assertEqual(tel1.get('type'), 'Радиотелефон (DECT)')
+        self.assertEqual(tel1.get('connection_type'), 'Беспроводной DECT')
+
+        bike1 = extract_title_attributes('Детский велосипед Ninebot Kids Bike 16" (N1KB16/RED)')
+        self.assertEqual(bike1.get('type'), 'Велосипед')
+        self.assertEqual(bike1.get('wheel_size'), '16"')
+        self.assertEqual(bike1.get('power_supply'), 'Механический')
+
+        scoot1 = extract_title_attributes('Электросамокат Ninebot KickScooter ES4, Black')
+        self.assertEqual(scoot1.get('type'), 'Электросамокат')
+        self.assertEqual(scoot1.get('power_supply'), 'Электрический (АКБ)')
+
+        auto_part = extract_title_attributes('Stellox сайлентблок рычага подвески 87-98072-SX')
+        self.assertEqual(auto_part.get('type'), 'Автозапчасти, подвеска и фильтры')
+
+        film1 = extract_title_attributes('ТПУ Бронепленка Devia, Soft Protective Front Film (update), глянцевая')
+        self.assertEqual(film1.get('type'), 'Защитная пленка')
+
+        book_auth = extract_title_attributes('Беляков Л. М.: Поколение без фильтра: иллюстрированная биография группы Nirvana')
+        self.assertEqual(book_auth.get('type'), 'Книги и учебная литература')
+        self.assertEqual(book_auth.get('author'), 'Беляков Л. М.')
+
+        furn_divan = extract_title_attributes('Льери 160 Велюр Розовый')
+        self.assertEqual(furn_divan.get('type'), 'Диван')
+        self.assertEqual(furn_divan.get('material'), 'Велюр')
+
+        cbl_int = extract_title_attributes('Кабель интерфейсный для Apple Lightning Ship API08BB, Black')
+        self.assertEqual(cbl_int.get('type'), 'Кабель')
+        self.assertEqual(cbl_int.get('connector'), 'Lightning')
+
+        bat1 = extract_title_attributes('Батарейка литиевая CR2032 Camelion')
+        self.assertEqual(bat1.get('type'), 'Батарейки и элементы питания')
+
     def test_category_schema_and_search_priority_orders(self):
         from domain.category import MASTER_TAXONOMY
         from repositories.category_repo import CategoryRepository
@@ -524,7 +565,8 @@ class AttributeFacetsFilterTests(unittest.TestCase):
                        'home', 'home_textile', 'garden', 'food', 'drinks', 'dairy', 'meat_poultry',
                        'medicine', 'household_chem', 'kids', 'baby_care', 'baby_food', 'strollers',
                        'makeup', 'haircare', 'skincare', 'auto', 'phone_cases', 'printer_ink',
-                       'tourism', 'board_games', 'photo_video'):
+                       'tourism', 'board_games', 'photo_video', 'software', 'telephony',
+                       'bicycles', 'sport', 'fitness', 'phone_glass', 'car_electronics'):
             self.assertIn(cat_id, cats)
             self.assertGreater(len(cats[cat_id].attributes_schema), 0)
 

@@ -457,6 +457,11 @@ class TestCatalogClassifier(unittest.TestCase):
                 self.assertIsNotNone(res, f"Expected rule match for {title}")
                 self.assertEqual(res.category_id, expected_cat_id, f"Expected {expected_cat_id} for {title}, got {res.category_id}")
 
+        self.assertEqual(self.classifier.extract_brand("Антивирус Dr. Web Security Space, 12 мес."), "Dr.Web")
+        self.assertEqual(self.classifier.extract_brand("ТПУ Бронепленка Devia, глянцевая"), "Devia")
+        self.assertEqual(self.classifier.extract_brand("Электросамокат Ninebot KickScooter ES4"), "Ninebot")
+        self.assertEqual(self.classifier.extract_brand("Stellox стойка стабилизатора 5672019SX"), "Stellox")
+
 
 if __name__ == "__main__":
     unittest.main()
