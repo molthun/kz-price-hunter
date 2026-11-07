@@ -51,6 +51,7 @@ from domain.feed_categories import section_category
 
 CANONICAL_CATEGORY_NAMES = {c.name for c in MASTER_TAXONOMY}
 NAME_TO_ID = {c.name: c.id for c in MASTER_TAXONOMY}
+ID_TO_NAME = {c.id: c.name for c in MASTER_TAXONOMY}
 
 WAVE9_TARGET_CATEGORIES = [
     # PC Components
@@ -94,16 +95,19 @@ WAVE9_TARGET_CATEGORIES = [
 
 def _move_product(conn: sqlite3.Connection, pid: str, target_cat: str, now_iso: str, reason: str = "wave9_reclass") -> None:
     cat_id = NAME_TO_ID.get(target_cat, "electronics")
+    now_ts = datetime.now(timezone.utc).timestamp()
     conn.execute(
         """
-        INSERT INTO product_category_tags (product_id, category_id, source, tagged_at)
-        VALUES (?, ?, 'rules', ?)
+        INSERT INTO product_category_tags (product_id, category_id, source, source_signature, reason, updated_at)
+        VALUES (?, ?, 'rules', 'wave9', ?, ?)
         ON CONFLICT(product_id) DO UPDATE SET
             category_id = excluded.category_id,
             source = excluded.source,
-            tagged_at = excluded.tagged_at
+            source_signature = excluded.source_signature,
+            reason = excluded.reason,
+            updated_at = excluded.updated_at
         """,
-        (pid, cat_id, now_iso),
+        (pid, cat_id, reason, now_ts),
     )
     conn.execute(
         """
@@ -219,7 +223,7 @@ def _infer_fallback_attrs(category: str, title: str, src_cat: str) -> Dict[str, 
 
 def run_enrichment(db_path: str = "prices.db") -> None:
     if not os.path.exists(db_path):
-        print(f"Error: Database {db_path} does not exist.")
+        print(f"Error: Database {db_path} does not exist.", flush=True)
         sys.exit(1)
 
     conn = sqlite3.connect(db_path)
@@ -227,59 +231,62 @@ def run_enrichment(db_path: str = "prices.db") -> None:
     now_iso = datetime.now(timezone.utc).isoformat()
     classifier = CatalogClassifier()
 
-    print(f"=== Wave 9 Enrichment on {db_path} ({now_iso}) ===")
+    print(f"=== Wave 9 Enrichment on {db_path} ({now_iso}) ===", flush=True)
 
     # Step 1: Detect and migrate non-canonical categories
-    print("[1/5] Detecting non-canonical category drift...")
+    print("[1/5] Detecting non-canonical category drift...", flush=True)
+    canon_placeholders = ",".join("?" for _ in CANONICAL_CATEGORY_NAMES)
     drift_rows = conn.execute(
-        """
+        f"""
         SELECT p.id, p.title, p.category,
-               COALESCE(s.name, '') AS seller_name,
-               COALESCE(o.raw_payload, '{}') AS raw_payload
+               COALESCE(src.src_shop, '') AS seller_name,
+               COALESCE(src.src_cat, '') AS raw_category
         FROM canonical_products p
-        LEFT JOIN offers o ON o.product_id = p.id
-        LEFT JOIN sellers s ON s.id = o.seller_id
-        GROUP BY p.id
-        HAVING p.category IS NULL
+        LEFT JOIN (
+            SELECT o.product_id, MAX(COALESCE(pr.category, '')) as src_cat, MAX(COALESCE(pr.shop, '')) as src_shop
+            FROM offers o
+            JOIN products pr ON pr.url = o.url
+            GROUP BY o.product_id
+        ) src ON src.product_id = p.id
+        WHERE p.category IS NULL
            OR TRIM(p.category) = ''
-           OR p.category NOT IN (SELECT name FROM MASTER_TAXONOMY)
-        """
+           OR p.category NOT IN ({canon_placeholders})
+        """,
+        tuple(CANONICAL_CATEGORY_NAMES),
     ).fetchall()
 
-    print(f"Found {len(drift_rows)} products in non-canonical or empty categories.")
+    print(f"Found {len(drift_rows)} products in non-canonical or empty categories.", flush=True)
     drift_migrated = 0
     for r in drift_rows:
         pid = r["id"]
         title = r["title"] or ""
         old_cat = r["category"] or ""
         seller = r["seller_name"] or ""
-        raw_cat = ""
-        try:
-            payload = json.loads(r["raw_payload"] or "{}")
-            raw_cat = payload.get("category", "") or payload.get("category_name", "")
-        except Exception:
-            pass
+        raw_cat = r["raw_category"] or ""
 
-        # Try classifier first
-        new_cat, _conf = classifier.classify(title, raw_cat, seller)
-        if not new_cat or new_cat not in CANONICAL_CATEGORY_NAMES:
+        # Deterministic rule matching first
+        rule = classifier.classify_rules(title)
+        new_cat = rule.category_name if (rule and rule.category_name in CANONICAL_CATEGORY_NAMES) else ""
+        if not new_cat:
             # Fallback to section_category on raw_cat
-            sc = section_category(raw_cat)
-            if sc in CANONICAL_CATEGORY_NAMES:
-                new_cat = sc
-            elif old_cat and section_category(old_cat) in CANONICAL_CATEGORY_NAMES:
-                new_cat = section_category(old_cat)
-            else:
+            sc_id = section_category(raw_cat)
+            if sc_id and sc_id in ID_TO_NAME:
+                new_cat = ID_TO_NAME[sc_id]
+            elif old_cat:
+                sc_old = section_category(old_cat)
+                if sc_old and sc_old in ID_TO_NAME:
+                    new_cat = ID_TO_NAME[sc_old]
+            if not new_cat or new_cat not in CANONICAL_CATEGORY_NAMES:
                 new_cat = "Электроника"
 
         _move_product(conn, pid, new_cat, now_iso, reason="wave9_drift_fix")
         drift_migrated += 1
 
     conn.commit()
-    print(f"[1/5] Completed drift migration: {drift_migrated} products re-assigned to canonical categories.")
+    print(f"[1/5] Completed drift migration: {drift_migrated} products re-assigned to canonical categories.", flush=True)
 
     # Step 2: Cross-category cleanup for PC components & consumer categories
-    print("[2/5] Running cross-category precision checks...")
+    print("[2/5] Running cross-category precision checks...", flush=True)
     cross_cleanup = 0
 
     # Motherboards misfiled into Электроника / Компьютеры и ПК
@@ -358,47 +365,35 @@ def run_enrichment(db_path: str = "prices.db") -> None:
         cross_cleanup += 1
 
     conn.commit()
-    print(f"[2/5] Cross-category cleanup moved {cross_cleanup} items to exact component categories.")
+    print(f"[2/5] Cross-category cleanup moved {cross_cleanup} items to exact component categories.", flush=True)
 
     # Step 3: Cache offer raw facts
-    print("[3/5] Loading offer facts...")
+    print("[3/5] Loading offer facts...", flush=True)
     facts_map: Dict[str, List[Tuple[str, str]]] = {}
     src_info: Dict[str, Tuple[str, str]] = {}
     try:
-        fact_rows = conn.execute(
+        for r in conn.execute(
             """
-            SELECT o.product_id, o.raw_payload, s.name as seller_name
+            SELECT o.product_id, MAX(COALESCE(pr.category, '')) as src_cat, MAX(COALESCE(pr.shop, '')) as src_shop
             FROM offers o
-            JOIN sellers s ON s.id = o.seller_id
-            WHERE o.product_id IS NOT NULL
+            JOIN products pr ON pr.url = o.url
+            GROUP BY o.product_id
             """
-        ).fetchall()
-        for fr in fact_rows:
-            pid = fr["product_id"]
-            if not pid:
-                continue
-            try:
-                payload = json.loads(fr["raw_payload"] or "{}")
-            except Exception:
-                continue
-            sc = payload.get("category", "") or payload.get("category_name", "") or ""
-            sn = fr["seller_name"] or ""
-            if pid not in src_info:
-                src_info[pid] = (sc, sn)
-            specs = payload.get("specifications") or payload.get("specs") or payload.get("characteristics")
-            if isinstance(specs, dict):
-                for k, v in specs.items():
-                    if isinstance(v, (str, int, float)) and str(v).strip():
-                        facts_map.setdefault(pid, []).append((str(k), str(v).strip()))
-            elif isinstance(specs, list):
-                for item in specs:
-                    if isinstance(item, dict):
-                        k = item.get("name") or item.get("title") or item.get("key")
-                        v = item.get("value") or item.get("val")
-                        if k and v:
-                            facts_map.setdefault(pid, []).append((str(k), str(v).strip()))
+        ).fetchall():
+            src_info[r["product_id"]] = (r["src_cat"] or "", r["src_shop"] or "")
     except Exception as e:
-        print(f"Warning loading facts: {e}")
+        print(f"Warning loading src_info: {e}", flush=True)
+
+    try:
+        for r in conn.execute(
+            "SELECT product_id, facts_json FROM product_source_evidence WHERE status = 'ready' AND facts_json != '[]'"
+        ).fetchall():
+            try:
+                facts_map[r["product_id"]] = json.loads(r["facts_json"])
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"Warning loading facts: {e}", flush=True)
 
     # Step 4: Index attributes for all Wave 9 categories
     placeholders = ",".join("?" for _ in WAVE9_TARGET_CATEGORIES)
@@ -411,7 +406,7 @@ def run_enrichment(db_path: str = "prices.db") -> None:
         WAVE9_TARGET_CATEGORIES,
     ).fetchall()
 
-    print(f"[4/5] Re-indexing attributes for {len(target_rows)} products across Wave 9 categories...")
+    print(f"[4/5] Re-indexing attributes for {len(target_rows)} products across Wave 9 categories...", flush=True)
     indexed_attrs = 0
     fallback_applied = 0
 
@@ -449,10 +444,10 @@ def run_enrichment(db_path: str = "prices.db") -> None:
             conn.commit()
 
     conn.commit()
-    print(f"[5/5] Indexed {indexed_attrs} attributes across {len(target_rows)} products (fallback applied to {fallback_applied} products).")
+    print(f"[5/5] Indexed {indexed_attrs} attributes across {len(target_rows)} products (fallback applied to {fallback_applied} products).", flush=True)
 
     # Summary table
-    print("\n=== Wave 9 Category Coverage Summary ===")
+    print("\n=== Wave 9 Category Coverage Summary ===", flush=True)
     for cat in WAVE9_TARGET_CATEGORIES:
         tot = conn.execute("SELECT COUNT(*) FROM canonical_products WHERE category = ?", (cat,)).fetchone()[0]
         if tot == 0:
