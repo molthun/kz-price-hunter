@@ -462,6 +462,53 @@ class TestCatalogClassifier(unittest.TestCase):
         self.assertEqual(self.classifier.extract_brand("Электросамокат Ninebot KickScooter ES4"), "Ninebot")
         self.assertEqual(self.classifier.extract_brand("Stellox стойка стабилизатора 5672019SX"), "Stellox")
 
+    def test_wave8_attribute_indexing_and_brands(self):
+        from domain.attribute_indexing import extract_title_attributes
+
+        # 1. Мебель (Mebel.kz cabinets/beds, gaming chairs)
+        attrs_cab = extract_title_attributes("Кимбол 3-150x210 Белый/Черный")
+        self.assertEqual(attrs_cab.get("type"), "Шкаф / Комод / Тумба")
+        self.assertEqual(attrs_cab.get("bed_size"), "150x210 см")
+
+        attrs_bed = extract_title_attributes("Шелтон 160 Латте")
+        self.assertEqual(attrs_bed.get("type"), "Кровать / Матрас")
+        self.assertEqual(attrs_bed.get("bed_size"), "160x200 см")
+
+        attrs_chair = extract_title_attributes("Игровое компьютерное кресло E-BLUE Cobra")
+        self.assertEqual(attrs_chair.get("type"), "Игровое / Компьютерное кресло")
+
+        # 2. Аудиотехника (plural Колонки)
+        attrs_spk = extract_title_attributes("Колонки Microlab B56 (2.0), Black, USB")
+        self.assertEqual(attrs_spk.get("type"), "Стационарная / Компьютерная акустика")
+        self.assertEqual(attrs_spk.get("wireless"), "Нет")
+
+        # 3. Зоотовары (Корм ... для взрослых кошек)
+        attrs_cat = extract_title_attributes("Беззерновой корм Farmina N&D Prime для взрослых кошек, 1.5 кг")
+        self.assertEqual(attrs_cat.get("type"), "Сухой корм")
+        self.assertEqual(attrs_cat.get("pet_type"), "Для кошек")
+        self.assertEqual(attrs_cat.get("pet_age"), "Для взрослых (Adult)")
+        self.assertEqual(attrs_cat.get("pack_weight"), "1.5 кг")
+
+        # 4. Лекарства и витамины (Europharma trailing dosage forms)
+        attrs_med = extract_title_attributes("АЦЦ Хот Дринк 3 гр № 6 пакетики")
+        self.assertEqual(attrs_med.get("type"), "Порошки и гранулы (саше)")
+        self.assertEqual(attrs_med.get("pieces_count"), "6 шт.")
+
+        attrs_oint = extract_title_attributes("Капсикам д/наруж применения 30 гр мазь")
+        self.assertEqual(attrs_oint.get("type"), "Мази, гели и суппозитории")
+
+        # 5. Электроника (Smart Home & Laptop stands)
+        attrs_stand = extract_title_attributes("Подставка для ноутбука Eco Estelar LPD01-12, Silver")
+        self.assertEqual(attrs_stand.get("type"), "Подставка / Держатель / Кронштейн")
+
+        attrs_hub = extract_title_attributes("Центр управления Xiaomi Smart Home Hub 2 ZNDMWG04LM")
+        self.assertEqual(attrs_hub.get("type"), "Умный дом и смарт-освещение")
+
+        # 6. Книги на казахском языке
+        attrs_book = extract_title_attributes("Мұртаза Ш.: Қызыл жебе. 1-кітап")
+        self.assertEqual(attrs_book.get("type"), "Книги и учебная литература")
+        self.assertEqual(attrs_book.get("author"), "Мұртаза Ш.")
+
 
 if __name__ == "__main__":
     unittest.main()
