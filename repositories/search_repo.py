@@ -1119,7 +1119,7 @@ class SearchRepository(BaseRepository):
                 pass
         priority_orders = {
             'diapers_hygiene': ['diaper_type', 'diaper_size', 'weight_range', 'pieces_count'],
-            'tv': ['screen_diagonal', 'resolution', 'screen_tech', 'smart_tv', 'refresh_rate', 'color'],
+            'tv': ['type', 'screen_diagonal', 'resolution', 'screen_tech', 'smart_tv', 'refresh_rate', 'color'],
             'monitors': ['screen_size', 'refresh_rate', 'panel_type', 'resolution', 'aspect_ratio', 'curved', 'color'],
             'air_conditioners': ['type', 'power_btu', 'area_sqm', 'inverter', 'color'],
             'headphones': ['type', 'wireless', 'interface', 'anc', 'microphone', 'color'],
@@ -1183,9 +1183,9 @@ class SearchRepository(BaseRepository):
             'baby_bath_care': ['type', 'volume_ml', 'color'],
             'nursery_sleep': ['type', 'bed_size', 'color'],
             'strollers': ['type', 'weight_range', 'color'],
-            'baby_toys': ['type', 'age_from', 'color'],
+            'baby_toys': ['type', 'age_from', 'pieces_count', 'color'],
             'baby_care': ['type', 'age_from', 'pack_weight', 'volume_ml', 'pieces_count', 'color'],
-            'toys': ['type', 'lego_series', 'pieces_count'],
+            'toys': ['type', 'lego_series', 'pieces_count', 'color'],
             'books_stationery': ['type', 'paper_format', 'pieces_count', 'color'],
             'tourism': ['type', 'capacity', 'color'],
             'sport': ['type', 'wheel_size', 'power', 'color'],

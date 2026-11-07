@@ -777,8 +777,43 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
         if 'зимн' in low or 'зима' in low or 'winter' in low:
             return 'Зимние'
 
+    if key == 'gender':
+        low = val.casefold().strip()
+        if low in ('девочки', 'для девочек', 'девочка', 'для девочки'):
+            return 'Для девочек'
+        if low in ('мальчики', 'для мальчиков', 'мальчик', 'для мальчика'):
+            return 'Для мальчиков'
+        if low in ('женский', 'женские', 'женская', 'для женщин'):
+            return 'Женские'
+        if low in ('мужской', 'мужские', 'мужская', 'для мужчин'):
+            return 'Мужские'
+        if low in ('детский', 'детские', 'детская', 'для детей'):
+            return 'Детские'
+        if low in ('унисекс', 'unisex'):
+            return 'Унисекс'
+        return val.strip()[:60] if val.strip() else None
+
+    if key == 'form_factor':
+        low = val.casefold().strip()
+        if low in ('midi-башня', 'midi-tower', 'mid-tower', 'mid tower', 'midi tower'):
+            return 'Mid-Tower / ATX'
+        if low in ('mini-башня', 'mini-tower', 'mini tower'):
+            return 'Mini-Tower / Micro-ATX'
+        if low in ('full-башня', 'full-tower', 'full tower'):
+            return 'Full-Tower / E-ATX'
+
+    if key == 'type':
+        v_clean = val.strip()
+        low = v_clean.casefold()
+        if low == 'сплит-система':
+            return 'Сплит-система'
+        if low in ('мульти-сплит-система', 'мульти сплит система', 'мульти-сплит система'):
+            return 'Мульти-сплит система'
+        if v_clean and v_clean[0].islower():
+            return v_clean[0].upper() + v_clean[1:80]
+
     if key in ('platform', 'disc_drive', 'cpu_family', 'delivery_type', 'side_window', 'backlight',
-               'psu_included', 'power_va', 'connector', 'gender', 'apparel_size', 'bed_size',
+               'psu_included', 'power_va', 'connector', 'apparel_size', 'bed_size',
                'power_supply', 'voltage', 'volume_ml', 'lego_series', 'microphone', 'strap_material',
                'fan_size', 'lamp_base', 'color_temp', 'diameter_cm', 'pet_type', 'pet_age', 'pack_weight',
                'fat_content', 'dosage', 'age_from', 'spf', 'license_term', 'devices_count', 'wheel_size'):
@@ -873,6 +908,8 @@ _classifier = None
 
 
 def _is_whole_device(title: str) -> bool:
+    if re.search(r'^\s*(?:компьютерн\w*\s+корпус|корпус(?:\s+для\s+пк|\s+компьютерн\w*)?)\b', title, re.I) and not _WHOLE_DEVICE_SIGNS.search(title):
+        return False
     if _WHOLE_DEVICE_WORDS.search(title) or _WHOLE_DEVICE_SIGNS.search(title):
         return True
     global _classifier
@@ -908,7 +945,7 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         if r_val in (4, 6, 8, 12, 16, 24, 32, 48, 64, 128):
             attrs['ram'] = f"{r_val} ГБ"
 
-    # 3. RAM + Storage combo: 8GB/256GB, 16/512 ГБ, 16/1TB
+    # 3. RAM + Storage combo: 8GB/256GB, 16/512 ГБ, 16/1TB, а также (4/128), (6/128), 8/256, 2GB/32GB
     if 'storage' not in attrs:
         m_combo = re.search(r'(?i)\b(\d+)\s*(?:gb|гб)?\s*[/+]\s*(\d+\s*(?:gb|гб|tb|тб))\b', title)
         if m_combo:
@@ -919,12 +956,25 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
                 norm_s = normalize_attribute_value('storage', s_cand)
                 s_num = int(re.match(r'\d+', s_cand).group(0)) if re.match(r'\d+', s_cand) else 0
                 is_tb = 'tb' in s_cand.lower() or 'тб' in s_cand.lower()
-                # В комбо емкость накопителя всегда >= 64 ГБ
-                if r_cand in (2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64) and (is_tb or s_num >= 64):
+                # В комбо емкость накопителя >= 32 ГБ и строго больше ОЗУ
+                if r_cand in (2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64) and (is_tb or (s_num >= 32 and r_cand < s_num)):
                     if 'ram' not in attrs:
                         attrs['ram'] = f"{r_cand} ГБ"
                     if norm_s:
                         attrs['storage'] = norm_s
+        else:
+            # Безразмерное комбо в скобках (4/128), (6/128), (8/256) или в смартфоне/планшете/ноутбуке
+            m_combo_ul = re.search(r'(?i)(?:\(\s*(\d{1,2})\s*[/+]\s*(32|64|128|256|512|1024)\s*\)|\b(2|3|4|6|8|12|16|24|32)\s*[/]\s*(32|64|128|256|512|1024)\b)', title)
+            if m_combo_ul:
+                has_parens = m_combo_ul.group(1) is not None
+                r_cand = int(m_combo_ul.group(1) or m_combo_ul.group(3))
+                s_num = int(m_combo_ul.group(2) or m_combo_ul.group(4))
+                if r_cand in (2, 3, 4, 6, 8, 12, 16, 24, 32) and r_cand < s_num and (
+                    has_parens or re.search(r'\b(смартфон\w*|телефон\w*|планшет\w*|ноутбук\w*|моноблок\w*|iphone|ipad|galaxy|redmi|poco|xiaomi|honor|huawei|oppo|vivo|realme|tecno|infinix|oneplus|nothing|pixel|motorola|nokia)\b', title, re.I)
+                ):
+                    if 'ram' not in attrs:
+                        attrs['ram'] = f"{r_cand} ГБ"
+                    attrs['storage'] = "1 ТБ" if s_num == 1024 else f"{s_num} ГБ"
 
     # 4. Явный накопитель с маркером (SSD, M.2, HDD, NVMe, накопитель)
     if 'storage' not in attrs:
@@ -948,7 +998,7 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             r_val = int(m_r_exp.group(1) or m_r_exp.group(2))
             attrs['ram'] = f"{r_val} ГБ"
 
-    # 6. Standalone Storage (128GB, 256 ГБ, 512GB, 1TB, 1024 Гб)
+    # 6. Standalone Storage (128GB, 256 ГБ, 512GB, 1TB, 1024 Гб, а для смартфонов/планшетов также 32GB)
     if 'storage' not in attrs:
         m_s = re.search(r'(?i)\b(64|128|256|512|1024|2048)\s*(?:gb|гб)\b|\b([124])\s*(?:tb|тб)\b', title)
         if m_s:
@@ -956,6 +1006,14 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             norm_s = normalize_attribute_value('storage', raw_s)
             if norm_s:
                 attrs['storage'] = norm_s
+        elif re.search(r'(?i)\b(смартфон\w*|сотов\w*\s+телефон\w*|мобильн\w*\s+телефон\w*|планшет\w*|iphone|ipad|galaxy\s+[aszm]|redmi|honor|huawei|oppo|vivo|realme|tecno|infinix|nokia)\b', title):
+            m_s32 = re.search(r'(?i)\b(16|32)\s*(?:gb|гб)\b', title)
+            if m_s32:
+                attrs['storage'] = f"{m_s32.group(1)} ГБ"
+            else:
+                m_paren_st = re.search(r'\(\s*(32|64|128|256|512)\s*\)', title)
+                if m_paren_st:
+                    attrs['storage'] = f"{m_paren_st.group(1)} ГБ"
 
     # 7. Для целых устройств: если накопитель уже известен, оставшееся круглое число ГБ — это ОЗУ
     if 'ram' not in attrs and 'storage' in attrs and _is_whole_device(title):
@@ -973,10 +1031,55 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         if m_r:
             attrs['ram'] = f"{m_r.group(1)} ГБ"
 
-    # 5. Screen size (15.6", 14", 27", 24", 6.1", 6.7")
-    m_scr = re.search(r'\b(5\.[4-9]|6\.[1-9]|7\.[0-9]|1[1-7](?:\.[0-9])?|2[4-9]|3[2-4])\s*(?:"|\'\'|дюйм)', title)
+    # 5. Screen size (15.6", 14", 27", 24", 6.1", 6.7", включая &#34; и запятую) + характеристики ноутбуков
+    m_scr = re.search(r'\b(5[.,][4-9]|6[.,][1-9]|7[.,][0-9]|1[0-7](?:[.,][0-9])?|2[1-9](?:[.,][0-9])?|3[1-4](?:[.,][0-9])?)\s*(?:"|\'\'|”|&#34;|&quot;|дюйм)', title, re.I)
     if m_scr:
-        attrs['screen_size'] = f'{m_scr.group(1)}"'
+        attrs['screen_size'] = f'{m_scr.group(1).replace(",", ".")}"'
+
+    is_laptop_item = bool(re.search(r'\b(ноутбук\w*|ультрабук\w*|macbook|laptop|notebook)\b', title, re.I)) and not bool(
+        re.search(r'\b(сумк\w*\s+для|рюкзак\w*\s+для|чехол\w*\s+для|подставк\w*\s+для|столик\s+для|зарядн\w*\s+для|блок\s+питания\s+для|аккумулятор\s+для|батарея\s+для|матрица\s+для|клавиатура\s+для|кулер\s+для|вентилятор\s+для|охлаждающ\w*\s+подставк\w*|пленк\w*\s+для|стекл\w*\s+для)\b', title, re.I)
+    )
+    if is_laptop_item:
+        if 'screen_size' not in attrs:
+            if re.search(r'\b(ph317|an517|a317|fx70[67]|fa70[67]|g713|g733|strix\s+g17|raider\s+ge7\d|katana\s+(?:gf76|17)|pulse\s+(?:gl76|17)|vector\s+gp7\d|stealth\s+17|bravo\s+17|crosshair\s+17|creator\s+z17|legion\s+[57]\s*17|ideapad\s+\d+\s*17|v17\b|envy\s+17|pavilion\s+17|omen\s+17|470\s+g[789]|17[.,]3\b)\b', title, re.I):
+                attrs['screen_size'] = '17.3"'
+            elif re.search(r'\b(ph16|phn16|an16|sfg16|sfx16|a516|fx607|fa617|gu60[345]|g614|g634|v3607|k3605|m1605|x1605|vivobook\s+(?:s\s+|pro\s+)?16|zenbook\s+(?:s\s+|pro\s+)?16|strix\s+(?:scar\s+)?g?16|zephyrus\s+(?:g16|m16)|flow\s+x16|legion\s+(?:pro\s+|slim\s+)?[579]i?\s*16|\d{2}irx[89]|\d{2}iah[78]|\d{2}ach6|thinkbook\s+16|thinkpad\s+[etlp]16|ideapad\s+(?:slim\s+|pro\s+)?[35]i?\s*16|victus\s+16|omen\s+(?:transcend\s+)?16|pavilion\s+plus\s+16|envy\s+16|spectre\s+x360\s+16|elitebook\s+\d{3}\s+16|probook\s+46[05]|vostro\s+(?:56[234]\d|76[23]\d)|inspiron\s+(?:56[234]\d|76[234]\d)|xps\s+16|macbook\s+pro\s+16|a2141|a2485|a2780|a2991|matebook\s+d?\s*16|magicbook\s+(?:x\s*|pro\s*)?16|gram\s+16|galaxy\s+book\d*\s+(?:pro\s+|ultra\s+)?16|vector\s+16|stealth\s+16|pulse\s+16|sword\s+16|crosshair\s+16|summit\s+e16|prestige\s+16|creator\s+m16)\b', title, re.I):
+                attrs['screen_size'] = '16"'
+            elif re.search(r'\b(sfg14|sfx14|sp314|sf314|sf514|a314|a514|ex214|tmp214|fa401|ga40[123]|ux340\d|ux4\d{2}|um340\d|b140\d|e140\d|x140\d|k340\d|m140\d|vivobook\s+(?:go\s+|s\s+|pro\s+|flip\s+)?14|zenbook\s+(?:s\s+|duo\s+|flip\s+)?14|zephyrus\s+g14|ideapad\s+(?:slim\s+|pro\s+|flex\s+)?[135]i?\s*14|yoga\s+(?:slim\s+|pro\s+)?[679]i?\s*14|thinkbook\s+14|thinkpad\s+(?:[etlp]14|x1\s+carbon|x1\s+yoga)|14(?:itl|alc|aba|iau|iap|iru|amn|abr|ahp|imh|irh|arp)\d*|v14\b|pavilion\s+(?:plus\s+|x360\s+)?14|envy\s+(?:x360\s+)?14|spectre\s+x360\s+14|elitebook\s+(?:84[05]|64[05]|1040)|probook\s+(?:44[05]|640)|14s[- ][a-z]{2}\d+|14[- ](?:dq|dv|dy|ek|em|ep|ew|cf|ck|cm|dk)\d*|240\s+g[789]|245\s+g[789]|vostro\s+(?:34\d{2}|54\d{2})|inspiron\s+(?:34\d{2}|54\d{2}|74\d{2})|latitude\s+(?:34\d{2}|54\d{2}|74\d{2}|94\d{2})|macbook\s+pro\s+14|a2442|a2779|a2918|a2992|matebook\s+(?:d\s*|x\s*)?14|magicbook\s+(?:x\s*)?14|modern\s+14|prestige\s+14|summit\s+e14|stealth\s+14|cyborg\s+14)\b', title, re.I):
+                attrs['screen_size'] = '14"'
+            elif re.search(r'\b(xps\s+13|latitude\s+(?:33\d{2}|53\d{2}|73\d{2})|inspiron\s+(?:53\d{2}|73\d{2})|ux3\d{2}|um3\d{2}|zenbook\s+(?:s\s+|flip\s+)?13|flow\s+x13|gv30[12]|thinkpad\s+(?:x13|l13|x390)|thinkbook\s+13|yoga\s+\d+\s*13|ideapad\s+\d+\s*13|spectre\s+x360\s+13|envy\s+(?:x360\s+)?13|pavilion\s+aero\s+13|elitebook\s+(?:83[05]|63[05]|x360\s+1030)|probook\s+43[05]|macbook\s+(?:air|pro)\s+13|a1466|a1502|a1706|a1708|a1932|a1989|a2159|a2179|a2251|a2289|a2337|a2338|a2681|a3113|matebook\s+(?:13|x\s+pro)|summit\s+e13|prestige\s+13|13[.,]3\b)\b', title, re.I):
+                attrs['screen_size'] = '13.3"'
+            elif re.search(r'\b(ph315|an515|anv15|a315|a515|a715|ex215|tmp215|av15|aspire\s+[357]|extensa\s+15|nitro\s+(?:5|v?\s*15)|predator\s+helios\s+300|fx50[567]|fx51[67]|fa50[67]|g51[23]|g53[123]|gu502|ga50[23]|x515|m515|b150\d|e150\d|x150\d|m150\d|k350\d|d515|x509|x543|vivobook\s+(?:go\s+|s\s+|pro\s+|15x\s+)?15|zenbook\s+(?:pro\s+)?15|tuf\s+(?:gaming\s+|dash\s+)?[fa]15|strix\s+(?:scar\s+)?g?15|zephyrus\s+g15|ideapad\s+(?:slim\s+|gaming\s+)?[135]i?\s*15|legion\s+5i?\s*15|loq\s+15|thinkbook\s+15|thinkpad\s+[etlp]15|v15\b|15(?:igl|ada|alc|itl|iau|iap|iru|amn|abr|ach|arh|irh|iax|arp|ahp)\d*|victus\s+15|omen\s+15|pavilion\s+(?:gaming\s+|x360\s+|plus\s+)?15|envy\s+(?:x360\s+)?15|elitebook\s+(?:85[05]|65[05])|probook\s+(?:45[05]|650)|15s[- ][a-z]{2}\d+|15[- ](?:dw|dy|ef|eh|eq|fc|fd|fq|gw|dk|ec|fb|fa|da|db|bs|bw|ra|rb)\d*|250\s+g[789]|255\s+g[789]|450\s+g[789]|vostro\s+(?:35\d{2}|55\d{2}|15)|inspiron\s+(?:35\d{2}|55\d{2}|75\d{2}|15)|latitude\s+(?:35\d{2}|55\d{2}|75\d{2}|95\d{2})|g15\s+55\d{2}|g5\s+(?:se[- ])?55\d{2}|g3\s+35\d{2}|katana\s+(?:gf66|15)|cyborg\s+15|thin\s+(?:gf63|15)|modern\s+15|bravo\s+15|alpha\s+15|pulse\s+(?:gl66|15)|crosshair\s+15|stealth\s+15|delta\s+15|leopard\s+gl65|raider\s+ge66|matebook\s+d\s*15|magicbook\s+(?:x\s*)?15|macbook\s+air\s+15|a2941|a3114|15[.,]6\b)\b', title, re.I):
+                attrs['screen_size'] = '15.6"'
+
+        if 'cpu' not in attrs:
+            if re.search(r'\bcore\s+ultra\s*[579]\b|\bultra\s+[579]\s+1\d{2}[hu]\b', title, re.I):
+                attrs['cpu'] = 'Intel Core Ultra'
+            elif re.search(r'\b(?:core\s*)?i9(?:[-\s]\d{4,5}[a-z]{0,2}|\b)', title, re.I):
+                attrs['cpu'] = 'Intel Core i9'
+            elif re.search(r'\b(?:core\s*)?i7(?:[-\s]\d{4,5}[a-z]{0,2}|\b)', title, re.I):
+                attrs['cpu'] = 'Intel Core i7'
+            elif re.search(r'\b(?:core\s*)?i5(?:[-\s]\d{4,5}[a-z]{0,2}|\b)', title, re.I):
+                attrs['cpu'] = 'Intel Core i5'
+            elif re.search(r'\b(?:core\s*)?i3(?:[-\s]\d{4,5}[a-z]{0,2}|\b)', title, re.I):
+                attrs['cpu'] = 'Intel Core i3'
+            elif re.search(r'\b(?:ryzen\s*9|r9[-\s]\d{4}[a-z]{0,2})\b', title, re.I):
+                attrs['cpu'] = 'AMD Ryzen 9'
+            elif re.search(r'\b(?:ryzen\s*7|r7[-\s]\d{4}[a-z]{0,2})\b', title, re.I):
+                attrs['cpu'] = 'AMD Ryzen 7'
+            elif re.search(r'\b(?:ryzen\s*5|r5[-\s]\d{4}[a-z]{0,2})\b', title, re.I):
+                attrs['cpu'] = 'AMD Ryzen 5'
+            elif re.search(r'\b(?:ryzen\s*3|r3[-\s]\d{4}[a-z]{0,2})\b', title, re.I):
+                attrs['cpu'] = 'AMD Ryzen 3'
+            elif re.search(r'\b(?:apple\s+m[1234]|m[1234]\s+(?:pro|max)|chip\s+m[1234]|a2337|a2338|a2442|a2485|a2681|a2779|a2780|a2941|a2918|a2991|a2992|a3113|a3114)\b', title, re.I):
+                attrs['cpu'] = 'Apple M-Series'
+            elif re.search(r'\b(pentium|celeron|athlon|n100|n200|n4020|n4500|n5100|n305)\b', title, re.I):
+                attrs['cpu'] = 'Intel Pentium / Celeron'
+
+        if 'gpu' not in attrs:
+            m_lgpu = re.search(r'\b(rtx\s*[2345]0[56789]0(?:\s*ti)?|gtx\s*16[56]0(?:\s*ti)?|rx\s*[567]\d00[ms]?)\b', title, re.I)
+            if m_lgpu:
+                attrs['gpu'] = re.sub(r'\s+', ' ', m_lgpu.group(1).upper())
 
     # 6. Подгузники и детская гигиена
     is_diaper = bool(re.search(
@@ -1079,12 +1182,33 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['cleaning_type'] = 'Влажная'
 
     # 8. Мониторы
-    is_monitor = bool(re.search(r'\b(монитор\w*|monitor\w*)\b', title, re.I))
+    is_monitor = bool(re.search(r'\b(монитор\w*|monitor\w*)\b', title, re.I)) and not bool(
+        re.search(r'\b(кронштейн\s+для|креплен\w*\s+для|подставк\w*\s+для|салфетк\w*\s+для|чистящ\w*\s+средств\w*\s+для)\b', title, re.I)
+    )
     if is_monitor:
-        # Диагональ экрана (23.8", 24", 24.5", 27", 31.5", 32", 34", 49")
-        m_msz = re.search(r'\b(1[5-9]\.[0-9]|2[1-9]\.[0-9]|2[1-9]|3[1-9]\.[0-9]|3[1-9]|4[0-9])\s*(?:"|\'\'|дюйм|\binch\b|\b(?=\s*(?:fhd|qhd|uhd|2k|4k|ips|va|oled|gaming|игров|144|165|180|240|hz|гц)))', title, re.I)
+        # Диагональ экрана (21.5", 23.8", 24", 24.5", 27", 31.5", 32", 34", 49", 55", 57", включая &#34;, ' и модельные коды)
+        m_msz = (
+            re.search(r'\b(1[5-9](?:[.,][0-9])?|2[1-9](?:[.,][0-9])?|3[1-9](?:[.,][0-9])?|4[0-9](?:[.,][0-9])?|5[57])\s*(?:"|\'\'|\'|”|&#34;|&quot;|дюйм|\binch\b|\b(?=\s*(?:fhd|qhd|uhd|2k|4k|ips|va|oled|gaming|игров|144|165|180|240|hz|гц)))', title, re.I)
+            or re.search(r'(?:"|”|&#34;|&quot;)\s*(2[1-9](?:[.,][0-9])?|3[1-9](?:[.,][0-9])?)\b', title, re.I)
+            or re.search(r'\b(?:монитор|monitor)\s+(21[.,]5|23[.,]8|24[.,]5|24|27|31[.,]5|32|34)\b', title, re.I)
+        )
         if m_msz:
-            attrs['screen_size'] = f'{m_msz.group(1)}"'
+            attrs['screen_size'] = f'{m_msz.group(1).replace(",", ".")}"'
+        elif 'screen_size' not in attrs:
+            if re.search(r'\b(?:ls27|lc27|lf27|s27|f27|g27|vg27|vp27|va27|vx27|xg27|pg27|pa27|27g[s56]|27u[pknl]|27b\d|27e[12]|27m[12]|aw27|p272|u272|s272|e272|327pf|x27\b|g27i|a27i|27i\b|m27[fq]|gs27|pd27|gw27|ew27|xl27|ex27|mobiuz\s+ex27|odyssey\s+g\d\s+27)', title, re.I):
+                attrs['screen_size'] = '27"'
+            elif re.search(r'\b(?:ls24|lc24|lf24|s24|f24|f23hf|g24|vg24|vp24|va24|vx24|xg24|pg24|pa24|24g[s56]|24m[12]|24b\d|24e[12]|24km|kl24|ka24|sa24|sh24|ek24|cb24|b24[78]|v24[78]|nitros?\s+(?:vg24|kg24|qg24|xv24)|p242|u242|s242|e242|324pf|g24i|a24i|24i\b|m24f|gw24|xl24|ex24)', title, re.I):
+                attrs['screen_size'] = '23.8"'
+            elif re.search(r'\b(?:m245|lf25|25g\d|aw25|vg25|xg25|xl25|24[.,]5)', title, re.I):
+                attrs['screen_size'] = '24.5"'
+            elif re.search(r'\b(?:ls32|lc32|s32|g32|vg32|vp32|va32|vx32|xg32|pg32|pa32|32g[s56]|32u[pknl]|32b\d|32e[12]|32m[12]|aw32|p322|u322|s322|e322|m32[fqu]|gs32|pd32|ew32|ex32|odyssey\s+(?:neo\s+)?g\d\s+32)', title, re.I):
+                attrs['screen_size'] = '31.5"'
+            elif re.search(r'\b(?:ls34|lc34|s34|g34|vg34|vp34|va34|vx34|xg34|pg34|34w[pknl]|34g[s56]|34b\d|34e[12]|aw34|u342|s342|p342|m34w|gs34|ex34|odyssey\s+g\d\s+34)', title, re.I):
+                attrs['screen_size'] = '34"'
+            elif re.search(r'\b(?:322pf|22b\d|22e[12]|v22[78]|k222|ka22|sa22|ek22|gw22|va22|vp22|vx22|p222|e222|s222|ls22|lf22)', title, re.I):
+                attrs['screen_size'] = '21.5"'
+            elif re.search(r'\b(?:20b\d|e202|v20[67]|k202|19[.,]5)', title, re.I):
+                attrs['screen_size'] = '19.5"'
         # Частота обновления (60 Гц, 75 Гц, 100 Гц, 144 Гц, 165 Гц, 180 Гц, 240 Гц, 360 Гц)
         m_mhz = re.search(r'\b(60|75|100|120|144|160|165|170|175|180|200|240|280|360|480|540)\s*(?:hz|гц)\b', title, re.I)
         if m_mhz:
@@ -1214,7 +1338,10 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
                 attrs['frequency'] = f"{m_freq.group(1).replace(',', '.')} ГГц"
 
         # Корпуса для ПК (PC Cases)
-        is_case = not is_whole_device and bool(re.search(r'^\s*корпус\b|\bкорпус\s+(?:для\s+пк|компьютерн\w*)\b', title, re.I))
+        is_case = not is_whole_device and bool(re.search(
+            r'^\s*корпус\b|\bкорпус\s+(?:для\s+пк|компьютерн\w*)\b|\bкомпьютерн\w*\s+корпус\b|\bпанель\s+lcd\s+(?:thermaltake|lian\s+li)\b',
+            title, re.I
+        ))
         if is_case:
             if re.search(r'\b(tg|tempered\s+glass|закаленн\w*\s+стекл\w*)\b', title, re.I):
                 attrs['side_window'] = 'Закаленное стекло (TG)'
@@ -1231,11 +1358,11 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             m_case_psu = re.search(r'\b([3-8]\d0)\s*(?:w|вт)\b', title, re.I)
             if m_case_psu:
                 attrs['psu_included'] = f"Со встроенным БП ({m_case_psu.group(1)} Вт)"
-            elif re.search(r'\bбез\s+бп\b', title, re.I):
+            elif re.search(r'\bбез\s+б/?п\b', title, re.I):
                 attrs['psu_included'] = 'Без БП'
 
             if 'form_factor' not in attrs:
-                if re.search(r'\bmini\b', title, re.I):
+                if re.search(r'\b(mini|micro|matx|m-atx)\b', title, re.I):
                     attrs['form_factor'] = 'Mini-Tower / Micro-ATX'
                 else:
                     attrs['form_factor'] = 'Mid-Tower / ATX'
@@ -1417,22 +1544,43 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         if m_cap:
             attrs['capacity_sets'] = f"{m_cap.group(1)} комплектов"
 
-    # 11. Телевизоры
-    is_tv = bool(re.search(r'\b(телевизор\w*|\btv\b|oled|qled|led\s+тв|smart\s+tv)\b', title, re.I))
+    # 11. Телевизоры, проекторы, проекционные экраны и ТВ-аксессуары
+    is_tv = bool(re.search(
+        r'\b(телевизор\w*|\btv\b|oled|qled|led\s+тв|smart\s+tv|проектор\w*|мультимедиа[- ]проектор\w*|'
+        r'экран\s+(?:моторизованн\w*|настенн\w*|на\s+треноге|мобильн\w*|для\s+проектора|проекционн\w*|mr\.?\s*pixel|deluxe\s+dlx)|'
+        r'креплен\w*\s+(?:потолочн\w*|настенн\w*|наклонно[- ]поворотн\w*|для\s+(?:проектора|телевизора|тв))|'
+        r'кронштейн\s+для\s+(?:проектора|телевизора|тв)|tv[- ]?тюнер\w*|тв[- ]?приставк\w*|медиаплеер\w*)\b',
+        title, re.I
+    )) and not is_monitor and not is_laptop_item
     if is_tv:
+        if re.search(r'\b(креплен\w*|кронштейн\w*)\b', title, re.I):
+            attrs['type'] = 'Кронштейн / Крепление'
+        elif re.search(r'\b(экран\s+(?:моторизованн\w*|настенн\w*|на\s+треноге|мобильн\w*|для\s+проектора|проекционн\w*|mr\.?\s*pixel|deluxe)|проекционн\w*\s+экран)\b', title, re.I):
+            attrs['type'] = 'Проекционный экран'
+        elif re.search(r'\b(проектор\w*|мультимедиа[- ]проектор\w*)\b', title, re.I) and not re.search(r'\b(игрушк\w*|ночник|детск\w*\s+проектор|для\s+проектора|лампа\s+для)\b', title, re.I):
+            attrs['type'] = 'Проектор'
+        elif re.search(r'\b(tv[- ]?тюнер\w*|тв[- ]?приставк\w*|медиаплеер\w*|apple\s+tv|mi\s+tv\s+stick|mi\s+box)\b', title, re.I):
+            attrs['type'] = 'ТВ-приставка / Тюнер'
+        elif re.search(r'\b(телевизор\w*|\btv\b|oled|qled|nanocell|smart\s+tv)\b', title, re.I):
+            attrs['type'] = 'Телевизор'
+
         # Диагональ
-        m_diag = re.search(r'\b(24|32|40|42|43|50|55|58|65|70|75|77|85|86|98|100)\s*(?:"|\'\'|дюйм\w*)|\b(24|32|40|42|43|50|55|58|65|70|75|77|85|86|98|100)\b(?=\s*(?:[A-Za-z0-9_-]+\s*)?(?:oled|qled|uhd|4k|smart|led|fhd))', title, re.I)
+        m_diag = (
+            re.search(r'\b(24|32|40|42|43|48|50|55|58|65|70|75|77|83|85|86|98|100|106|120)\s*(?:"|\'\'|\'|”|&#34;|&quot;|дюйм\w*)', title, re.I)
+            or re.search(r'\b(24|32|40|42|43|48|50|55|58|65|70|75|77|83|85|86|98|100)\b(?=\s*(?:[A-Za-z0-9_-]+\s*)?(?:oled|qled|uhd|4k|smart|led|fhd|hd|nanocell))', title, re.I)
+            or re.search(r'\b(?:телевизор|tv)\s+(?:[a-zа-я]+\s+)?(?:ue|qe|kd-|xr-|oled|qled|lt-|le-)?(24|32|40|42|43|48|50|55|58|65|70|75|77|83|85|86|98|100)[a-z0-9]', title, re.I)
+        )
         if m_diag:
-            d_val = m_diag.group(1) or m_diag.group(2)
+            d_val = m_diag.group(1) or m_diag.group(2) or m_diag.group(3)
             attrs['screen_diagonal'] = f'{d_val}"'
         # Разрешение
         if re.search(r'\b(4k|uhd|ultra\s*hd|3840\s*[xх]\s*2160)\b', title, re.I):
             attrs['resolution'] = '4K UHD'
         elif re.search(r'\b(8k|7680\s*[xх]\s*4320)\b', title, re.I):
             attrs['resolution'] = '8K'
-        elif re.search(r'\b(full\s*hd|fhd|1080p|1920\s*[xх]\s*1080)\b', title, re.I):
+        elif re.search(r'\b(full\s*hd|fhd|1080p|1920\s*[xх]\s*1080|1920\s*[xх]\s*1200|wuxga)\b', title, re.I):
             attrs['resolution'] = 'Full HD'
-        elif re.search(r'\b(hd\s*ready|\bhd\b)\b', title, re.I):
+        elif re.search(r'\b(hd\s*ready|\bhd\b|wxga|1280\s*[xх]\s*800|1280\s*[xх]\s*720)\b', title, re.I):
             attrs['resolution'] = 'HD'
         # Технология экрана
         if re.search(r'\bmini[- ]?led\b', title, re.I):
@@ -1443,6 +1591,8 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['screen_tech'] = 'QLED'
         elif re.search(r'\bnanocell\b', title, re.I):
             attrs['screen_tech'] = 'NanoCell'
+        elif re.search(r'\b(3lcd|dlp)\b', title, re.I):
+            attrs['screen_tech'] = m_tech.group(1).upper() if (m_tech := re.search(r'\b(3lcd|dlp)\b', title, re.I)) else 'LED'
         elif re.search(r'\bled\b', title, re.I):
             attrs['screen_tech'] = 'LED'
         # Smart TV
@@ -1501,7 +1651,11 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         r'\b(для\s+(?:волос|белья|ткани|стирки|кожи|тела|авто|шин|аквариум\w*|пруд\w*|воды)|бальзам|шампунь|ополаскивател\w*|conditioner\b|\d+\s*(?:мл|ml|г|гр)\b)\b',
         title, re.I
     ))
-    is_ac = not is_not_ac and bool(re.search(r'\b(кондиционер\w*|сплит[- ]систем\w*|климатическ\w*)\b', title, re.I))
+    is_ac = not is_not_ac and bool(re.search(
+        r'\b(кондиционер\w*|сплит[- ]систем\w*|климатическ\w*|монтажн\w*\s+комплект\b|'
+        r'(?:midea|gree|haier|almacom|ava|atlantiq|chigo|hisense|aux|lg|samsung|tcl|ballu|electrolux|zanussi|centek|beko|daikin|mitsubishi|kentatsu|royal\s+clima|mdv|tosot|lessar)\s+.*?(?:inverter|on[- /]?off|\b(?:07|09|12|18|24|30|36)k?\b|(?:mega|actn|ach|afi|msag|ar|as|ac|cs|tac|bspi|bsui)[-\s]?(?:07|09|12|18|24|30|36)))',
+        title, re.I
+    ))
     if is_ac:
         if re.search(r'\bмобильн\w*\b', title, re.I):
             attrs['type'] = 'Мобильный'
@@ -1509,11 +1663,11 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['type'] = 'Колонный'
         elif re.search(r'\bкассетн\w*\b', title, re.I):
             attrs['type'] = 'Кассетный'
-        elif re.search(r'\b(сплит[- ]систем\w*|настенн\w*|кондиционер)\b', title, re.I):
+        else:
             attrs['type'] = 'Сплит-система'
         if re.search(r'\b(инвертор\w*|inverter|inv\b|dc[- ]inverter|[a-z]+-\d{2}hrfn|[a-z]+\d{2}hrfn)\b', title, re.I):
             attrs['inverter'] = 'Да'
-        elif re.search(r'\b(on[- /]off|неинвертор\w*|[a-z]+-\d{2}hrn|[a-z]+\d{2}hrn)\b', title, re.I):
+        elif re.search(r'\b(on[- /]?off|неинвертор\w*|[a-z]+-\d{2}hrn|[a-z]+\d{2}hrn)\b', title, re.I):
             attrs['inverter'] = 'Нет'
         # Мощность BTU и площадь (включая модельные коды AR09, FM-09, MSAG-24, TCL-12, HWH09, ACS-09 и т.д.)
         m_btu = (
@@ -1952,19 +2106,27 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
 
     # 23. Игровые приставки, VR и аксессуары
     is_console_item = not is_hp and bool(re.search(
-        r'\b(игров\w*\s+приставк\w*|игров\w*\s+консол\w*|playstation\s*[45]|ps\s*[45]|xbox\s+series|nintendo\s+switch|steam\s+deck|legion\s+go|rog\s+ally|meta\s+quest|очки\s+виртуальной\s+реальности|dualsense|dualshock)\b',
+        r'\b(игров\w*\s+приставк\w*|приставк\w*\s+игров\w*|игров\w*\s+консол\w*|консол\w*\s+игров\w*|'
+        r'playstation\s*[45]|ps\s*[45]|xbox\s+series|nintendo\s+switch|steam\s+deck|legion\s+go|rog\s+ally|'
+        r'meta\s+quest|очки\s+виртуальной\s+реальности|dualsense|dualshock|'
+        r'dendy|денди|\bsega\b|сега|сборник\s+(?:\d+\s*)?игр|игр\w*\s+для\s+(?:ps[45]|playstation|xbox|nintendo|sega|dendy|денди)|'
+        r'игров\w*\s+рул\w*|рул\w*\s+игров\w*|педал\w*\s+moza|база\s+рулевая\s+moza|moza\s+racing)\b',
         title, re.I
     ))
     if is_console_item:
         if re.search(r'\b(meta\s+quest|очки\s+виртуальной\s+реальности|ps\s*vr2?|шлем\s+виртуальной)\b', title, re.I):
             attrs['type'] = 'VR-гарнитура'
+        elif re.search(r'\b(игров\w*\s+рул\w*|рул\w*\s+игров\w*|педал\w*\s+moza|база\s+рулевая\s+moza|moza\s+racing)\b', title, re.I):
+            attrs['type'] = 'Игровой руль / Кокпит'
         elif re.search(r'\b(геймпад\w*|джойстик\w*|контроллер\w*|dualsense|dualshock|joy-con)\b', title, re.I) and not re.search(r'\b(приставк\w*|консол\w*)\b', title, re.I):
             attrs['type'] = 'Геймпад / Контроллер'
-        elif re.search(r'\b(игра\s+для|диск\s+с\s+игрой|\bдля\s+ps[45]\b|\bдля\s+nintendo\s+switch\b)\b', title, re.I) and not re.search(r'\b(приставк\w*|консол\w*|геймпад\w*|джойстик\w*|зарядн\w*|чехол)\b', title, re.I):
-            attrs['type'] = 'Игра для консоли'
+        elif re.search(r'\b(игра\s+для|диск\s+с\s+игрой|сборник\s+(?:\d+\s*)?игр|картридж\s+.*(?:sega|dendy|денди)|\bдля\s+ps[45]\b|\bдля\s+nintendo\s+switch\b|\bдля\s+(?:sega|dendy|денди)\b)\b', title, re.I) and not re.search(r'\b(приставк\w*|консол\w*|геймпад\w*|джойстик\w*|зарядн\w*|чехол)\b', title, re.I):
+            attrs['type'] = 'Игра / Картридж'
+        elif re.search(r'\b(dendy|денди|\bsega\b|сега|ретро[- ]приставк\w*|8[- ]?bit|16[- ]?bit)\b', title, re.I):
+            attrs['type'] = 'Ретро-приставка (8/16-bit)'
         elif re.search(r'\b(nintendo\s+switch|steam\s+deck|legion\s+go|rog\s+ally|playstation\s+portal)\b', title, re.I):
             attrs['type'] = 'Портативная консоль'
-        elif re.search(r'\b(игров\w*\s+приставк\w*|игров\w*\s+консол\w*|playstation\s*[45]|ps\s*[45]|xbox\s+series)\b', title, re.I):
+        elif re.search(r'\b(игров\w*\s+приставк\w*|приставк\w*\s+игров\w*|игров\w*\s+консол\w*|playstation\s*[45]|ps\s*[45]|xbox\s+series)\b', title, re.I):
             attrs['type'] = 'Стационарная консоль'
 
         if re.search(r'\b(ps\s*5|playstation\s*5|dualsense)\b', title, re.I):
@@ -1979,6 +2141,8 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['platform'] = 'Steam Deck / Портативные ПК'
         elif re.search(r'\b(meta\s+quest|oculus)\b', title, re.I):
             attrs['platform'] = 'Meta Quest / VR'
+        elif re.search(r'\b(dendy|денди|\bsega\b|сега)\b', title, re.I):
+            attrs['platform'] = 'Sega / Dendy (Ретро)'
 
         if re.search(r'\b(digital\s+edition|без\s+дисковода)\b', title, re.I):
             attrs['disc_drive'] = 'Digital Edition (без дисковода)'
@@ -2076,15 +2240,23 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
     # 26. Обувь и Одежда
     is_footwear = bool(re.search(
         r'\b(кроссовк\w*|кеды|ботинк\w*|полуботинк\w*|сапог\w*|полусапог\w*|ботильон\w*|бoтильоны|челси|туфл\w*|лофер\w*|'
-        r'сандали\w*|босоножк\w*|слипон\w*|слингбэк\w*|балетк\w*|мокасин\w*|тапочк\w*|шлепанц\w*|сабо|дутик\w*|угги|бутсы)\b',
+        r'сандали\w*|босоножк\w*|слипон\w*|слингбэк\w*|балетк\w*|мокасин\w*|тапочк\w*|шлепанц\w*|сабо|дутик\w*|угги|бутсы|эспадриль\w*)\b',
         title, re.I
     ))
     is_apparel = bool(re.search(
-        r'\b(футболк\w*|фуфайк\w*|поло\b|худи|свитшот\w*|лонгслив\w*|толстовк\w*|пуховик\w*|куртк\w*|ветровк\w*|пальто|'
-        r'брюк\w*|джинс\w*|штан\w*|легинс\w*|плать\w*|юбк\w*|рубашк\w*|блузк\w*|свитер\w*|джемпер\w*|кардиган\w*|кофт\w*|'
-        r'шорты|костюм\s+спортивн\w*|плавки|купальник\w*|носки|колготк\w*|шарф\w*|шапк\w*|бейсболк\w*|кепк\w*|панам\w*|'
-        r'ремень|сумка\s+(?:женск\w*|мужск\w*|через\s+плечо|дорожн\w*|спортивн\w*)|рюкзак\s+(?:женск\w*|мужск\w*|детск\w*|школьн\w*|городск\w*)|'
-        r'очки\s+солнцезащитн\w*|ювелирн\w*\s+(?:кольц\w*|цепочк\w*|серьг\w*|подвеск\w*|браслет\w*)|кольцо\s+золот\w*|резинк\w*\s+для\s+волос|заколк\w*|набор\s+для\s+волос)\b',
+        r'\b(футболк\w*|фуфайк\w*|поло\b|худи|свитшот\w*|лонгслив\w*|толстовк\w*|олимпийк\w*|пуховик\w*|куртк\w*|ветровк\w*|пальто|полупальто|плащ\w*|тренч\w*|парк[аи]\b|анорак\w*|бомбер\w*|жилет\w*|пухов\w*\s+жилет|'
+        r'брюк\w*|джинс\w*|штан\w*|легинс\w*|леггинс\w*|джоггер\w*|тайтс\w*|бридж\w*|капри|комбинезон\w*|полукомбинезон\w*|'
+        r'плать\w*|сарафан\w*|юбк\w*|рубашк\w*|сорочк\w*|блузк\w*|блуз[аы]\b|туник\w*|свитер\w*|джемпер\w*|пуловер\w*|кардиган\w*|кофт\w*|водолазк\w*|пиджак\w*|жакет\w*|блейзер\w*|'
+        r'шорты|костюм\s+(?:спортивн\w*|флисов\w*|трикотажн\w*|прогулочн\w*|детск\w*|для\s+)|спортивн\w*\s+костюм\w*|комплект\s+одежды|пижам\w*|халат\w*|боди\b|ползунк\w*|распашонк\w*|чепчик\w*|'
+        r'плавки|купальник\w*|термобель\w*|кальсон\w*|носки|гольфы|колготк\w*|набор\s+носков|трусы\s+(?:мужск|женск|детск|боксеры|слипы)|бюстгальтер\w*|топ\s+(?:спортивн|женск|для\s+девоч)|майк\w*\s+(?:мужск|женск|детск|спортивн|бельев)|'
+        r'шарф\w*|палантин\w*|снуд\w*|шапк\w*|балаклав\w*|бейсболк\w*|кепк\w*|панам\w*|берет\w*|перчатк\w*(?!\s+(?:хозяйственн|нитрилов|латексн|резинов|рабоч|строительн|садов))|варежк\w*|рукавиц\w*|краги|'
+        r'ремень|ремни|подтяжк\w*|галстук\w*|бабочка\s+галстук|кошел[её]к\w*|портмоне|визитниц\w*|картхолдер\w*|ключниц\w*|обложк\w*\s+для\s+(?:паспорта|автодокументов)|зонт\w*(?!\s+пляжн|\s+садов)|'
+        r'сумк\w*(?!\s+(?:для\s+(?:ноутбук|планшет|камер|фото|инструмент|коляск|велосипед|обуви|сменной|мам)|холодильник|термо))|хобо\b|шоппер\w*|тоут\b|кросс[- ]боди|клатч\w*|багет\b|сэтчел\b|мессенджер\b|барсетк\w*|несессер\w*|поясн\w*\s+сумк\w*|'
+        r'рюкзак\w*(?!\s+(?:для\s+ноутбук|туристическ|походн|тактическ|кенгуру|переноск))|ранец\w*|'
+        r'очки\s+солнцезащитн\w*|солнцезащитн\w*\s+очки|оправ\w*\s+для\s+очков|футляр\s+для\s+очков|'
+        r'ювелирн\w*\s+(?:кольц\w*|цепочк\w*|серьг\w*|подвеск\w*|браслет\w*|колье)|кольцо\s+(?:золот\w*|серебр\w*)|серьги\s+(?:золот\w*|серебр\w*|бижутер)|браслет\s+(?:золот\w*|серебр\w*|кожан\w*|бижутер)|цепочк\w*\s+(?:золот\w*|серебр\w*)|подвеск\w*\s+(?:золот\w*|серебр\w*)|брошь|бижутери\w*|'
+        r'резинк\w*\s+для\s+волос|заколк\w*|краб\s+для\s+волос|ободок\s+для\s+волос|повязк\w*\s+на\s+голову|набор\s+для\s+волос|'
+        r'губк\w*\s+для\s+обуви|крем\s+для\s+обуви|воск\s+для\s+обуви|краска\s+для\s+обуви|пропитк\w*\s+для\s+обуви|дезодорант\s+для\s+обуви|стельк\w*\s+для\s+обуви|полустельк\w*|шнурк\w*\s+для\s+обуви|ложк\w*\s+для\s+обуви|рожок\s+для\s+обуви)\b',
         title, re.I
     ))
     if is_footwear or is_apparel:
@@ -2113,37 +2285,39 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
                 attrs['type'] = 'Лоферы'
             elif re.search(r'\b(сандали\w*|босоножк\w*)\b', title, re.I):
                 attrs['type'] = 'Сандалии и босоножки'
-            elif re.search(r'\b(слипон\w*|мокасин\w*|балетк\w*)\b', title, re.I):
+            elif re.search(r'\b(слипон\w*|мокасин\w*|балетк\w*|эспадриль\w*)\b', title, re.I):
                 attrs['type'] = 'Слипоны и балетки'
-            elif re.search(r'\b(тапочк\w*|шлепанц\w*|сабо)\b', title, re.I):
+            elif re.search(r'\b(тапочк\w*|шлепанц\w*|сабо|бутсы)\b', title, re.I):
                 attrs['type'] = 'Тапочки и сабо'
         elif is_apparel:
-            if re.search(r'\b(футболк\w*|фуфайк\w*|поло\b|майк\w*|топ\b)\b', title, re.I):
+            if re.search(r'\b(сумк\w*|хобо\b|шоппер\w*|тоут\b|кросс[- ]боди|клатч\w*|багет\b|сэтчел\b|мессенджер\b|барсетк\w*|несессер\w*|рюкзак\w*|ранец\w*)\b', title, re.I):
+                attrs['type'] = 'Сумки и рюкзаки'
+            elif re.search(r'\b(футболк\w*|фуфайк\w*|поло\b|майк\w*|топ\b|боди\b)\b', title, re.I):
                 attrs['type'] = 'Футболки и поло'
-            elif re.search(r'\b(худи|свитшот\w*|лонгслив\w*|толстовк\w*|кофт\w*)\b', title, re.I):
-                attrs['type'] = 'Худи и свитшоты'
-            elif re.search(r'\b(пуховик\w*|куртк\w*|ветровк\w*|пальто|жилет\w*)\b', title, re.I):
+            elif re.search(r'\b(худи|свитшот\w*|лонгслив\w*|толстовк\w*|олимпийк\w*|кофт\w*|спортивн\w*\s+костюм\w*|костюм\s+спортивн\w*)\b', title, re.I):
+                attrs['type'] = 'Худи, свитшоты и спорткостюмы'
+            elif re.search(r'\b(пуховик\w*|куртк\w*|ветровк\w*|пальто|полупальто|плащ\w*|тренч\w*|парк[аи]\b|анорак\w*|бомбер\w*|жилет\w*|комбинезон\w*|полукомбинезон\w*)\b', title, re.I):
                 attrs['type'] = 'Куртки и пуховики'
-            elif re.search(r'\b(брюк\w*|джинс\w*|штан\w*|легинс\w*)\b', title, re.I):
+            elif re.search(r'\b(брюк\w*|джинс\w*|штан\w*|легинс\w*|леггинс\w*|джоггер\w*|тайтс\w*|бридж\w*|капри)\b', title, re.I):
                 attrs['type'] = 'Брюки и джинсы'
             elif re.search(r'\b(плать\w*|юбк\w*|сарафан\w*)\b', title, re.I):
                 attrs['type'] = 'Платья и юбки'
-            elif re.search(r'\b(рубашк\w*|блузк\w*)\b', title, re.I):
-                attrs['type'] = 'Рубашки и блузки'
-            elif re.search(r'\b(свитер\w*|джемпер\w*|кардиган\w*|водолазк\w*)\b', title, re.I):
+            elif re.search(r'\b(рубашк\w*|сорочк\w*|блузк\w*|блуз[аы]\b|туник\w*|пиджак\w*|жакет\w*|блейзер\w*)\b', title, re.I):
+                attrs['type'] = 'Рубашки, блузки и жакеты'
+            elif re.search(r'\b(свитер\w*|джемпер\w*|пуловер\w*|кардиган\w*|водолазк\w*)\b', title, re.I):
                 attrs['type'] = 'Свитеры и кардиганы'
             elif re.search(r'\b(шорты|плавки|купальник\w*)\b', title, re.I):
                 attrs['type'] = 'Шорты и пляжная одежда'
-            elif re.search(r'\b(сумка|рюкзак)\b', title, re.I):
-                attrs['type'] = 'Сумки и рюкзаки'
-            elif re.search(r'\b(шарф\w*|шапк\w*|бейсболк\w*|кепк\w*|панам\w*|перчатк\w*|варежк\w*)\b', title, re.I):
-                attrs['type'] = 'Головные уборы и шарфы'
-            elif re.search(r'\b(ювелирн\w*|кольцо|цепочк\w*|серьг\w*|подвеск\w*)\b', title, re.I):
+            elif re.search(r'\b(шарф\w*|палантин\w*|снуд\w*|шапк\w*|балаклав\w*|бейсболк\w*|кепк\w*|панам\w*|берет\w*|перчатк\w*|варежк\w*|рукавиц\w*|краги)\b', title, re.I):
+                attrs['type'] = 'Головные уборы, шарфы и перчатки'
+            elif re.search(r'\b(ювелирн\w*|кольцо|цепочк\w*|серьг\w*|подвеск\w*|браслет|колье|брошь|бижутери\w*)\b', title, re.I):
                 attrs['type'] = 'Украшения и бижутерия'
-            elif re.search(r'\b(резинк\w*\s+для\s+волос|заколк\w*|набор\s+для\s+волос|ободок)\b', title, re.I):
+            elif re.search(r'\b(резинк\w*\s+для\s+волос|заколк\w*|краб\s+для\s+волос|ободок|повязк\w*\s+на\s+голову|набор\s+для\s+волос)\b', title, re.I):
                 attrs['type'] = 'Аксессуары для волос'
-            elif re.search(r'\b(ремень|очки|носки|колготк\w*)\b', title, re.I):
-                attrs['type'] = 'Аксессуары и белье'
+            elif re.search(r'\b(для\s+обуви|стельк\w*|полустельк\w*|шнурк\w*|рожок\s+для\s+обуви)\b', title, re.I):
+                attrs['type'] = 'Уход и аксессуары для обуви'
+            else:
+                attrs['type'] = 'Аксессуары, портмоне и белье'
 
         # Пол и возраст
         if re.search(r'\b(для\s+девочек|для\s+девочки)\b', title, re.I):
@@ -2239,7 +2413,8 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         r'стремянк\w*|жима\s+саты|лестниц\w*|тележк\w*\s+гидравлическ\w*|рохл\w*|косилк\w*|триммер\s+(?:бензинов\w*|электрическ\w*|аккумуляторн\w*|садов\w*|травокосилк\w*)|мотокос\w*|бензокос\w*|газонокосилк\w*|мойк\w*\s+высокого\s+давления|минимойк\w*|воздуходувк\w*|кусторез\w*|мотоблок\w*|культиватор\w*|минитрактор\w*|снегоубор\w*|снегочистител\w*|компрессор\w*|генератор\s+(?:бензинов\w*|дизельн\w*|инверторн\w*)|дизельн\w*\s+генератор|бензинов\w*\s+генератор|мотопомп\w*|насос\s+(?:дренажн\w*|погружн\w*|скважинн\w*|циркуляционн\w*|поверхностн\w*|вибрационн\w*)|бетономешалк\w*|каминокомплект\w*|электрокамин\w*|отопительн\w*\s+котел|газов\w*\s+котел|'
         r'батарея\s+аккумуляторная|зарядн\w*\s+устройств\w*\s+(?:makita|greenworks|bosch|dewalt|metabo|интерскол|вихрь|зубр|alteco|ставр|ferm)|'
         r'набор\s+инструментов|отвертк\w*|ключ\s+(?:гаечн\w*|разводн\w*|комбинированн\w*|динамометрическ\w*|трубн\w*|трещоточн\w*|имбусов\w*|шестигранн\w*)|торцев\w*\s+головк\w*|набор\s+ключей|плоскогубц\w*|пассатиж\w*|бокорез\w*|кусачк\w*|клещи\s+|молоток\s+(?:слесарн\w*|плотницк\w*|резинов\w*|киянка)|топор\b|стамеск\w*|нож\s+строительн\w*|ножниц\w*\s+по\s+металлу|тиски\b|струбцин\w*|степлер\s+строительн\w*|заклепочник\w*|'
-        r'сверл\w*\s+(?:по\s+металлу|по\s+бетону|по\s+дереву|ступенчат\w*|корончат\w*)|набор\s+сверл|бур\s+по\s+бетону|диск\s+(?:отрезн\w*|пильн\w*|алмазн\w*|шлифовальн\w*|лепестков\w*)|набор\s+бит|биты\s+для|'
+        r'пинцет\w*\s+(?:pro\'?s\s*kit|антистатическ\w*|монтажн\w*|техническ\w*|керамическ\w*|прецизионн\w*)|инструмент\s+для\s+(?:расшивки|зачистки|снятия\s+изоляции|обжима)|стриппер\w*|кримпер\w*|обжимн\w*\s+инструмент|экстрактор\w*|набор\s+шестигранник\w*|шестигранник\w*|монтировк\w*|гвоздодер\w*|лом\s+строительн\w*|зубил\w*|кернер\w*|стеклорез\w*|труборез\w*|пiстолет\s+для\s+(?:пены|герметика)|пистолет\s+для\s+(?:пены|герметика|силикона)|маск\w*\s+сварочн\w*|сварочн\w*\s+маск\w*|стекл\w*\s+для\s+маск\w*|'
+        r'сверл\w*\s+(?:по\s+металлу|по\s+бетону|по\s+дереву|ступенчат\w*|корончат\w*)|набор\s+сверл|бур\s+по\s+бетону|диск\s+(?:отрезн\w*|пильн\w*|алмазн\w*|шлифовальн\w*|лепестков\w*|обдирочн\w*|зачистн\w*)|(?:отрезн\w*|обдирочн\w*|шлифовальн\w*|лепестков\w*|алмазн\w*|зачистн\w*|пильн\w*)\s+(?:круг\w*|диск\w*|чашк\w*)|коронк\w*\s+(?:биметаллическ\w*|алмазн\w*|по\s+(?:бетону|дереву|металлу|керамике))|щетк\w*\s+(?:корщетк\w*|чашечн\w*|дисков\w*|проволочн\w*)|корщетк\w*|набор\s+бит|биты\s+для|пилки\s+для\s+лобзика|полотно\s+(?:пильное|для\s+сабельной|для\s+ножовки)|шина\s+для\s+пил\w*|цепь\s+пильная|'
         r'клей\s+(?:для\s+керамогранита|плиточн\w*|монтажн\w*|обойн\w*|пва)|краска\s+(?:моющаяся|водоэмульсионн\w*|акрилов\w*\s+для\s+стен|фасадн\w*|интерьерн\w*|эмаль)|грунтовк\w*|шпатлевк\w*|шпаклевк\w*|шпатлевочн\w*|штукатурк\w*|knauf\s+rotband|alinex\s+|samaragips|затирк\w*|герметик\w*|пена\s+монтажная|звукоизоляция|панел\w*\s+(?:самоклеющ\w*|пвх|мдф|стенов\w*|настенн\w*)|камень\s+искусственн\w*|плитк\w*\s+(?:керамическ\w*|кафельн\w*|напольн\w*|настенн\w*)|керамогранит\w*|ламинат\w*|линолеум\w*|плинтус\w*|порог\s+\d+\s*мм|угол\s+(?:наружн\w*|отделочн\w*|внутренн\w*)|обои\s+(?:винилов\w*|флизелинов\w*|бумажн\w*|под\s+покраску)|фотообои\b|'
         r'душев\w*\s+(?:кабин\w*|огражден\w*|систем\w*|угол\w*|стойк\w*|гарнитур\w*|лейк\w*|поддон\w*)|гигиеническ\w*\s+душ|лейк\w*\s+для\s+душа|зеркал\w*\s+для\s+ванн\w*|экран\s+(?:под\s+ванн\w*|для\s+ванн\w*|для\s+радиатор\w*)|смесител\w*\s+для|раковин\w*|умывальник\w*|мойк\w*\s+для\s+кухни|унитаз\w*|инсталляц\w*\s+для|сидень\w*\s+для\s+унитаза|ванн\w*\s+(?:акрилов\w*|стальн\w*|чугунн\w*)|полотенцесушител\w*)\b',
         title, re.I
@@ -2253,7 +2428,7 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['type'] = 'УШМ и шлифмашины'
         elif re.search(r'\b(электролобзик\w*|лобзик\w*|циркулярн\w*\s+пил\w*|дисков\w*\s+пил\w*|монтажн\w*\s+отрезн\w*\s+пил\w*|цепн\w*\s+(?:мини\s+)?пил\w*|бензопил\w*|сабельн\w*\s+пил\w*|торцовочн\w*|ножовк\w*)\b', title, re.I):
             attrs['type'] = 'Пилы и электролобзики'
-        elif re.search(r'\b(сварочн\w*|электрод\w*\s+сварочн\w*)\b', title, re.I):
+        elif re.search(r'\b(сварочн\w*|электрод\w*\s+сварочн\w*|маск\w*\s+сварочн\w*|стекл\w*\s+для\s+маск\w*)\b', title, re.I):
             attrs['type'] = 'Сварочное оборудование'
         elif re.search(r'\b(тестер\s+сети|мультиметр\w*|токов\w*\s+клещ\w*|измерительн\w*|лазерн\w*\s+уровен\w*|нивелир\w*|дальномер\w*|рулетк\w*|мерн\w*\s+лент\w*|геодезическ\w*|штангенциркул\w*|уровень\s+строительн\w*)\b', title, re.I):
             attrs['type'] = 'Измерительный инструмент и тестеры'
@@ -2265,9 +2440,9 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['type'] = 'Аккумуляторы для инструмента'
         elif re.search(r'\b(стремянк\w*|жима\s+саты|лестниц\w*)\b', title, re.I):
             attrs['type'] = 'Стремянки и лестницы'
-        elif re.search(r'\b(набор\s+инструментов|отвертк\w*|ключ\s+|торцев\w*\s+головк\w*|набор\s+ключей|плоскогубц\w*|пассатиж\w*|бокорез\w*|кусачк\w*|клещи|молоток|топор|стамеск\w*|нож\s+строительн\w*|ножниц\w*\s+по\s+металлу|тиски|струбцин\w*|степлер\s+строительн\w*|заклепочник\w*)\b', title, re.I):
+        elif re.search(r'\b(набор\s+инструментов|отвертк\w*|ключ\s+|торцев\w*\s+головк\w*|набор\s+ключей|плоскогубц\w*|пассатиж\w*|бокорез\w*|кусачк\w*|клещи|молоток|топор|стамеск\w*|нож\s+строительн\w*|ножниц\w*\s+по\s+металлу|тиски|струбцин\w*|степлер\s+строительн\w*|заклепочник\w*|пинцет\w*|инструмент\s+для\s+(?:расшивки|зачистки|снятия|обжима)|стриппер\w*|кримпер\w*|обжимн\w*|экстрактор\w*|шестигранник\w*|монтировк\w*|гвоздодер\w*|лом\s+|зубил\w*|кернер\w*|стеклорез\w*|труборез\w*|пистолет\s+для)\b', title, re.I):
             attrs['type'] = 'Ручной инструмент и наборы'
-        elif re.search(r'\b(сверл\w*|набор\s+сверл|бур\s+по|диск\s+(?:отрезн|пильн|алмазн|шлифовальн|лепестков)|набор\s+бит|биты\s+для)\b', title, re.I):
+        elif re.search(r'\b(сверл\w*|набор\s+сверл|бур\s+по|диск\s+|(?:отрезн\w*|обдирочн\w*|шлифовальн\w*|лепестков\w*|алмазн\w*|зачистн\w*|пильн\w*)\s+(?:круг\w*|диск\w*|чашк\w*)|коронк\w*|щетк\w*|корщетк\w*|набор\s+бит|биты\s+для|пилки\s+для|полотно|шина\s+для\s+пил|цепь\s+пильная)\b', title, re.I):
             attrs['type'] = 'Оснастка и расходники'
         elif re.search(r'\b(клей\s+|краска\s+|грунтовк\w*|шпатлевк\w*|шпаклевк\w*|шпатлевочн\w*|штукатурк\w*|knauf\s+rotband|alinex|samaragips|затирк\w*|пропитка\s+|звукоизоляция|герметик\w*|пена\s+монтажная|панел\w*|камень\s+искусственн\w*|плитк\w*|керамогранит\w*|ламинат\w*|линолеум\w*|плинтус\w*|порог\s+|угол\s+|обои|фотообои)\b', title, re.I):
             attrs['type'] = 'Строительные смеси, ЛКМ и отделка'
@@ -2308,7 +2483,7 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         r'палетк\w*\s+(?:теней|для\s+макияжа|для\s+скульптурирования|для\s+контуринга|консилеров|хайлайтеров)|тени\s+для\s+(?:век|бровей)|тушь\s+для\s+(?:ресниц|бровей)|помада\s+для\s+(?:губ|бровей)|губная\s+помада|блеск\s+для\s+губ|тинт\s+для\s+губ|карандаш\s+для\s+(?:губ|глаз|бровей|каял)|подводк\w*\s+для\s+глаз|лайнер\s+для\s+(?:глаз|бровей)|тональн\w*\s+(?:крем|основа|флюид|сыворотка|мусс|кушон)|кушон\s+для\s+лица|bb[- ]крем|cc[- ]крем|консилер\w*|корректор\s+для\s+лица|пудра\s+(?:для\s+лица|компактная|рассыпчатая|матирующая|минеральная)|румяна\s+(?:для\s+лица|компактные|жидкие|кремовые|в\s+стике)|хайлайтер\w*|бронзер\w*|скульптор\s+для\s+лица|контуринг\s+(?:для\s+)?лица|стик\s+для\s+(?:лица|контуринга|макияжа)|праймер\s+для\s+(?:лица|макияжа|ресниц|век)|база\s+под\s+(?:макияж|тени)|фиксатор\s+(?:для\s+)?макияжа|фиксирующ\w*\s+(?:спрей|гель|пудра)|спонж\s+для\s+макияжа|кисть\s+для\s+(?:макияжа|пудры|румян|теней|бровей|тона)|набор\s+кистей\s+для\s+макияжа|накладн\w*\s+(?:ресниц\w*|ногт\w*)|средств\w*\s+для\s+снятия\s+(?:макияжа|лака)|'
         r'электробритв\w*|бритв\w*\s+(?:мужск\w*|женск\w*|одноразов\w*|безопасн\w*|gillette|venus|bic)|сменн\w*\s+кассет\w*\s+для\s+бритв\w*|эпилятор\w*|фотоэпилятор\w*|триммер\w*\s+(?:для\s+(?:бороды|усов|носа|ушей|тела|бикини|волос|бровей)|мужск\w*|универсальн\w*|philips|braun|panasonic|rowenta|remington|wahl|moser|babyliss|xiaomi|scarlett|vitek|polaris)|машинк\w*\s+для\s+стрижки\s+(?:волос|катышков)?|фен\s+(?:для\s+волос|щетка|стайлер|профессиональн\w*|дорожн\w*|dyson|philips|rowenta|babyliss|remington|braun|valera|scarlett|vitek|polaris|xiaomi|dreame)|электрощипц\w*|щипц\w*\s+(?:для\s+завивки|гофре|выпрямитель)|плойк\w*\s+для\s+волос|выпрямител\w*\s+для\s+волос|утюжок\s+для\s+волос|мультистайлер\w*|стайлер\w*\s+для\s+волос|термобигуди|расческ\w*\s+(?:для\s+волос|массажн\w*|выпрямитель|tangle\s+teezer|janeke)|щетк\w*\s+для\s+(?:волос|укладки|лица|тела|зубная|электрическая\s+зубная)|ирригатор\w*|зубн\w*\s+(?:паст\w*|щетк\w*|нить|порошок)|ополаскивател\w*\s+для\s+полости\s+рта|'
         r'косметичк\w*|пилочк\w*\s+для\s+ногтей|маникюрн\w*\s+набор|кусачки\s+маникюрн\w*|тонометр\w*|ингалятор\w*|небулайзер\w*|термометр\s+(?:медицинск\w*|бесконтактн\w*|инфракрасн\w*|электронн\w*)|массажер\w*\s+для\s+(?:тела|шеи|спины|ног|лица|головы|глаз)|дарсонвал\w*|аппарат\s+для\s+(?:маникюра|педикюра|чистки\s+лица)|'
-        r'весы\s+(?:напольн\w*|умн\w*|smart\s+scale|scarlett\s+sc-bs|kitfort\s+kt-80|tefal\s+body))\b',
+        r'весы\s+(?!кухонн\w*|торгов\w*|кранов\w*|товарн\w*|платформенн\w*|фасовочн\w*|ювелирн\w*|багажн\w*)[a-zа-я0-9]+)\b',
         title, re.I
     )) and not is_tool
     if is_perfume_beauty:
@@ -2320,7 +2495,7 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['type'] = 'Парфюмированный мист / Спрей'
         elif re.search(r'\b(дезодорант\w*|антиперспирант\w*)\b', title, re.I):
             attrs['type'] = 'Дезодорант / Антиперспирант'
-        elif re.search(r'\b(весы\s+(?:напольн\w*|умн\w*|smart\s+scale|scarlett\s+sc-bs|kitfort\s+kt-80|tefal\s+body))\b', title, re.I):
+        elif re.search(r'\bвесы\b', title, re.I):
             attrs['type'] = 'Напольные весы'
         elif re.search(r'\b(электробритв\w*|эпилятор\w*|фотоэпилятор\w*|триммер\w*|машинк\w*\s+для\s+стрижки|бритв\w*|сменн\w*\s+кассет\w*\s+для\s+бритв)\b', title, re.I):
             attrs['type'] = 'Бритвы, триммеры и эпиляторы'
@@ -2373,13 +2548,19 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
 
     # 30. Игрушки и конструкторы (включая LEGO)
     is_toy_item = bool(re.search(
-        r'\b(lego\b|лего\b|конструктор\w*|игрушк\w*\s+мягконабивн\w*|мягк\w*\s+игрушк\w*|игрушечн\w*|'
-        r'квадрокоптер\w*\s+.*на\s+радиоуправлении|на\s+радиоуправлении|трансформер\w*\s+класса|'
-        r'подвижная\s+фигурка|фигурка\s+персонажа|кукла\b|пупс\b|бластер\w*\s+nerf)\b',
+        r'\b(lego\b|лего\b|конструктор\w*|игрушк\w*\s+мягконабивн\w*|мягк\w*\s+игрушк\w*|игрушк\w*(?!\s+для\s+(?:кошек|собак|животных))|игрушечн\w*|'
+        r'надувн\w*\s+(?:игрушк\w*|плот|матрас[- ]плот|круг\s+intex|круг\s+bestway|бассейн\s+детск\w*|жилет\s+для\s+плавания|нарукавник\w*|мяч)|игрушк\w*[- ]плот|'
+        r'квадрокоптер\w*\s+.*на\s+радиоуправлении|на\s+радиоуправлении|радиоуправляем\w*|трансформер\w*\s+класса|'
+        r'подвижная\s+фигурка|фигурка\s+персонажа|игров\w*\s+фигурк\w*|коллекционн\w*\s+фигурк\w*|фигурка\s+funko|'
+        r'кукла\b|куклы\b|пупс\b|коляск\w*\s+.*для\s+кук\w*|кроватк\w*\s+для\s+кук\w*|одежда\s+для\s+кук\w*|мебел\w*\s+для\s+кук\w*|дом\w*\s+для\s+кук\w*|'
+        r'бластер\w*|водн\w*\s+пистолет\w*|мыльн\w*\s+пузыр\w*|слайм\w*|лизун\w*|антистресс\w*|сквиш\w*|спиннер\w*|'
+        r'машинк\w*\s+(?:металлическ|инерционн|детск|каталка|технопарк|hot\s+wheels|спецтехник)|автотрек\w*|парковк\w*\s+(?:детск|игров|уровнев|maxrace)|гараж\s+(?:детск|игров|maxrace)|железн\w*\s+дорог\w*|паровозик\w*|поезд\s+игрушечн|трактор\s+(?:полесье|детск|инерционн)|спецтехник\w*\s+полесье|'
+        r'игров\w*\s+(?:набор\w*|комплект|центр|коврик|палатк\w*|домик|кухн\w*|магазин|касса|мастерская)|набор\s+(?:доктора|врача|парикмахера|стилиста|инструментов\s+детск|солдатиков|динозавров|животных|посуды\s+детск|для\s+песочницы|для\s+игры)|тележк\w*\s+(?:с\s+набором|для\s+супермаркета)|'
+        r'юла\b|юла[- ]карусель|неваляшк\w*|каталк\w*(?!\s*-толокар)|заводн\w*\s+игрушк\w*|музыкальн\w*\s+(?:игрушк\w*|коврик|руль|телефончик)|книжк\w*\s+для\s+ванной|игрушк\w*\s+для\s+ванной|магнитн\w*\s+мозаик\w*|деревянн\w*\s+(?:игрушк\w*|пазл|вкладыш|шнуровк|стучалк|лабиринт)|елочн\w*\s+(?:игрушк\w*|украшен\w*|шар\w*))\b',
         title, re.I
-    ))
+    )) and not re.search(r'\bдля\s+(?:кошек|собак|животных|грызунов|птиц)\b', title, re.I)
     if is_toy_item:
-        if re.search(r'\b(lego\b|лего\b|конструктор\w*)\b', title, re.I):
+        if re.search(r'\b(lego\b|лего\b|конструктор\w*|магнитн\w*\s+мозаик\w*)\b', title, re.I):
             attrs['type'] = 'Конструктор'
             if re.search(r'\btechnic\b', title, re.I):
                 attrs['lego_series'] = 'LEGO Technic'
@@ -2413,14 +2594,18 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['type'] = 'Мягкая игрушка'
         elif re.search(r'\b(на\s+радиоуправлении|радиоуправляем\w*)\b', title, re.I):
             attrs['type'] = 'Радиоуправляемая игрушка'
-        elif re.search(r'\b(трансформер\w*|подвижная\s+фигурка|фигурка\s+персонажа)\b', title, re.I):
+        elif re.search(r'\b(машинк\w*|автотрек\w*|парковк\w*|гараж|железн\w*\s+дорог\w*|паровозик\w*|поезд|трактор|спецтехник\w*)\b', title, re.I):
+            attrs['type'] = 'Машинки, треки и техника'
+        elif re.search(r'\b(трансформер\w*|подвижная\s+фигурка|фигурка\s+персонажа|игров\w*\s+фигурк\w*|коллекционн\w*\s+фигурк\w*|фигурка\s+funko|солдатик\w*|динозавр\w*)\b', title, re.I):
             attrs['type'] = 'Фигурка / Робот'
-        elif re.search(r'\b(кукла|пупс)\b', title, re.I):
-            attrs['type'] = 'Кукла / Пупс'
+        elif re.search(r'\b(кукла|куклы|пупс|для\s+кук\w*)\b', title, re.I):
+            attrs['type'] = 'Кукла / Пупс и аксессуары'
+        elif re.search(r'\b(надувн\w*|плот|для\s+плавания|нарукавник\w*|водн\w*\s+пистолет|мыльн\w*\s+пузыр|для\s+песочницы)\b', title, re.I):
+            attrs['type'] = 'Надувные и летние игрушки'
         else:
             attrs['type'] = 'Игрушка / Игровой набор'
 
-        m_det = re.search(r'\b(\d{2,4})\s*дет\.?\b', title, re.I)
+        m_det = re.search(r'\b(\d{1,4})\s*(?:дет\.?|предм\w*|эл\.?|шт\.?)\b', title, re.I)
         if m_det:
             attrs['pieces_count'] = f"{m_det.group(1)} дет."
 
@@ -2606,19 +2791,22 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
 
     # 35. Дом и сад, освещение, текстиль и посуда
     is_home_kitchen = bool(re.search(
-        r'\b(led\s+ламп\w*|светодиодн\w*\s+ламп\w*|ламп\w*\s+(?:светодиодн\w*|филаментн\w*|накаливания|энергосберегающ\w*)|'
-        r'настольн\w*\s+(?:led\s+)?ламп\w*|светильник\w*|люстр\w*|ночник\w*|ночной\s+светильник|'
+        r'\b(led\s+ламп\w*|светодиодн\w*\s+(?:ламп\w*|лент\w*|панел\w*|прожектор\w*)|ламп\w*\s+(?:светодиодн\w*|филаментн\w*|накаливания|энергосберегающ\w*|умн\w*)|'
+        r'настольн\w*\s+(?:led\s+)?ламп\w*|[cс]ветильник\w*|люстр\w*|бра\b|торшер\w*|прожектор\w*|ночник\w*|ночной\s+[cс]ветильник|умн\w*\s+(?:светодиодн\w*\s+лент\w*|ламп\w*|розетк\w*|выключател\w*)|led[- ]панел\w*|осветител\w*\s+для|фонарик\w*|'
         r'сковород\w*|кастрюл\w*|ковш\s+|казан\w*|сотейник\w*|вок\b|wok\b|набор\s+посуды|термос\w*|термокружк\w*|бутылк\w*\s+для\s+воды|френч[- ]пресс|чайник\s+заварочн\w*|нож\s+кухонн\w*|набор\s+ножей|разделочн\w*\s+доск\w*|тарелк\w*|кружк\w*|бокал\w*|стакан\w*|форма\s+для\s+(?:выпечки|запекания)|контейнер\s+для\s+(?:пищевых|еды|хранения)|'
         r'постельн\w*\s+бель\w*|комплект\s+постельного|одеял\w*|подушк\w*(?!\s+безопасности)|плед\w*|покрывал\w*|простын\w*|наволочк\w*|полотенц\w*|штор\w*|занавеск\w*|ковер\b|коврик\s+(?:придверн|для\s+ванной|влаговпитывающ)|'
-        r'вешалк\w*\s+(?:гардеробн\w*|для\s+одежды|напольн\w*|плечики)|корзин\w*\s+для\s+(?:белья|хранения)|коробк\w*\s+для\s+хранения|органайзер\w*|ролик\s+для\s+чистки\s+одежды|'
+        r'вешалк\w*\s+(?:гардеробн\w*|для\s+одежды|напольн\w*|плечики)|корзин\w*\s+для\s+(?:белья|хранения)|коробк\w*\s+для\s+хранения|органайзер\w*|ролик\s+для\s+чистки\s+одежды|автоматик\w*\s+для\s+ворот|привод\s+для\s+ворот|'
         r'ароматическ\w*\s+(?:диффузор|свеч\w*|саше)|подарочн\w*\s+(?:пакет|коробк\w*|набор)|'
-        r'шланг\s+поливочн\w*|секатор\w*|лопат\w*\s+(?:совков|штыков|снегоуборочн|садов)|грабли\b|лейк\w*\s+садов|опрыскивател\w*|семена\s+|удобрен\w*|грунт\s+для|горшок\s+для\s+цветов|кашпо\b)\b',
+        r'шланг\s+(?:поливочн\w*|садов\w*|растягивающ\w*|сочащ\w*|капельн\w*)|садов\w*\s+(?:шланг\w*|тележк\w*|тачк\w*|душ|секатор|ножниц\w*|опрыскивател\w*|инвентар\w*|качел\w*|павильон|шатер|зонт)|'
+        r'пистолет\w*[- ]распылител\w*|распылител\w*\s+для\s+(?:полива|воды|шланга)|дождевател\w*|оросител\w*|набор\s+для\s+(?:полива|капельного\s+полива)|катушк\w*\s+для\s+шланга|тележк\w*\s+для\s+шланга|коннектор\w*\s+для\s+шланга|адаптер\s+для\s+(?:крана|шланга|полива)|таймер\s+полива|'
+        r'электрическ\w*\s+триммер\w*|аккумуляторн\w*\s+(?:триммер\w*|секатор\w*|опрыскивател\w*|цепн\w*\s+пил\w*|газонокосилк\w*|кусторез\w*)|бензинов\w*\s+(?:триммер\w*|газонокосилк\w*|мотокос\w*|бензопил\w*)|'
+        r'секатор\w*|сучкорез\w*|высоторез\w*|лопат\w*\s+(?:совков|штыков|снегоуборочн|садов|универсальн)|грабли\b|веерн\w*\s+грабли|тяпк\w*|мотыг\w*|рыхлител\w*|корнеудалител\w*|плоскорез\w*|лейк\w*\s+садов|опрыскивател\w*|семена\s+|удобрен\w*|грунт\s+(?:для|универсальн|цветочн|торфян)|горшок\s+(?:для\s+цветов|цветочн)|кашпо\b|парник\w*|теплиц\w*|агроволокн\w*|спанбонд|укрывн\w*\s+материал|бордюрн\w*\s+лент\w*|садов\w*\s+сетк\w*|средств\w*\s+от\s+(?:насекомых|комаров|сорняков|вредителей|грызунов))\b',
         title, re.I
-    )) and not is_kitchen and not is_tool and not is_furniture
+    )) and not is_kitchen and not is_furniture
     if is_home_kitchen:
-        if re.search(r'\b(led\s+ламп\w*|светодиодн\w*\s+ламп\w*|ламп\w*\s+(?:светодиодн\w*|филаментн\w*|накаливания)|светильник\w*|люстр\w*|ночник\w*|настольн\w*\s+(?:led\s+)?ламп\w*)\b', title, re.I):
-            if re.search(r'\b(светильник\w*|люстр\w*|ночник\w*|настольн\w*\s+(?:led\s+)?ламп\w*)\b', title, re.I):
-                attrs['type'] = 'Светильники, люстры и настольные лампы'
+        if re.search(r'\b(led\s+ламп\w*|светодиодн\w*\s+(?:ламп\w*|лент\w*|панел\w*|прожектор\w*)|ламп\w*\s+(?:светодиодн\w*|филаментн\w*|накаливания|умн\w*)|[cс]ветильник\w*|люстр\w*|бра\b|торшер\w*|прожектор\w*|ночник\w*|настольн\w*\s+(?:led\s+)?ламп\w*|умн\w*\s+(?:светодиодн\w*\s+лент\w*|ламп\w*)|led[- ]панел\w*|осветител\w*|фонарик\w*)\b', title, re.I):
+            if re.search(r'\b([cс]ветильник\w*|люстр\w*|бра\b|торшер\w*|прожектор\w*|ночник\w*|настольн\w*\s+(?:led\s+)?ламп\w*|светодиодн\w*\s+(?:лент\w*|панел\w*)|led[- ]панел\w*|осветител\w*|фонарик\w*)\b', title, re.I):
+                attrs['type'] = 'Светильники, люстры и LED-ленты'
             else:
                 attrs['type'] = 'Светодиодные лампочки (LED)'
             m_base = re.search(r'\b(e27|e14|gu10|gu5\.3|g4|g9|g13|gx53)\b', title, re.I)
@@ -2633,7 +2821,7 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
                     attrs['color_temp'] = f"Нейтральный свет ({k_int}K)"
                 else:
                     attrs['color_temp'] = f"Холодный свет ({k_int}K)"
-            m_lw = re.search(r'\b(\d{1,2}(?:[.,]\d)?)\s*(?:вт|w)\b', title, re.I)
+            m_lw = re.search(r'\b(\d{1,3}(?:[.,]\d)?)\s*(?:вт|w)\b', title, re.I)
             if m_lw and 'power' not in attrs:
                 attrs['power'] = f"{m_lw.group(1).replace(',', '.')} Вт"
         elif re.search(r'\b(сковород\w*|вок\b|wok\b|сотейник\w*)\b', title, re.I):
@@ -2646,8 +2834,16 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['type'] = 'Кухонная утварь и сервировка'
         elif re.search(r'\b(постельн\w*\s+бель\w*|комплект\s+постельного|одеял\w*|подушк\w*|плед\w*|покрывал\w*|простын\w*|наволочк\w*|полотенц\w*|штор\w*|занавеск\w*|ковер|коврик)\b', title, re.I):
             attrs['type'] = 'Постельное белье, текстиль и ковры'
-        elif re.search(r'\b(шланг\s+поливочн\w*|секатор\w*|лопат\w*|грабли|лейк\w*|опрыскивател\w*|семена|удобрен\w*|грунт|горшок\s+для\s+цветов|кашпо)\b', title, re.I):
-            attrs['type'] = 'Садовый инвентарь, полив и растения'
+        elif re.search(r'\b(шланг|садов\w*|распылител\w*|дождевател\w*|оросител\w*|полив\w*|триммер\w*|газонокосилк\w*|кусторез\w*|секатор\w*|сучкорез\w*|высоторез\w*|лопат\w*|грабли|тяпк\w*|мотыг\w*|рыхлител\w*|корнеудалител\w*|плоскорез\w*|лейк\w*|опрыскивател\w*|семена|удобрен\w*|грунт|горшок|кашпо|парник\w*|теплиц\w*|агроволокн\w*|спанбонд|бордюрн\w*|от\s+(?:насекомых|комаров|сорняков|вредителей|грызунов))\b', title, re.I):
+            if 'type' not in attrs:
+                attrs['type'] = 'Садовый инвентарь, полив и растения'
+            if 'power_supply' not in attrs:
+                if re.search(r'\bаккумуляторн\w*\b', title, re.I):
+                    attrs['power_supply'] = 'Аккумуляторный'
+                elif re.search(r'\b(электрическ\w*|сетев\w*|\d{3,4}\s*(?:вт|w))\b', title, re.I):
+                    attrs['power_supply'] = 'Сетевой (220 В)'
+                elif re.search(r'\bбензинов\w*\b', title, re.I):
+                    attrs['power_supply'] = 'Бензиновый'
         else:
             attrs['type'] = 'Хранение, декор и хозтовары'
 
@@ -3329,7 +3525,8 @@ _SYNC_TITLE_SCOPE = '''
                    'board_games', 'Настольные игры', 'photo_video', 'Фото и видео',
                    'electronics', 'Электроника', 'software', 'Программы',
                    'telephony', 'Стационарные и IP-телефоны', 'bicycles', 'Велосипеды и самокаты',
-                   'sport', 'Спорт и отдых', 'fitness', 'Фитнес и тренажеры')
+                   'sport', 'Спорт и отдых', 'fitness', 'Фитнес и тренажеры',
+                   'laptops', 'Ноутбуки', 'phones', 'Смартфоны', 'psu', 'Блоки питания')
     OR p.title LIKE '%подгуз%' OR p.title LIKE '%трусик%' OR p.title LIKE '%памперс%'
     OR p.title LIKE '%холодильн%' OR p.title LIKE '%стиральн%' OR p.title LIKE '%посудомо%' OR p.title LIKE '%пылесос%'
     OR p.title LIKE '%автошин%' OR p.title LIKE '%зимн%шин%' OR p.title LIKE '%летн%шин%' OR p.title LIKE '% R1%' OR p.title LIKE '% R2%'

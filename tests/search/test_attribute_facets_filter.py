@@ -550,6 +550,56 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         bat1 = extract_title_attributes('Батарейка литиевая CR2032 Camelion')
         self.assertEqual(bat1.get('type'), 'Батарейки и элементы питания')
 
+        # 19. Волна 7: Ноутбуки (модельные коды), Мониторы (&#34; и коды), Смартфоны ((4/128), 32GB), Проекторы, Корпуса, Кондиционеры, Ретро-консоли, Сумки, Игрушки, Весы
+        lap_w7 = extract_title_attributes('Ноутбук Acer Predator Helios 300 PH315-52 Core i7 RTX 3060')
+        self.assertEqual(lap_w7.get('screen_size'), '15.6"')
+        self.assertEqual(lap_w7.get('cpu'), 'Intel Core i7')
+        self.assertEqual(lap_w7.get('gpu'), 'RTX 3060')
+
+        mon_w7 = extract_title_attributes('Монитор 23.8&#34; DELL P2423D IPS QHD')
+        self.assertEqual(mon_w7.get('screen_size'), '23.8"')
+        self.assertEqual(mon_w7.get('panel_type'), 'IPS')
+
+        mon_code = extract_title_attributes('Монитор AOC 24G50F Gaming 180Hz')
+        self.assertEqual(mon_code.get('screen_size'), '23.8"')
+        self.assertEqual(mon_code.get('refresh_rate'), '180 Гц')
+
+        ph_w7 = extract_title_attributes('Смартфон OPPO A5i (4/128) Красный')
+        self.assertEqual(ph_w7.get('ram'), '4 ГБ')
+        self.assertEqual(ph_w7.get('storage'), '128 ГБ')
+        self.assertEqual(ph_w7.get('color'), 'Красный')
+
+        ph_32 = extract_title_attributes('Смартфон vivo Y01, 32 GB, синий')
+        self.assertEqual(ph_32.get('storage'), '32 ГБ')
+
+        proj_w7 = extract_title_attributes('Проектор Epson EB-E10, XGA, 3LCD')
+        self.assertEqual(proj_w7.get('type'), 'Проектор')
+        self.assertEqual(proj_w7.get('screen_tech'), '3LCD')
+
+        scr_w7 = extract_title_attributes('Экран моторизованный с ПДУ Mr.Pixel 106" (16:9)')
+        self.assertEqual(scr_w7.get('type'), 'Проекционный экран')
+        self.assertEqual(scr_w7.get('screen_diagonal'), '106"')
+
+        case_w7 = extract_title_attributes('Компьютерный корпус Thermaltake Divider 370 TG ARGB, без Б/П, Black')
+        self.assertEqual(case_w7.get('side_window'), 'Закаленное стекло (TG)')
+        self.assertEqual(case_w7.get('backlight'), 'ARGB')
+        self.assertEqual(case_w7.get('psu_included'), 'Без БП')
+
+        ac_w7 = extract_title_attributes('Midea XTREME MEGA-12 белый + монтажный комплект')
+        self.assertEqual(ac_w7.get('type'), 'Сплит-система')
+        self.assertEqual(ac_w7.get('power_btu'), '12 (до 35 м²)')
+
+        con_w7 = extract_title_attributes('Приставка игровая Dendy Junior (300 игр, 8 бит)')
+        self.assertEqual(con_w7.get('type'), 'Ретро-приставка (8/16-bit)')
+        self.assertEqual(con_w7.get('platform'), 'Sega / Dendy (Ретро)')
+
+        bag_w7 = extract_title_attributes('Tommy Hilfiger Сумка женская кросс-боди черная')
+        self.assertEqual(bag_w7.get('type'), 'Сумки и рюкзаки')
+        self.assertEqual(bag_w7.get('gender'), 'Женские')
+
+        scale_w7 = extract_title_attributes('Весы Tefal Premiss PP1400V0, черный')
+        self.assertEqual(scale_w7.get('type'), 'Напольные весы')
+
     def test_category_schema_and_search_priority_orders(self):
         from domain.category import MASTER_TAXONOMY
         from repositories.category_repo import CategoryRepository

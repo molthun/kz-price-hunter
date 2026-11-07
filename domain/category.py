@@ -182,6 +182,7 @@ MASTER_TAXONOMY: List[Category] = [
         search_priority=87,
         aliases=["телевизоры", "тв", "smart tv", "televisions", "oled", "qled", "проекторы", "проектор"],
         attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
             "screen_diagonal": {"label": "Диагональ экрана", "type": "string"},
             "resolution": {"label": "Разрешение", "type": "string"},
             "screen_tech": {"label": "Технология экрана", "type": "string"},
@@ -1139,6 +1140,7 @@ MASTER_TAXONOMY: List[Category] = [
         attributes_schema={
             "type": {"label": "Вид игрушки", "type": "string"},
             "age_from": {"label": "Возраст", "type": "string"},
+            "pieces_count": {"label": "Количество предметов", "type": "string"},
             "color": {"label": "Цвет", "type": "string"},
         },
     ),
@@ -1169,6 +1171,7 @@ MASTER_TAXONOMY: List[Category] = [
             "type": {"label": "Тип игрушки", "type": "string"},
             "lego_series": {"label": "Серия конструктора", "type": "string"},
             "pieces_count": {"label": "Количество деталей", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
         },
     ),
     Category(
