@@ -859,6 +859,8 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
             return f"{m_pw.group(1)} Вт"
 
     if key in ('total_volume', 'capacity'):
+        if re.search(r'\b(?:гб|gb|тб|tb|мб|mb|гбайт|байт)\b', val, re.IGNORECASE):
+            return None
         m_vol = re.search(r'(\d+(?:[.,]\d+)?)\s*(?:л|l|литр\w*)?', val, re.IGNORECASE)
         if m_vol:
             num = m_vol.group(1).replace(',', '.')

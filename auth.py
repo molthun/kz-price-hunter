@@ -246,7 +246,7 @@ def dev_login_allowed(request: web.Request) -> bool:
 
 
 # Пробы и статика одинаково не трогают базу сессий, в том числе /api/readiness — alias /api/health
-_NO_SESSION_PATHS = frozenset(("/api/live", "/api/health", "/api/readiness", "/favicon.ico"))
+_NO_SESSION_PATHS = frozenset(("/api/live", "/api/health", "/api/readiness", "/favicon.ico", "/api/version"))
 _session_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="kzph-session")
 
 
@@ -294,7 +294,8 @@ async def auth_middleware(request: web.Request, handler):
     # Закрытый режим разработки: доступ к функциональным API только подтверждённым пользователям
     if MAINTENANCE_DEV_MODE and request.path.startswith("/api/"):
         _allowed_api = {"/api/me", "/api/auth/telegram", "/api/auth/telegram-webapp",
-                        "/api/auth/dev-login", "/api/auth/logout", "/api/diag"}
+                        "/api/auth/dev-login", "/api/auth/logout", "/api/diag",
+                        "/api/version"}
         if request.path not in _allowed_api:
             if not is_confirmed_user(request["user"]):
                 return web.json_response({

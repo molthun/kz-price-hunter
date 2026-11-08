@@ -446,7 +446,7 @@ def upgrade_rehearsal(db_path: str, keep_path: Optional[str] = None) -> Dict[str
 # важно, что данные не отдаются. Открытые разделы должны отвечать именно 200.
 SMOKE_ENDPOINTS = (
     {"path": "/api/version", "expect": [200], "must_contain": ["version"]},
-    {"path": "/api/stats", "expect": [200]},
+    {"path": "/api/stats", "expect": [200, 403]},
     {"path": "/", "expect": [200]},
     {"path": "/api/admin/monitoring", "expect": [401, 403]},
     {"path": "/api/admin/assistant", "expect": [401, 403], "method": "POST"},

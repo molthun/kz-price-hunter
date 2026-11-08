@@ -4,7 +4,7 @@ const {spawn}=require('node:child_process');
 const path=require('node:path'),assert=require('node:assert/strict');
 const ROOT=path.resolve(__dirname,'../..');
 (async()=>{
- const child=spawn(path.join(ROOT,'venv/bin/python'),['-u','-m','tests.web.test_browser_server'],{cwd:ROOT,env:{...process.env,MAINTENANCE_DEV_MODE:'1'},stdio:['ignore','pipe','pipe']});
+ const child=spawn(process.env.TEST_PYTHON||path.join(ROOT,'venv/bin/python'),['-u','-m','tests.web.test_browser_server'],{cwd:ROOT,env:{...process.env,MAINTENANCE_DEV_MODE:'1'},stdio:['ignore','pipe','pipe']});
  let browser;
  try{
   const base=await new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=>reject(Error('startup timeout')),10000);child.stdout.on('data',c=>{out+=c;const m=out.match(/BROWSER_TEST_URL=(http:\/\/127\.0\.0\.1:\d+)/);if(m){clearTimeout(timer);resolve(m[1]);}});child.on('exit',code=>{clearTimeout(timer);reject(Error('server exit '+code));});});

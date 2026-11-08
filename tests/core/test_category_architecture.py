@@ -123,7 +123,7 @@ class TestCategoryDomainAndMapper(unittest.TestCase):
     def test_fts_query_finds_word_forms_and_compounds(self):
         from repositories.search_repo import SearchRepository
         query = SearchRepository._build_fts_query("мясорубки")
-        self.assertEqual(query, '("мясорубк"* OR "электромясорубк"*)')
+        self.assertEqual(query, '("мясорубк"* OR "мясорубки"* OR "электромясорубк"*)')
         # Множественное число коротких слов от 5 букв находит форму единственного числа
         self.assertIn('"плит"*', SearchRepository._build_fts_query("плиты"))
         self.assertIn('"бритв"*', SearchRepository._build_fts_query("бритвы"))

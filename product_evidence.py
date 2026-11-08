@@ -185,7 +185,7 @@ def extract(html,url,title,shop=''):
 
 
 def enrich_facts_with_canonical_attributes(conn, pid: str, facts: List[Dict[str, Any]], title: str) -> List[Dict[str, Any]]:
-    existing_names = {f['name'].casefold() for f in facts if isinstance(f, dict) and f.get('name')}
+    existing_names = {f['name'].casefold().replace('ё', 'е') for f in facts if isinstance(f, dict) and f.get('name')}
     res = list(facts)
     try:
         row = conn.execute("SELECT brand, model, category FROM canonical_products WHERE id = ?", (pid,)).fetchone()
@@ -208,9 +208,10 @@ def enrich_facts_with_canonical_attributes(conn, pid: str, facts: List[Dict[str,
         ).fetchall()
         for k, v in attr_rows:
             label = ATTRIBUTE_LABELS.get(k, k)
-            if label.casefold() not in existing_names and v:
+            norm_label = label.casefold().replace('ё', 'е')
+            if norm_label not in existing_names and v:
                 res.append({'name': label, 'value': v, 'source_url': ''})
-                existing_names.add(label.casefold())
+                existing_names.add(norm_label)
     except Exception:
         pass
 
@@ -220,9 +221,10 @@ def enrich_facts_with_canonical_attributes(conn, pid: str, facts: List[Dict[str,
             title_attrs = extract_title_attributes(title)
             for k, v in title_attrs.items():
                 label = ATTRIBUTE_LABELS.get(k, k)
-                if label.casefold() not in existing_names and v:
+                norm_label = label.casefold().replace('ё', 'е')
+                if norm_label not in existing_names and v:
                     res.append({'name': label, 'value': v, 'source_url': ''})
-                    existing_names.add(label.casefold())
+                    existing_names.add(norm_label)
         except Exception:
             pass
 
