@@ -330,7 +330,8 @@ def _infer_wave10_fallback(cat: str, title: str) -> Dict[str, str]:
 
 def run_enrichment(db_path: str) -> None:
     print(f"=== Starting Wave 10 Catalog Enrichment on {db_path} ===", flush=True)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=120.0)
+    conn.execute("PRAGMA busy_timeout = 120000")
     conn.row_factory = sqlite3.Row
     now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -446,7 +447,7 @@ def run_enrichment(db_path: str) -> None:
                 focus_fallbacks += 1
                 focus_indexed += len(extra)
 
-        if idx % 1000 == 0:
+        if idx % 200 == 0:
             conn.commit()
 
     conn.commit()
@@ -505,7 +506,7 @@ def run_enrichment(db_path: str) -> None:
                     pass
                 sweep_indexed += len(items)
 
-        if idx % 1000 == 0:
+        if idx % 200 == 0:
             conn.commit()
 
     conn.commit()

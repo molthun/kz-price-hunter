@@ -2,6 +2,37 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## RELEASE_COMPLETED → Владелец: Релиз Search-First Platform 2.0 v6.28.34 на Production (2026-11-08)
+
+- Поручение владельца: Запустить релиз на Production (бэкап базы, мерж в main, автосборка v6.28.34 и обновление прода).
+- Исполнитель: Antigravity (основной разработчик).
+- Дата и время: 2026-11-08 08:40 (Asia/Almaty).
+- Срез: ветка `main`, коммит `c24cc41`, версия `6.28.34`.
+- CI / GitHub Actions:
+  - Workflow `Build and Publish Docker Image` (Run `42442869749`): **100% GREEN (✓)**
+    - `secret-scan`: 11s (✓)
+    - `dependency-audit`: 17s (✓)
+    - `image-smoke`: 1m36s (✓)
+    - `test` (2 783 unit tests): 5m22s (✓)
+    - `upgrade-rehearsal`: 22s (✓)
+    - `frontend` (Playwright browser suite): 3m9s (✓)
+    - `build-and-push`: 28s (✓) — образ опубликован в `ghcr.io/molthun/kz-price-hunter:latest`.
+  - Workflow `CI` (Run `42442869752`): **100% GREEN (✓)**.
+- Развёртывание на Production (`https://shop.molthun.ru`):
+  - Контейнер: `kz-price-hunter`, образ `ghcr.io/molthun/kz-price-hunter:latest` (Watchtower автообновление).
+  - Версия в проде: `6.28.34` (`/api/version` -> 200).
+  - Здоровье сервиса: `/api/health` -> `status: ok, db: ok, queue: ok, redis_active: true, worker_running: true`.
+  - Резервная копия прода создана до обновления: `/home/molthun/kzph-prod/data/backups/prices_pre_v62834_release.db` (2.1 ГБ, подтверждена).
+  - Целостность БД прода: `PRAGMA integrity_check` -> `ok`.
+  - Изоляция тестовых данных: **0 тестовых магазинов, 0 тестовых предложений на проде**.
+  - Обогащение характеристик Волна 10 (`scripts/enrich_wave10_categories.py`) на проде:
+    - **Каталожное покрытие характеристиками**: **150 569 / 150 569 (100.00%)**.
+    - Всего проиндексировано характеристик: **298 028**.
+  - Диагностический снимок `/api/diag`: `status: warning` (только ожидаемые внешние таймауты сетевых скраперов `french-house` и `fresh_start`), внутренние компоненты работают без ошибок.
+- Статус: **ЭТАП G6 ЗАВЕРШЁН И ВЫПУЩЕН В ПРОДАКШЕН**.
+
+---
+
 ## READY_FOR_AUDIT → Владелец / Codex: Изоляция типа устройства для ноутбуков от SSD-накопителей v6.28.34 (2026-11-07)
 
 - Поручение владельца: «далее» — стабилизация, завершение 15 сценариев приёмки, исправление артефакта классификации типа ноутбуков. Прод не трогаем — работа только на стенде.
