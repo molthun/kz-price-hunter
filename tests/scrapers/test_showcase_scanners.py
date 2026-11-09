@@ -272,9 +272,18 @@ class ShowcaseScannersTests(unittest.TestCase):
                 in_stock=True,
             )
 
-            # Test Wildberries showcase sync
+            # По умолчанию витрины WB и Ozon отключены решением владельца
+            wb_dis = await sync_channel_showcase(conn, "ch_wb")
+            assert wb_dis["ok"] is False
+            assert "отключены решением владельца" in wb_dis["error"]
+
+            oz_dis = await sync_channel_showcase(conn, "ch_ozon")
+            assert oz_dis["ok"] is False
+            assert "отключены решением владельца" in oz_dis["error"]
+
+            # Test Wildberries showcase sync with allow_disabled=True
             with patch.object(WildberriesShowcaseScanner, "scan_merchant_showcase", return_value=[wb_mock_offer]):
-                wb_res = await sync_channel_showcase(conn, "ch_wb")
+                wb_res = await sync_channel_showcase(conn, "ch_wb", allow_disabled=True)
 
             assert wb_res["ok"] is True
             assert wb_res["scanned_count"] == 1
@@ -287,9 +296,9 @@ class ShowcaseScannersTests(unittest.TestCase):
             assert wb_row["old_price"] == 350000.0
             assert wb_row["availability"] == "in_stock"
 
-            # Test Ozon showcase sync
+            # Test Ozon showcase sync with allow_disabled=True
             with patch.object(OzonShowcaseScanner, "scan_merchant_showcase", return_value=[ozon_mock_offer]):
-                oz_res = await sync_channel_showcase(conn, "ch_ozon")
+                oz_res = await sync_channel_showcase(conn, "ch_ozon", allow_disabled=True)
 
             assert oz_res["ok"] is True
             assert oz_res["scanned_count"] == 1

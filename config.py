@@ -59,8 +59,6 @@ SHOP_KEYS = {
     "kimex": "KIMEX",
     "europharma": "Europharma",
     "french_house": "Французский Дом",
-    "wildberries": "Wildberries KZ",
-    "ozon": "Ozon KZ",
 }
 
 
@@ -1562,25 +1560,11 @@ FRENCH_HOUSE_CATEGORIES = [
     {"name": "Французский Дом: 🎁 Подарочные наборы", "url": "https://french-house.kz/catalog/nabory/", "master": "beauty_health", "max_pages": 10},
 ]
 
-# 36. Wildberries Казахстан (wildberries.kz)
-WILDBERRIES_CATEGORIES = [
-    {"name": "Wildberries: 📱 Смартфоны", "url": "https://www.wildberries.kz/catalog/0/search.aspx?search=смартфон", "master": "smartphones", "max_pages": 10},
-    {"name": "Wildberries: 💻 Ноутбуки", "url": "https://www.wildberries.kz/catalog/0/search.aspx?search=ноутбук", "master": "laptops", "max_pages": 10},
-    {"name": "Wildberries: 🎧 Наушники", "url": "https://www.wildberries.kz/catalog/0/search.aspx?search=наушники", "master": "audio", "max_pages": 10},
-    {"name": "Wildberries: ⌚️ Смарт-часы", "url": "https://www.wildberries.kz/catalog/0/search.aspx?search=смарт%20часы", "master": "tablets_watches", "max_pages": 10},
-    {"name": "Wildberries: 📺 Телевизоры", "url": "https://www.wildberries.kz/catalog/0/search.aspx?search=телевизор", "master": "tvs", "max_pages": 10},
-    {"name": "Wildberries: 🧹 Пылесосы", "url": "https://www.wildberries.kz/catalog/0/search.aspx?search=пылесос", "master": "appliances_small", "max_pages": 10},
-]
+# 36. Wildberries Казахстан (отключён решением владельца из-за антибот-защиты WBAAS)
+WILDBERRIES_CATEGORIES = []
 
-# 37. Ozon Казахстан (ozon.kz)
-OZON_CATEGORIES = [
-    {"name": "Ozon: 📱 Смартфоны", "url": "https://ozon.kz/category/smartfony-15502/", "master": "smartphones", "max_pages": 10},
-    {"name": "Ozon: 💻 Ноутбуки", "url": "https://ozon.kz/category/noutbuki-15692/", "master": "laptops", "max_pages": 10},
-    {"name": "Ozon: 🎧 Наушники", "url": "https://ozon.kz/category/naushniki-15541/", "master": "audio", "max_pages": 10},
-    {"name": "Ozon: ⌚️ Смарт-часы", "url": "https://ozon.kz/category/smart-chasy-15542/", "master": "tablets_watches", "max_pages": 10},
-    {"name": "Ozon: 📺 Телевизоры", "url": "https://ozon.kz/category/televizory-15528/", "master": "tvs", "max_pages": 10},
-    {"name": "Ozon: 🧹 Пылесосы", "url": "https://ozon.kz/category/pylesosy-10657/", "master": "appliances_small", "max_pages": 10},
-]
+# 37. Ozon Казахстан (отключён решением владельца из-за антибот-защиты abt-challenge)
+OZON_CATEGORIES = []
 
 
 

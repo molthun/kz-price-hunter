@@ -113,7 +113,7 @@ class AuditG7FixesTest(unittest.IsolatedAsyncioTestCase):
 
             with patch("domain.channel_sync.KaspiShowcaseScanner.scan_merchant_showcase", new_callable=AsyncMock) as kaspi_mock:
                 with patch("scrapers.showcase_scanners.requests.get", return_value=Mock(status_code=200, json=Mock(return_value={"data": {"products": []}} if platform == "wildberries" else {"widgetStates": {"searchResultsV2-1": {"items": []}}}))):
-                    res = await sync_channel_showcase(conn, "ch")
+                    res = await sync_channel_showcase(conn, "ch", allow_disabled=True)
 
             self.assertFalse(kaspi_mock.called)
             self.assertEqual(res["marketplace"], platform)
@@ -140,7 +140,7 @@ class AuditG7FixesTest(unittest.IsolatedAsyncioTestCase):
             conn.execute("INSERT INTO channels (id, seller_id, channel_type, name, external_store_id, created_at) VALUES ('ch', 's1', ?, ?, '123456', '2026-01-01')", (platform, platform))
 
             with patch("scrapers.showcase_scanners.requests.get", return_value=Mock(status_code=403)):
-                res = await sync_channel_showcase(conn, "ch")
+                res = await sync_channel_showcase(conn, "ch", allow_disabled=True)
 
             self.assertFalse(res["ok"])
             self.assertIn("403", res["error"])
@@ -305,7 +305,7 @@ class AuditG7RecheckTest(unittest.IsolatedAsyncioTestCase):
                      (platform, platform, json.dumps({"last_sync_at": "2026-01-01T00:00:00+00:00"})))
         with patch("scrapers.showcase_scanners.requests.get", side_effect=responses), \
                 patch("scrapers.showcase_scanners.asyncio.sleep", new=AsyncMock()):
-            res = await sync_channel_showcase(conn, "ch", max_pages=max_pages)
+            res = await sync_channel_showcase(conn, "ch", max_pages=max_pages, allow_disabled=True)
         meta = json.loads(conn.execute("SELECT metadata_json FROM channels WHERE id='ch'").fetchone()[0])
         count = conn.execute("SELECT count(*) FROM offers").fetchone()[0]
         conn.close()
@@ -515,7 +515,7 @@ class ReauditG7V6292Test(unittest.IsolatedAsyncioTestCase):
                 patch("scrapers.showcase_scanners.OzonShowcaseScanner.scan_merchant_showcase", new=fake_scan), \
                 patch("domain.channel_sync.KaspiShowcaseScanner.scan_merchant_showcase", new=fake_scan), \
                 patch("scrapers.showcase_scanners.requests.get", side_effect=AssertionError("сеть")):
-            res = await sync_channel_showcase(conn, "ch")
+            res = await sync_channel_showcase(conn, "ch", allow_disabled=True)
         meta = json.loads(conn.execute("SELECT metadata_json FROM channels WHERE id='ch'").fetchone()[0])
         conn.close()
         return res, calls, meta
@@ -552,3 +552,15 @@ class ReauditG7V6292Test(unittest.IsolatedAsyncioTestCase):
                 res, calls, _ = await self._route(ctype, url, ext)
                 self.assertTrue(res["ok"], res)
                 self.assertEqual(calls, [expected])
+
+    async def test_wb_and_ozon_showcase_sync_disabled_by_default(self):
+        """Wildberries и Ozon отключены решением владельца: sync_channel_showcase отклоняет их."""
+        for platform in ("wildberries", "ozon"):
+            conn = create_test_db()
+            conn.execute("INSERT INTO sellers (id, slug, name, created_at, updated_at) VALUES ('s1', 's1', 'Seller', '2026-01-01', '2026-01-01')")
+            conn.execute("INSERT INTO channels (id, seller_id, channel_type, name, external_store_id, created_at) VALUES ('ch', 's1', ?, ?, '123456', '2026-01-01')", (platform, platform))
+            res = await sync_channel_showcase(conn, "ch")
+            self.assertFalse(res["ok"])
+            self.assertEqual(res["status"], "error")
+            self.assertIn("отключены решением владельца", res["error"])
+            conn.close()

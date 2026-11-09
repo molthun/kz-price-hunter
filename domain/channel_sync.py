@@ -208,6 +208,7 @@ async def sync_channel_showcase(
     conn,
     channel_id: str,
     max_pages: int = 15,
+    allow_disabled: bool = False,
 ) -> Dict[str, Any]:
     """Синхронизирует витрину продавца по его каналу на маркетплейсе."""
     row = conn.execute(
@@ -287,6 +288,16 @@ async def sync_channel_showcase(
 
     if not merchant_id:
         return {"ok": False, "error": f"У канала {channel_id} не указан идентификатор или ссылка витрины мерчанта"}
+
+    if not allow_disabled and mp in ("wildberries", "wb", "ozon"):
+        logger.warning(f"Канал {ch_id}: маркетплейс '{mp}' отключён решением владельца")
+        return {
+            "ok": False,
+            "status": "error",
+            "channel_id": ch_id,
+            "marketplace": mp,
+            "error": "Витрины Wildberries и Ozon отключены решением владельца",
+        }
 
     logger.info(f"Начало сбора витрины: канал={ch_id}, маркетплейс={mp}, мерчант={merchant_id}")
 

@@ -93,6 +93,29 @@ def get_channel_sync_schedule(conn, default_interval_hours: int = DEFAULT_SYNC_I
         if ch_interval not in ALLOWED_INTERVAL_HOURS:
             ch_interval = interval_hours
 
+        # Wildberries и Ozon отключены решением владельца
+        if (ch_type or "").lower() in ("wildberries", "wb", "ozon") or (marketplace or "").lower() in ("wildberries", "wb", "ozon"):
+            schedule.append({
+                "channel_id": ch_id,
+                "seller_id": seller_id,
+                "seller_name": seller_name,
+                "channel_name": ch_name,
+                "channel_type": ch_type,
+                "marketplace": marketplace,
+                "base_url": base_url,
+                "is_active": False,
+                "last_sync_at": last_sync_iso,
+                "last_sync_status": last_status if last_status != "never" else "disabled",
+                "last_attempt_at": meta.get("last_attempt_at"),
+                "last_sync_error": meta.get("last_sync_error") or "Отключено решением владельца",
+                "products_count": products_count,
+                "sync_interval_hours": ch_interval,
+                "next_sync_at": None,
+                "is_due": False,
+                "seconds_overdue": 0,
+            })
+            continue
+
         if last_sync_dt is None:
             is_due = True
             next_sync_dt = now

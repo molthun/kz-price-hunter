@@ -149,7 +149,7 @@ class TestDomainModels(unittest.TestCase):
         from config import SHOP_KEYS
         from domain.adapter import resolve_seller_and_channel_meta
 
-        self.assertEqual(len(SHOP_KEYS), 40)
+        self.assertEqual(len(SHOP_KEYS), 38)
         slugs_from_name = set()
         slugs_from_key = set()
 
@@ -170,9 +170,9 @@ class TestDomainModels(unittest.TestCase):
             # Both should match or resolve to stable slug
             self.assertEqual(slug1, slug2, f"Slug mismatch between name ({slug1}) and key ({slug2}) for {display_name}")
 
-        # Ensure all 40 shops have completely unique slugs (no collisions)
-        self.assertEqual(len(slugs_from_name), 40, "Duplicate slugs found among 40 shops!")
-        self.assertEqual(len(slugs_from_key), 40)
+        # Ensure all 38 shops have completely unique slugs (no collisions)
+        self.assertEqual(len(slugs_from_name), 38, "Duplicate slugs found among 38 shops!")
+        self.assertEqual(len(slugs_from_key), 38)
 
         # 3. Fallback for completely unknown shop
         fallback_slug, fallback_name, fallback_ctype = resolve_seller_and_channel_meta("Новый Неизвестный Магазин 2026")

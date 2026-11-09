@@ -3,6 +3,22 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.29.5] - 2026-11-09
+
+### Для пользователей
+- 🛑 **Отключение Wildberries KZ и Ozon KZ по решению владельца**:
+  - В связи с агрессивной антибот-защитой внешних шлюзов (WBAAS 403 `status-no-id` у WB, сессионные проверки `abt-challenge` у Ozon), исключающей надёжный сбор данных без сторонних платных резидентных прокси, магазины Wildberries KZ и Ozon KZ выведены из активного обхода каталога и расписания фоновой синхронизации.
+  - Устранена лишняя нагрузка на сервер, блокировки фоновых задач и сообщения об ошибках синхронизации для этих площадок.
+
+### Для разработчиков
+- 🛠️ **Деактивация скраперов и витрин Wildberries и Ozon — Antigravity**:
+  - `web/server.py`: `wildberries` и `ozon` исключены из активного реестра скраперов `SHOP_REGISTRY`; удалены неиспользуемые импорты категорий и парсеров из цикла обхода.
+  - `config.py`: ключи `wildberries` и `ozon` удалены из словаря `SHOP_KEYS` (активных магазинов: 38); списки `WILDBERRIES_CATEGORIES` и `OZON_CATEGORIES` переведены в пустые заглушки для предотвращения ошибок импорта.
+  - `domain/channel_scheduler.py`: каналы Wildberries и Ozon исключены из расчёта `is_due` и очереди фоновой синхронизации витрин; в расписании статус фиксируется как `disabled` с причиной «Отключено решением владельца».
+  - `domain/channel_sync.py`: добавлен параметр `allow_disabled: bool = False` (по умолчанию синхронизация витрин WB/Ozon немедленно возвращает ошибку `Витрины Wildberries и Ozon отключены решением владельца` без выполнения внешних сетевых запросов).
+  - `docs/DEVELOPMENT_PLAN.md`: статус этапа G7-1 обновлён на «ОТКЛОНЕНО / ОТКАЗ по решению владельца».
+  - Тесты: обновлены контракты в `tests/monitoring/test_monitor.py` (`test_registry_contains_wildberries` и `test_registry_contains_ozon` проверяют отсутствие в активном реестре), `tests/core/test_domain_models.py` (38 активных магазинов в `SHOP_KEYS`), `tests/scrapers/test_showcase_scanners.py` и `tests/scrapers/test_audit_2026_11_09_g7_fixes.py`.
+
 ## [6.29.4] - 2026-11-09
 
 ### Для пользователей

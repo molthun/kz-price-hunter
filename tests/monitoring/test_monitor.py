@@ -2447,30 +2447,18 @@ class TestForteMarketScraper(unittest.TestCase):
             self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
 
     def test_registry_contains_wildberries(self):
+        """Wildberries KZ отключён решением владельца из активных скраперов и реестра."""
         from web.server import SHOP_REGISTRY
-        from config import SHOP_KEYS, WILDBERRIES_CATEGORIES
-        self.assertIn("wildberries", SHOP_REGISTRY)
-        scraper_cls, cats, name = SHOP_REGISTRY["wildberries"]
-        self.assertEqual(name, "Wildberries KZ")
-        self.assertEqual(cats, WILDBERRIES_CATEGORIES)
-        self.assertEqual(SHOP_KEYS.get("wildberries"), "Wildberries KZ")
-        for c in WILDBERRIES_CATEGORIES:
-            self.assertIn("master", c)
-            self.assertIn("url", c)
-            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
+        from config import SHOP_KEYS
+        self.assertNotIn("wildberries", SHOP_REGISTRY)
+        self.assertNotIn("wildberries", SHOP_KEYS)
 
     def test_registry_contains_ozon(self):
+        """Ozon KZ отключён решением владельца из активных скраперов и реестра."""
         from web.server import SHOP_REGISTRY
-        from config import SHOP_KEYS, OZON_CATEGORIES
-        self.assertIn("ozon", SHOP_REGISTRY)
-        scraper_cls, cats, name = SHOP_REGISTRY["ozon"]
-        self.assertEqual(name, "Ozon KZ")
-        self.assertEqual(cats, OZON_CATEGORIES)
-        self.assertEqual(SHOP_KEYS.get("ozon"), "Ozon KZ")
-        for c in OZON_CATEGORIES:
-            self.assertIn("master", c)
-            self.assertIn("url", c)
-            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
+        from config import SHOP_KEYS
+        self.assertNotIn("ozon", SHOP_REGISTRY)
+        self.assertNotIn("ozon", SHOP_KEYS)
 
     def test_parse_response_and_regional_pricing(self):
         from scrapers.fortemarket import ForteMarketScraper
