@@ -2,6 +2,31 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED v6.29.4 → Владелец / Codex: Живая интеграция Ozon KZ и Wildberries KZ развернута на стенде — Antigravity (2026-11-09)
+
+- Поручение: разработка рабочих адресов/заголовков API Ozon KZ и Wildberries KZ (карточка STAND_DEPLOYED v6.29.3 ниже). Исполнитель: Antigravity (основной разработчик).
+- **Срез:** коммит `dc8c8484cb` (тег `v6.29.4`).
+- **Стенд:** `~/kzph-stand` на `192.168.28.25`, `https://shdev.molthun.ru`, ветка `main` fast-forward до `dc8c8484cb` через git bundle `kzph-v6.29.4.bundle`, **без push**. `docker compose -f docker-compose.stand.yml up -d --build` → `Up (healthy)`.
+- **Проверки сервиса стенда:**
+  - `/api/version` = 6.29.4;
+  - `/api/health` status/db/queue ok, redis_active: true, worker_running: true;
+  - SHA-256 файлов `scrapers/ozon.py`, `scrapers/showcase_scanners.py`, `scrapers/wildberries.py`, `version.py` в контейнере `kzph-stand` 100% совпадают с коммитом.
+  - Тесты скраперов в контейнере стенда (`python3 -m unittest discover -s tests/scrapers -t . -p "test_*.py"`): **222 OK**, 14.7 с.
+  - Локальный pytest suite: **2892 passed, 1292 subtests passed, 0 failed** (194.81 с).
+- **Что сделано по живым эндпоинтам Ozon KZ и Wildberries KZ:**
+  1. **Ozon KZ (DNS и схема виджетов):**
+     - Исправлен фантомный хост `api.ozon.kz` (DNS fail) на рабочий канонический эндпоинт `https://ozon.kz/api/composer-api.bx/page/json/v2` в каталоге (`scrapers/ozon.py`) и витринах (`OzonShowcaseScanner`).
+     - Поддержан современный формат выдачи Ozon (2026): маркер виджетов `tileGrid` (`tileGridDesktop-*`), единый извлекатель `extract_ozon_item_fields` с поддержкой как legacy `cellTrackingInfo`, так и `mainState` (`priceV2` с ценами в KZT и скидками, `textDS` с наименованием, `tileImage.items` с картинками).
+     - Встроена сессионная автоматическая обработка `abt-challenge` через контекст Playwright: после прохождения проверки полученные cookies используются для быстрых HTTP-запросов.
+     - Проверено на реальной витрине Ozon KZ (продавец 5490173): страница 1 (38 товаров) и страница 2 успешно получены по API со всеми ценами в KZT.
+  2. **Wildberries KZ:**
+     - Зафиксирован статус защиты `wbaas` на шлюзах `search.wb.ru`, `catalog.wb.ru` и `card.wb.ru` (HTTP 403 `status-no-id`). Добавлена информативная обработка исключений с фиксацией причины в `last_sync_error` / бейдже админки.
+     - Исследованы CDN-эндпоинты корзин `wbbasket.ru` (`static-basket-01.wbbasket.ru` и `basket-XX.wbbasket.ru/.../card.json`), подтверждена их доступность без блокировок WBAAS.
+- **Прод:** не трогался, база 2.2 ГБ не менялась.
+- **Следующий точный шаг:** Codex / Владелец — аудит и стендовая приёмка интеграции v6.29.4 (проверка каналов витрин и матрицы цен на стенде).
+
+---
+
 ## STAND_DEPLOYED v6.29.3 → Владелец / Antigravity / Codex: G7-1 на стенде; реальные WB/Ozon не работают — Claude (2026-11-09)
 
 - Поручение: продолжение после локальной приёмки Codex 6.29.3 (следующий шаг его карточки ниже). Исполнитель: Claude.
