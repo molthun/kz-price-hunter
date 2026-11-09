@@ -4593,6 +4593,16 @@
       color: #3b82f6;
       border: 1px solid rgba(59, 130, 246, 0.28);
     }
+    .badge-wildberries {
+      background: rgba(192, 38, 211, 0.12);
+      color: #c026d3;
+      border: 1px solid rgba(192, 38, 211, 0.28);
+    }
+    .badge-ozon {
+      background: rgba(0, 91, 255, 0.12);
+      color: #005bff;
+      border: 1px solid rgba(0, 91, 255, 0.28);
+    }
     .history-series-body {
       display: flex;
       align-items: center;
@@ -9095,6 +9105,12 @@
       }
       if (cn.includes('halyk') || ct.includes('halyk')) {
         return '<span class="history-channel-badge badge-halyk">Halyk Market</span>';
+      }
+      if (cn.includes('wildberries') || ct.includes('wildberries') || cn.includes('wb') || ct === 'wb') {
+        return '<span class="history-channel-badge badge-wildberries">Wildberries</span>';
+      }
+      if (cn.includes('ozon') || ct.includes('ozon')) {
+        return '<span class="history-channel-badge badge-ozon">Ozon</span>';
       }
       return '<span class="history-channel-badge badge-web">Прямой сайт</span>';
     }

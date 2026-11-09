@@ -10,10 +10,13 @@
   - **Поддержка каналов маркетплейсов**: в модель мультиканальных продавцов добавлены новые типы каналов `ChannelType.WILDBERRIES` и `ChannelType.OZON`.
   - **Кросс-канальная матрица цен и экономия**: когда независимый магазин или сеть (например, ритейлер техники) продает товары на собственном сайте, а также через витрины Wildberries KZ или Ozon KZ, система сопоставляет цены и рассчитывает прямую выгоду покупателя («Экономия при покупке напрямую вместо маркетплейса»).
   - **Автоматическое извлечение продавцов**: сканеры витрин и адаптеры извлекают идентификаторы фактических продавцов (`wildberries:<supplier_id>`, `ozon:<seller_id>`), связывая офферы с профилем юридического лица или ритейлера.
+  - **Сквозная синхронизация витрин и UI-бейджи**: фоновый сборщик витрин (`domain/channel_sync.py`) загружает каталоги мерчантов WB и Ozon с обновлением цен и канонической привязкой, а в интерфейсе поиска появились фирменные бейджи каналов Wildberries и Ozon.
   - **Качественные изображения товаров**: реализован алгоритм расчёта канонических CDN-корзин Wildberries (`basket-XX.wbbasket.ru/vol.../part.../images/big/1.webp`) и автоповышение качества миниатюр Ozon до `c1000`.
 
 ### Для разработчиков
 - 🛠️ **Новые скраперы и сканеры витрин**:
+  - `domain/channel_sync.py`: подключены `WildberriesShowcaseScanner` и `OzonShowcaseScanner` в диспетчер `sync_channel_showcase`.
+  - `web/templates/search_first.html`: добавлены CSS `.badge-wildberries`, `.badge-ozon` и автоопределение в `channelShowcaseBadge`.
   - `scrapers/wildberries.py`: `WildberriesScraper(PagedScraper)` с региональным хабом Казахстана (`dest=-1257786`), ценами в KZT (`curr=kzt`), структурой поставщиков (`supplierId`, `supplier`) и детекцией конца каталога.
   - `scrapers/ozon.py`: `OzonScraper(PagedScraper)` с композитным API (`composer-api.bx/page/json/v2`), ценами в KZT, идентификацией продавцов и автоповышением качества фото.
   - `scrapers/showcase_scanners.py`: реализованы `WildberriesShowcaseScanner` и `OzonShowcaseScanner` для фонового сканирования витрин конкретных мерчантов.

@@ -17,6 +17,8 @@ from scrapers.showcase_scanners import (
     KaspiShowcaseScanner,
     HalykShowcaseScanner,
     ForteShowcaseScanner,
+    WildberriesShowcaseScanner,
+    OzonShowcaseScanner,
 )
 
 logger = logging.getLogger("kz_price_hunter.channel_sync")
@@ -207,6 +209,10 @@ async def sync_channel_showcase(
             mp = "halyk"
         elif "forte" in combined:
             mp = "forte"
+        elif "wildberries" in combined or "wb" in combined:
+            mp = "wildberries"
+        elif "ozon" in combined:
+            mp = "ozon"
         else:
             mp = channel_type.lower() if channel_type else "kaspi"
 
@@ -229,6 +235,12 @@ async def sync_channel_showcase(
     elif mp in ("forte", "fortemarket"):
         f_scanner = ForteShowcaseScanner()
         offers = await f_scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
+    elif mp in ("wildberries", "wb"):
+        wb_scanner = WildberriesShowcaseScanner()
+        offers = await wb_scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
+    elif mp == "ozon":
+        ozon_scanner = OzonShowcaseScanner()
+        offers = await ozon_scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
     else:
         return {"ok": False, "error": f"Неподдерживаемый маркетплейс для витрины: {mp}"}
 

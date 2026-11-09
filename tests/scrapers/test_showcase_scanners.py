@@ -9,6 +9,8 @@ from scrapers.showcase_scanners import (
     KaspiShowcaseScanner,
     HalykShowcaseScanner,
     ForteShowcaseScanner,
+    WildberriesShowcaseScanner,
+    OzonShowcaseScanner,
 )
 from domain.channel_sync import (
     match_or_create_canonical_product,
@@ -232,6 +234,72 @@ class ShowcaseScannersTests(unittest.TestCase):
             assert meta["products_count"] == 1
             assert meta["last_sync_status"] == "ok"
             assert "last_sync_at" in meta
+
+        asyncio.run(_run())
+
+    def test_sync_channel_showcase_wildberries_and_ozon(self):
+        import asyncio
+        async def _run():
+            conn = create_test_db()
+            conn.execute("INSERT INTO sellers (id, name, slug, created_at, updated_at) VALUES ('s_tech', 'ТехноМагазин', 'techno-mag', '2026-01-01', '2026-01-01')")
+            conn.execute("INSERT INTO channels (id, seller_id, channel_type, name, base_url, created_at) VALUES ('ch_wb', 's_tech', 'wildberries', 'Витрина WB', 'https://www.wildberries.kz/seller/987654', '2026-01-01')")
+            conn.execute("INSERT INTO channels (id, seller_id, channel_type, name, base_url, created_at) VALUES ('ch_ozon', 's_tech', 'ozon', 'Витрина Ozon', 'https://ozon.kz/seller/tech-seller-1122/', '2026-01-01')")
+            conn.commit()
+
+            wb_mock_offer = ShowcaseOffer(
+                marketplace="wildberries",
+                merchant_id="987654",
+                external_sku="wb_item_1",
+                title="Ноутбук ASUS Vivobook 15 16GB",
+                price=320000.0,
+                old_price=350000.0,
+                url="https://www.wildberries.kz/catalog/12345/detail.aspx",
+                image_url="https://basket-01.wbbasket.ru/vol12/part123/12345/images/big/1.webp",
+                city="Алматы",
+                in_stock=True,
+            )
+
+            ozon_mock_offer = ShowcaseOffer(
+                marketplace="ozon",
+                merchant_id="tech-seller-1122",
+                external_sku="oz_item_2",
+                title="Смартфон Samsung Galaxy A55 128GB",
+                price=189990.0,
+                old_price=209990.0,
+                url="https://ozon.kz/product/54321/",
+                image_url="https://ir.ozon.kz/s3/multimedia-1/c1000/photo.jpg",
+                city="Алматы",
+                in_stock=True,
+            )
+
+            # Test Wildberries showcase sync
+            with patch.object(WildberriesShowcaseScanner, "scan_merchant_showcase", return_value=[wb_mock_offer]):
+                wb_res = await sync_channel_showcase(conn, "ch_wb")
+
+            assert wb_res["ok"] is True
+            assert wb_res["scanned_count"] == 1
+            assert wb_res["offers_upserted"] == 1
+            assert wb_res["marketplace"] == "wildberries"
+
+            # Check WB offer in DB
+            wb_row = conn.execute("SELECT price, old_price, availability FROM offers WHERE channel_id = 'ch_wb'").fetchone()
+            assert wb_row["price"] == 320000.0
+            assert wb_row["old_price"] == 350000.0
+            assert wb_row["availability"] == "in_stock"
+
+            # Test Ozon showcase sync
+            with patch.object(OzonShowcaseScanner, "scan_merchant_showcase", return_value=[ozon_mock_offer]):
+                oz_res = await sync_channel_showcase(conn, "ch_ozon")
+
+            assert oz_res["ok"] is True
+            assert oz_res["scanned_count"] == 1
+            assert oz_res["offers_upserted"] == 1
+            assert oz_res["marketplace"] == "ozon"
+
+            # Check Ozon offer in DB
+            oz_row = conn.execute("SELECT price, old_price, availability FROM offers WHERE channel_id = 'ch_ozon'").fetchone()
+            assert oz_row["price"] == 189990.0
+            assert oz_row["old_price"] == 209990.0
 
         asyncio.run(_run())
 

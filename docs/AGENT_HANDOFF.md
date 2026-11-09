@@ -18,11 +18,13 @@
   2. **Извлечение продавцов и онбординг**:
      - `domain/seller_onboarding.py`: `_extract_marketplace_seller_id` адаптирован для распознавания профилей продавцов WB и Ozon.
      - `scrapers/showcase_scanners.py`: `extract_marketplace_merchant_info` распознает ссылки и идентификаторы Wildberries (`wildberries:<supplier_id>`) и Ozon (`ozon:<seller_id>`).
-  3. **Скраперы и сканеры витрин**:
+  3. **Скраперы, синхронизация витрин и UI**:
      - `scrapers/wildberries.py`: `WildberriesScraper(PagedScraper)` с региональным хабом Казахстана (`dest=-1257786`), ценами в KZT (`curr=kzt`), структурой поставщиков (`supplierId`, `supplier`) и детекцией конца каталога.
      - `scrapers/ozon.py`: `OzonScraper(PagedScraper)` с композитным API (`composer-api.bx/page/json/v2`), ценами в KZT, идентификацией продавцов и автоповышением качества фото.
      - `scrapers/showcase_scanners.py`: реализованы `WildberriesShowcaseScanner` и `OzonShowcaseScanner` для фонового сканирования витрин конкретных мерчантов.
+     - `domain/channel_sync.py`: подключены сканеры WB и Ozon в `sync_channel_showcase` с автоматическим созданием канонических товаров, добавлением офферов и записью динамики цен.
      - `domain/image_quality.py`: алгоритм CDN Wildberries (`wb_image_url`) и автоповышение миниатюр Ozon до `c1000`.
+     - `web/templates/search_first.html`: фирменные бейджи маркетплейсов (`badge-wildberries`, `badge-ozon`) в истории цен и карточках офферов.
   4. **Реестр магазинов**:
      - В `config.py` и `web/server.py` добавлены `wildberries` и `ozon`, расширив реестр до 40 магазинов.
   5. **Развёртывание и тестирование на стенде**:
