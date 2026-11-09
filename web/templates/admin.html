@@ -1303,7 +1303,12 @@
         meta.className = 'user-meta';
         const lastSync = ch.last_sync_at ? new Date(ch.last_sync_at).toLocaleString('ru-RU') : 'никогда';
         const nextSync = ch.next_sync_at ? new Date(ch.next_sync_at).toLocaleString('ru-RU') : 'сейчас';
-        const statusBadge = ch.is_due ? '<span style="color:#d97706; font-weight:600;">Требует сбора</span>' : '<span style="color:#16a34a;">Свежий</span>';
+        // Отказ и неполный обход не выдаются за свежую витрину (G7-A03)
+        const statusBadge = ch.last_sync_status === 'error'
+          ? '<span style="color:#dc2626; font-weight:600;">Ошибка сбора</span>'
+          : ch.last_sync_status === 'limited'
+            ? '<span style="color:#d97706; font-weight:600;">Сбор неполный</span>'
+            : ch.is_due ? '<span style="color:#d97706; font-weight:600;">Требует сбора</span>' : '<span style="color:#16a34a;">Свежий</span>';
         meta.innerHTML = `Платформа: <b>${(ch.marketplace || '').toUpperCase()}</b> · Предложений: ${ch.products_count} · Последний сбор: ${lastSync} · Следующий: ${nextSync} · ${statusBadge}`;
 
         info.append(title, meta);

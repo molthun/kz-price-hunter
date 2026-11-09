@@ -300,8 +300,10 @@ async def sync_channel_showcase(
             "error": str(exc),
             "status": "error",
         })
+        # last_sync_at — время последнего полного сбора: отказ его не трогает, иначе витрина
+        # выглядит свежей (G7-A03). Планировщик отсчитывает повтор от last_attempt_at.
         current_meta.update({
-            "last_sync_at": now_err_iso,
+            "last_attempt_at": now_err_iso,
             "last_sync_status": "error",
             "last_sync_error": str(exc),
             "marketplace": mp,
@@ -319,10 +321,16 @@ async def sync_channel_showcase(
             "channel_id": ch_id,
             "marketplace": mp,
             "merchant_id": merchant_id,
+            "status": "error",
             "error": str(exc),
         }
 
-    if not offers:
+    # Полнота обхода: у сканеров WB/Ozon она явная; прежние сканеры её не сообщают (None)
+    coverage = getattr(offers, "status", None)
+    coverage_reason = getattr(offers, "reason", None)
+    sync_status = "limited" if coverage == "limited" else "ok"
+
+    if not offers and coverage is None:
         logger.warning(f"Сканер витрины вернул 0 предложений: mp={mp}, merchant={merchant_id}")
         return {
             "ok": True,
@@ -402,17 +410,25 @@ async def sync_channel_showcase(
         "created_products": new_products_count,
         "offers_upserted": upserted_offers_count,
         "notifications_queued": notifications_queued,
-        "status": "ok",
+        "status": sync_status,
+        **({"reason": coverage_reason} if coverage_reason else {}),
     })
 
     current_meta.update({
-        "last_sync_at": now_iso,
-        "products_count": upserted_offers_count,
-        "last_sync_status": "ok",
+        "last_attempt_at": now_iso,
+        "last_sync_status": sync_status,
         "marketplace": mp,
         "merchant_id": merchant_id,
         "sync_history": sync_history[:25],
     })
+    current_meta.pop("last_sync_error", None)
+    if sync_status == "ok":
+        # Свежесть и число товаров канала — только по полному обходу; неполный обход обновил
+        # увиденные предложения, но не подтверждает, что витрина собрана целиком (G7-A03/A04)
+        current_meta.update({"last_sync_at": now_iso, "products_count": upserted_offers_count})
+        current_meta.pop("last_sync_reason", None)
+    else:
+        current_meta["last_sync_reason"] = coverage_reason
 
     conn.execute(
         "UPDATE channels SET metadata_json = ?, is_active = 1 WHERE id = ?",
@@ -425,6 +441,9 @@ async def sync_channel_showcase(
     logger.info(f"Витрина успешно синхронизирована: канал={ch_id}, товаров={upserted_offers_count}, новых={new_products_count}")
     return {
         "ok": True,
+        "status": sync_status,
+        "complete": sync_status == "ok",
+        **({"reason": coverage_reason} if coverage_reason else {}),
         "channel_id": ch_id,
         "marketplace": mp,
         "merchant_id": merchant_id,

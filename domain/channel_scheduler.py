@@ -78,7 +78,12 @@ def get_channel_sync_schedule(conn, default_interval_hours: int = DEFAULT_SYNC_I
             meta = {}
 
         last_sync_iso = meta.get("last_sync_at")
-        last_sync_dt = parse_iso_datetime(last_sync_iso)
+        # Повтор отсчитывается от последней попытки: после отказа или неполного обхода
+        # last_sync_at не меняется (G7-A03), а заблокированный источник нельзя дёргать каждый такт
+        last_sync_dt = max(
+            (d for d in (parse_iso_datetime(last_sync_iso), parse_iso_datetime(meta.get("last_attempt_at"))) if d),
+            default=None,
+        )
         last_status = meta.get("last_sync_status", "never")
         products_count = meta.get("products_count", 0)
         marketplace = meta.get("marketplace") or ch_type
@@ -110,6 +115,8 @@ def get_channel_sync_schedule(conn, default_interval_hours: int = DEFAULT_SYNC_I
             "is_active": is_active,
             "last_sync_at": last_sync_iso,
             "last_sync_status": last_status,
+            "last_attempt_at": meta.get("last_attempt_at"),
+            "last_sync_error": meta.get("last_sync_error"),
             "products_count": products_count,
             "sync_interval_hours": ch_interval,
             "next_sync_at": next_sync_iso,

@@ -35,6 +35,64 @@ class ShowcaseOffer:
     raw_data: Dict[str, Any] = field(default_factory=dict)
 
 
+class ShowcaseSchemaError(RuntimeError):
+    """Ответ витрины получен, но его структура незнакома: пустой список из него не следует (G7-A03)."""
+
+
+class ShowcaseBatch(list):
+    """Страница витрины; unparsed — карточки, которые сканер видел, но не смог разобрать (G7-A04)."""
+
+    def __init__(self, items=(), unparsed: int = 0):
+        super().__init__(items)
+        self.unparsed = unparsed
+
+
+class ShowcaseScanResult(list):
+    """Итог обхода витрины с явной полнотой (G7-A03/A04).
+
+    status: complete — площадка подтвердила конец витрины, все карточки разобраны;
+    limited — данные настоящие, но неполные (сбой не первой страницы, лимит страниц,
+    повтор страницы, неразобранные карточки); reason объясняет почему.
+    Сбой первой страницы — исключение: данных нет, и пустой результат был бы ложью.
+    """
+
+    def __init__(self, items=(), status: str = "complete", reason: Optional[str] = None, unparsed: int = 0):
+        super().__init__(items)
+        self.status = status
+        self.reason = reason
+        self.unparsed = unparsed
+
+
+async def scan_with_coverage(fetch_page, merchant_id: str, max_pages: int, delay_seconds: float) -> ShowcaseScanResult:
+    """Обходит витрину страницами fetch_page(merchant_id, page) -> (batch, is_last) и считает полноту."""
+    all_offers: List[ShowcaseOffer] = []
+    seen = set()
+    unparsed = 0
+    for page in range(1, max_pages + 1):
+        try:
+            batch, is_last = await asyncio.to_thread(fetch_page, merchant_id, page)
+        except Exception as exc:
+            if page == 1:
+                raise
+            return ShowcaseScanResult(all_offers, "limited", f"Страница {page}: {exc}", unparsed)
+        unparsed += int(getattr(batch, "unparsed", 0) or 0)
+        if not batch:
+            break  # схема узнана, карточек нет: витрина кончилась
+        fresh = [o for o in batch if o.external_sku not in seen]
+        if not fresh:
+            return ShowcaseScanResult(all_offers, "limited", f"Страница {page} повторяет уже собранные товары", unparsed)
+        all_offers.extend(fresh)
+        seen.update(o.external_sku for o in fresh)
+        if is_last:
+            break
+        if page == max_pages:
+            return ShowcaseScanResult(all_offers, "limited", f"Достигнут лимит страниц ({max_pages})", unparsed)
+        await asyncio.sleep(delay_seconds)
+    if unparsed:
+        return ShowcaseScanResult(all_offers, "limited", f"Не разобрано карточек: {unparsed}", unparsed)
+    return ShowcaseScanResult(all_offers, "complete", None, 0)
+
+
 def extract_marketplace_merchant_info(url_or_code: str) -> Tuple[Optional[str], Optional[str]]:
     """Извлекает маркетплейс и идентификатор мерчанта из ссылки или кода."""
     if not url_or_code:
@@ -407,20 +465,22 @@ class WildberriesShowcaseScanner:
         except Exception as e:
             raise RuntimeError(f"Failed to decode Wildberries JSON: {e}")
 
-        data = payload.get("data") if isinstance(payload, dict) else payload
-        products = data.get("products") or [] if isinstance(data, dict) else []
-        offers = []
-
-        from content_retention import source_free
+        data = payload.get("data") if isinstance(payload, dict) else None
+        products = data.get("products") if isinstance(data, dict) else None
+        if not isinstance(products, list):
+            raise ShowcaseSchemaError("Неизвестная структура ответа витрины Wildberries: нет списка data.products")
+        offers = ShowcaseBatch()
 
         for p in products:
             if not isinstance(p, dict):
+                offers.unparsed += 1
                 continue
             wb_id = p.get("id")
             name = (p.get("name") or "").strip()
             brand = (p.get("brand") or "").strip()
             title = f"{brand} {name}".strip() if brand and not name.lower().startswith(brand.lower()) else name
             if not wb_id or not title:
+                offers.unparsed += 1
                 continue
 
             # Цены в API WB отдаются в тиынах/копейках
@@ -436,6 +496,7 @@ class WildberriesShowcaseScanner:
                 base_price = price_value(p.get("priceU", 0) / 100)
 
             if sale_price <= 0:
+                offers.unparsed += 1
                 continue
 
             old_p = float(base_price) if base_price > sale_price else None
@@ -458,20 +519,8 @@ class WildberriesShowcaseScanner:
         is_last = (len(products) < 20) or not products
         return offers, is_last
 
-    async def scan_merchant_showcase(self, merchant_id: str, max_pages: int = 50, delay_seconds: float = 0.5) -> List[ShowcaseOffer]:
-        all_offers = []
-        seen = set()
-        for page in range(1, max_pages + 1):
-            batch, is_last = await asyncio.to_thread(self.fetch_merchant_page, merchant_id, page)
-            fresh = [o for o in batch if o.external_sku not in seen]
-            if not fresh:
-                break
-            all_offers.extend(fresh)
-            seen.update(o.external_sku for o in fresh)
-            if is_last:
-                break
-            await asyncio.sleep(delay_seconds)
-        return all_offers
+    async def scan_merchant_showcase(self, merchant_id: str, max_pages: int = 50, delay_seconds: float = 0.5) -> ShowcaseScanResult:
+        return await scan_with_coverage(self.fetch_merchant_page, merchant_id, max_pages, delay_seconds)
 
 
 class OzonShowcaseScanner:
@@ -501,29 +550,39 @@ class OzonShowcaseScanner:
         except Exception as e:
             raise RuntimeError(f"Failed to decode Ozon JSON: {e}")
 
-        from content_retention import source_free
-
-        widget_states = payload.get("widgetStates") or {}
+        widget_states = payload.get("widgetStates") if isinstance(payload, dict) else None
+        if not isinstance(widget_states, dict):
+            raise ShowcaseSchemaError("Неизвестная структура ответа витрины Ozon: нет widgetStates")
         items = []
+        recognised = False
         for k, v in widget_states.items():
             if "searchResults" in k or "megaPaginator" in k or "catalog" in k:
                 try:
                     state_obj = json.loads(v) if isinstance(v, str) else v
-                    sub_items = state_obj.get("items") or []
-                    if sub_items:
-                        items.extend(sub_items)
+                    sub_items = state_obj.get("items")
                 except Exception:
                     continue
+                if sub_items is None:
+                    continue
+                if not isinstance(sub_items, list):
+                    continue
+                recognised = True
+                items.extend(sub_items)
+        if not recognised:
+            raise ShowcaseSchemaError("Неизвестная структура ответа витрины Ozon: не найден список товаров")
 
-        offers = []
+        offers = ShowcaseBatch()
         for it in items:
             if not isinstance(it, dict):
+                offers.unparsed += 1
                 continue
+            tracking = it.get("cellTrackingInfo") if isinstance(it.get("cellTrackingInfo"), dict) else {}
             sku = str(it.get("id") or it.get("sku") or "")
-            title = (it.get("cellTrackingInfo", {}).get("title") or it.get("title") or "").strip()
-            price_raw = it.get("cellTrackingInfo", {}).get("price") or it.get("price")
+            title = (tracking.get("title") or it.get("title") or "").strip()
+            price_raw = tracking.get("price") or it.get("price")
             price = price_value(price_raw)
             if not sku or not title or price <= 0:
+                offers.unparsed += 1
                 continue
 
             link = it.get("action", {}).get("link") or f"/product/{sku}"
@@ -547,17 +606,5 @@ class OzonShowcaseScanner:
         is_last = (len(items) < 12) or not items
         return offers, is_last
 
-    async def scan_merchant_showcase(self, merchant_id: str, max_pages: int = 50, delay_seconds: float = 0.5) -> List[ShowcaseOffer]:
-        all_offers = []
-        seen = set()
-        for page in range(1, max_pages + 1):
-            batch, is_last = await asyncio.to_thread(self.fetch_merchant_page, merchant_id, page)
-            fresh = [o for o in batch if o.external_sku not in seen]
-            if not fresh:
-                break
-            all_offers.extend(fresh)
-            seen.update(o.external_sku for o in fresh)
-            if is_last:
-                break
-            await asyncio.sleep(delay_seconds)
-        return all_offers
+    async def scan_merchant_showcase(self, merchant_id: str, max_pages: int = 50, delay_seconds: float = 0.5) -> ShowcaseScanResult:
+        return await scan_with_coverage(self.fetch_merchant_page, merchant_id, max_pages, delay_seconds)

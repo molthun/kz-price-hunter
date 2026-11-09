@@ -384,6 +384,82 @@ def _json_param(rows) -> str:
     return json.dumps(rows, ensure_ascii=False)
 
 
+def _resolve_marketplace_sellers(conn: sqlite3.Connection, items: List[Dict[str, Any]]) -> None:
+    """Переносит предложения поставщика площадки на подтверждённого продавца (G7-A01).
+
+    Подтверждённый продавец — тот, у кого есть identity `marketplace_seller_id` с этим
+    значением или собственный канал этой площадки с тем же номером витрины. Автопродавец
+    `seller_mp_<площадка>_<id>`, созданный прежним обходом, кандидатом не считается: иначе
+    первый же обход навсегда занимал бы идентификатор. Найден ровно один кандидат —
+    предложения пишутся в его существующий канал этой витрины (или в новый канал с номером
+    витрины в идентификаторе, чтобы не столкнуться с uq_channels_seller_type_ext). Несколько
+    кандидатов — неоднозначность: продавцы не объединяются, предложение остаётся у
+    автопродавца. Решение каждый раз считается от исходных значений prepare_legacy_offer_v2,
+    поэтому повтор той же порции (откат и запись по одному товару) даёт тот же результат.
+
+    Один запрос на порцию и только если в ней есть поставщики площадок: порции обычных
+    магазинов не получают лишнего оператора под блокировкой записи (6.5.1).
+    """
+    wanted: Dict[str, Dict[str, Any]] = {}
+    for it in items:
+        value = it.get("marketplace_seller_id")
+        if not value:
+            continue
+        it.setdefault("mp_auto_seller_id", it["seller_id"])
+        it.setdefault("mp_auto_channel_id", it["channel_id"])
+        it.setdefault("mp_auto_ident_id", it["ident_id"])
+        it["seller_id"], it["channel_id"], it["ident_id"] = (
+            it["mp_auto_seller_id"], it["mp_auto_channel_id"], it["mp_auto_ident_id"])
+        wanted.setdefault(value, {"v": value, "ct": it["channel_type"],
+                                  "ext": it.get("external_store_id") or "",
+                                  "auto": it["mp_auto_seller_id"]})
+    if not wanted:
+        return
+
+    rows = conn.execute(
+        """
+        WITH want AS (
+            SELECT json_extract(value, '$.v') AS v, json_extract(value, '$.ct') AS ct,
+                   json_extract(value, '$.ext') AS ext, json_extract(value, '$.auto') AS auto
+            FROM json_each(?1)
+        )
+        SELECT w.v, c.seller_id, c.id FROM want w
+        JOIN channels c ON c.channel_type = w.ct
+            AND lower(c.external_store_id) IN (lower(w.ext), lower(w.v))
+            AND c.seller_id != w.auto
+        UNION
+        SELECT w.v, si.seller_id, NULL FROM want w
+        JOIN seller_identities si ON si.identity_type = 'marketplace_seller_id'
+            AND lower(si.identity_value) = lower(w.v)
+            AND si.seller_id != w.auto
+        """,
+        (_json_param(list(wanted.values())),),
+    ).fetchall()
+
+    candidates: Dict[str, Dict[str, List[str]]] = {}
+    for value, sid, cid in rows:
+        channels = candidates.setdefault(value, {}).setdefault(sid, [])
+        if cid:
+            channels.append(cid)
+
+    for it in items:
+        value = it.get("marketplace_seller_id")
+        found = candidates.get(value) if value else None
+        if not found:
+            continue
+        if len(found) > 1:
+            logger.warning("Поставщик %s привязан к нескольким продавцам (%s): не объединяем",
+                           value, ", ".join(sorted(found)))
+            continue
+        sid, channels = next(iter(found.items()))
+        ext = wanted[value]["ext"]
+        it["seller_id"] = sid
+        it["channel_id"] = sorted(channels)[0] if channels else (
+            f"chan_{sid}_{it['channel_type']}_{ext}" if ext else f"chan_{sid}_{it['channel_type']}")
+        digest = hashlib.sha256(f"{sid}:marketplace_seller_id:{value}".encode("utf-8")).hexdigest()[:16]
+        it["ident_id"] = f"ident_{digest}"
+
+
 def write_legacy_offers_v2(
     conn: sqlite3.Connection,
     items: List[Dict[str, Any]],
@@ -410,25 +486,8 @@ def write_legacy_offers_v2(
     if not items:
         return
 
-    # 0. Сопоставление с существующими продавцами по marketplace_seller_id
-    mp_vals = list({it["marketplace_seller_id"] for it in items if it.get("marketplace_seller_id")})
-    if mp_vals:
-        try:
-            placeholders = ",".join("?" for _ in mp_vals)
-            rows = conn.execute(
-                f"SELECT identity_value, seller_id FROM seller_identities WHERE identity_type = 'marketplace_seller_id' AND identity_value IN ({placeholders})",
-                mp_vals,
-            ).fetchall()
-            if rows:
-                existing_map = dict(rows)
-                for it in items:
-                    m_val = it.get("marketplace_seller_id")
-                    if m_val and m_val in existing_map:
-                        matched_sid = existing_map[m_val]
-                        it["seller_id"] = matched_sid
-                        it["channel_id"] = f"chan_{matched_sid}_{it['channel_type']}"
-        except Exception:
-            pass
+    # 0. Поставщик площадки — к подтверждённому продавцу, если тот однозначно найден
+    _resolve_marketplace_sellers(conn, items)
 
     # 1–2. Продавцы и каналы — по разу на ключ (продавец, домен, канал), в порядке первого появления
     sellers: List[Dict[str, Any]] = []
@@ -488,21 +547,19 @@ def _write_legacy_offers_v2(
             )
         mp_idents = [s for s in sellers if s.get("marketplace_seller_id")]
         if mp_idents:
-            try:
-                conn.execute(
-                    """
-                    INSERT INTO seller_identities (id, seller_id, identity_type, identity_value, confidence, source, created_at)
-                    SELECT json_extract(value, '$.ident_id'), json_extract(value, '$.seller_id'), 'marketplace_seller_id',
-                           json_extract(value, '$.marketplace_seller_id'), 1.0, 'marketplace', ?1
-                    FROM json_each(?2) WHERE true
-                    ON CONFLICT(identity_type, identity_value, seller_id) DO NOTHING
-                    """,
-                    (timestamp, _json_param(mp_idents)),
-                )
-            except Exception:
-                pass
-        from repositories.schema_v2 import _ensure_column
-        _ensure_column(conn, "channels", "external_store_id", "TEXT")
+            # Без подавления ошибок: сбой записи identity — сбой двойной записи товара, а не
+            # молча потерянная привязка (ident_id — хэш продавца и значения, конфликт ключа
+            # возможен только по UNIQUE(type, value, seller) и он обработан)
+            conn.execute(
+                """
+                INSERT INTO seller_identities (id, seller_id, identity_type, identity_value, confidence, source, created_at)
+                SELECT json_extract(value, '$.ident_id'), json_extract(value, '$.seller_id'), 'marketplace_seller_id',
+                       json_extract(value, '$.marketplace_seller_id'), 1.0, 'marketplace', ?1
+                FROM json_each(?2) WHERE true
+                ON CONFLICT(identity_type, identity_value, seller_id) DO NOTHING
+                """,
+                (timestamp, _json_param(mp_idents)),
+            )
         conn.execute(
             """
             INSERT INTO channels (id, seller_id, channel_type, name, external_store_id, is_active, created_at)
