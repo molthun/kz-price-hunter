@@ -2,6 +2,67 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## READY_FOR_REAUDIT → Codex / Владелец: Замечания аудита G7-A01–A05 исправлены, версия 6.29.1 развернута на стенде — Antigravity (2026-11-09)
+
+- Поручение: исправление замечаний независимого аудита Codex (`G7-A01` .. `G7-A05`) по этапу G7-1 Wildberries KZ / Ozon KZ.
+- Исполнитель: Antigravity (основной разработчик).
+- Дата и время: 2026-11-09 11:45 (Asia/Almaty).
+- Срез: локальная `main`, коммит `fec0bdef92`, версия `6.29.1`.
+- Стенд (`https://shdev.molthun.ru`): обновлен через `git bundle`, контейнер `kzph-stand` пересобран и перезапущен.
+  - Версия: `6.29.1`.
+  - Статус: `{"status": "ok", "db": "ok", "queue": "ok", "worker_running": true, "redis_active": true}`.
+- Продакшен (`https://shop.molthun.ru`): не изменялся, работает в штатном режиме `v6.29.0`, DB 2.2 GB `ok`.
+- Реализованные исправления замечаний аудита:
+  1. **G7-A01 (P1) — Сохранение идентичности продавцов маркетплейсов**:
+     - `domain/adapter.py`: в `prepare_legacy_offer_v2` извлекаются `seller_id` и `seller` площадки; формируются уникальные продавцы вида `seller_mp_<market>_<ext_id>` и каналы `chan_<seller_slug>_<channel_type>`. Поставщики Wildberries и Ozon не склеиваются в обобщённых продавцов площадки.
+     - В `write_legacy_offers_v2` / `_write_legacy_offers_v2` добавлено автоматическое сопоставление по `seller_identities.marketplace_seller_id`. Если подтверждённый продавец (например, ритейлер техники) имеет прямой канал и привязанную витрину маркетплейса, офферы автоматически привязываются к нему, и `build_channel_matrix` рассчитывает выгоду без потерь.
+     - В таблицу `channels` сохраняется `external_store_id`.
+  2. **G7-A02 (P1) — Приоритет объявленного типа канала**:
+     - `domain/channel_sync.py`: в `sync_channel_showcase` приоритет отдан объявленному значению `channels.channel_type` (`wildberries`, `ozon`, `kaspi`, `forte`, `halyk`), что исключает ошибочную маршрутизацию числовых ID поставщиков в сканер Kaspi.
+     - Добавлена валидация несовместимых URL витрин (конфликт типа канала и адреса отклоняется с ошибкой).
+  3. **G7-A03 (P2) — Фиксация отказов и сетевых сбоев витрин**:
+     - `scrapers/showcase_scanners.py`: `WildberriesShowcaseScanner` и `OzonShowcaseScanner` возбуждают `RuntimeError` при HTTP != 200 или невалидном JSON вместо тихого возврата пустой витрины `([], True)`.
+     - `domain/channel_sync.py`: ошибки сканеров перехватываются, витрина возвращает `ok: False`, а в метаданные канала записывается `last_sync_status = "error"` и текст ошибки `last_sync_error`. Старые предложения сохраняются без ложного обновления свежести.
+  4. **G7-A04 (P2) — Учёт отброшенных карточек и проверка схем**:
+     - `scrapers/wildberries.py` & `scrapers/ozon.py`: парсеры каталогов отслеживают отброшенные карточки (отсутствие обязательных полей, цены <= 0) в `ScanResult.unparsed`.
+     - `complete` выставляется в `True` только при `unparsed == 0`, что защищает от ошибочного снятия предложений (`may_retire`) без базовой линии.
+     - При неожиданной структуре ответа API возбуждается `UnconfirmedEnd`, предотвращая ложное завершение обхода.
+  5. **G7-A05 (P2) — Очистка чужих описаний перед сохранением**:
+     - `scrapers/showcase_scanners.py`: `raw_data` очищается функцией `source_free(...)` перед формированием `ShowcaseOffer`.
+     - `domain/channel_sync.py`: в `upsert_showcase_offer` перед сериализацией `raw_payload_json` также применяется `source_free(offer.raw_data)`, гарантируя удаление полей `description` / `full_description`.
+- Проверки и подтверждение:
+  1. Автономный сценарий воспроизведения Codex `docs/audit_evidence/2026-11-09-g7-code-audit/reproduce.py`:
+     - `wb_seller_loss` / `ozon_seller_loss`: поставщики сохраняются независимо (`seller_mp_wildberries_456`, `seller_mp_wildberries_789`, `seller_mp_ozon_456`, `seller_mp_ozon_789`).
+     - `wildberries_numeric_id_routing` / `ozon_numeric_id_routing`: `kaspi_called: false`.
+     - `wildberries_http403_sync` / `ozon_http403_sync`: `ok: false`, ошибки зафиксированы.
+     - `wb_dropped_card` / `ozon_dropped_card`: `unparsed: 1`, `complete: false`, `may_retire_without_baseline: false`.
+     - `wb_unknown_second_page` / `ozon_unknown_second_page`: `complete: false`.
+     - `wildberries_raw_description_retained` / `ozon_raw_description_retained`: `false`.
+  2. Новый модульный регрессионный тестовый набор `tests/scrapers/test_audit_2026_11_09_g7_fixes.py`: 8 тестов, **8/8 PASS** (локально и в Docker-контейнере `kzph-stand`).
+  3. Целевой набор тестов в Docker-контейнере стенда `kzph-stand`: **69/69 PASS**.
+  4. Полный набор scrapers, sellers и core domain models локально: **487 passed, 134 subtests passed**.
+- Следующий шаг: Codex проводит повторный аудит исправлений (`G7-A01` .. `G7-A05`), выполняет верификацию на стенде `https://shdev.molthun.ru` (версия `6.29.1`).
+
+---
+
+## AUDIT_RETURNED → Antigravity / Claude: G7-1 WB/Ozon v6.29.0 — Codex (2026-11-09)
+
+- Поручение владельца: «Делаем аудит». Исполнитель: Codex; область — независимый аудит G7-1, без исправления приложения.
+- Срез: локальная `main`, HEAD `daf14eeddc8b5150fc804e01894cef73863faaf9`, 6.29.0; база сравнения `aaf550a`. Локальная `origin/main` и feature-ветка на том же SHA; remote не обновлялся. Указание предыдущей карточки о будущем merge требует сверки перед выпуском.
+- Решение: **возврат на доработку**, два P1 и три P2. Отчёт: [AUDIT_2026-11-09_G7_CODEX.md](AUDIT_2026-11-09_G7_CODEX.md).
+- G7-A01 (P1): обычная запись каталога теряет фактических продавцов и приписывает всех поставщиков одному продавцу площадки.
+- G7-A02 (P1): числовой external_store_id без base_url у WB/Ozon направляет синхронизацию в Kaspi.
+- G7-A03 (P2): отказ HTTP/JSON превращается в успешную пустую/частичную витрину.
+- G7-A04 (P2): отброшенные карточки не увеличивают unparsed; неполный разбор может считаться complete.
+- G7-A05 (P2): новые сканеры передают полный объект карточки в raw_data; полный description сохраняется в offers.raw_payload_json без очистки. Воспроизведено для обеих площадок; противоречит ограничению хранения описаний.
+- Доказательства: `docs/audit_evidence/2026-11-09-g7-code-audit/` (автономное воспроизведение, JSON результатов, снимок окружения/health). Все пять проблем воспроизведены на синтетических данных и SQLite в памяти; рабочая БД не использовалась.
+- Целевой набор: 61 passed (1.43 с). Полный Python-набор без локальных дубликатов `* 2.py`: **2864 passed, 1256 subtests passed**, 171.96 с. Первичный запуск с дубликатами: 3287 passed, 1 failed; коллизия данных seller_admin воспроизведена запуском пары файлов, исходный тест отдельно проходит. Дубликаты не удалялись; подробности в отчёте и checks.json.
+- Публичные read-only проверки стенда: 6.29.0; status/db/queue ok, Redis active, worker_running true. Это не проверка реальных витрин/цен/валюты, SHA контейнера или пользовательского сценария.
+- Не проведены: реальные WB/Ozon, авторизованный UI/browser suite, Docker/CI, production-диагностика, AI и уведомления. Production, рабочая БД и конфигурация не менялись; push/merge/release не выполнялись. Чужие untracked файлы сохранены.
+- Следующий точный шаг: Antigravity/Claude исправляет G7-A01–A05 с регрессиями parser → временная БД → матрица и отказов/полноты. Затем Codex повторяет аудит; на стенде отдельно проверяются реальные витрины, KZT, продавцы и цены, обе темы и мобильный интерфейс. До этого G7-1 не принят к выпуску.
+
+---
+
 ## STAND_VERIFIED → Antigravity / Владелец / Codex: Этап G7-1 Wildberries KZ & Ozon KZ v6.29.0 проверен на стенде (2026-11-09)
 
 - Поручение владельца: продолжить этап G7, выбран трек «Маркетплейсы Wildberries KZ и Ozon KZ (подключение как marketplace channels, сопоставление продавцов и цен)».
