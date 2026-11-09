@@ -65,9 +65,12 @@ class OzonScraper(PagedScraper):
 
     @classmethod
     def parse_payload(cls, payload: Dict[str, Any], category_name: str, category_url: str, page: int) -> ScanResult:
-        widget_states = payload.get("widgetStates") or {}
-        items_data = []
+        if not isinstance(payload, dict) or "widgetStates" not in payload or not isinstance(payload.get("widgetStates"), dict):
+            from scrapers.base import UnconfirmedEnd
+            raise UnconfirmedEnd("Неизвестная структура ответа Ozon: отсутствует widgetStates")
 
+        widget_states = payload["widgetStates"]
+        items_data = []
         for k, v in widget_states.items():
             if "searchResults" in k or "megaPaginator" in k or "catalog" in k:
                 try:
@@ -79,8 +82,10 @@ class OzonScraper(PagedScraper):
                     continue
 
         items: List[Dict[str, Any]] = []
+        unparsed = 0
         for it in items_data:
             if not isinstance(it, dict):
+                unparsed += 1
                 continue
             sku = str(it.get("id") or it.get("sku") or "")
             tracking = it.get("cellTrackingInfo") or {}
@@ -88,6 +93,7 @@ class OzonScraper(PagedScraper):
             price_val = price_value(tracking.get("price") or it.get("price"))
             old_price_val = price_value(tracking.get("originalPrice") or it.get("oldPrice") or it.get("old_price"))
             if not sku or not title or price_val <= 0:
+                unparsed += 1
                 continue
 
             link = it.get("action", {}).get("link") or f"/product/{sku}"
@@ -119,6 +125,9 @@ class OzonScraper(PagedScraper):
             validated = validate_product_item(item, cls.SHOP_NAME)
             if validated:
                 items.append(validated)
+            else:
+                unparsed += 1
 
         is_last = (len(items_data) < 12) or not items_data
-        return ScanResult(items, complete=is_last)
+        complete = is_last and (unparsed == 0)
+        return ScanResult(items, complete=complete, unparsed=unparsed)

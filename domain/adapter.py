@@ -251,6 +251,64 @@ def prepare_legacy_offer_v2(
     seller_id = f"seller_{seller_slug}"
     channel_id = f"chan_{seller_slug}_{channel_type}"
 
+    raw_sid = product.get("seller_id")
+    raw_sname = product.get("seller") or product.get("seller_name")
+    raw_mkt = product.get("marketplace")
+    shop_key = (product.get("shop_key") or "").lower()
+
+    mkt_seller_id = None
+    ext_store_id = None
+
+    is_mp = (
+        bool(raw_mkt)
+        or channel_type in (
+            ChannelType.WILDBERRIES,
+            ChannelType.OZON,
+            ChannelType.KASPI,
+            ChannelType.FORTE,
+            ChannelType.HALYK,
+            ChannelType.MARKETPLACE,
+        )
+        or shop_key in ("wildberries", "ozon", "kaspi", "fortemarket", "halyk")
+    )
+
+    if is_mp and raw_sid:
+        sid_str = str(raw_sid).strip()
+        if ":" in sid_str:
+            mkt_prefix, _, ext_id = sid_str.partition(":")
+        else:
+            mkt_prefix = raw_mkt or shop_key or channel_type or ""
+            ext_id = sid_str
+
+        clean_mkt = re.sub(r"[^a-z0-9_]+", "", mkt_prefix.lower())
+        clean_ext = re.sub(r"[^a-zA-Z0-9_-]+", "_", ext_id.strip()).strip("_")
+
+        if clean_ext and clean_ext.lower() not in (clean_mkt, "wildberries", "ozon", "kaspi", "forte", "halyk", "none", ""):
+            seller_slug = f"mp_{clean_mkt}_{clean_ext}"
+            seller_id = f"seller_{seller_slug}"
+            mkt_seller_id = f"{clean_mkt}:{clean_ext}"
+            ext_store_id = clean_ext
+
+            if clean_mkt in ("wildberries", "wb"):
+                channel_type = ChannelType.WILDBERRIES
+            elif clean_mkt == "ozon":
+                channel_type = ChannelType.OZON
+            elif clean_mkt == "kaspi":
+                channel_type = ChannelType.KASPI
+            elif clean_mkt in ("forte", "fortemarket"):
+                channel_type = ChannelType.FORTE
+            elif clean_mkt == "halyk":
+                channel_type = ChannelType.HALYK
+            else:
+                channel_type = ChannelType.MARKETPLACE
+
+            channel_id = f"chan_{seller_slug}_{channel_type}"
+
+            if raw_sname and str(raw_sname).strip().lower() not in (clean_mkt, f"{clean_mkt} kz", "wildberries kz", "ozon kz", "kaspi kz"):
+                seller_name = str(raw_sname).strip()
+            else:
+                seller_name = f"{shop_name} ({clean_ext})"
+
     norm_dom = None
     if channel_type in (ChannelType.WEBSITE, ChannelType.DIRECT) and url:
         from domain.seller_identity import normalize_domain
@@ -262,6 +320,9 @@ def prepare_legacy_offer_v2(
         # того же продавца конфликтует по первичному ключу, предложение ON CONFLICT ниже его не
         # покрывает, и товар вообще не попадает в v2. Тот же приём уже применён в merge_sellers.
         ident_digest = hashlib.sha256(f"{seller_id}:domain:{norm_dom}".encode("utf-8")).hexdigest()[:16]
+        ident_id = f"ident_{ident_digest}"
+    elif mkt_seller_id:
+        ident_digest = hashlib.sha256(f"{seller_id}:marketplace_seller_id:{mkt_seller_id}".encode("utf-8")).hexdigest()[:16]
         ident_id = f"ident_{ident_digest}"
 
     # 2b. Canonical Category, Brand and Model Extraction
@@ -292,6 +353,8 @@ def prepare_legacy_offer_v2(
         "seller_name": seller_name,
         "domain": norm_dom,
         "ident_id": ident_id,
+        "marketplace_seller_id": mkt_seller_id,
+        "external_store_id": ext_store_id,
         "channel_id": channel_id,
         "channel_type": channel_type,
         "channel_name": f"{seller_name} ({channel_type})",
@@ -347,6 +410,26 @@ def write_legacy_offers_v2(
     if not items:
         return
 
+    # 0. Сопоставление с существующими продавцами по marketplace_seller_id
+    mp_vals = list({it["marketplace_seller_id"] for it in items if it.get("marketplace_seller_id")})
+    if mp_vals:
+        try:
+            placeholders = ",".join("?" for _ in mp_vals)
+            rows = conn.execute(
+                f"SELECT identity_value, seller_id FROM seller_identities WHERE identity_type = 'marketplace_seller_id' AND identity_value IN ({placeholders})",
+                mp_vals,
+            ).fetchall()
+            if rows:
+                existing_map = dict(rows)
+                for it in items:
+                    m_val = it.get("marketplace_seller_id")
+                    if m_val and m_val in existing_map:
+                        matched_sid = existing_map[m_val]
+                        it["seller_id"] = matched_sid
+                        it["channel_id"] = f"chan_{matched_sid}_{it['channel_type']}"
+        except Exception:
+            pass
+
     # 1–2. Продавцы и каналы — по разу на ключ (продавец, домен, канал), в порядке первого появления
     sellers: List[Dict[str, Any]] = []
     new_keys: List[Tuple] = []
@@ -391,7 +474,7 @@ def _write_legacy_offers_v2(
             """,
             (timestamp, _json_param(sellers)),
         )
-        idents = [s for s in sellers if s["domain"]]
+        idents = [s for s in sellers if s.get("domain")]
         if idents:
             conn.execute(
                 """
@@ -403,13 +486,32 @@ def _write_legacy_offers_v2(
                 """,
                 (timestamp, _json_param(idents)),
             )
+        mp_idents = [s for s in sellers if s.get("marketplace_seller_id")]
+        if mp_idents:
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO seller_identities (id, seller_id, identity_type, identity_value, confidence, source, created_at)
+                    SELECT json_extract(value, '$.ident_id'), json_extract(value, '$.seller_id'), 'marketplace_seller_id',
+                           json_extract(value, '$.marketplace_seller_id'), 1.0, 'marketplace', ?1
+                    FROM json_each(?2) WHERE true
+                    ON CONFLICT(identity_type, identity_value, seller_id) DO NOTHING
+                    """,
+                    (timestamp, _json_param(mp_idents)),
+                )
+            except Exception:
+                pass
+        from repositories.schema_v2 import _ensure_column
+        _ensure_column(conn, "channels", "external_store_id", "TEXT")
         conn.execute(
             """
-            INSERT INTO channels (id, seller_id, channel_type, name, is_active, created_at)
+            INSERT INTO channels (id, seller_id, channel_type, name, external_store_id, is_active, created_at)
             SELECT json_extract(value, '$.channel_id'), json_extract(value, '$.seller_id'),
-                   json_extract(value, '$.channel_type'), json_extract(value, '$.channel_name'), 1, ?1
+                   json_extract(value, '$.channel_type'), json_extract(value, '$.channel_name'),
+                   json_extract(value, '$.external_store_id'), 1, ?1
             FROM json_each(?2) WHERE true
-            ON CONFLICT(id) DO NOTHING
+            ON CONFLICT(id) DO UPDATE SET
+                external_store_id = COALESCE(channels.external_store_id, excluded.external_store_id)
             """,
             (timestamp, _json_param(sellers)),
         )

@@ -83,18 +83,28 @@ class WildberriesScraper(PagedScraper):
 
     @classmethod
     def parse_payload(cls, payload: Dict[str, Any], category_name: str, category_url: str, page: int) -> ScanResult:
-        data = payload.get("data") if isinstance(payload, dict) else payload
-        products = data.get("products") or [] if isinstance(data, dict) else []
+        if not isinstance(payload, dict) or "data" not in payload or not isinstance(payload.get("data"), dict) or "products" not in payload.get("data", {}):
+            from scrapers.base import UnconfirmedEnd
+            raise UnconfirmedEnd("Неизвестная структура ответа Wildberries: отсутствует data.products")
+
+        data = payload["data"]
+        products = data.get("products")
+        if not isinstance(products, list):
+            from scrapers.base import UnconfirmedEnd
+            raise UnconfirmedEnd("Неизвестная структура ответа Wildberries: products не является списком")
 
         items: List[Dict[str, Any]] = []
+        unparsed = 0
         for p in products:
             if not isinstance(p, dict):
+                unparsed += 1
                 continue
             wb_id = p.get("id")
             name = (p.get("name") or "").strip()
             brand = (p.get("brand") or "").strip()
             title = f"{brand} {name}".strip() if brand and brand.lower() not in name.lower() else name
             if not wb_id or not title:
+                unparsed += 1
                 continue
 
             sale_price = 0
@@ -109,6 +119,7 @@ class WildberriesScraper(PagedScraper):
                 base_price = price_value(p.get("priceU", 0) / 100)
 
             if sale_price <= 0:
+                unparsed += 1
                 continue
 
             supplier_name = (p.get("supplier") or brand or "").strip()
@@ -134,6 +145,9 @@ class WildberriesScraper(PagedScraper):
             validated = validate_product_item(item, cls.SHOP_NAME)
             if validated:
                 items.append(validated)
+            else:
+                unparsed += 1
 
         is_last = (len(products) < 20) or not products
-        return ScanResult(items, complete=is_last)
+        complete = is_last and (unparsed == 0)
+        return ScanResult(items, complete=complete, unparsed=unparsed)

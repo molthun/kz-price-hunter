@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from domain.image_quality import upgrade_image_url
+from content_retention import source_free
 from scrapers import http as requests
 from scrapers.base import price_value
 
@@ -248,7 +249,7 @@ class HalykShowcaseScanner:
                 image_url=upgrade_image_url(p.get("picture")),
                 city=self.city_name,
                 in_stock=True,
-                raw_data=p,
+                raw_data=source_free(p),
             ))
 
         total = data.get("products_total") or 0
@@ -399,16 +400,18 @@ class WildberriesShowcaseScanner:
         }
         r = requests.get(self.API_URL, params=params, headers=self.headers, timeout=20)
         if r.status_code != 200:
-            return [], True
+            raise RuntimeError(f"Wildberries API error: HTTP {r.status_code}")
 
         try:
             payload = r.json()
-        except Exception:
-            return [], True
+        except Exception as e:
+            raise RuntimeError(f"Failed to decode Wildberries JSON: {e}")
 
         data = payload.get("data") if isinstance(payload, dict) else payload
         products = data.get("products") or [] if isinstance(data, dict) else []
         offers = []
+
+        from content_retention import source_free
 
         for p in products:
             if not isinstance(p, dict):
@@ -449,7 +452,7 @@ class WildberriesShowcaseScanner:
                 in_stock=True,
                 rating=float(p.get("reviewRating", 0)) if p.get("reviewRating") else None,
                 reviews_count=int(p.get("feedbacks", 0)) if p.get("feedbacks") else None,
-                raw_data=p,
+                raw_data=source_free(p),
             ))
 
         is_last = (len(products) < 20) or not products
@@ -491,12 +494,14 @@ class OzonShowcaseScanner:
         url_param = f"/seller/{merchant_id}/?page={page}"
         r = requests.get(self.API_URL, params={"url": url_param}, headers=self.headers, timeout=20)
         if r.status_code != 200:
-            return [], True
+            raise RuntimeError(f"Ozon API error: HTTP {r.status_code}")
 
         try:
             payload = r.json()
-        except Exception:
-            return [], True
+        except Exception as e:
+            raise RuntimeError(f"Failed to decode Ozon JSON: {e}")
+
+        from content_retention import source_free
 
         widget_states = payload.get("widgetStates") or {}
         items = []
@@ -536,7 +541,7 @@ class OzonShowcaseScanner:
                 image_url=upgrade_image_url(img),
                 city=self.city_name,
                 in_stock=True,
-                raw_data=it,
+                raw_data=source_free(it),
             ))
 
         is_last = (len(items) < 12) or not items

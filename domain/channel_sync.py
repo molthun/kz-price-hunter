@@ -106,7 +106,9 @@ def upsert_showcase_offer(
     sku_clean = re.sub(r'[^\w-]', '', offer.external_sku) or hashlib.md5(offer.url.encode()).hexdigest()[:12]
     offer_id = f"off_{channel_id}_{sku_clean}"[:64]
     avail = "in_stock" if offer.in_stock else "out_of_stock"
-    raw_payload = json.dumps(offer.raw_data or {}, ensure_ascii=False)
+    from content_retention import source_free
+    clean_raw = source_free(offer.raw_data or {})
+    raw_payload = json.dumps(clean_raw, ensure_ascii=False)
 
     # Отслеживание динамики цены при повторном наблюдении
     effective_old_price = offer.old_price
@@ -197,12 +199,49 @@ async def sync_channel_showcase(
         return {"ok": False, "error": f"Канал {channel_id} не найден"}
 
     ch_id, seller_id, channel_type, ch_name, ext_store_id, base_url, meta_json = row
-    mp, merchant_id = extract_marketplace_merchant_info(base_url or "")
-    if not mp and ext_store_id:
-        mp, merchant_id = extract_marketplace_merchant_info(ext_store_id)
+
+    ch_type_lower = (channel_type or "").strip().lower()
+    known_mp_types = {
+        "wildberries": "wildberries",
+        "wb": "wildberries",
+        "ozon": "ozon",
+        "kaspi": "kaspi",
+        "forte": "forte",
+        "fortemarket": "forte",
+        "halyk": "halyk",
+    }
+    declared_mp = known_mp_types.get(ch_type_lower)
+
+    url_mp, url_merchant = extract_marketplace_merchant_info(base_url or "") if base_url else (None, None)
+
+    # Validate against conflicting configuration
+    if declared_mp and url_mp and declared_mp != url_mp:
+        return {
+            "ok": False,
+            "error": f"Конфликт конфигурации канала: channel_type='{channel_type}' ({declared_mp}), но base_url='{base_url}' указывает на {url_mp}",
+        }
+
+    mp = declared_mp or url_mp
+    merchant_id = url_merchant
+
+    if not merchant_id and ext_store_id:
+        ext_s = str(ext_store_id).strip()
+        if ":" in ext_s:
+            id_prefix, _, id_val = ext_s.partition(":")
+            id_mp = known_mp_types.get(id_prefix.lower())
+            if declared_mp and id_mp and declared_mp != id_mp:
+                return {
+                    "ok": False,
+                    "error": f"Конфликт конфигурации канала: channel_type='{channel_type}' ({declared_mp}), но external_store_id='{ext_store_id}' указывает на {id_mp}",
+                }
+            merchant_id = id_val.strip()
+            if not mp:
+                mp = id_mp
+        else:
+            merchant_id = ext_s
 
     if not mp:
-        combined = f"{base_url or ''} {ext_store_id or ''} {ch_name or ''}".lower()
+        combined = f"{base_url or ''} {ch_name or ''}".lower()
         if "kaspi" in combined:
             mp = "kaspi"
         elif "halyk" in combined:
@@ -213,8 +252,10 @@ async def sync_channel_showcase(
             mp = "wildberries"
         elif "ozon" in combined:
             mp = "ozon"
+        elif ext_store_id and str(ext_store_id).isdigit():
+            mp = "kaspi"
         else:
-            mp = channel_type.lower() if channel_type else "kaspi"
+            mp = ch_type_lower or "kaspi"
 
     if not merchant_id:
         merchant_id = ext_store_id or base_url or ""
@@ -226,23 +267,60 @@ async def sync_channel_showcase(
 
     # Запуск сканера
     offers: List[ShowcaseOffer] = []
-    if mp == "kaspi":
-        scanner = KaspiShowcaseScanner()
-        offers = await scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
-    elif mp == "halyk":
-        h_scanner = HalykShowcaseScanner()
-        offers = await h_scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
-    elif mp in ("forte", "fortemarket"):
-        f_scanner = ForteShowcaseScanner()
-        offers = await f_scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
-    elif mp in ("wildberries", "wb"):
-        wb_scanner = WildberriesShowcaseScanner()
-        offers = await wb_scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
-    elif mp == "ozon":
-        ozon_scanner = OzonShowcaseScanner()
-        offers = await ozon_scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
-    else:
-        return {"ok": False, "error": f"Неподдерживаемый маркетплейс для витрины: {mp}"}
+    try:
+        if mp == "kaspi":
+            scanner = KaspiShowcaseScanner()
+            offers = await scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
+        elif mp == "halyk":
+            h_scanner = HalykShowcaseScanner()
+            offers = await h_scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
+        elif mp in ("forte", "fortemarket"):
+            f_scanner = ForteShowcaseScanner()
+            offers = await f_scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
+        elif mp in ("wildberries", "wb"):
+            wb_scanner = WildberriesShowcaseScanner()
+            offers = await wb_scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
+        elif mp == "ozon":
+            ozon_scanner = OzonShowcaseScanner()
+            offers = await ozon_scanner.scan_merchant_showcase(merchant_id, max_pages=max_pages)
+        else:
+            return {"ok": False, "error": f"Неподдерживаемый маркетплейс для витрины: {mp}"}
+    except Exception as exc:
+        logger.error(f"Сбой сбора витрины {mp}:{merchant_id}: {exc}")
+        now_err_iso = datetime.now(timezone.utc).isoformat()
+        try:
+            current_meta = json.loads(meta_json or "{}") if isinstance(meta_json, str) else (meta_json or {})
+        except Exception:
+            current_meta = {}
+        sync_history = current_meta.get("sync_history") or []
+        if not isinstance(sync_history, list):
+            sync_history = []
+        sync_history.insert(0, {
+            "synced_at": now_err_iso,
+            "error": str(exc),
+            "status": "error",
+        })
+        current_meta.update({
+            "last_sync_at": now_err_iso,
+            "last_sync_status": "error",
+            "last_sync_error": str(exc),
+            "marketplace": mp,
+            "merchant_id": merchant_id,
+            "sync_history": sync_history[:25],
+        })
+        conn.execute(
+            "UPDATE channels SET metadata_json = ? WHERE id = ?",
+            (json.dumps(current_meta, ensure_ascii=False), ch_id),
+        )
+        if hasattr(conn, "commit"):
+            conn.commit()
+        return {
+            "ok": False,
+            "channel_id": ch_id,
+            "marketplace": mp,
+            "merchant_id": merchant_id,
+            "error": str(exc),
+        }
 
     if not offers:
         logger.warning(f"Сканер витрины вернул 0 предложений: mp={mp}, merchant={merchant_id}")
