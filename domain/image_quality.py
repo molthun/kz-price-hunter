@@ -44,11 +44,11 @@ def upgrade_image_url(url: Optional[str]) -> str:
         u = re.sub(r'(/darbiz/catalogs/[^/]+/)(?:s|m)/', r'\1', u)
 
     # 7. Wildberries CDN: переключаем миниатюры c246x328 / tm / c516x688 на big / c900x1200
-    elif "wbcontent.net" in u or "wildberries.ru" in u:
+    elif "wbcontent.net" in u or "wildberries.ru" in u or "wildberries.kz" in u or "wbbasket.ru" in u:
         u = re.sub(r'/images/(?:c246x328|c516x688|tm)/', '/images/big/', u)
 
     # 8. Ozon CDN: увеличиваем размер миниатюр wc50 / wc200 / c200 -> c1000
-    elif "ozonimages.ru" in u or "ozon.ru" in u:
+    elif "ozonimages.ru" in u or "ozon.ru" in u or "ozon.kz" in u:
         u = re.sub(r'/(?:wc\d+|c\d+)/', '/c1000/', u)
 
     return u

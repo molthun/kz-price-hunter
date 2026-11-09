@@ -3,6 +3,27 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.29.0] - 2026-11-09
+
+### Для пользователей
+- 🟣🔵 **Интеграция маркетплейс-каналов Wildberries KZ и Ozon KZ (Этап G7-1)**:
+  - **Поддержка каналов маркетплейсов**: в модель мультиканальных продавцов добавлены новые типы каналов `ChannelType.WILDBERRIES` и `ChannelType.OZON`.
+  - **Кросс-канальная матрица цен и экономия**: когда независимый магазин или сеть (например, ритейлер техники) продает товары на собственном сайте, а также через витрины Wildberries KZ или Ozon KZ, система сопоставляет цены и рассчитывает прямую выгоду покупателя («Экономия при покупке напрямую вместо маркетплейса»).
+  - **Автоматическое извлечение продавцов**: сканеры витрин и адаптеры извлекают идентификаторы фактических продавцов (`wildberries:<supplier_id>`, `ozon:<seller_id>`), связывая офферы с профилем юридического лица или ритейлера.
+  - **Качественные изображения товаров**: реализован алгоритм расчёта канонических CDN-корзин Wildberries (`basket-XX.wbbasket.ru/vol.../part.../images/big/1.webp`) и автоповышение качества миниатюр Ozon до `c1000`.
+
+### Для разработчиков
+- 🛠️ **Новые скраперы и сканеры витрин**:
+  - `scrapers/wildberries.py`: `WildberriesScraper(PagedScraper)` с региональным хабом Казахстана (`dest=-1257786`), ценами в KZT (`curr=kzt`), структурой поставщиков (`supplierId`, `supplier`) и детекцией конца каталога.
+  - `scrapers/ozon.py`: `OzonScraper(PagedScraper)` с композитным API (`composer-api.bx/page/json/v2`), ценами в KZT, идентификацией продавцов и автоповышением качества фото.
+  - `scrapers/showcase_scanners.py`: реализованы `WildberriesShowcaseScanner` и `OzonShowcaseScanner` для фонового сканирования витрин конкретных мерчантов.
+  - `domain/models.py`: добавлены `ChannelType.WILDBERRIES = "wildberries"` и `ChannelType.OZON = "ozon"`.
+  - `domain/channel_pricing.py`: обновлены `marketplace_channel_types` для включения WB и Ozon в расчет кросс-канальной экономии.
+  - `domain/channel_scheduler.py`: функция `is_marketplace_channel` распознает витрины и ссылки WB и Ozon.
+  - `domain/seller_onboarding.py`: автоматическое распознавание ссылок на продавцов Wildberries и Ozon при онбординге продавцов.
+  - `domain/image_quality.py`: добавлена поддержка доменов `ozon.kz`, `wbbasket.ru`, `wildberries.kz`.
+  - `config.py` и `web/server.py`: расширен реестр `SHOP_KEYS` (40 магазинов) и `SHOP_REGISTRY`.
+
 ## [6.28.34] - 2026-11-07
 
 ### Для пользователей

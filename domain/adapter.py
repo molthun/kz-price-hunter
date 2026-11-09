@@ -148,7 +148,11 @@ def resolve_seller_and_channel_meta(shop_name: str, shop_key: Optional[str] = No
         ctype = ChannelType.DIRECT if cleaned_key == "fourmobile" else (
             ChannelType.KASPI if cleaned_key == "kaspi" else (
                 ChannelType.FORTE if cleaned_key == "fortemarket" else (
-                    ChannelType.HALYK if cleaned_key == "halyk" else ChannelType.WEBSITE
+                    ChannelType.HALYK if cleaned_key == "halyk" else (
+                        ChannelType.WILDBERRIES if cleaned_key == "wildberries" else (
+                            ChannelType.OZON if cleaned_key == "ozon" else ChannelType.WEBSITE
+                        )
+                    )
                 )
             )
         )

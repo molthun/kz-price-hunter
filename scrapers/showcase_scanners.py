@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 import asyncio
+import json
 import re
 import urllib.parse
 from dataclasses import dataclass, field
@@ -61,6 +62,20 @@ def extract_marketplace_merchant_info(url_or_code: str) -> Tuple[Optional[str], 
         return "forte", m_forte.group(1).strip()
     if s.lower().startswith(("forte:", "fortemarket:")):
         return "forte", s.split(":", 1)[-1].strip()
+
+    # Wildberries
+    m_wb = re.search(r'wildberries\.(?:kz|ru)/seller/([^/?#]+)', s, re.IGNORECASE)
+    if m_wb:
+        return "wildberries", m_wb.group(1).strip()
+    if s.lower().startswith(("wildberries:", "wb:")):
+        return "wildberries", s.split(":", 1)[-1].strip()
+
+    # Ozon
+    m_ozon = re.search(r'ozon\.(?:kz|ru)/seller/([^/?#]+)', s, re.IGNORECASE)
+    if m_ozon:
+        return "ozon", m_ozon.group(1).strip()
+    if s.lower().startswith("ozon:"):
+        return "ozon", s.split(":", 1)[-1].strip()
 
     return None, None
 
@@ -307,6 +322,224 @@ class ForteShowcaseScanner:
 
         nb_pages = data.get("nbPages", 1)
         is_last = (page >= nb_pages) or not hits
+        return offers, is_last
+
+    async def scan_merchant_showcase(self, merchant_id: str, max_pages: int = 50, delay_seconds: float = 0.5) -> List[ShowcaseOffer]:
+        all_offers = []
+        seen = set()
+        for page in range(1, max_pages + 1):
+            batch, is_last = await asyncio.to_thread(self.fetch_merchant_page, merchant_id, page)
+            fresh = [o for o in batch if o.external_sku not in seen]
+            if not fresh:
+                break
+            all_offers.extend(fresh)
+            seen.update(o.external_sku for o in fresh)
+            if is_last:
+                break
+            await asyncio.sleep(delay_seconds)
+        return all_offers
+
+
+def wb_image_url(wb_id: int) -> str:
+    """Вычисляет канонический URL обложки товара на CDN Wildberries."""
+    try:
+        wb_num = int(wb_id)
+        if wb_num <= 0:
+            return ""
+    except (ValueError, TypeError):
+        return ""
+    vol = wb_num // 100000
+    part = wb_num // 1000
+    if vol <= 143: bucket = 1
+    elif vol <= 287: bucket = 2
+    elif vol <= 431: bucket = 3
+    elif vol <= 719: bucket = 4
+    elif vol <= 1007: bucket = 5
+    elif vol <= 1061: bucket = 6
+    elif vol <= 1115: bucket = 7
+    elif vol <= 1169: bucket = 8
+    elif vol <= 1313: bucket = 9
+    elif vol <= 1601: bucket = 10
+    elif vol <= 1655: bucket = 11
+    elif vol <= 1919: bucket = 12
+    elif vol <= 2045: bucket = 13
+    elif vol <= 2189: bucket = 14
+    elif vol <= 2405: bucket = 15
+    elif vol <= 2621: bucket = 16
+    elif vol <= 2837: bucket = 17
+    else: bucket = 18
+    return f"https://basket-{bucket:02d}.wbbasket.ru/vol{vol}/part{part}/{wb_num}/images/big/1.webp"
+
+
+class WildberriesShowcaseScanner:
+    """Сканер витрины продавца на Wildberries (wildberries.kz)."""
+    API_URL = "https://catalog.wb.ru/sellers/v4/catalog"
+
+    def __init__(self, city_name: str = "Алматы"):
+        self.city_name = city_name
+        self.headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/128.0.0.0 Safari/537.36"
+            ),
+            "Accept": "*/*",
+            "Accept-Language": "ru-RU,ru;q=0.9",
+            "Referer": "https://www.wildberries.kz/",
+            "Origin": "https://www.wildberries.kz",
+        }
+
+    def fetch_merchant_page(self, merchant_id: str, page: int = 1) -> Tuple[List[ShowcaseOffer], bool]:
+        params = {
+            "curr": "kzt",
+            "dest": "-1257786",  # Казахстан / Алматы склад
+            "supplier": merchant_id,
+            "page": page,
+            "sort": "popular",
+        }
+        r = requests.get(self.API_URL, params=params, headers=self.headers, timeout=20)
+        if r.status_code != 200:
+            return [], True
+
+        try:
+            payload = r.json()
+        except Exception:
+            return [], True
+
+        data = payload.get("data") if isinstance(payload, dict) else payload
+        products = data.get("products") or [] if isinstance(data, dict) else []
+        offers = []
+
+        for p in products:
+            if not isinstance(p, dict):
+                continue
+            wb_id = p.get("id")
+            name = (p.get("name") or "").strip()
+            brand = (p.get("brand") or "").strip()
+            title = f"{brand} {name}".strip() if brand and not name.lower().startswith(brand.lower()) else name
+            if not wb_id or not title:
+                continue
+
+            # Цены в API WB отдаются в тиынах/копейках
+            sale_price = 0
+            base_price = 0
+            sizes = p.get("sizes") or []
+            if sizes and isinstance(sizes[0], dict) and isinstance(sizes[0].get("price"), dict):
+                pr_obj = sizes[0]["price"]
+                sale_price = price_value(pr_obj.get("total", 0) / 100)
+                base_price = price_value(pr_obj.get("basic", 0) / 100)
+            if sale_price <= 0:
+                sale_price = price_value(p.get("salePriceU", 0) / 100)
+                base_price = price_value(p.get("priceU", 0) / 100)
+
+            if sale_price <= 0:
+                continue
+
+            old_p = float(base_price) if base_price > sale_price else None
+            offers.append(ShowcaseOffer(
+                marketplace="wildberries",
+                merchant_id=str(merchant_id),
+                external_sku=str(wb_id),
+                title=title,
+                price=float(sale_price),
+                old_price=old_p,
+                url=f"https://www.wildberries.kz/catalog/{wb_id}/detail.aspx",
+                image_url=wb_image_url(wb_id),
+                city=self.city_name,
+                in_stock=True,
+                rating=float(p.get("reviewRating", 0)) if p.get("reviewRating") else None,
+                reviews_count=int(p.get("feedbacks", 0)) if p.get("feedbacks") else None,
+                raw_data=p,
+            ))
+
+        is_last = (len(products) < 20) or not products
+        return offers, is_last
+
+    async def scan_merchant_showcase(self, merchant_id: str, max_pages: int = 50, delay_seconds: float = 0.5) -> List[ShowcaseOffer]:
+        all_offers = []
+        seen = set()
+        for page in range(1, max_pages + 1):
+            batch, is_last = await asyncio.to_thread(self.fetch_merchant_page, merchant_id, page)
+            fresh = [o for o in batch if o.external_sku not in seen]
+            if not fresh:
+                break
+            all_offers.extend(fresh)
+            seen.update(o.external_sku for o in fresh)
+            if is_last:
+                break
+            await asyncio.sleep(delay_seconds)
+        return all_offers
+
+
+class OzonShowcaseScanner:
+    """Сканер витрины продавца на Ozon (ozon.kz)."""
+    API_URL = "https://api.ozon.kz/composer-api.bx/page/json/v2"
+
+    def __init__(self, city_name: str = "Алматы"):
+        self.city_name = city_name
+        self.headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/128.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json",
+            "Referer": "https://ozon.kz/",
+        }
+
+    def fetch_merchant_page(self, merchant_id: str, page: int = 1) -> Tuple[List[ShowcaseOffer], bool]:
+        url_param = f"/seller/{merchant_id}/?page={page}"
+        r = requests.get(self.API_URL, params={"url": url_param}, headers=self.headers, timeout=20)
+        if r.status_code != 200:
+            return [], True
+
+        try:
+            payload = r.json()
+        except Exception:
+            return [], True
+
+        widget_states = payload.get("widgetStates") or {}
+        items = []
+        for k, v in widget_states.items():
+            if "searchResults" in k or "megaPaginator" in k or "catalog" in k:
+                try:
+                    state_obj = json.loads(v) if isinstance(v, str) else v
+                    sub_items = state_obj.get("items") or []
+                    if sub_items:
+                        items.extend(sub_items)
+                except Exception:
+                    continue
+
+        offers = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            sku = str(it.get("id") or it.get("sku") or "")
+            title = (it.get("cellTrackingInfo", {}).get("title") or it.get("title") or "").strip()
+            price_raw = it.get("cellTrackingInfo", {}).get("price") or it.get("price")
+            price = price_value(price_raw)
+            if not sku or not title or price <= 0:
+                continue
+
+            link = it.get("action", {}).get("link") or f"/product/{sku}"
+            if not link.startswith("http"):
+                link = f"https://ozon.kz{link}"
+
+            img = it.get("tileImage", {}).get("image", {}).get("link") or it.get("image")
+            offers.append(ShowcaseOffer(
+                marketplace="ozon",
+                merchant_id=str(merchant_id),
+                external_sku=sku,
+                title=title,
+                price=float(price),
+                url=link,
+                image_url=upgrade_image_url(img),
+                city=self.city_name,
+                in_stock=True,
+                raw_data=it,
+            ))
+
+        is_last = (len(items) < 12) or not items
         return offers, is_last
 
     async def scan_merchant_showcase(self, merchant_id: str, max_pages: int = 50, delay_seconds: float = 0.5) -> List[ShowcaseOffer]:

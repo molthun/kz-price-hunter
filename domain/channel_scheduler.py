@@ -20,12 +20,12 @@ _is_batch_syncing = False
 
 
 def is_marketplace_channel(channel_type: Optional[str], base_url: Optional[str], external_id: Optional[str] = None) -> bool:
-    """Определяет, является ли канал витриной маркетплейса (Kaspi, Halyk, Forte)."""
+    """Определяет, является ли канал витриной маркетплейса (Kaspi, Halyk, Forte, Wildberries, Ozon)."""
     ch_type = (channel_type or "").lower().strip()
-    if ch_type in ("marketplace", "kaspi", "halyk", "forte", "fortemarket"):
+    if ch_type in ("marketplace", "kaspi", "halyk", "forte", "fortemarket", "wildberries", "wb", "ozon"):
         return True
     combined = f"{base_url or ''} {external_id or ''}".lower()
-    return any(m in combined for m in ("kaspi.kz", "halykmarket", "forte.kz", "darbiz"))
+    return any(m in combined for m in ("kaspi.kz", "halykmarket", "forte.kz", "darbiz", "wildberries.", "ozon."))
 
 
 def parse_iso_datetime(dt_str: Optional[str]) -> Optional[datetime]:

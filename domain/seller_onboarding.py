@@ -116,9 +116,9 @@ def _extract_marketplace_seller_id(links: List[str], explicit_id: Optional[str] 
     if explicit_id and str(explicit_id).strip():
         return str(explicit_id).strip()
     for link in links:
-        m = KASPI_MERCHANT_URL_RE.search(str(link or ""))
-        if m:
-            return m.group(1).strip()
+        platform, m_id = extract_marketplace_info(str(link or ""))
+        if m_id:
+            return m_id
     return None
 
 

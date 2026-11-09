@@ -218,7 +218,14 @@ def build_channel_matrix(
         return known if known else ChannelType.from_channel_id(channel_id)
 
     direct_channel_types = {ChannelType.DIRECT, ChannelType.WEBSITE, ChannelType.PHYSICAL_STORE}
-    marketplace_channel_types = {ChannelType.KASPI, ChannelType.FORTE, ChannelType.HALYK, ChannelType.MARKETPLACE}
+    marketplace_channel_types = {
+        ChannelType.KASPI,
+        ChannelType.FORTE,
+        ChannelType.HALYK,
+        ChannelType.MARKETPLACE,
+        ChannelType.WILDBERRIES,
+        ChannelType.OZON,
+    }
 
     sellers_pricing: List[SellerChannelPricing] = []
     cross_channel_opportunities: List[ChannelSavings] = []

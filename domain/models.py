@@ -123,6 +123,8 @@ class ChannelType:
     CLASSIFIEDS = "classifieds"
     FOOD_AGGREGATOR = "food_aggregator"
     MARKETPLACE = "marketplace"
+    WILDBERRIES = "wildberries"
+    OZON = "ozon"
 
     ALL = {
         DIRECT,
@@ -137,6 +139,8 @@ class ChannelType:
         CLASSIFIEDS,
         FOOD_AGGREGATOR,
         MARKETPLACE,
+        WILDBERRIES,
+        OZON,
     }
 
     @classmethod

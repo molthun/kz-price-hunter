@@ -247,6 +247,15 @@ RTX 4070 12 ГБ, 16 потоков, 61 ГБ ОЗУ, NVMe 915 ГБ, Ubuntu 26.04
   переключения. Приёмка: прод работает на новой машине, NAS-резерв поднимается по инструкции.
   - **Статус (31.10.2026, подтверждено владельцем): ВЫПОЛНЕНО.** Прод успешно перенесён с NAS на машину стенда (Ubuntu 26.04, NVMe, RTX 4070 12 ГБ), работает в отдельном compose-проекте рядом со стендом и Ollama. Вход в интернет проксируется, Watchtower обновляет контейнер из GHCR.
 
+## Поколение G7: Мультиканальные маркетплейсы и каналы дистрибуции
+
+- **G7-1. Маркетплейсы Wildberries KZ и Ozon KZ (подключение как marketplace channels, сопоставление продавцов и цен).**
+  - Подключение Wildberries KZ и Ozon KZ к мультиканальной модели продавцов.
+  - Извлечение профилей продавцов (`wildberries:<supplier_id>`, `ozon:<seller_id>`).
+  - Построение кросс-канальной матрицы цен (`build_channel_matrix`) и расчет экономии при покупке напрямую у ритейлера минуя комиссию маркетплейса.
+  - Поддержка канонических CDN-корзин WB и улучшение разрешения изображений Ozon.
+  - Статус (09.11.2026, Antigravity): Реализовано (`scrapers/wildberries.py`, `scrapers/ozon.py`, `scrapers/showcase_scanners.py`, `domain/models.py`, `domain/channel_pricing.py`, `config.py`, `web/server.py`), тесты пройдены. Готово к стендовому тестированию.
+
 ## Релизы и общая готовность
 
 Предварительные группы исходного плана: foundation → telemetry → quality → monitoring → UI/settings → analytics → watches → router → catalog AI → scheduler shadow → rollout → admin AI/daily → system hardening. Номера 5.7.1–6.6 из обсуждения ориентировочные: сначала сверить текущие version.py, коммиты и теги, не занимать уже выпущенную версию.

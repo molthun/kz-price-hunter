@@ -2,6 +2,43 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## READY_FOR_STAND_DEPLOYMENT → Antigravity: G7-1 Интеграция маркетплейс-каналов Wildberries KZ и Ozon KZ v6.29.0 (2026-11-09)
+
+- Поручение владельца: продолжить этап G7, выбран трек «Маркетплейсы Wildberries KZ и Ozon KZ (подключение как marketplace channels, сопоставление продавцов и цен)».
+- Исполнитель: Antigravity (основной разработчик).
+- Дата и время: 2026-11-09 09:30 (Asia/Almaty).
+- Срез: ветка `feature/g7-marketplace-wb-ozon`, базовый коммит `aaf550a`.
+- Область файлов:
+  - `domain/models.py`, `domain/channel_pricing.py`, `domain/channel_scheduler.py`
+  - `domain/seller_onboarding.py`, `domain/image_quality.py`, `domain/adapter.py`
+  - `scrapers/wildberries.py`, `scrapers/ozon.py`, `scrapers/showcase_scanners.py`
+  - `config.py`, `web/server.py`, `version.py`, `CHANGELOG.md`
+  - `tests/scrapers/test_wildberries.py`, `tests/scrapers/test_ozon.py`, `tests/sellers/test_marketplace_channels.py`, `tests/scrapers/test_scraper_contract.py`, `tests/core/test_domain_models.py`, `tests/monitoring/test_monitor.py`
+- Реализовано и проверено:
+  1. **Модель каналов**:
+     - `domain/models.py`: добавлены `ChannelType.WILDBERRIES = "wildberries"` и `ChannelType.OZON = "ozon"`, включены в `ChannelType.ALL`.
+     - `domain/channel_pricing.py`: WB и Ozon включены в `marketplace_channel_types` для расчёта матрицы цен и кросс-канальной экономии.
+     - `domain/channel_scheduler.py`: функция `is_marketplace_channel` распознает витрины и URL маркетплейсов WB и Ozon.
+  2. **Извлечение продавцов и онбординг**:
+     - `domain/seller_onboarding.py`: `_extract_marketplace_seller_id` адаптирован для распознавания профилей продавцов WB и Ozon.
+     - `scrapers/showcase_scanners.py`: `extract_marketplace_merchant_info` распознает ссылки и идентификаторы Wildberries (`wildberries:<supplier_id>`) и Ozon (`ozon:<seller_id>`).
+  3. **Скраперы и сканеры витрин**:
+     - `scrapers/wildberries.py`: `WildberriesScraper(PagedScraper)` с региональным хабом Казахстана (`dest=-1257786`), ценами в KZT (`curr=kzt`), структурой поставщиков (`supplierId`, `supplier`) и детекцией конца каталога.
+     - `scrapers/ozon.py`: `OzonScraper(PagedScraper)` с композитным API (`composer-api.bx/page/json/v2`), ценами в KZT, идентификацией продавцов и автоповышением качества фото.
+     - `scrapers/showcase_scanners.py`: реализованы `WildberriesShowcaseScanner` и `OzonShowcaseScanner` для фонового сканирования витрин конкретных мерчантов.
+     - `domain/image_quality.py`: алгоритм CDN Wildberries (`wb_image_url`) и автоповышение миниатюр Ozon до `c1000`.
+  4. **Реестр магазинов**:
+     - В `config.py` и `web/server.py` добавлены `wildberries` и `ozon`, расширив реестр до 40 магазинов.
+  5. **Тесты**:
+     - Созданы герметичные тесты `tests/scrapers/test_wildberries.py`, `tests/scrapers/test_ozon.py`, `tests/sellers/test_marketplace_channels.py`.
+     - Пройдены контрактные и регрессионные тесты: `tests/scrapers/test_scraper_contract.py` (33 passed), `tests/core/test_domain_models.py` (6 passed), `tests/monitoring/test_monitor.py` (113 passed), `tests/sellers/` (252 passed), `tests/scrapers/` (220 passed).
+     - Версия повышена до `v6.29.0`, changelog обновлен.
+- Следующий точный шаг:
+  - Сформировать коммит в `feature/g7-marketplace-wb-ozon`.
+  - Собрать git bundle `kzph-v6.29.0-wb-ozon.bundle` и выкатить на стенд (`kzph-stand`) для сквозного тестирования.
+
+---
+
 ## RELEASE_COMPLETED → Владелец: Релиз Search-First Platform 2.0 v6.28.34 на Production (2026-11-08)
 
 - Поручение владельца: Запустить релиз на Production (бэкап базы, мерж в main, автосборка v6.28.34 и обновление прода).
