@@ -15,7 +15,7 @@ from domain.channel_sync import match_or_create_canonical_product, sync_channel_
 from domain.models import ChannelType, Offer, Seller
 from scrapers.base import UnconfirmedEnd
 from scrapers.ozon import OzonScraper
-from scrapers.showcase_scanners import OzonShowcaseScanner, WildberriesShowcaseScanner
+from scrapers.showcase_scanners import OzonShowcaseScanner, ShowcaseOffer, WildberriesShowcaseScanner
 from scrapers.wildberries import WildberriesScraper
 from tests.scrapers.test_showcase_scanners import create_test_db
 
@@ -405,3 +405,150 @@ class AuditG7RecheckTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("SYNTHETIC_NESTED_DESCRIPTION", stored)
         conn.close()
 
+
+
+class ReauditG7V6292Test(unittest.IsolatedAsyncioTestCase):
+    """Повторный аудит Codex v6.29.2: R01–R03."""
+
+    LONG_SELLER = "seller_kazakhstan_electronics_official_store"
+
+    def test_r01_long_confirmed_channel_keeps_offers_apart(self):
+        """parser → подтверждённый продавец с длинным id → два SKU и повтор обхода: предложения раздельны."""
+        conn = create_test_db()
+        _seed_confirmed(conn, seller=self.LONG_SELLER)
+        prepared = _wb_prepared((100001, 456), (100002, 456))
+        write_legacy_offers_v2(conn, prepared, "t1")
+        channel_id = conn.execute("SELECT DISTINCT channel_id FROM offers").fetchone()[0]
+        self.assertLessEqual(len(channel_id), 48)
+
+        scanner_offers = []
+        for sku, price in (("100001", 100000.0), ("100002", 200000.0)):
+            scanner_offers.append(ShowcaseOffer(marketplace="wildberries", merchant_id="456", external_sku=sku,
+                                                title=f"Synthetic phone {sku}", price=price,
+                                                url=f"https://www.wildberries.kz/catalog/{sku}/detail.aspx"))
+        for run, bump in (("2026-11-09T00:00:00+00:00", 0), ("2026-11-09T01:00:00+00:00", 5)):
+            for off in scanner_offers:
+                off.price += bump
+                pid, _ = match_or_create_canonical_product(conn, off, run)
+                upsert_showcase_offer(conn, off, pid, self.LONG_SELLER, channel_id, run)
+        rows = conn.execute("SELECT external_sku, price FROM offers WHERE channel_id = ? AND id LIKE 'off_%' "
+                            "AND external_sku IN ('100001','100002') ORDER BY external_sku", (channel_id,)).fetchall()
+        self.assertEqual([tuple(r) for r in rows], [("100001", 100005.0), ("100002", 200005.0)])
+        conn.close()
+
+    def test_r01_offer_id_bounded_unique_and_backward_compatible(self):
+        from domain.channel_sync import showcase_offer_id
+        self.assertEqual(showcase_offer_id("ch_kaspi", "123"), "off_ch_kaspi_123")  # прежняя форма
+        long_a = "chan_" + "x" * 70 + "_a"
+        long_b = "chan_" + "x" * 70 + "_b"  # одинаковый длинный префикс
+        ids = {showcase_offer_id(c, s) for c in (long_a, long_b) for s in ("100001", "100002")}
+        self.assertEqual(len(ids), 4)
+        self.assertTrue(all(len(i) <= 64 for i in ids))
+        self.assertEqual(showcase_offer_id(long_a, "100001"), showcase_offer_id(long_a, "100001"))
+        self.assertTrue(showcase_offer_id(long_a, "100001").endswith("100001"))
+
+    def test_r01_manual_long_channel_sync_keeps_offers_apart(self):
+        """Длинный канал, созданный вручную (не resolver): тот же путь upsert без склейки."""
+        conn = create_test_db()
+        conn.execute("INSERT INTO sellers (id, slug, name, created_at, updated_at) VALUES ('s1','s1','S','x','x')")
+        ch = "ch_" + "very_long_marketplace_channel_name_" * 2
+        for sku in ("A1", "A2", "A3"):
+            off = ShowcaseOffer(marketplace="ozon", merchant_id="1", external_sku=sku, title=f"Item {sku}",
+                                price=1000.0, url=f"https://ozon.kz/product/{sku}")
+            pid, _ = match_or_create_canonical_product(conn, off, "t")
+            upsert_showcase_offer(conn, off, pid, "s1", ch, "t")
+        self.assertEqual(conn.execute("SELECT count(*) FROM offers WHERE channel_id = ?", (ch,)).fetchone()[0], 3)
+        self.assertEqual(conn.execute("SELECT count(DISTINCT offer_id) FROM offer_price_history").fetchone()[0], 3)
+        conn.close()
+
+    def test_r02_ozon_damaged_second_page_is_not_complete(self):
+        import contextlib, io
+        import data_quality
+        first = {"widgetStates": {"searchResults": {"items": [make_ozon_item(i, 1) for i in range(100, 112)]}}}
+        damaged = {
+            "header_only": {"widgetStates": {"header": "{}"}},
+            "broken_json": {"widgetStates": {"searchResults": "not json"}},
+            "items_not_list": {"widgetStates": {"searchResults": {"items": "x"}}},
+            "state_not_object": {"widgetStates": {"searchResults": "[1, 2]"}},
+        }
+        for label, second in damaged.items():
+            with self.subTest(label=label):
+                scanner = OzonScraper()
+                scanner.PAGE_DELAY_SECONDS = 0
+                responses = [Mock(status_code=200, json=Mock(return_value=first)),
+                             Mock(status_code=200, json=Mock(return_value=second))]
+                with patch("scrapers.http.get", side_effect=responses), contextlib.redirect_stdout(io.StringIO()):
+                    result = scanner._scrape_sync("Synthetic", "https://ozon.kz/search/?text=x", 3)
+                self.assertEqual(len(result), 12)
+                self.assertFalse(result.complete)
+                assessment = data_quality.assess(data_quality.measure(result), complete=result.complete,
+                                                 error=result.error, baseline=None)
+                self.assertFalse(assessment["may_retire"])
+
+    def test_r02_ozon_damaged_widget_next_to_valid_one_counts_unparsed(self):
+        payload = {"widgetStates": {"searchResultsV2-1": {"items": [make_ozon_item(1, 1)]},
+                                    "searchResultsV2-2": "not json"}}
+        result = OzonScraper.parse_payload(payload, "c", "u", 1)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result.unparsed, 1)
+        self.assertFalse(result.complete)
+        # Подтверждённый пустой список отличается от отказа
+        empty = OzonScraper.parse_payload({"widgetStates": {"searchResultsV2-1": json.dumps({"items": []})}}, "c", "u", 5)
+        self.assertTrue(empty.complete)
+        with self.assertRaises(UnconfirmedEnd):
+            OzonScraper.parse_payload({"widgetStates": {"header": "{}"}}, "c", "u", 5)
+
+    async def _route(self, channel_type, base_url, ext):
+        conn = create_test_db()
+        conn.execute("INSERT INTO sellers (id, slug, name, created_at, updated_at) VALUES ('s1','s1','S','x','x')")
+        conn.execute("INSERT INTO channels (id, seller_id, channel_type, name, base_url, external_store_id, metadata_json, created_at) "
+                     "VALUES ('ch','s1',?, 'Ch', ?, ?, ?, 'x')",
+                     (channel_type, base_url, ext, json.dumps({"last_sync_at": "2026-01-01T00:00:00+00:00"})))
+        calls = []
+
+        async def fake_scan(self_, merchant_id, max_pages=15, delay_seconds=0.5):
+            calls.append((type(self_).__name__, merchant_id))
+            from scrapers.showcase_scanners import ShowcaseScanResult
+            return ShowcaseScanResult([], "complete")
+
+        with patch("scrapers.showcase_scanners.WildberriesShowcaseScanner.scan_merchant_showcase", new=fake_scan), \
+                patch("scrapers.showcase_scanners.OzonShowcaseScanner.scan_merchant_showcase", new=fake_scan), \
+                patch("domain.channel_sync.KaspiShowcaseScanner.scan_merchant_showcase", new=fake_scan), \
+                patch("scrapers.showcase_scanners.requests.get", side_effect=AssertionError("сеть")):
+            res = await sync_channel_showcase(conn, "ch")
+        meta = json.loads(conn.execute("SELECT metadata_json FROM channels WHERE id='ch'").fetchone()[0])
+        conn.close()
+        return res, calls, meta
+
+    async def test_r03_conflicts_rejected_before_scanner(self):
+        wb_url = "https://www.wildberries.kz/seller/111/"
+        for ctype, url, ext in (
+            ("wildberries", wb_url, "ozon:222"),
+            ("wildberries", wb_url, "wildberries:222"),
+            ("wildberries", wb_url, "222"),
+            ("marketplace", wb_url, "ozon:222"),
+            ("ozon", "https://ozon.kz/seller/my-store-7788/", "7788"),  # slug и номер — не одно и то же
+        ):
+            with self.subTest(ctype=ctype, ext=ext):
+                res, calls, meta = await self._route(ctype, url, ext)
+                self.assertFalse(res["ok"])
+                self.assertIn("Конфликт конфигурации", res["error"])
+                self.assertEqual(calls, [])
+                self.assertEqual(meta["last_sync_at"], "2026-01-01T00:00:00+00:00")
+
+    async def test_r03_matching_representations_still_work(self):
+        wb_url = "https://www.wildberries.kz/seller/111/"
+        for ctype, url, ext, expected in (
+            ("wildberries", wb_url, "111", ("WildberriesShowcaseScanner", "111")),
+            ("wildberries", wb_url, "wildberries:111", ("WildberriesShowcaseScanner", "111")),
+            ("wb", wb_url, "wb:111", ("WildberriesShowcaseScanner", "111")),
+            ("wildberries", wb_url, None, ("WildberriesShowcaseScanner", "111")),
+            ("wildberries", None, "111", ("WildberriesShowcaseScanner", "111")),
+            ("marketplace", None, "ozon:my-store", ("OzonShowcaseScanner", "my-store")),
+            ("kaspi", "https://kaspi.kz/shop/m/30123456/", "30123456", ("KaspiShowcaseScanner", "30123456")),
+            ("kaspi", None, "30123456", ("KaspiShowcaseScanner", "30123456")),
+        ):
+            with self.subTest(ctype=ctype, url=url, ext=ext):
+                res, calls, _ = await self._route(ctype, url, ext)
+                self.assertTrue(res["ok"], res)
+                self.assertEqual(calls, [expected])

@@ -94,10 +94,16 @@ class OzonScraperTest(unittest.TestCase):
         self.assertEqual(it2["seller_id"], "ozon:77112")
 
     def test_parse_payload_empty_last_page(self):
-        empty_payload = {"widgetStates": {}}
+        # Конец каталога подтверждает только товарный виджет с пустым списком (R02)
+        empty_payload = {"widgetStates": {"searchResultsV2-1": json.dumps({"items": []})}}
         res = OzonScraper.parse_payload(empty_payload, "Ноутбуки", "https://ozon.kz", 3)
         self.assertEqual(len(res), 0)
         self.assertTrue(res.complete)
+
+    def test_parse_payload_without_product_widget_is_not_end(self):
+        from scrapers.base import UnconfirmedEnd
+        with self.assertRaises(UnconfirmedEnd):
+            OzonScraper.parse_payload({"widgetStates": {}}, "Ноутбуки", "https://ozon.kz", 3)
 
 
 class OzonShowcaseScannerTest(unittest.TestCase):

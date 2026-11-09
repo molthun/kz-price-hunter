@@ -93,6 +93,44 @@ async def scan_with_coverage(fetch_page, merchant_id: str, max_pages: int, delay
     return ShowcaseScanResult(all_offers, "complete", None, 0)
 
 
+OZON_PRODUCT_WIDGET_MARKERS = ("searchResults", "megaPaginator", "catalog")
+
+
+def extract_ozon_widget_items(widget_states: Dict[str, Any]) -> Tuple[List[Any], bool, int]:
+    """Товары из widgetStates Ozon — единый разбор для каталога и витрины (G7-A04, R02).
+
+    Возвращает (items, recognised, damaged). recognised — найден хотя бы один товарный
+    виджет с настоящим списком items (в том числе пустым: это подтверждённый конец).
+    damaged — товарные виджеты, которые не удалось прочитать: битый JSON, не объект,
+    items не список. Виджет без ключа items (фильтры, заголовок каталога) товарным не
+    считается и повреждением тоже. Только header-виджеты — не recognised: из такого ответа
+    не следует, что товаров больше нет.
+    """
+    items: List[Any] = []
+    recognised = False
+    damaged = 0
+    for key, raw in widget_states.items():
+        if not any(marker in str(key) for marker in OZON_PRODUCT_WIDGET_MARKERS):
+            continue
+        try:
+            state = json.loads(raw) if isinstance(raw, str) else raw
+        except (TypeError, ValueError):
+            damaged += 1
+            continue
+        if not isinstance(state, dict):
+            damaged += 1
+            continue
+        if "items" not in state:
+            continue
+        sub_items = state["items"]
+        if not isinstance(sub_items, list):
+            damaged += 1
+            continue
+        recognised = True
+        items.extend(sub_items)
+    return items, recognised, damaged
+
+
 def extract_marketplace_merchant_info(url_or_code: str) -> Tuple[Optional[str], Optional[str]]:
     """Извлекает маркетплейс и идентификатор мерчанта из ссылки или кода."""
     if not url_or_code:
@@ -553,25 +591,12 @@ class OzonShowcaseScanner:
         widget_states = payload.get("widgetStates") if isinstance(payload, dict) else None
         if not isinstance(widget_states, dict):
             raise ShowcaseSchemaError("Неизвестная структура ответа витрины Ozon: нет widgetStates")
-        items = []
-        recognised = False
-        for k, v in widget_states.items():
-            if "searchResults" in k or "megaPaginator" in k or "catalog" in k:
-                try:
-                    state_obj = json.loads(v) if isinstance(v, str) else v
-                    sub_items = state_obj.get("items")
-                except Exception:
-                    continue
-                if sub_items is None:
-                    continue
-                if not isinstance(sub_items, list):
-                    continue
-                recognised = True
-                items.extend(sub_items)
+        items, recognised, damaged = extract_ozon_widget_items(widget_states)
         if not recognised:
             raise ShowcaseSchemaError("Неизвестная структура ответа витрины Ozon: не найден список товаров")
 
-        offers = ShowcaseBatch()
+        # Повреждённый товарный виджет рядом с исправным: его карточки потеряны — обход неполный
+        offers = ShowcaseBatch(unparsed=damaged)
         for it in items:
             if not isinstance(it, dict):
                 offers.unparsed += 1

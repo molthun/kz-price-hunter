@@ -17,6 +17,7 @@ from scrapers import http as requests
 from scrapers.base import (
     PagedScraper, ScanResult, price_value, validate_product_item,
 )
+from scrapers.showcase_scanners import extract_ozon_widget_items
 
 
 class OzonScraper(PagedScraper):
@@ -70,19 +71,17 @@ class OzonScraper(PagedScraper):
             raise UnconfirmedEnd("Неизвестная структура ответа Ozon: отсутствует widgetStates")
 
         widget_states = payload["widgetStates"]
-        items_data = []
-        for k, v in widget_states.items():
-            if "searchResults" in k or "megaPaginator" in k or "catalog" in k:
-                try:
-                    state_obj = json.loads(v) if isinstance(v, str) else v
-                    sub_items = state_obj.get("items") or []
-                    if sub_items:
-                        items_data.extend(sub_items)
-                except Exception:
-                    continue
+        # Тот же разбор, что у витрины (R02): header-only, битый JSON и items не списком —
+        # не подтверждённый конец, а неизвестная/повреждённая структура
+        items_data, recognised, damaged = extract_ozon_widget_items(widget_states)
+        if not recognised:
+            from scrapers.base import UnconfirmedEnd
+            raise UnconfirmedEnd(
+                "Неизвестная структура ответа Ozon: нет товарного виджета со списком items"
+                + (f" (повреждённых виджетов: {damaged})" if damaged else ""))
 
         items: List[Dict[str, Any]] = []
-        unparsed = 0
+        unparsed = damaged  # карточки повреждённого виджета потеряны: обход не полный
         for it in items_data:
             if not isinstance(it, dict):
                 unparsed += 1

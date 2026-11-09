@@ -41,7 +41,7 @@ class ShowcasePriceHistoryTest(unittest.TestCase):
         """)
         conn.execute("""
             INSERT INTO channels (id, seller_id, channel_type, name, external_store_id, base_url, is_active, metadata_json, created_at)
-            VALUES ('ch_kaspi_lg', 'seller_lg', 'marketplace', 'Kaspi Магазин', 'merchant_123', 'https://kaspi.kz/shop/info/merchant/123', 1, '{}', '2026-11-01T10:00:00Z')
+            VALUES ('ch_kaspi_lg', 'seller_lg', 'marketplace', 'Kaspi Магазин', '123', 'https://kaspi.kz/shop/info/merchant/123', 1, '{}', '2026-11-01T10:00:00Z')
         """)
         conn.commit()
         conn.close()

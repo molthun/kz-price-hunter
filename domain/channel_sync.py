@@ -94,6 +94,27 @@ def match_or_create_canonical_product(
     return prod_id, True
 
 
+OFFER_ID_MAX_LEN = 64
+
+
+def showcase_offer_id(channel_id: str, external_sku: str, url: str = "") -> str:
+    """Идентификатор предложения витрины: один на пару (канал, SKU), не длиннее 64 символов.
+
+    Короткая форма `off_<канал>_<sku>` сохраняется как была — существующие предложения не
+    меняют идентификатор. Прежде длинная строка обрезалась до 64 символов, и при длинном
+    канале SKU исчезал из идентификатора целиком: разные товары перезаписывали одно
+    предложение (R01). Теперь длинная форма — `off_<хэш канала и SKU>_<хвост SKU>`: хэш
+    берётся от полных значений, поэтому уникальность не зависит от обрезки.
+    """
+    sku_clean = re.sub(r'[^\w-]', '', external_sku or "") or hashlib.md5((url or "").encode()).hexdigest()[:12]
+    short = f"off_{channel_id}_{sku_clean}"
+    if len(short) <= OFFER_ID_MAX_LEN:
+        return short
+    digest = hashlib.sha256(f"{channel_id}\x00{external_sku or ''}\x00{sku_clean}".encode("utf-8")).hexdigest()[:24]
+    head = f"off_h{digest}_"
+    return head + sku_clean[-(OFFER_ID_MAX_LEN - len(head)):]
+
+
 def upsert_showcase_offer(
     conn,
     offer: ShowcaseOffer,
@@ -103,8 +124,7 @@ def upsert_showcase_offer(
     now_iso: str,
 ) -> str:
     """Добавляет или обновляет предложение продавца в таблице offers."""
-    sku_clean = re.sub(r'[^\w-]', '', offer.external_sku) or hashlib.md5(offer.url.encode()).hexdigest()[:12]
-    offer_id = f"off_{channel_id}_{sku_clean}"[:64]
+    offer_id = showcase_offer_id(channel_id, offer.external_sku, offer.url)
     avail = "in_stock" if offer.in_stock else "out_of_stock"
     from content_retention import source_free
     clean_raw = source_free(offer.raw_data or {})
@@ -212,33 +232,38 @@ async def sync_channel_showcase(
     }
     declared_mp = known_mp_types.get(ch_type_lower)
 
+    # Тип, URL и external_store_id разбираются независимо и сверяются до любого внешнего
+    # запроса (G7-A02, R03): противоречие — явный отказ без вызова сканера и без записи
+    # свежести. Номера сравниваются как строки без учёта регистра и пробелов по краям:
+    # slug и числовой номер Ozon не считаются одним продавцом.
     url_mp, url_merchant = extract_marketplace_merchant_info(base_url or "") if base_url else (None, None)
 
-    # Validate against conflicting configuration
-    if declared_mp and url_mp and declared_mp != url_mp:
-        return {
-            "ok": False,
-            "error": f"Конфликт конфигурации канала: channel_type='{channel_type}' ({declared_mp}), но base_url='{base_url}' указывает на {url_mp}",
-        }
-
-    mp = declared_mp or url_mp
-    merchant_id = url_merchant
-
-    if not merchant_id and ext_store_id:
+    ext_mp, ext_merchant = None, None
+    if ext_store_id:
         ext_s = str(ext_store_id).strip()
         if ":" in ext_s:
             id_prefix, _, id_val = ext_s.partition(":")
-            id_mp = known_mp_types.get(id_prefix.lower())
-            if declared_mp and id_mp and declared_mp != id_mp:
-                return {
-                    "ok": False,
-                    "error": f"Конфликт конфигурации канала: channel_type='{channel_type}' ({declared_mp}), но external_store_id='{ext_store_id}' указывает на {id_mp}",
-                }
-            merchant_id = id_val.strip()
-            if not mp:
-                mp = id_mp
+            ext_mp = known_mp_types.get(id_prefix.strip().lower())
+            ext_merchant = id_val.strip() if ext_mp else ext_s
         else:
-            merchant_id = ext_s
+            ext_merchant = ext_s
+
+    def _conflict(what: str) -> Dict[str, Any]:
+        logger.warning(f"Канал {ch_id}: конфликт конфигурации витрины — {what}")
+        return {"ok": False, "status": "error", "channel_id": ch_id,
+                "error": f"Конфликт конфигурации канала: {what}"}
+
+    if declared_mp and url_mp and declared_mp != url_mp:
+        return _conflict(f"channel_type='{channel_type}' ({declared_mp}), но base_url='{base_url}' указывает на {url_mp}")
+    if declared_mp and ext_mp and declared_mp != ext_mp:
+        return _conflict(f"channel_type='{channel_type}' ({declared_mp}), но external_store_id='{ext_store_id}' указывает на {ext_mp}")
+    if url_mp and ext_mp and url_mp != ext_mp:
+        return _conflict(f"base_url='{base_url}' указывает на {url_mp}, а external_store_id='{ext_store_id}' — на {ext_mp}")
+    if url_merchant and ext_merchant and url_merchant.casefold() != ext_merchant.casefold():
+        return _conflict(f"номер витрины в base_url ('{url_merchant}') не совпадает с external_store_id ('{ext_merchant}')")
+
+    mp = declared_mp or url_mp or ext_mp
+    merchant_id = url_merchant or ext_merchant
 
     if not mp:
         combined = f"{base_url or ''} {ch_name or ''}".lower()

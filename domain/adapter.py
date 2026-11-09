@@ -384,6 +384,19 @@ def _json_param(rows) -> str:
     return json.dumps(rows, ensure_ascii=False)
 
 
+CHANNEL_ID_MAX_LEN = 48
+
+
+def _marketplace_channel_id(seller_id: str, channel_type: str, ext: str) -> str:
+    """Канал витрины подтверждённого продавца. Длинный идентификатор продавца заменяется хэшем
+    полной тройки: канал остаётся уникальным и не раздувает идентификаторы предложений (R01)."""
+    plain = f"chan_{seller_id}_{channel_type}_{ext}" if ext else f"chan_{seller_id}_{channel_type}"
+    if len(plain) <= CHANNEL_ID_MAX_LEN:
+        return plain
+    digest = hashlib.sha256(f"{seller_id}\x00{channel_type}\x00{ext}".encode("utf-8")).hexdigest()[:20]
+    return f"chan_h{digest}_{channel_type}"[:CHANNEL_ID_MAX_LEN]
+
+
 def _resolve_marketplace_sellers(conn: sqlite3.Connection, items: List[Dict[str, Any]]) -> None:
     """Переносит предложения поставщика площадки на подтверждённого продавца (G7-A01).
 
@@ -454,8 +467,7 @@ def _resolve_marketplace_sellers(conn: sqlite3.Connection, items: List[Dict[str,
         sid, channels = next(iter(found.items()))
         ext = wanted[value]["ext"]
         it["seller_id"] = sid
-        it["channel_id"] = sorted(channels)[0] if channels else (
-            f"chan_{sid}_{it['channel_type']}_{ext}" if ext else f"chan_{sid}_{it['channel_type']}")
+        it["channel_id"] = sorted(channels)[0] if channels else _marketplace_channel_id(sid, it["channel_type"], ext)
         digest = hashlib.sha256(f"{sid}:marketplace_seller_id:{value}".encode("utf-8")).hexdigest()[:16]
         it["ident_id"] = f"ident_{digest}"
 
