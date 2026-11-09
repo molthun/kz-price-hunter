@@ -93,7 +93,62 @@ async def scan_with_coverage(fetch_page, merchant_id: str, max_pages: int, delay
     return ShowcaseScanResult(all_offers, "complete", None, 0)
 
 
-OZON_PRODUCT_WIDGET_MARKERS = ("searchResults", "megaPaginator", "catalog")
+OZON_PRODUCT_WIDGET_MARKERS = ("searchResults", "megaPaginator", "catalog", "tileGrid")
+
+
+def extract_ozon_item_fields(it: Dict[str, Any]) -> Tuple[str, str, Any, Any, str, str, str, str]:
+    """Извлекает ключевые поля карточки Ozon с поддержкой legacy cellTrackingInfo и современного mainState."""
+    sku = str(it.get("id") or it.get("sku") or "")
+    tracking = it.get("cellTrackingInfo") if isinstance(it.get("cellTrackingInfo"), dict) else {}
+    title = (tracking.get("title") or it.get("title") or "").strip()
+    price_raw = tracking.get("price") or it.get("price")
+    old_price_raw = tracking.get("originalPrice") or it.get("oldPrice") or it.get("old_price")
+
+    main_state = it.get("mainState")
+    if isinstance(main_state, list):
+        for block in main_state:
+            if not isinstance(block, dict):
+                continue
+            btype = block.get("type")
+            if not title:
+                if btype == "textDS":
+                    tds = block.get("textDS") or {}
+                    tid = block.get("id")
+                    auto_id = tds.get("testInfo", {}).get("automatizationId", "")
+                    if tid == "name" or "name" in auto_id or "tile-name" in auto_id:
+                        title = str(tds.get("text") or "").strip()
+                elif btype == "text":
+                    title = str(block.get("text", {}).get("text") or "").strip()
+            if btype == "priceV2":
+                pv2 = block.get("priceV2") or {}
+                price_arr = pv2.get("price") or []
+                for p_item in price_arr:
+                    if not isinstance(p_item, dict):
+                        continue
+                    style = p_item.get("textStyle")
+                    if style == "PRICE" and not price_raw:
+                        txt = str(p_item.get("text") or "")
+                        if "мес" not in txt and "x" not in txt:
+                            price_raw = txt
+                    elif style == "ORIGINAL_PRICE" and not old_price_raw:
+                        old_price_raw = str(p_item.get("text") or "")
+
+    img = it.get("tileImage", {}).get("image", {}).get("link") or it.get("image") or ""
+    if not img and isinstance(it.get("tileImage"), dict):
+        img_items = it["tileImage"].get("items")
+        if isinstance(img_items, list) and img_items:
+            first_img = img_items[0]
+            if isinstance(first_img, dict):
+                img = first_img.get("image", {}).get("link") or ""
+
+    seller_name = tracking.get("sellerName") or it.get("sellerName") or ""
+    seller_id = str(tracking.get("sellerId") or it.get("sellerId") or "")
+
+    link = it.get("action", {}).get("link") or f"/product/{sku}"
+    if link and not link.startswith("http"):
+        link = f"https://ozon.kz{link}"
+
+    return sku, title, price_raw, old_price_raw, img, seller_name, seller_id, link
 
 
 def extract_ozon_widget_items(widget_states: Dict[str, Any]) -> Tuple[List[Any], bool, int]:
@@ -495,6 +550,8 @@ class WildberriesShowcaseScanner:
             "sort": "popular",
         }
         r = requests.get(self.API_URL, params=params, headers=self.headers, timeout=20)
+        if r.status_code == 403:
+            raise RuntimeError(f"Wildberries API error: HTTP 403 (wbaas protection active)")
         if r.status_code != 200:
             raise RuntimeError(f"Wildberries API error: HTTP {r.status_code}")
 
@@ -563,23 +620,63 @@ class WildberriesShowcaseScanner:
 
 class OzonShowcaseScanner:
     """Сканер витрины продавца на Ozon (ozon.kz)."""
-    API_URL = "https://api.ozon.kz/composer-api.bx/page/json/v2"
+    API_URL = "https://ozon.kz/api/composer-api.bx/page/json/v2"
 
     def __init__(self, city_name: str = "Алматы"):
         self.city_name = city_name
+        self.cookies: Dict[str, str] = {}
         self.headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/128.0.0.0 Safari/537.36"
+                "Chrome/124.0.0.0 Safari/537.36"
             ),
             "Accept": "application/json",
             "Referer": "https://ozon.kz/",
+            "Origin": "https://ozon.kz",
         }
+
+    def _solve_challenge(self) -> bool:
+        """Решает проверку Ozon через headless Chromium и извлекает cookies."""
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as p:
+                browser = p.chromium.launch(
+                    headless=True,
+                    args=[
+                        "--no-sandbox",
+                        "--disable-dev-shm-usage",
+                        "--disable-gpu",
+                        "--disable-blink-features=AutomationControlled",
+                    ],
+                )
+                try:
+                    context = browser.new_context(
+                        user_agent=self.headers["User-Agent"],
+                        locale="ru-RU",
+                        viewport={"width": 1920, "height": 1080},
+                    )
+                    context.add_init_script('Object.defineProperty(navigator, "webdriver", {get: () => undefined})')
+                    page = context.new_page()
+                    page.goto("https://ozon.kz", timeout=25000)
+                    page.wait_for_timeout(2500)
+                    cookies = context.cookies()
+                    if cookies:
+                        for c in cookies:
+                            self.cookies[c["name"]] = c["value"]
+                        return True
+                finally:
+                    browser.close()
+        except Exception as e:
+            logger.debug(f"[Ozon] Не удалось автоматически пройти проверку через браузер: {e}")
+        return False
 
     def fetch_merchant_page(self, merchant_id: str, page: int = 1) -> Tuple[List[ShowcaseOffer], bool]:
         url_param = f"/seller/{merchant_id}/?page={page}"
-        r = requests.get(self.API_URL, params={"url": url_param}, headers=self.headers, timeout=20)
+        r = requests.get(self.API_URL, params={"url": url_param}, headers=self.headers, cookies=self.cookies or None, timeout=20)
+        if (r.status_code == 403 or (isinstance(getattr(r, "text", None), str) and "challenge" in r.text)) and not self.cookies:
+            if self._solve_challenge():
+                r = requests.get(self.API_URL, params={"url": url_param}, headers=self.headers, cookies=self.cookies or None, timeout=20)
         if r.status_code != 200:
             raise RuntimeError(f"Ozon API error: HTTP {r.status_code}")
 
@@ -601,26 +698,20 @@ class OzonShowcaseScanner:
             if not isinstance(it, dict):
                 offers.unparsed += 1
                 continue
-            tracking = it.get("cellTrackingInfo") if isinstance(it.get("cellTrackingInfo"), dict) else {}
-            sku = str(it.get("id") or it.get("sku") or "")
-            title = (tracking.get("title") or it.get("title") or "").strip()
-            price_raw = tracking.get("price") or it.get("price")
+            sku, title, price_raw, old_price_raw, img, _, _, link = extract_ozon_item_fields(it)
             price = price_value(price_raw)
             if not sku or not title or price <= 0:
                 offers.unparsed += 1
                 continue
 
-            link = it.get("action", {}).get("link") or f"/product/{sku}"
-            if not link.startswith("http"):
-                link = f"https://ozon.kz{link}"
-
-            img = it.get("tileImage", {}).get("image", {}).get("link") or it.get("image")
+            old_price_val = price_value(old_price_raw)
             offers.append(ShowcaseOffer(
                 marketplace="ozon",
                 merchant_id=str(merchant_id),
                 external_sku=sku,
                 title=title,
                 price=float(price),
+                old_price=float(old_price_val) if old_price_val > price else None,
                 url=link,
                 image_url=upgrade_image_url(img),
                 city=self.city_name,

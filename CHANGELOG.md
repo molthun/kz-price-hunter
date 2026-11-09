@@ -3,6 +3,20 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.29.4] - 2026-11-09
+
+### Для пользователей
+- 🌐 Восстановлена и стабилизирована интеграция с Ozon KZ: исправлен доменный адрес API на рабочий `ozon.kz/api/...`, поддержан современный формат выдачи каталога и витрин с извлечением цен в тенге и актуальных скидок.
+- 🛡️ Улучшена устойчивость к защитным механизмам площадок: автоматическое распознавание и обход antibot-челленджей Ozon при сборе данных.
+
+### Для разработчиков
+- 🛠️ **Интеграция живых эндпоинтов Wildberries KZ и Ozon KZ — Antigravity**:
+  - `scrapers/ozon.py` & `scrapers/showcase_scanners.py`: устранён неразрешимый хост `api.ozon.kz`, маршруты переведены на канонический эндпоинт `https://ozon.kz/api/composer-api.bx/page/json/v2`.
+  - `scrapers/showcase_scanners.py`: в маркеры товарных виджетов добавлен современный `tileGrid` (`tileGridDesktop-*`); реализована единая функция `extract_ozon_item_fields` с поддержкой как legacy `cellTrackingInfo`, так и современного блока `mainState` (`priceV2`, `textDS`, `tileImage.items`).
+  - `scrapers/ozon.py` & `scrapers/showcase_scanners.py`: добавлена автоматическая сессионная обработка и обход `abt-challenge` через встроенный headless-контекст Playwright с сохранением cookies для быстрых последующих HTTP-запросов.
+  - `scrapers/wildberries.py` & `scrapers/showcase_scanners.py`: явная обработка блокировок шлюза `wbaas` (HTTP 403) с информативным статусом сбоя в логах и админке вместо падений.
+  - `tests/scrapers/test_ozon.py`: добавлены тесты `test_parse_payload_modern_tilegrid_mainstate` и `test_showcase_scanner_modern_tilegrid_mainstate`.
+
 ## [6.29.3] - 2026-11-09
 
 ### Для пользователей

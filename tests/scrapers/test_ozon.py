@@ -105,6 +105,58 @@ class OzonScraperTest(unittest.TestCase):
         with self.assertRaises(UnconfirmedEnd):
             OzonScraper.parse_payload({"widgetStates": {}}, "Ноутбуки", "https://ozon.kz", 3)
 
+    def test_parse_payload_modern_tilegrid_mainstate(self):
+        """Проверка парсинга современного формата Ozon (tileGridDesktop с mainState)."""
+        modern_item = {
+            "id": "6155650909",
+            "sku": 6155650909,
+            "action": {
+                "link": "/product/smartfon-i18-pro-max-32-2-tb-6155650909/"
+            },
+            "mainState": [
+                {
+                    "type": "priceV2",
+                    "priceV2": {
+                        "price": [
+                            {"text": "4 810 ₸ × 12 мес", "textStyle": "PRICE"},
+                            {"text": "57 718 ₸", "textStyle": "PRICE"},
+                            {"text": "119 747 ₸", "textStyle": "ORIGINAL_PRICE"},
+                        ]
+                    }
+                },
+                {
+                    "type": "textDS",
+                    "id": "name",
+                    "textDS": {
+                        "text": "Смартфон i18 Pro Max 32/2 ТБ",
+                        "testInfo": {"automatizationId": "tile-name"}
+                    }
+                }
+            ],
+            "tileImage": {
+                "items": [
+                    {
+                        "type": "image",
+                        "image": {"link": "https://ir.ozon.kz/s3/multimedia-1/wc200/sample.jpg"}
+                    }
+                ]
+            }
+        }
+        payload = {
+            "widgetStates": {
+                "tileGridDesktop-3669724-default-1": json.dumps({"items": [modern_item]})
+            }
+        }
+        res = OzonScraper.parse_payload(payload, "Смартфоны", "https://ozon.kz/category/smartfony-15502/", 1)
+        self.assertEqual(len(res), 1)
+        it = res[0]
+        self.assertEqual(it["id"], "ozon_6155650909")
+        self.assertEqual(it["title"], "Смартфон i18 Pro Max 32/2 ТБ")
+        self.assertEqual(it["price"], 57718.0)
+        self.assertEqual(it["old_price_on_site"], 119747.0)
+        self.assertEqual(it["external_sku"], "6155650909")
+        self.assertIn("c1000", it["image_url"])
+
 
 class OzonShowcaseScannerTest(unittest.TestCase):
     def test_extract_merchant_info(self):
@@ -153,5 +205,55 @@ class OzonShowcaseScannerTest(unittest.TestCase):
         self.assertEqual(offer.title, "Монитор Dell 27 4K")
         self.assertEqual(offer.price, 215000.0)
         self.assertEqual(offer.city, "Астана")
+
+    @patch("scrapers.showcase_scanners.requests.get")
+    def test_showcase_scanner_modern_tilegrid_mainstate(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_item = {
+            "id": "77889900",
+            "sku": "77889900",
+            "action": {"link": "/product/tovar-77889900/"},
+            "mainState": [
+                {
+                    "type": "priceV2",
+                    "priceV2": {
+                        "price": [
+                            {"text": "14 990 ₸", "textStyle": "PRICE"},
+                            {"text": "19 990 ₸", "textStyle": "ORIGINAL_PRICE"},
+                        ]
+                    }
+                },
+                {
+                    "type": "textDS",
+                    "id": "name",
+                    "textDS": {"text": "Тестовый товар Ozon"}
+                }
+            ],
+            "tileImage": {
+                "items": [
+                    {"image": {"link": "https://ir.ozon.kz/s3/multimedia-1/wc200/prod.jpg"}}
+                ]
+            }
+        }
+        mock_resp.json.return_value = {
+            "widgetStates": {
+                "tileGridDesktop-14036369-default-1": json.dumps({"items": [mock_item]})
+            }
+        }
+        mock_get.return_value = mock_resp
+
+        scanner = OzonShowcaseScanner(city_name="Алматы")
+        offers, is_last = scanner.fetch_merchant_page("5490173", page=1)
+
+        self.assertEqual(len(offers), 1)
+        offer = offers[0]
+        self.assertEqual(offer.marketplace, "ozon")
+        self.assertEqual(offer.merchant_id, "5490173")
+        self.assertEqual(offer.external_sku, "77889900")
+        self.assertEqual(offer.title, "Тестовый товар Ozon")
+        self.assertEqual(offer.price, 14990.0)
+        self.assertEqual(offer.old_price, 19990.0)
+        self.assertIn("c1000", offer.image_url)
         self.assertTrue(offer.url.startswith("https://ozon.kz/product/"))
         self.assertTrue(is_last)  # < 12 items

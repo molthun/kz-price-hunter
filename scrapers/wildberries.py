@@ -71,6 +71,8 @@ class WildberriesScraper(PagedScraper):
             "spp": "30",
         }
         resp = requests.get(self.SEARCH_API_URL, params=params, headers=self.headers, timeout=25)
+        if resp.status_code == 403:
+            raise RuntimeError(f"WB API returned status 403 (wbaas protection active)")
         if resp.status_code != 200:
             raise RuntimeError(f"WB API returned status {resp.status_code}")
 
