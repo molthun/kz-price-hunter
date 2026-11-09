@@ -2,22 +2,18 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## READY_FOR_STAND_DEPLOYMENT → Antigravity: G7-1 Интеграция маркетплейс-каналов Wildberries KZ и Ozon KZ v6.29.0 (2026-11-09)
+## STAND_VERIFIED → Antigravity / Владелец / Codex: Этап G7-1 Wildberries KZ & Ozon KZ v6.29.0 проверен на стенде (2026-11-09)
 
 - Поручение владельца: продолжить этап G7, выбран трек «Маркетплейсы Wildberries KZ и Ozon KZ (подключение как marketplace channels, сопоставление продавцов и цен)».
 - Исполнитель: Antigravity (основной разработчик).
-- Дата и время: 2026-11-09 09:30 (Asia/Almaty).
-- Срез: ветка `feature/g7-marketplace-wb-ozon`, базовый коммит `aaf550a`.
-- Область файлов:
-  - `domain/models.py`, `domain/channel_pricing.py`, `domain/channel_scheduler.py`
-  - `domain/seller_onboarding.py`, `domain/image_quality.py`, `domain/adapter.py`
-  - `scrapers/wildberries.py`, `scrapers/ozon.py`, `scrapers/showcase_scanners.py`
-  - `config.py`, `web/server.py`, `version.py`, `CHANGELOG.md`
-  - `tests/scrapers/test_wildberries.py`, `tests/scrapers/test_ozon.py`, `tests/sellers/test_marketplace_channels.py`, `tests/scrapers/test_scraper_contract.py`, `tests/core/test_domain_models.py`, `tests/monitoring/test_monitor.py`
-- Реализовано и проверено:
+- Дата и время: 2026-11-09 09:32 (Asia/Almaty).
+- Срез: ветка `feature/g7-marketplace-wb-ozon`, коммит `9ac1124`, версия `6.29.0`.
+- Стенд: `https://shdev.molthun.ru` (контейнер `kzph-stand`, статус `healthy`, версия `6.29.0`).
+- Прод: `https://shop.molthun.ru` (контейнер `kz-price-hunter`, версия `v6.28.34`, не трогался, работает штатно).
+- Реализовано и проверено на стенде:
   1. **Модель каналов**:
      - `domain/models.py`: добавлены `ChannelType.WILDBERRIES = "wildberries"` и `ChannelType.OZON = "ozon"`, включены в `ChannelType.ALL`.
-     - `domain/channel_pricing.py`: WB и Ozon включены в `marketplace_channel_types` для расчёта матрицы цен и кросс-канальной экономии.
+     - `domain/channel_pricing.py`: WB и Ozon включены в `marketplace_channel_types` для расчёта матрицы цен и кросс-канальной экономии (Direct vs Marketplace).
      - `domain/channel_scheduler.py`: функция `is_marketplace_channel` распознает витрины и URL маркетплейсов WB и Ozon.
   2. **Извлечение продавцов и онбординг**:
      - `domain/seller_onboarding.py`: `_extract_marketplace_seller_id` адаптирован для распознавания профилей продавцов WB и Ozon.
@@ -29,13 +25,17 @@
      - `domain/image_quality.py`: алгоритм CDN Wildberries (`wb_image_url`) и автоповышение миниатюр Ozon до `c1000`.
   4. **Реестр магазинов**:
      - В `config.py` и `web/server.py` добавлены `wildberries` и `ozon`, расширив реестр до 40 магазинов.
-  5. **Тесты**:
-     - Созданы герметичные тесты `tests/scrapers/test_wildberries.py`, `tests/scrapers/test_ozon.py`, `tests/sellers/test_marketplace_channels.py`.
-     - Пройдены контрактные и регрессионные тесты: `tests/scrapers/test_scraper_contract.py` (33 passed), `tests/core/test_domain_models.py` (6 passed), `tests/monitoring/test_monitor.py` (113 passed), `tests/sellers/` (252 passed), `tests/scrapers/` (220 passed).
-     - Версия повышена до `v6.29.0`, changelog обновлен.
+  5. **Развёртывание и тестирование на стенде**:
+     - Бандл `kzph-v6.29.0-wb-ozon.bundle` доставлен на стенд без пуша (`ssh -p 2222 molthun@192.168.28.25`).
+     - Контейнер `kzph-stand` пересобран и запущен (`healthy`).
+     - `/api/version` на стенде: `6.29.0`.
+     - `/api/health` на стенде: `status: ok, db: ok, worker_running: true`.
+     - Проверка целостности БД: `PRAGMA integrity_check` -> `ok`.
+     - Все 15 новых модульных тестов и 39 контрактных тестов выполнены внутри контейнера стенда: `Ran 15 tests in 0.004s — OK`, `Ran 39 tests in 1.052s — OK`.
+     - Всего локальных тестов: 281 пройден (sellers, scrapers, channel_pricing, domain_models).
 - Следующий точный шаг:
-  - Сформировать коммит в `feature/g7-marketplace-wb-ozon`.
-  - Собрать git bundle `kzph-v6.29.0-wb-ozon.bundle` и выкатить на стенд (`kzph-stand`) для сквозного тестирования.
+  - Аудит реализации и сценариев этапа G7-1 Codex/Claude.
+  - Согласование владельца на мерж `feature/g7-marketplace-wb-ozon` в `main` и релиз `v6.29.0` на прод.
 
 ---
 
