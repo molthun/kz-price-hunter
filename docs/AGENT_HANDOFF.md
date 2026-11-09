@@ -7,7 +7,7 @@
 - Поручение владельца: продолжить этап G7, выбран трек «Маркетплейсы Wildberries KZ и Ozon KZ (подключение как marketplace channels, сопоставление продавцов и цен)».
 - Исполнитель: Antigravity (основной разработчик).
 - Дата и время: 2026-11-09 09:32 (Asia/Almaty).
-- Срез: ветка `feature/g7-marketplace-wb-ozon`, коммит `9ac1124`, версия `6.29.0`.
+- Срез: ветка `feature/g7-marketplace-wb-ozon`, коммит `dbeb22c`, версия `6.29.0`.
 - Стенд: `https://shdev.molthun.ru` (контейнер `kzph-stand`, статус `healthy`, версия `6.29.0`).
 - Прод: `https://shop.molthun.ru` (контейнер `kz-price-hunter`, версия `v6.28.34`, не трогался, работает штатно).
 - Реализовано и проверено на стенде:
@@ -28,13 +28,13 @@
   4. **Реестр магазинов**:
      - В `config.py` и `web/server.py` добавлены `wildberries` и `ozon`, расширив реестр до 40 магазинов.
   5. **Развёртывание и тестирование на стенде**:
-     - Бандл `kzph-v6.29.0-wb-ozon.bundle` доставлен на стенд без пуша (`ssh -p 2222 molthun@192.168.28.25`).
+     - Бандлы `kzph-v6.29.0-wb-ozon.bundle` и `kzph-v6.29.0-update.bundle` доставлены на стенд без пуша (`ssh -p 2222 molthun@192.168.28.25`).
      - Контейнер `kzph-stand` пересобран и запущен (`healthy`).
      - `/api/version` на стенде: `6.29.0`.
      - `/api/health` на стенде: `status: ok, db: ok, worker_running: true`.
      - Проверка целостности БД: `PRAGMA integrity_check` -> `ok`.
-     - Все 15 новых модульных тестов и 39 контрактных тестов выполнены внутри контейнера стенда: `Ran 15 tests in 0.004s — OK`, `Ran 39 tests in 1.052s — OK`.
-     - Всего локальных тестов: 281 пройден (sellers, scrapers, channel_pricing, domain_models).
+     - Внутри контейнера стенда выполнены все тесты: `54 tests in 1.053s — OK` (модульные WB/Ozon, витринные сканеры, контрактные тесты парсеров, доменные модели).
+     - Локальный набор тестов: 493 пройден без ошибок (sellers, scrapers, channel_pricing, domain_models, notifications).
 - Следующий точный шаг:
   - Аудит реализации и сценариев этапа G7-1 Codex/Claude.
   - Согласование владельца на мерж `feature/g7-marketplace-wb-ozon` в `main` и релиз `v6.29.0` на прод.
