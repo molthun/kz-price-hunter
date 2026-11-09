@@ -2,6 +2,29 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED v6.29.5 → Владелец / Codex: Wildberries KZ и Ozon KZ деактивированы по решению владельца — Antigravity (2026-11-09)
+
+- Поручение: «Ozon KZ Wildberries KZ отказываемся от них. Полностью удалить Wildberries KZ и Ozon KZ из активных скраперов (отключить в SHOP_REGISTRY, config, расписании и витринах), сохранив стабильную кодовую базу». Исполнитель: Antigravity (основной разработчик).
+- **Срез:** коммит `647ed54e34` (тег `v6.29.5`).
+- **Стенд:** `~/kzph-stand` на `192.168.28.25`, `https://shdev.molthun.ru`, ветка `main` fast-forward до `647ed54e34` через git bundle `kzph-v6.29.5.bundle`, **без push**. `docker compose -f docker-compose.stand.yml up -d --build` → `Up (healthy)`.
+- **Проверки сервиса стенда:**
+  - `/api/version` = 6.29.5;
+  - `/api/health` status/db/queue ok, redis_active: true, worker_running: true;
+  - Контейнер `kzph-stand`: тесты скраперов (`python3 -m unittest discover -s tests/scrapers -t . -p "test_*.py"`): **223 OK**, 14.58 с.
+  - Поведение логирования витрин: `Канал ch_wb: маркетплейс 'wildberries' отключён решением владельца`, `Канал ch_ozon: маркетплейс 'ozon' отключён решением владельца`.
+  - Локальный pytest suite: **2893 passed, 1286 subtests passed, 0 failed** (0:06:08).
+- **Что сделано:**
+  1. `web/server.py`: `wildberries` и `ozon` исключены из `SHOP_REGISTRY`; удалены неиспользуемые импорты категорий и скраперов из конвейера обхода.
+  2. `config.py`: ключи `wildberries` и `ozon` удалены из `SHOP_KEYS` (активных магазинов: 38); категории `WILDBERRIES_CATEGORIES` и `OZON_CATEGORIES` сохранены как пустые списки-заглушки для предотвращения ошибок импорта.
+  3. `domain/channel_scheduler.py`: каналы Wildberries и Ozon исключены из расчёта `is_due` и очереди фоновой синхронизации витрин; в расписании статус фиксируется как `disabled` с причиной «Отключено решением владельца».
+  4. `domain/channel_sync.py`: добавлен параметр `allow_disabled: bool = False` (по умолчанию синхронизация витрин WB/Ozon немедленно возвращает `status="error"`, `error="Витрины Wildberries и Ozon отключены решением владельца"` без сетевых запросов).
+  5. `docs/DEVELOPMENT_PLAN.md`: этап G7-1 переведён в статус «ОТКЛОНЕНО / ОТКАЗ по решению владельца».
+  6. Тесты: `tests/monitoring/test_monitor.py` проверяет отсутствие WB и Ozon в активном реестре; `tests/core/test_domain_models.py` подтверждает 38 магазинов; `tests/scrapers/test_showcase_scanners.py` и `tests/scrapers/test_audit_2026_11_09_g7_fixes.py` проверяют отказ синхронизации по умолчанию.
+- **Прод:** не трогался, база 2.2 ГБ здорова, контейнер не менялся.
+- **Следующий точный шаг:** Владелец / Codex — подтверждение деактивации и определение следующего этапа дорожной карты.
+
+---
+
 ## STAND_DEPLOYED v6.29.4 → Владелец / Codex: Живая интеграция Ozon KZ и Wildberries KZ развернута на стенде — Antigravity (2026-11-09)
 
 - Поручение: разработка рабочих адресов/заголовков API Ozon KZ и Wildberries KZ (карточка STAND_DEPLOYED v6.29.3 ниже). Исполнитель: Antigravity (основной разработчик).
