@@ -25,6 +25,11 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       # Ваш Telegram ID (узнать у @userinfobot); несколько админов — через запятую
       - ADMIN_TELEGRAM_IDS=${ADMIN_TELEGRAM_IDS}
+      # Возможности бота (docs/TELEGRAM_BOT.md), добавлены на проде 10.11.2026; значения — в .env прода
+      - TELEGRAM_SEARCH_WIDGET=${TELEGRAM_SEARCH_WIDGET:-off}
+      - TELEGRAM_MENU_BUTTON=${TELEGRAM_MENU_BUTTON:-off}
+      - TELEGRAM_AI_DRAFTS=${TELEGRAM_AI_DRAFTS:-off}
+      - TELEGRAM_STALE_MARK=${TELEGRAM_STALE_MARK:-off}
       # Значение — только в .env (права 600)
       - DIAG_TOKEN=${DIAG_TOKEN}
     volumes:
