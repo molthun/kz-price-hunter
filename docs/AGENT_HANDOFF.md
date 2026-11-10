@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## LOCAL_DONE TGW-01 + TG-05 → Владелец: карточка `/search` виджетом и меню бота (Bot API 10.4) — Claude (2026-11-10)
+## STAND_DEPLOYED TGW-01 + TG-05 → Владелец: карточка `/search` виджетом и меню бота (Bot API 10.4) — Claude (2026-11-10)
 
 - **Поручения владельца (чат, 2026-11-10):** «Да, пилот» (карточка `/search` виджетом); «на стенде работаем… ветки не множить»; «изучить документацию телеграм и выжать по максимуму с бота… и веди документацию»; «menu button сделать… с каким-нибудь функционалом», «есть же main app и есть menu button».
 - **Ветка:** `main` локально, без push. Версия не повышалась: обе возможности выключены по умолчанию, выпуск не запрашивался. Прод не трогался.
@@ -16,7 +16,7 @@
   - Первый прогон с `-x` остановился на `tests/core/test_seller_admin.py::SellerAdminApiTest::test_only_admin_can_use_editor_and_save_starts_nothing`; отдельно файл проходит (15 passed), в полном прогоне без `-x` отказ не повторился. Причина не выяснена — похоже на зависимость от порядка, с задачей не связана.
   - Карточка в headless Chromium: сортировки, «только со скидкой», обновление цен через эмуляцию `chatData`, ответы бота, ошибок скрипта нет.
 - **Не проверено:** карточка в настоящем Telegram (движок виджетов — QuickJS, не браузер); вид на старых приложениях; реальные вызовы `sendWidget`, `answerWidgetQuery`, `editMessageWidgetData`, `setMyCommands`, `setChatMenuButton` — в тестах только mocks.
-- **Стенд:** см. строку «Стенд» ниже — заполняется после выкладки.
+- **Стенд (2026-11-10):** коммит `e4eeead1e8` доставлен git bundle без push (`9b8d0b5ae2..main`, `merge --ff-only`), в `.env` стенда добавлены `TELEGRAM_SEARCH_WIDGET=admins` и `TELEGRAM_MENU_BUTTON=webapp`, `docker compose -f docker-compose.stand.yml up -d --build` → `healthy`; `/api/health` ok. Через Bot API бота `@kzph_dev_bot` прочитано: `getMyCommands` = search, ai, watches, new, status, help; `getChatMenuButton` = `web_app` «Скидки» → `https://shdev.molthun.ru/deals` (значение появилось через несколько секунд после `setChatMenuButton`). Карточку `/search` в самом Telegram никто ещё не открывал — это шаг владельца.
 - **Следующий точный шаг:** владелец проверяет на стенде в `@kzph_dev_bot`: `/search iphone` → карточка, сортировки, «Следить», «Обновить»; кнопка меню «Скидки». Затем решение: включать ли `all`, какой раздел у кнопки меню, и какая задача из TG-02…TG-13 следующая (рекомендация — TG-02, потоковые ответы консультанта).
 
 ---
