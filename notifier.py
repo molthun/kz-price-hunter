@@ -207,6 +207,76 @@ def send_telegram_rich_message(
         return DeliveryResult("retry", None, type(e).__name__)
 
 
+def save_prepared_inline_message(
+    user_id: int,
+    title: str,
+    price: int,
+    shop: str,
+    url: str,
+    city: str = "Астана",
+    image_url: str = "",
+) -> Optional[str]:
+    """TG-12: подготавливает inline-сообщение (Bot API 8.0) для шеринга из Mini App через WebApp.shareMessage.
+    Возвращает prepared_message_id или None при сбое.
+    """
+    token = get_bot_token()
+    if not token or not config.inline_mode_enabled():
+        return None
+
+    emoji = _shop_emoji(shop)
+    msg_lines = [
+        f"🏷 <b>{html.escape(title)}</b>\n",
+        f"{emoji} <b>Магазин:</b> {html.escape(shop)}",
+        f"💰 <b>Цена:</b> <b>{format_price(price)}</b>",
+        f"📍 <b>Регион:</b> {html.escape(city)}\n",
+        f"⚡️ <i>Поделились из KZ Price Hunter</i>\n",
+        f"⏱ {tg_time_tag(format_spec='r', fallback='только что')}"
+    ]
+
+    keyboard = []
+    if url and url.startswith("http"):
+        row = [url_button(f"⚡️ В {shop}", url, style="primary")]
+        c_btn = copy_button("📋 Ссылка", url)
+        if c_btn:
+            row.append(c_btn)
+        keyboard.append(row)
+    if APP_URL:
+        keyboard.append([site_button("📊 Сравнить цены", APP_URL)])
+
+    article: Dict[str, Any] = {
+        "type": "article",
+        "id": f"share_{int(time.time())}",
+        "title": f"{format_price(price)} — {title[:50]}",
+        "input_message_content": {
+            "message_text": "\n".join(msg_lines),
+            "parse_mode": "HTML",
+            "disable_web_page_preview": False
+        }
+    }
+    if is_safe_image_url(image_url):
+        article["thumbnail_url"] = image_url
+    if keyboard:
+        article["reply_markup"] = {"inline_keyboard": keyboard}
+
+    payload = {
+        "user_id": user_id,
+        "result": article,
+        "allow_user_chats": True,
+        "allow_group_chats": True,
+        "allow_channel_chats": True,
+    }
+    try:
+        res = telegram_api("savePreparedInlineMessage", payload)
+        if res.status_code == 200:
+            data = res.json()
+            return (data.get("result") or {}).get("id")
+        else:
+            print(f"[Telegram] savePreparedInlineMessage HTTP {res.status_code}: {res.text[:120]}")
+    except Exception as e:
+        print(f"[Telegram] Ошибка savePreparedInlineMessage: {type(e).__name__}")
+    return None
+
+
 def note_delivery_result(user_id: int, result: DeliveryResult) -> None:
     """TG-04: 403 на отправку в личный чат — бот заблокирован, чат не начат или аккаунт удалён.
 

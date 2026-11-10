@@ -3321,6 +3321,66 @@ async def telegram_deep_link_handler(request):
     })
 
 
+@routes.post("/api/telegram/prepared-message")
+async def telegram_prepared_message_handler(request):
+    """TG-12: генерация prepared_message_id (Bot API 8.0) для шеринга из Mini App через WebApp.shareMessage."""
+    user = request.get("user")
+    user_id = user["id"] if user and isinstance(user.get("id"), int) else None
+    data = {}
+    try:
+        data = await request.json()
+    except Exception:
+        pass
+
+    target_user_id = data.get("user_id") or user_id
+    if not target_user_id:
+        return web.json_response({"status": "error", "message": "user_id required"}, status=400)
+
+    product_id = str(data.get("product_id") or "").strip()
+    title = str(data.get("title") or "")
+    price = int(data.get("price") or 0)
+    shop = str(data.get("shop") or "Магазин")
+    url = str(data.get("url") or "")
+    image_url = str(data.get("image_url") or "")
+    city = str(data.get("city") or "Астана")
+
+    if product_id and (not title or price <= 0):
+        from database import get_connection
+        def _fetch_prod():
+            with get_connection() as conn:
+                row = conn.execute("SELECT id, title, current_price, shop, url, image_url, city FROM products WHERE id = ?", (product_id,)).fetchone()
+                if not row:
+                    row = conn.execute("SELECT id, title, current_price, shop, url, image_url, city FROM offers WHERE id = ?", (product_id,)).fetchone()
+                return dict(row) if row else {}
+        row_dict = await asyncio.to_thread(_fetch_prod)
+        if row_dict:
+            title = title or row_dict.get("title") or product_id
+            price = price or int(row_dict.get("current_price") or 0)
+            shop = row_dict.get("shop") or shop
+            url = row_dict.get("url") or url
+            image_url = row_dict.get("image_url") or image_url
+            city = row_dict.get("city") or city
+
+    if not title:
+        return web.json_response({"status": "error", "message": "title required"}, status=400)
+
+    from notifier import save_prepared_inline_message
+    prep_id = await asyncio.to_thread(
+        save_prepared_inline_message,
+        int(target_user_id),
+        title,
+        price,
+        shop,
+        url,
+        city,
+        image_url
+    )
+    if not prep_id:
+        return web.json_response({"status": "error", "message": "Не удалось подготовить сообщение"}, status=502)
+
+    return web.json_response({"status": "ok", "prepared_message_id": prep_id})
+
+
 # =====================================================================
 # USER FAVORITES API (KZPH-G5-04)
 # =====================================================================

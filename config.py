@@ -570,6 +570,11 @@ def native_time_enabled() -> bool:
     return os.getenv("TELEGRAM_NATIVE_TIME", "on").strip().lower() not in ("off", "0", "false", "no")
 
 
+def inline_mode_enabled() -> bool:
+    """TG-12: поддержка inline-режима бота (@бот <запрос>, Bot API 8.0). Включено; TELEGRAM_INLINE_MODE=off отключает."""
+    return os.getenv("TELEGRAM_INLINE_MODE", "on").strip().lower() not in ("off", "0", "false", "no")
+
+
 def get_bot_token():
     """Токен Telegram-бота: переменная окружения, для совместимости — старое поле settings.json."""
     return (

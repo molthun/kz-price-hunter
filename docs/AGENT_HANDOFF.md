@@ -2,6 +2,43 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IMPLEMENTED TG-12: Inline-режим (@бот <запрос>) и подготовленные сообщения (savePreparedInlineMessage) — Antigravity (2026-11-10 22:37)
+
+- **Поручение владельца (чат, 2026-11-10):** «Делай дальше. нужны самые последние фишки телеграм в боте. самые лучшие.»; работаем на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогался.
+- **Что сделано:**
+  1. `config.py`:
+     - `inline_mode_enabled()`: выключатель `TELEGRAM_INLINE_MODE=on|off` (по умолчанию `on`).
+  2. `notifier.py`:
+     - `save_prepared_inline_message(user_id, title, price, shop, url, city, image_url)`: вызов метода `savePreparedInlineMessage` (Bot API 8.0) с генерацией `prepared_message_id` для шеринга из Mini App через `Telegram.WebApp.shareMessage`.
+  3. `telegram_bot.py`:
+     - `get_bot_username(session, token)`: асинхронное получение username бота через `getMe` с кэшированием и fallback на `auth.get_bot_username`.
+     - `handle_inline_query(session, token, iq)`: обработка inline-поиска `@бот <запрос>` в любых чатах:
+       - Если запрос пуст (`@бот`): выдача горячих скидок и свежих аномалий цен (`get_alerts`).
+       - Если передан поисковый запрос: мгновенный поиск в базе (`search_in_database`).
+       - Формирование карточек `InlineQueryResultArticle` с превью, ценой, кнопками `⚡️ В {shop}` (`style="primary"`), `📋 Ссылка` (`copy_text`) и верхней кнопкой `button` («🔍 Открыть поиск KZ Price Hunter» как Web App).
+     - В `process_telegram_update` добавлен перехват `update.get("inline_query")`.
+  4. `web/server.py` и `auth.py`:
+     - Добавлен серверный эндпоинт `POST /api/telegram/prepared-message` (валидация параметров, регистрация карточки для пользователя).
+     - `/api/telegram/prepared-message` разрешён в `_allowed_api` режима закрытой разработки.
+  5. `.env.example`:
+     - Документирован `TELEGRAM_INLINE_MODE=on`.
+  6. Тесты:
+     - Новый файл `tests/notifications/test_inline_mode.py` (6 тестов: inline-поиск по запросу, показ горячих скидок при пустом запросе, выключение через config, маршрутизация update, `save_prepared_inline_message`, валидация эндпоинта `POST /api/telegram/prepared-message`).
+  7. Документация:
+     - Обновлены `docs/TELEGRAM_BOT.md` (раздел 2к, обновлена таблица, инструкция `/setinline` в BotFather) и `docs/DEVELOPMENT_PLAN.md`.
+- **Проверки:**
+  - Локально: `pytest tests/notifications/test_inline_mode.py` — **6 passed** in 0.24s.
+  - Локальный сьют: `pytest tests/notifications` — **297 passed, 0 failed** in 12.32s.
+- **Следующий точный шаг:**
+  - Закоммитить изменения локально.
+  - Доставить на стенд через `git bundle` (без push в origin/main).
+  - Пересобрать стенд, прогнать тесты внутри контейнера.
+  - Обновить handoff до `STAND_DEPLOYED TG-12`.
+
+---
+
 ## STAND_DEPLOYED TG-03 / TG-13: Форматированные Rich Messages, таблицы цен и локальное время — Antigravity (2026-11-10 22:27)
 
 - **Поручение владельца (чат, 2026-11-10):** «Делай дальше. нужны самые последние фишки телеграм в боте. самые лучшие.»; работаем на стенде, в прод ничего не отправляем.

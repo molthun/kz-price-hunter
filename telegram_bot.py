@@ -28,7 +28,7 @@ import config
 from config import get_bot_token, APP_URL
 from notifier import (
     _shop_emoji, format_price, site_button, url_button, callback_button, copy_button, button_style,
-    tg_time_tag, expandable_quote, send_telegram_rich_message
+    tg_time_tag, expandable_quote, send_telegram_rich_message, is_safe_image_url, save_prepared_inline_message
 )
 import ai_service
 from bounded_cache import BoundedTTLCache
@@ -898,8 +898,164 @@ async def handle_ai_consultant_message(session: aiohttp.ClientSession, token: st
         await send_tg_message(session, token, chat_id, f"✨ <b>AI-Консультант:</b>\n\n{answer_html}", reply_markup)
 
 
+_cached_bot_username: Optional[str] = None
+
+
+async def get_bot_username(session: aiohttp.ClientSession, token: str) -> Optional[str]:
+    """Получение username бота через getMe с кэшированием (Bot API)."""
+    global _cached_bot_username
+    if _cached_bot_username:
+        return _cached_bot_username
+    if not token:
+        return None
+    try:
+        url = f"https://api.telegram.org/bot{token}/getMe"
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                if data.get("ok"):
+                    uname = (data.get("result") or {}).get("username")
+                    if uname:
+                        _cached_bot_username = uname
+                        return uname
+    except Exception:
+        pass
+    try:
+        from auth import get_bot_username as sync_get_bot_username
+        uname = await asyncio.to_thread(sync_get_bot_username)
+        if uname:
+            _cached_bot_username = uname
+            return uname
+    except Exception:
+        pass
+    return None
+
+
+async def handle_inline_query(session: aiohttp.ClientSession, token: str, iq: Dict[str, Any]):
+    """TG-12: обработка inline-поиска @бот <запрос> в любом чате (Bot API 8.0)."""
+    if not config.inline_mode_enabled():
+        return
+    query_id = str(iq.get("id") or "")
+    if not query_id:
+        return
+    query = str(iq.get("query") or "").strip()
+    from_user = iq.get("from") or {}
+    user_id = from_user.get("id")
+    if isinstance(user_id, int) and user_id > 0 and not from_user.get("is_bot"):
+        from database import upsert_telegram_user
+        try:
+            await asyncio.to_thread(upsert_telegram_user, user_id, from_user.get("username"),
+                                    from_user.get("first_name"), from_user.get("last_name"))
+        except Exception:
+            pass
+
+    bot_username = await get_bot_username(session, token) or "kz_price_hunter_bot"
+
+    def _get_items():
+        if not query:
+            from database import get_alerts, get_products_list
+            alerts = get_alerts(limit=8)
+            if alerts:
+                return alerts, True
+            return get_products_list(limit=8), False
+        else:
+            found = search_in_database(query, city="Все", sort_by="price_asc")[:8]
+            return found, False
+
+    try:
+        raw_items, is_deals = await asyncio.to_thread(_get_items)
+    except Exception as e:
+        print(f"[Telegram Bot] Ошибка поиска для inline: {type(e).__name__}")
+        raw_items, is_deals = [], False
+
+    results = []
+    for idx, it in enumerate(raw_items, 1):
+        item_id = str(it.get("id") or idx)
+        title = str(it.get("title") or "Товар")
+        price = int(it.get("current_price") or it.get("price") or 0)
+        shop = str(it.get("shop") or "Магазин")
+        emoji = _shop_emoji(shop)
+        url = str(it.get("url") or "")
+        image_url = str(it.get("image_url") or "")
+        city = str(it.get("city") or "Астана")
+
+        if is_deals and it.get("old_price") and it.get("drop_pct"):
+            drop = int(it["drop_pct"])
+            res_title = f"🔥 -{drop}% | {format_price(price)} — {title}"
+            desc = f"{shop} | Старая: {format_price(int(it['old_price']))} | {city}"
+        else:
+            res_title = f"{emoji} {format_price(price)} — {title}"
+            desc = f"Магазин: {shop} | Регион: {city}"
+
+        msg_lines = [
+            f"🏷 <b>{html.escape(title)}</b>\n",
+            f"{emoji} <b>Магазин:</b> {html.escape(shop)}",
+            f"💰 <b>Цена:</b> <b>{format_price(price)}</b>",
+        ]
+        if is_deals and it.get("old_price"):
+            msg_lines.append(f"❌ <b>Старая цена:</b> <s>{format_price(int(it['old_price']))}</s>")
+        msg_lines.append(f"📍 <b>Регион:</b> {html.escape(city)}\n")
+        msg_lines.append(f"⚡️ <i>Найдено через @{bot_username}</i>\n")
+        msg_lines.append(f"⏱ {tg_time_tag(format_spec='r', fallback='только что')}")
+
+        keyboard = []
+        first_row = []
+        if url and url.startswith("http"):
+            first_row.append(url_button(f"⚡️ В {shop}", url, style="primary"))
+            c_btn = copy_button("📋 Ссылка", url)
+            if c_btn:
+                first_row.append(c_btn)
+        if first_row:
+            keyboard.append(first_row)
+        if APP_URL:
+            keyboard.append([site_button("📊 Сравнить цены на сайте", APP_URL)])
+
+        article: Dict[str, Any] = {
+            "type": "article",
+            "id": f"kzph_{item_id[:32]}_{idx}",
+            "title": res_title[:100],
+            "description": desc[:100],
+            "input_message_content": {
+                "message_text": "\n".join(msg_lines),
+                "parse_mode": "HTML",
+                "disable_web_page_preview": False
+            }
+        }
+        if is_safe_image_url(image_url):
+            article["thumbnail_url"] = image_url
+        if keyboard:
+            article["reply_markup"] = {"inline_keyboard": keyboard}
+        results.append(article)
+
+    payload: Dict[str, Any] = {
+        "inline_query_id": query_id,
+        "results": results,
+        "cache_time": 30,
+        "is_personal": True
+    }
+    if APP_URL:
+        payload["button"] = {
+            "text": "🔍 Открыть поиск KZ Price Hunter",
+            "web_app": {"url": APP_URL}
+        }
+
+    url = f"https://api.telegram.org/bot{token}/answerInlineQuery"
+    try:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            if resp.status != 200:
+                err = await resp.text()
+                print(f"[Telegram Bot] answerInlineQuery отклонен ({resp.status}): {err[:160]}")
+    except Exception as e:
+        print(f"[Telegram Bot] Ошибка answerInlineQuery: {type(e).__name__}")
+
+
 async def process_telegram_update(session: aiohttp.ClientSession, token: str, update: Dict[str, Any]):
     """Обрабатывает одно входящее событие от Telegram."""
+    iq = update.get("inline_query")
+    if iq:
+        await handle_inline_query(session, token, iq)
+        return
+
     cq = update.get("callback_query")
     if cq:
         cq_id = str(cq.get("id") or "")

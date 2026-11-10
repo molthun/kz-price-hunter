@@ -290,8 +290,11 @@ RTX 4070 12 ГБ, 16 потоков, 61 ГБ ОЗУ, NVMe 915 ГБ, Ubuntu 26.04
 - **TG-03 / TG-13. Форматированные Rich Messages, таблицы цен и локальное время** (`TELEGRAM_RICH_MESSAGES=on|off`, `TELEGRAM_NATIVE_TIME=on|off`).
   Приёмка: отправка структурированных Markdown сообщений до 32К символов через `sendRichMessage` (Bot API 10.1+),
   сводные таблицы сравнения цен в поиске, сворачиваемые цитаты `<blockquote expandable>` и отображение времени в локальном поясе через `<tg-time>`.
+- **TG-12. Inline-режим и подготовленные сообщения** (`TELEGRAM_INLINE_MODE=on|off`).
+  Приёмка: мгновенный поиск цен и находок в любом чате через `@бот запрос` (`answerInlineQuery`, Bot API 8.0);
+  шеринг карточек товаров из Mini App через `savePreparedInlineMessage` и эндпоинт `POST /api/telegram/prepared-message`.
 - **Кандидаты (не начаты):** TG-02б потоковый текст ответа;
-  TG-10 сайт как Mini App; TG-11 темы в личном чате; TG-12 inline-режим.
+  TG-10 сайт как Mini App; TG-11 темы в личном чате.
 
 ## Релизы и общая готовность
 
