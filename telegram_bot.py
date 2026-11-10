@@ -14,6 +14,7 @@ telegram_bot.py - Интерактивный Telegram-бот для KZ Price Hun
 """
 
 import html
+import os
 import time
 import asyncio
 import re
@@ -30,6 +31,16 @@ from database import get_user
 
 _message_limiter = RateLimiter(max_calls=10, period=60)
 from search_engine import search_in_database
+import telegram_widgets
+
+# Пилот TGW-01: карточка /search виджетом. Запросы карточки ограничены отдельно от сообщений,
+# иначе нажатия в карточке съедали бы лимит переписки с консультантом.
+_widget_limiter = RateLimiter(max_calls=20, period=60)
+WIDGET_CARD_TTL_SECONDS = 6 * 60 * 60
+WIDGET_REFRESH_COOLDOWN_SECONDS = 30
+# (chat_id, message_id) -> запрос и предложения карточки. Только в памяти процесса: после перезапуска
+# карточка честно отвечает «повторите поиск», а текст запроса не попадает в базу.
+_widget_cards = BoundedTTLCache(maxsize=2000, ttl=WIDGET_CARD_TTL_SECONDS)
 
 
 def _markdown_to_telegram_html(text: str) -> str:
@@ -77,6 +88,56 @@ async def send_tg_message(session: aiohttp.ClientSession, token: str, chat_id: i
                 await session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10))
     except Exception as e:
         print(f"[Telegram Bot] Ошибка отправки сообщения: {type(e).__name__}")
+
+
+async def send_tg_widget(session: aiohttp.ClientSession, token: str, chat_id: int, widget_html: str,
+                         caption: str, reply_markup: Optional[Dict[str, Any]] = None) -> Optional[int]:
+    """Отправляет HTML-виджет (Bot API 10.4). Возвращает message_id или None — тогда нужен обычный текст."""
+    url = f"https://api.telegram.org/bot{token}/sendWidget"
+    payload: Dict[str, Any] = {"chat_id": chat_id, "html": widget_html, "caption": caption,
+                               "parse_mode": "HTML", "allow_queries": True}
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    try:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            data = await resp.json(content_type=None) if resp.status == 200 else {}
+            message_id = (data.get("result") or {}).get("message_id") if data.get("ok") is True else None
+            if not isinstance(message_id, int):
+                print(f"[Telegram Bot] sendWidget отклонён: HTTP {resp.status}")
+                return None
+            return message_id
+    except Exception as e:
+        print(f"[Telegram Bot] Ошибка sendWidget: {type(e).__name__}")
+        return None
+
+
+async def answer_widget_query(session: aiohttp.ClientSession, token: str, widget_query_id: str, text: str = ""):
+    """Ответ карточке: до 1024 байт, не позже 15 секунд после нажатия."""
+    payload: Dict[str, Any] = {"widget_query_id": str(widget_query_id)}
+    if text:
+        payload["data"] = text.encode("utf-8")[:1024].decode("utf-8", "ignore")
+    try:
+        async with session.post(f"https://api.telegram.org/bot{token}/answerWidgetQuery", json=payload,
+                                timeout=aiohttp.ClientTimeout(total=5)):
+            pass
+    except Exception as e:
+        print(f"[Telegram Bot] Ошибка answerWidgetQuery: {type(e).__name__}")
+
+
+async def edit_tg_widget_data(session: aiohttp.ClientSession, token: str, chat_id: int, message_id: int,
+                              chat_data: str) -> bool:
+    """Меняет chat_data карточки. «Не изменилось» — тоже успех: в карточке уже эти данные."""
+    payload = {"chat_id": chat_id, "message_id": message_id, "chat_data": chat_data}
+    try:
+        async with session.post(f"https://api.telegram.org/bot{token}/editMessageWidgetData", json=payload,
+                                timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            if resp.status == 200:
+                return True
+            body = await resp.text()
+            return "message is not modified" in body
+    except Exception as e:
+        print(f"[Telegram Bot] Ошибка editMessageWidgetData: {type(e).__name__}")
+        return False
 
 
 async def answer_callback_query(session: aiohttp.ClientSession, token: str, callback_query_id: str, text: str = "", show_alert: bool = False):
@@ -183,6 +244,90 @@ async def handle_watches_command(session: aiohttp.ClientSession, token: str, cha
     await send_tg_message(session, token, chat_id, text, reply_markup)
 
 
+async def _send_search_widget(session: aiohttp.ClientSession, token: str, chat_id: int, query: str,
+                              items: List[Dict[str, Any]]) -> bool:
+    """Карточка-виджет вместо текста. False — карточки нет, вызывающий код отправляет текст как раньше."""
+    built = telegram_widgets.build_search_widget(query, items)
+    if not built:
+        return False
+    widget_html, offers = built
+    keyboard = []
+    if APP_URL:
+        keyboard.append([{"text": "📊 Все результаты на сайте", "url": f"{APP_URL}?tab=best-price&q={html.escape(query)}"}])
+    message_id = await send_tg_widget(session, token, chat_id, widget_html,
+                                      telegram_widgets.build_caption(query, offers),
+                                      {"inline_keyboard": keyboard} if keyboard else None)
+    if message_id is None:
+        return False
+    _widget_cards[(chat_id, message_id)] = {"query": query, "offers": offers, "refreshed": 0.0}
+    return True
+
+
+async def handle_widget_query(session: aiohttp.ClientSession, token: str, wq: Dict[str, Any]):
+    """Нажатие в карточке: «Следить» или «Обновить». Отвечаем всегда — иначе карточка ждёт 15 секунд."""
+    wq_id = str(wq.get("id") or "")
+    from_user = wq.get("from") or {}
+    user_id = from_user.get("id")
+    chat = wq.get("chat") or {}
+    chat_id = chat.get("id")
+    message_id = wq.get("message_id")
+    # Тот же контур, что у сообщений и кнопок: только личный чат самого пользователя
+    if (not wq_id or chat.get("type") != "private" or not isinstance(user_id, int) or isinstance(user_id, bool)
+            or user_id <= 0 or chat_id != user_id or from_user.get("is_bot") or not isinstance(message_id, int)):
+        return
+    user = get_user(user_id)
+    if user and user.get("is_blocked"):
+        return
+    if _widget_limiter.retry_after(str(user_id)):
+        await answer_widget_query(session, token, wq_id, "Слишком часто, подождите минуту")
+        return
+    card = _widget_cards.get((chat_id, message_id))
+    if not card:
+        await answer_widget_query(session, token, wq_id, "Карточка устарела — повторите /search")
+        return
+    action = str(wq.get("data") or "")
+
+    if action == telegram_widgets.REQUEST_WATCH:
+        if not user:
+            await answer_widget_query(session, token, wq_id, "Сначала войдите на сайте — там включаются уведомления")
+            return
+        try:
+            from database import create_watch
+            watch = await asyncio.to_thread(create_watch, user_id, {
+                "kind": "search", "target": card["query"], "condition": "any_drop"})
+        except ValueError as e:
+            await answer_widget_query(session, token, wq_id, str(e))
+            return
+        except Exception as e:
+            print(f"[Telegram Bot] Ошибка создания наблюдения из карточки: {type(e).__name__}")
+            await answer_widget_query(session, token, wq_id, "Не получилось включить наблюдение")
+            return
+        await answer_widget_query(session, token, wq_id,
+                                  "Вы уже следите за этим запросом" if watch.get("already_existed")
+                                  else "Наблюдение включено — напишу, когда цена снизится")
+        return
+
+    if action == telegram_widgets.REQUEST_REFRESH:
+        if time.monotonic() - card["refreshed"] < WIDGET_REFRESH_COOLDOWN_SECONDS:
+            await answer_widget_query(session, token, wq_id, "Цены только что обновлены")
+            return
+        try:
+            items = await asyncio.to_thread(search_in_database, card["query"], city="Все", sort_by="price_asc")
+            prices = {str(it.get("id") or ""): int(it.get("current_price") or 0) for it in items}
+            chat_data = telegram_widgets.build_chat_data(card["offers"], prices)
+        except Exception as e:
+            print(f"[Telegram Bot] Ошибка обновления карточки: {type(e).__name__}")
+            await answer_widget_query(session, token, wq_id, "Не получилось обновить цены")
+            return
+        updated = await edit_tg_widget_data(session, token, chat_id, message_id, chat_data)
+        if updated:
+            card["refreshed"] = time.monotonic()
+        await answer_widget_query(session, token, wq_id, "Цены обновлены" if updated else "Не получилось обновить цены")
+        return
+
+    await answer_widget_query(session, token, wq_id)
+
+
 async def handle_search_command(session: aiohttp.ClientSession, token: str, chat_id: int, query: str):
     q = query.strip()
     if not q:
@@ -201,6 +346,10 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
         _record_search("telegram", q, started, outcome, len(items))
     if not items:
         await send_tg_message(session, token, chat_id, f"😕 По запросу «<b>{html.escape(q)}</b>» ничего не найдено в локальной базе. Попробуйте сократить запрос.")
+        return
+
+    # Пилот TGW-01: карточка-виджет; при любом отказе — прежнее текстовое сообщение ниже
+    if telegram_widgets.search_widget_enabled(chat_id) and await _send_search_widget(session, token, chat_id, q, items):
         return
 
     top = items[:5]
@@ -318,6 +467,11 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
                 await answer_callback_query(session, token, cq_id, text="Ошибка при отключении")
         return
 
+    wq = update.get("widget_query")
+    if wq:
+        await handle_widget_query(session, token, wq)
+        return
+
     msg = update.get("message")
     if not msg:
         return
@@ -361,6 +515,64 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
         await handle_ai_consultant_message(session, token, chat_id, text)
 
 
+# TG-05: меню бота. Команды видны по «/», кнопка меню открывает раздел сайта внутри Telegram (Mini App):
+# вход там происходит сам — сайт принимает initData через /api/auth/telegram-webapp.
+BOT_COMMANDS = [
+    ("search", "Лучшие цены на товар"),
+    ("ai", "Спросить AI-консультанта"),
+    ("watches", "Мои наблюдения за ценами"),
+    ("new", "Новый разговор с консультантом"),
+    ("status", "Состояние сервиса"),
+    ("help", "Что умеет бот"),
+]
+# Main App (кнопка «Открыть» в профиле бота) уже ведёт на главную сайта, поэтому кнопка меню открывает
+# отдельный раздел. Разделы сайта, доступные по прямому адресу: /deals, /search, /favorites, /profile.
+MENU_BUTTON_DEFAULT_PATH = "/deals"
+MENU_BUTTON_DEFAULT_TEXT = "Скидки"
+_MENU_PATH_RE = re.compile(r"^/[A-Za-z0-9/_\-]{0,60}$")
+
+
+def menu_button_target() -> tuple:
+    """Раздел и подпись кнопки меню; непригодные значения заменяются умолчаниями."""
+    path = os.getenv("TELEGRAM_MENU_BUTTON_PATH", "").strip() or MENU_BUTTON_DEFAULT_PATH
+    text = " ".join(os.getenv("TELEGRAM_MENU_BUTTON_TEXT", "").split())[:16] or MENU_BUTTON_DEFAULT_TEXT
+    return (path if _MENU_PATH_RE.match(path) else MENU_BUTTON_DEFAULT_PATH), text
+
+
+def menu_button_mode() -> str:
+    """off (по умолчанию) | commands | webapp. Неизвестное значение — off: меню бота видят все пользователи."""
+    mode = os.getenv("TELEGRAM_MENU_BUTTON", "").strip().lower()
+    return mode if mode in ("commands", "webapp") else "off"
+
+
+def menu_setup_calls(mode: str, app_url: str) -> List[tuple]:
+    """Какие методы Bot API вызвать для выбранного режима. Mini App открывается только по https."""
+    if mode == "off":
+        return []
+    calls = [("setMyCommands", {"commands": [{"command": c, "description": d} for c, d in BOT_COMMANDS]})]
+    if mode == "webapp" and app_url.startswith("https://"):
+        path, text = menu_button_target()
+        button = {"type": "web_app", "text": text, "web_app": {"url": app_url.rstrip("/") + path}}
+    else:
+        button = {"type": "commands"}
+    calls.append(("setChatMenuButton", {"menu_button": button}))
+    return calls
+
+
+async def setup_bot_menu(session: aiohttp.ClientSession, token: str) -> None:
+    """Настраивает меню при запуске. Отказ не мешает работе бота: меню остаётся прежним."""
+    for method, payload in menu_setup_calls(menu_button_mode(), config.PUBLIC_ORIGIN or APP_URL):
+        try:
+            async with session.post(f"https://api.telegram.org/bot{token}/{method}", json=payload,
+                                    timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    print(f"[Telegram Bot] {method} отклонён: HTTP {resp.status}")
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            print(f"[Telegram Bot] Ошибка {method}: {type(e).__name__}")
+
+
 class TelegramDispatcher:
     """Bounded work and ordered turns per private chat; all workers owned by polling."""
     def __init__(self, session, token, workers=4, capacity=64):
@@ -375,7 +587,9 @@ class TelegramDispatcher:
     async def _worker(self):
         while True:
             update = await self.queue.get()
-            msg = update.get("message") or (update.get("callback_query") or {}).get("message")
+            # У widget_query чат лежит в самом запросе: очередь нажатий идёт в общий порядок чата
+            msg = (update.get("message") or (update.get("callback_query") or {}).get("message")
+                   or update.get("widget_query"))
             chat_id = (msg or {}).get("chat", {}).get("id")
             lock, count = self.chat_locks.get(chat_id, (asyncio.Lock(), 0))
             self.chat_locks[chat_id] = (lock, count + 1)
@@ -418,6 +632,7 @@ async def run_telegram_bot_task():
     timeout = aiohttp.ClientTimeout(total=45)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         dispatcher = TelegramDispatcher(session, token)
+        await setup_bot_menu(session, token)
         try:
             while True:
                 try:

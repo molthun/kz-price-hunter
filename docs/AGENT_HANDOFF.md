@@ -2,6 +2,25 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## LOCAL_DONE TGW-01 + TG-05 → Владелец: карточка `/search` виджетом и меню бота (Bot API 10.4) — Claude (2026-11-10)
+
+- **Поручения владельца (чат, 2026-11-10):** «Да, пилот» (карточка `/search` виджетом); «на стенде работаем… ветки не множить»; «изучить документацию телеграм и выжать по максимуму с бота… и веди документацию»; «menu button сделать… с каким-нибудь функционалом», «есть же main app и есть menu button».
+- **Ветка:** `main` локально, без push. Версия не повышалась: обе возможности выключены по умолчанию, выпуск не запрашивался. Прод не трогался.
+- **Что сделано:**
+  1. `telegram_widgets.py` (новый): сборка HTML карточки, подписи и `chat_data`; контроль пределов 32768 / 4096 байт после zlib; выключатель `TELEGRAM_SEARCH_WIDGET=off|admins|all`.
+  2. `telegram_bot.py`: `sendWidget` в `/search` с возвратом к тексту при любом отказе; обработка `widget_query` («Следить» — наблюдение вида «поиск», «Обновить» — цены через `editMessageWidgetData`); очередь чата учитывает `widget_query`; меню бота при запуске — `TELEGRAM_MENU_BUTTON=off|commands|webapp`, раздел `TELEGRAM_MENU_BUTTON_PATH` (по умолчанию `/deals`), подпись `TELEGRAM_MENU_BUTTON_TEXT`.
+  3. `docs/TELEGRAM_BOT.md` (новый, живой документ): что умеет бот, пределы виджетов, обзор Bot API 8.0–10.4, очередь TG-02…TG-13. `docs/DEVELOPMENT_PLAN.md`: раздел «Поколение TG». `.env.example`: новые переменные.
+  4. `tests/notifications/test_search_widget.py` (новый): 31 проверка.
+- **Проверки (локально, Mac, Python 3.14, временный `DATA_DIR`):**
+  - `pytest tests --ignore-glob="* 2.py"`: **2913 passed, 1286 subtests passed, 0 failed** (3:06) — до правок меню; после них `tests/notifications tests/core/test_telegram_admin.py tests/web`: 304 passed.
+  - Первый прогон с `-x` остановился на `tests/core/test_seller_admin.py::SellerAdminApiTest::test_only_admin_can_use_editor_and_save_starts_nothing`; отдельно файл проходит (15 passed), в полном прогоне без `-x` отказ не повторился. Причина не выяснена — похоже на зависимость от порядка, с задачей не связана.
+  - Карточка в headless Chromium: сортировки, «только со скидкой», обновление цен через эмуляцию `chatData`, ответы бота, ошибок скрипта нет.
+- **Не проверено:** карточка в настоящем Telegram (движок виджетов — QuickJS, не браузер); вид на старых приложениях; реальные вызовы `sendWidget`, `answerWidgetQuery`, `editMessageWidgetData`, `setMyCommands`, `setChatMenuButton` — в тестах только mocks.
+- **Стенд:** см. строку «Стенд» ниже — заполняется после выкладки.
+- **Следующий точный шаг:** владелец проверяет на стенде в `@kzph_dev_bot`: `/search iphone` → карточка, сортировки, «Следить», «Обновить»; кнопка меню «Скидки». Затем решение: включать ли `all`, какой раздел у кнопки меню, и какая задача из TG-02…TG-13 следующая (рекомендация — TG-02, потоковые ответы консультанта).
+
+---
+
 ## PROD_DEPLOYED v6.29.5 → Владелец / Codex: Релиз v6.29.5 на проде — деактивация Wildberries KZ и Ozon KZ — Antigravity (2026-11-10)
 
 - **Поручение:** «Ozon KZ Wildberries KZ отказываемся от них. Полностью удалить Wildberries KZ и Ozon KZ из активных скраперов (отключить в SHOP_REGISTRY, config, расписании и витринах), сохранив стабильную кодовую базу». Исполнитель: Antigravity (основной разработчик).
