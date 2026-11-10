@@ -2,17 +2,20 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## CHECKPOINT TG-06 → Claude / следующий исполнитель: погашение устаревших находок — код готов, не выложено — Claude (2026-11-10)
+## STAND_DEPLOYED TG-06 → Владелец: погашение устаревших находок правкой отправленного сообщения — Claude (2026-11-10)
 
-- **Поручение владельца (чат, 2026-11-10):** «Да, TG-06». Ветка `main` локально, без push. Работа остановлена по лимиту использования исполнителя.
-- **Сделано (в коммите):**
-  1. `database.py`: аддитивные колонки `notification_outbox.tg_message_id`, `tg_has_photo`, `sent_at`, `stale_checked_at`; `record_sent_message`, `stale_alert_candidates` (отбор устаревших делает SQL: товар снят или свежая цена выше обещанной, окно 72 ч), `finish_stale_check`.
-  2. `notifier.py`: `DeliveryResult.message_id/has_photo`; номер сообщения запоминается при доставке находок и одиночных сообщений наблюдений; `stale_verdict`, `stale_message`, `mark_stale_alerts` (раз в 5 минут, до 5 правок за проход, `editMessageCaption` для фото и `editMessageText` для текста, пауза 429 соблюдается); вызов из `notification_worker`.
-  3. `config.stale_alert_marking_enabled()`: `TELEGRAM_STALE_MARK=on`, по умолчанию выключено. `.env.example` обновлён.
-  4. `tests/notifications/test_stale_alerts.py` (новый, 17 проверок).
-- **Проверено:** `pytest tests/notifications tests/monitoring tests/web --ignore-glob="* 2.py"`: 828 passed, 0 failed.
-- **НЕ сделано:** полный прогон `pytest tests`; раздел TG-06 в `docs/TELEGRAM_BOT.md` и строка в `docs/DEVELOPMENT_PLAN.md`; выкладка на стенд и `TELEGRAM_STALE_MARK=on` в `.env` стенда; проверка настоящей правки сообщения в Telegram.
-- **Следующий точный шаг:** полный прогон тестов → документация → bundle `f4a5d14eb0..main` на стенд по протоколу → включить `TELEGRAM_STALE_MARK=on` → убедиться на реальной находке, что сообщение правится.
+- **Поручения владельца (чат, 2026-11-10):** «Да, TG-06»; после остановки по лимиту — «Да, довести». Ветка `main` локально, без push. Версия не повышалась. Прод не трогался.
+- **Что сделано:**
+  1. `database.py`: аддитивные колонки `notification_outbox.tg_message_id`, `tg_has_photo`, `sent_at`, `stale_checked_at` (версия схемы прежняя — 5); `record_sent_message`, `stale_alert_candidates` (отбор в SQL: отправлено не раньше 72 ч назад, товар снят или его свежая цена выше обещанной), `finish_stale_check`.
+  2. `notifier.py`: `DeliveryResult.message_id/has_photo`; номер сообщения запоминается при доставке находок и одиночных сообщений наблюдений; `stale_verdict`, `stale_message`, `mark_stale_alerts` — раз в 5 минут, до 5 правок за проход, `editMessageCaption` для фото и `editMessageText` для текста, пауза 429 соблюдается; вызов из `notification_worker`.
+  3. `config.stale_alert_marking_enabled()`: `TELEGRAM_STALE_MARK=on`, по умолчанию выключено.
+  4. Документация: `docs/TELEGRAM_BOT.md` (раздел 2д), `docs/DEVELOPMENT_PLAN.md`, `PRIVACY_DATA_MAP.md`, `.env.example`.
+  5. Тесты: `tests/notifications/test_stale_alerts.py` (новый, 17 проверок).
+- **Проверки (локально):** `pytest tests --ignore-glob="* 2.py"`: **2958 passed, 1286 subtests passed, 0 failed** (3:05).
+- **Стенд (2026-11-10):** коммит `1355a077e4` доставлен git bundle без push (`f4a5d14eb0..main`), в `.env` стенда добавлено `TELEGRAM_STALE_MARK=on`, контейнер пересобран → `healthy`; новые колонки на месте.
+- **Сквозная проверка на стенде с настоящим Telegram:** из контейнера администратору отправлены два тестовых сообщения (`sendMessage` и `sendPhoto`, текст «Проверка TG-06 на стенде…»), для них в очередь вставлены две временные записи с обещанной ценой на 1000 ₸ ниже текущей цены реального товара; `mark_stale_alerts(force=True)` вернул **2** — Telegram принял `editMessageText` и `editMessageCaption`, обе записи получили `stale_checked_at`. Временные записи удалены, в очереди стенда прежние 3203 строки.
+- **Не проверено:** погашение настоящей находки, пришедшей обычным путём (нужна находка, у которой цена потом вырастет); как правка выглядит на экране телефона — это видит только владелец; срок, в течение которого Telegram разрешает править собственные сообщения бота (документация его не называет).
+- **Следующий точный шаг:** владелец смотрит в чате с `@kzph_dev_bot` два сообщения «Находка уже неактуальна» (текст и фото) и решает: формулировки, включать ли на проде, и следующая задача из `docs/TELEGRAM_BOT.md`. Выпуск всех задач поколения TG на прод — отдельное решение владельца (версия, CHANGELOG, push).
 
 ---
 
