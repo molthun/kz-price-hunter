@@ -76,12 +76,20 @@ def _clean(text: Any, limit: int) -> str:
 
 
 def pick_offers(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Первые MAX_OFFERS предложений в виде, который зашивается в карточку. Порядок = порядок индексов."""
-    offers = []
-    for item in items:
+    """До MAX_OFFERS предложений в виде, который зашивается в карточку. Порядок = порядок индексов.
+
+    От каждого магазина берётся одно предложение — самое дешёвое: иначе три расцветки одного телефона
+    в одном магазине вытесняют из карточки остальные магазины (решение владельца, 10.11.2026).
+    """
+    offers, seen_shops = [], set()
+    for item in sorted(items, key=lambda it: int(it.get("current_price") or 0)):
         price = int(item.get("current_price") or 0)
         if price <= 0:
             continue
+        shop_key = " ".join(str(item.get("shop") or "").lower().split())
+        if shop_key in seen_shops:
+            continue
+        seen_shops.add(shop_key)
         url = str(item.get("url") or "")
         offers.append({
             "id": str(item.get("id") or ""),
@@ -147,7 +155,7 @@ if(g>0)p.appendChild(el("div","h","−"+g+"% от "+f(x.o)));
 r.appendChild(n);r.appendChild(p);l.appendChild(r)});
 if(!a.length)l.appendChild(el("div","r h","Сейчас предложений со скидкой нет"));
 var d=new Date(At*1e3);
-$("m").textContent=D.length+" предл. · обновлено "+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
+$("m").textContent="Магазинов: "+D.length+" · обновлено "+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
 fit()}
 function fit(){
 var l=$("l"),n=0;

@@ -29,9 +29,22 @@ class WidgetBuildTests(unittest.TestCase):
         # Скидка — только когда прежняя цена выше текущей: first_seen_price 500 < 1000 скидкой не считается
         self.assertEqual([o['old'] for o in offers[:2]], [0, 2000])
 
+    def test_one_cheapest_offer_per_shop(self):
+        items = [
+            {'id': 'h2', 'shop': 'Halyk Market', 'title': 'Sage', 'current_price': 472_900},
+            {'id': 'h1', 'shop': 'Halyk  market', 'title': 'Black', 'current_price': 470_000},
+            {'id': 'k1', 'shop': 'Kaspi Магазин', 'title': 'Blue', 'current_price': 492_896},
+            {'id': 'h3', 'shop': 'Halyk Market', 'title': 'Lavender', 'current_price': 472_900},
+            {'id': 'd0', 'shop': 'DNS Казахстан', 'title': 'Нет цены', 'current_price': 0},
+            {'id': 'd1', 'shop': 'DNS Казахстан', 'title': 'White', 'current_price': 498_290},
+        ]
+        _, offers = widgets.build_search_widget('iphone 17', items)
+        self.assertEqual([o['id'] for o in offers], ['h1', 'k1', 'd1'])
+        self.assertIn('от 470 000 ₸', widgets.build_caption('iphone 17', offers))
+
     def test_incompressible_offers_are_dropped_until_card_fits(self):
         rng = random.Random(1)   # разные иероглифы в каждом названии: такой текст почти не сжимается
-        items = [{'id': f'p{i}', 'shop': 'S', 'current_price': 10 + i, 'url': '',
+        items = [{'id': f'p{i}', 'shop': f'S{i}', 'current_price': 10 + i, 'url': '',
                   'title': ''.join(chr(rng.randrange(0x4E00, 0x9FFF)) for _ in range(widgets.MAX_TITLE))}
                  for i in range(40)]
         with patch.object(widgets, 'MAX_OFFERS', 40):
