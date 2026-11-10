@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-03 / TG-13: Форматированные Rich Messages, таблицы цен и локальное время — Antigravity (2026-11-10 22:25)
+## STAND_DEPLOYED TG-03 / TG-13: Форматированные Rich Messages, таблицы цен и локальное время — Antigravity (2026-11-10 22:27)
 
 - **Поручение владельца (чат, 2026-11-10):** «Делай дальше. нужны самые последние фишки телеграм в боте. самые лучшие.»; работаем на стенде, в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
@@ -29,10 +29,13 @@
   6. Документация:
      - Обновлены `docs/TELEGRAM_BOT.md` (раздел 2и, таблица возможностей, журнал) и `docs/DEVELOPMENT_PLAN.md`.
 - **Проверки:**
-  - `pytest tests/notifications/test_rich_messages.py` — **11 passed** in 0.13s;
-  - `pytest tests/notifications` — **291 passed, 0 failed** in 12.25s.
+  - Локально: `pytest tests/notifications/test_rich_messages.py` — **11 passed** in 0.13s; `pytest tests/notifications` — **291 passed, 0 failed** in 12.25s.
+  - Коммит перенесён на стенд через `git bundle` **без push в origin/main**.
+  - Контейнер `kzph-stand` пересобран и перезапущен (`docker compose -f docker-compose.stand.yml up -d --build`) → `healthy`, `/api/health` ok.
+  - Внутри контейнера стенда: `python3 -m unittest discover -s tests/notifications -p 'test_*.py'` — **Ran 289 tests, OK** (28.2s).
 - **Следующий точный шаг:**
-  - Перенести коммит на тестовый стенд через `git bundle` (без push в `origin/main`), пересобрать контейнер `kzph-stand` и протестировать работу.
+  - Владелец может протестировать форматированные ответы AI, таблицы цен и локальное время в `@kzph_dev_bot`.
+  - Следующий кандидат: **TG-10** (Сайт как Mini App внутри шторки Telegram с полной интеграцией) или **TG-12** (Inline-режим `@бот запрос` для мгновенной отправки цен в любые чаты).
 
 ---
 
