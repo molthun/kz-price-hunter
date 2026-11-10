@@ -307,8 +307,12 @@ RTX 4070 12 ГБ, 16 потоков, 61 ГБ ОЗУ, NVMe 915 ГБ, Ubuntu 26.04
   Приёмка: замена `disable_web_page_preview` на объект `link_preview_options`; компактные превью товаров сбоку от текста (`prefer_small_media=True`) и превью над текстом (`show_above_text=True`).
 - **TG-17. Telegram Mini App 8.0: Fullscreen, HomeScreen, Stories** (`requestFullscreen`, `addToHomeScreen`, `shareToStory`).
   Приёмка: нативное разворачивание Mini App на весь экран без рамок, кнопка добавления PWA на рабочий стол смартфона в профиле, шеринг карточек со скидкой в Telegram Stories.
+- **TG-19. Прямой переход в Mini App из уведомлений Telegram** (`tgWebAppStartParam`).
+  Приёмка: кнопка «📊 Сравнить цены» открывает сравнение цен товара прямо в Mini App через `p_{product_id}`, кнопка «🔔 Мои наблюдения» открывает раздел наблюдений `watches`.
 - **TG-20. Интерактивная оценка ответов AI-консультанта** (`InlineKeyboardButton`, `answerCallbackQuery`).
   Приёмка: inline-кнопки `[ 👍 Полезно | 👎 Не то ]` под ответами консультанта с мгновенным тактильным ответом через `answerCallbackQuery`, сохранение отзывов в таблицу `ai_feedback` и сбор статистики.
+- **TG-21. Telegram WebApp CloudStorage** (`tg.CloudStorage`).
+  Приёмка: нативная синхронизация избранного в облачное хранилище Telegram для бесшовного доступа на смартфонах, планшетах и десктопах.
 - **Кандидаты (не начаты):** TG-02б потоковый текст ответа.
 
 ## Релизы и общая готовность

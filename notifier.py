@@ -416,7 +416,9 @@ def send_telegram_alert(
     keyboard = [[url_button(f"⚡️ Открыть товар в {shop}", url, style="primary")]]
     second_row = []
     if APP_URL:
-        second_row.append(site_button("📊 Дашборд цен", APP_URL))
+        prod_id = product.get("id")
+        compare_url = f"{APP_URL}?tgWebAppStartParam=p_{prod_id}" if prod_id else APP_URL
+        second_row.append(site_button("📊 Сравнить цены", compare_url))
     if url:
         c_btn = copy_button("📋 Скопировать ссылку", url)
         if c_btn:
@@ -542,7 +544,7 @@ def send_watch_message(
     if second_row:
         keyboard.append(second_row)
     if APP_URL:
-        keyboard.append([site_button("🔔 Мои наблюдения", APP_URL)])
+        keyboard.append([site_button("🔔 Мои наблюдения", f"{APP_URL}?tgWebAppStartParam=watches")])
     message_effect_id = None
     if config.message_effects_enabled():
         message_effect_id = EFFECT_CONFETTI

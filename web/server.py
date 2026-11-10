@@ -238,6 +238,7 @@ def _public_user(user):
         "photo_url": user.get("photo_url"),
         "is_admin": is_admin(user),
         "is_confirmed": is_confirmed_user(user),
+        "bot_blocked": bool(user.get("bot_blocked") or user.get("bot_blocked_at")),
     }
 
 @routes.get("/")

@@ -2,6 +2,33 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IMPLEMENTED TG-04 (подсказка на сайте) + TG-19 (deep link в Mini App из уведомлений) + TG-21 (Telegram WebApp CloudStorage) — Antigravity (2026-11-11 00:05)
+
+- **Поручение владельца (чат, 2026-11-10):** «продолжи по плану»; работаем на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Область файлов:** `web/server.py`, `notifier.py`, `web/templates/search_first.html`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`, `tests/notifications/test_miniapp_deep_links_and_cloud.py`.
+- **Что сделано:**
+  1. **TG-04 (Подсказка блокировки бота на сайте):**
+     - В `_public_user(user)` в `web/server.py` добавлен флаг `bot_blocked`.
+     - В профиле на сайте добавлен заметный баннер предупреждения с прямой ссылкой на разблокировку бота (`https://t.me/<bot>?start=unblock`).
+  2. **TG-19 (Прямой переход в Mini App из уведомлений Telegram):**
+     - Кнопка «📊 Сравнить цены» в алертах теперь формируется с параметром `tgWebAppStartParam=p_{product_id}`, открывая карточку товара прямо в Mini App без лишних переходов.
+     - Кнопка «🔔 Мои наблюдения» передаёт `tgWebAppStartParam=watches`, открывая раздел наблюдений в профиле.
+  3. **TG-21 (Telegram Mini App CloudStorage, Bot API 6.9+):**
+     - В `TelegramApp` (`search_first.html`) реализованы методы `cloudStorageGet`, `cloudStorageSet` и `syncCloudFavorites`.
+     - Двусторонняя синхронизация избранного в `tg.CloudStorage`, сохраняя избранное между смартфонами, планшетами и десктопами в Telegram.
+- **Проверки:**
+  - Локально: `venv/bin/python3 -m unittest tests/notifications/test_miniapp_deep_links_and_cloud.py`: 4 теста OK (0.002s).
+  - Локально: `venv/bin/python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 332 теста OK (12.083s).
+- **Следующий точный шаг:**
+  - Закоммитить локально.
+  - Собрать bundle и отправить на стенд.
+  - Прогнать тесты на стенде внутри Docker-контейнера `kzph-stand`.
+  - Обновить handoff до STAND_DEPLOYED.
+
+---
+
 ## STAND_DEPLOYED TG-16 + TG-17 + TG-20: Link Preview Options (7.0/7.8), Mini App 8.0 Fullscreen/HomeScreen/Stories и AI-фидбэк — Antigravity (2026-11-10 23:58)
 
 - **Поручение владельца (чат, 2026-11-10):** «Дальше»; работаем на стенде, в прод ничего не отправляем.

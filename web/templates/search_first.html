@@ -5526,6 +5526,7 @@
             <span class="nav-count-badge" id="profileWatchesCountBadge" style="display:inline-flex;">0</span>
           </div>
 
+          <div id="profileBotBlockedBanner" style="display: none; margin-top: 12px;"></div>
           <div id="profileWatchesList" class="profile-watches-list">
             <!-- Rendered by JS -->
           </div>
@@ -6353,6 +6354,7 @@
         this.setupEventListeners();
         this.handleStartParam();
         this.initMiniAppUi();
+        this.syncCloudFavorites();
       },
 
       syncTheme() {
@@ -6576,6 +6578,70 @@
         }
       },
 
+      // TG-21: Telegram WebApp CloudStorage (Bot API 6.9+)
+      cloudStorageGet(key) {
+        return new Promise((resolve) => {
+          if (!this.tg || !this.tg.CloudStorage || typeof this.tg.CloudStorage.getItem !== 'function') {
+            resolve(null);
+            return;
+          }
+          try {
+            this.tg.CloudStorage.getItem(key, (err, val) => {
+              if (err || !val) resolve(null);
+              else resolve(val);
+            });
+          } catch (e) {
+            resolve(null);
+          }
+        });
+      },
+
+      cloudStorageSet(key, value) {
+        return new Promise((resolve) => {
+          if (!this.tg || !this.tg.CloudStorage || typeof this.tg.CloudStorage.setItem !== 'function') {
+            resolve(false);
+            return;
+          }
+          try {
+            this.tg.CloudStorage.setItem(key, String(value), (err, ok) => {
+              resolve(!err && ok);
+            });
+          } catch (e) {
+            resolve(false);
+          }
+        });
+      },
+
+      async syncCloudFavorites() {
+        if (!this.tg || !this.tg.CloudStorage) return;
+        try {
+          const localFavs = Favorites.getAll();
+          const remoteJson = await this.cloudStorageGet('kzph_favs');
+          if (remoteJson) {
+            const remoteFavs = JSON.parse(remoteJson);
+            if (Array.isArray(remoteFavs) && remoteFavs.length > 0) {
+              const existingIds = new Set(localFavs.map(f => String(f.id || f.title)));
+              let added = 0;
+              for (const rf of remoteFavs) {
+                const key = String(rf.id || rf.title);
+                if (!existingIds.has(key)) {
+                  localFavs.push(rf);
+                  added++;
+                }
+              }
+              if (added > 0) {
+                Favorites.save(localFavs);
+                Favorites.updateBadges();
+              }
+            }
+          } else if (localFavs.length > 0) {
+            await this.cloudStorageSet('kzph_favs', JSON.stringify(localFavs));
+          }
+        } catch (e) {
+          console.warn('CloudStorage sync error:', e);
+        }
+      },
+
       handleStartParam() {
         if (!this.tg) return;
         try {
@@ -6595,6 +6661,8 @@
             setTimeout(() => navigateTo(null, '/deals'), 150);
           } else if (param === 'favorites') {
             setTimeout(() => navigateTo(null, '/favorites'), 150);
+          } else if (param === 'watches' || param === 'profile') {
+            setTimeout(() => navigateTo(null, '/profile'), 150);
           }
         } catch (e) {}
       }
@@ -9753,6 +9821,14 @@
       KEY: 'kzph_favorites_v1',
       currentTab: 'all', // 'all' | 'price_drop'
       serverSynced: false,
+      save(list) {
+        try {
+          localStorage.setItem(this.KEY, JSON.stringify(list));
+          if (typeof TelegramApp !== 'undefined' && TelegramApp.isInside) {
+            TelegramApp.cloudStorageSet('kzph_favs', JSON.stringify(list));
+          }
+        } catch (e) {}
+      },
       getAll() {
         try {
           const raw = localStorage.getItem(this.KEY);
@@ -9877,17 +9953,13 @@
             body: JSON.stringify(entry)
           }).catch(() => {});
         }
-        try {
-          localStorage.setItem(this.KEY, JSON.stringify(list));
-        } catch (e) {}
+        this.save(list);
         this.updateBadges();
         return added;
       },
       remove(id) {
         let list = this.getAll().filter(x => String(x.id) !== String(id));
-        try {
-          localStorage.setItem(this.KEY, JSON.stringify(list));
-        } catch (e) {}
+        this.save(list);
         this.updateBadges();
         fetch('/api/me/favorites/' + encodeURIComponent(String(id)), { method: 'DELETE' }).catch(() => {});
         renderFavorites();
@@ -9895,7 +9967,7 @@
       },
       clear() {
         if (!confirm('Очистить весь список избранного?')) return;
-        localStorage.removeItem(this.KEY);
+        this.save([]);
         this.updateBadges();
         fetch('/api/me/favorites', { method: 'DELETE' }).catch(() => {});
         renderFavorites();
@@ -11016,6 +11088,27 @@
       const adminShortcut = document.getElementById('profileAdminShortcut');
       if (adminShortcut) {
         adminShortcut.style.display = (currentUser && currentUser.is_admin) ? 'flex' : 'none';
+      }
+
+      const botBlockedBanner = document.getElementById('profileBotBlockedBanner');
+      if (botBlockedBanner) {
+        if (currentUser && currentUser.bot_blocked) {
+          const botUname = (AppState.auth && AppState.auth.bot_username) ? AppState.auth.bot_username : '';
+          const unblockLink = botUname ? `https://t.me/${botUname}?start=unblock` : '#';
+          botBlockedBanner.innerHTML = `
+            <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+              <div style="font-size: 0.9rem; color: #ef4444;">
+                ⚠️ <b>Бот Telegram заблокирован</b>. Вы не будете получать уведомления о снижении цен, пока бот заблокирован в вашем Telegram.
+              </div>
+              <a href="${unblockLink}" target="_blank" class="btn-primary" style="padding: 6px 12px; font-size: 0.85rem; text-decoration: none; background: #ef4444;">
+                Разблокировать бота
+              </a>
+            </div>
+          `;
+          botBlockedBanner.style.display = 'block';
+        } else {
+          botBlockedBanner.style.display = 'none';
+        }
       }
 
       const notice = 'text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.9rem;';
