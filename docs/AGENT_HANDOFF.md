@@ -2,6 +2,37 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IMPLEMENTED TG-10: Сайт как полноценный Mini App (Telegram Web App) — Antigravity (2026-11-10 23:04)
+
+- **Поручение владельца (чат, 2026-11-10):** «продолжай»; работаем на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Область файлов:** `web/templates/search_first.html`, `tests/frontend/test_telegram_webapp.mjs`, `tests/notifications/test_webapp_integration.py`.
+- **Что сделано:**
+  1. `web/templates/search_first.html`:
+     - Внедрен клиентский модуль `TelegramApp`:
+       - `init()`: мгновенный вызов `tg.ready()`, разворачивание шторки на всю высоту `tg.expand()`, защита от закрытия свайпом `tg.enableClosingConfirmation()`.
+       - `syncTheme()` и `updateColors()`: синхронизация темы с цветовой схемой Telegram (`tg.colorScheme`), динамическая передача цвета шапки и фона `setHeaderColor`, `setBackgroundColor`, `setBottomBarColor`, подписка на событие `themeChanged`.
+       - `setupBackButton()` и `updateBackButton()`: управление нативной кнопкой «Назад» Telegram (`tg.BackButton`). Кнопка скрыта на главной странице `/`, показывается при переходе в поиск, карточку товара, фильтры или модалки. По клику сначала закрывает активную модалку (фильтры, фото, каталог, наблюдение, чейнджлог), а затем возвращает по истории браузера.
+       - `haptic(type, arg)`: тактильный отклик `HapticFeedback` (`selection` при переключении табов/фильтров, `impact` и `notification` при добавлении в избранное и подписке на цену).
+       - `shareProduct(title, url, dealOrProduct)`: нативный шеринг товара через связку с эндпоинтом `POST /api/telegram/prepared-message` и методом `tg.shareMessage(prepared_message_id)`.
+       - `handleStartParam()`: глубокие ссылки при открытии Mini App (`startapp=p_<id>`, `q_<query>`, `deals`, `favorites`).
+     - Safe Area CSS: поддержка переменных `--tg-content-safe-area-inset-top` и `--tg-content-safe-area-inset-bottom` в шапке и нижнем таб-баре.
+     - Добавлена кнопка «↗️ Поделиться» (`detailShareBtn`) в детальной карточке товара и передача объекта предложения в ленте скидок.
+  2. Тесты:
+     - `tests/frontend/test_telegram_webapp.mjs`: Playwright браузерный тест жизненного цикла Mini App, BackButton, синхронизации темной темы, HapticFeedback и shareMessage — **PASS**.
+     - `tests/notifications/test_webapp_integration.py`: 5 юнит-тестов шаблона и интеграции — **5 passed**.
+- **Проверки:**
+  - Локально Playwright: `deno run -A tests/frontend/test_telegram_webapp.mjs` — **PASS**.
+  - Локально pytest: `pytest tests/notifications/test_webapp_integration.py` — **5 passed** in 0.03s; `pytest tests/notifications` — **302 passed, 0 failed** in 12.24s.
+- **Следующий точный шаг:**
+  - Закоммитить изменения локально.
+  - Доставить на стенд через `git bundle` (без push в origin/main).
+  - Пересобрать стенд, прогнать тесты внутри контейнера.
+  - Обновить handoff до `STAND_DEPLOYED TG-10`.
+
+---
+
 ## STAND_DEPLOYED TG-12: Inline-режим (@бот <запрос>) и подготовленные сообщения (savePreparedInlineMessage) — Antigravity (2026-11-10 22:40)
 
 - **Поручение владельца (чат, 2026-11-10):** «Делай дальше. нужны самые последние фишки телеграм в боте. самые лучшие.»; работаем на стенде, в прод ничего не отправляем.

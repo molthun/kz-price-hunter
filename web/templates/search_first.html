@@ -178,6 +178,7 @@
       position: sticky;
       top: 0;
       z-index: 40;
+      padding-top: var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px));
     }
 
     .header-inner {
@@ -1706,8 +1707,8 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: 60px;
-      padding-bottom: env(safe-area-inset-bottom, 0px);
+      height: calc(60px + var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+      padding-bottom: var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
       background: var(--bg-card);
       border-top: 1px solid var(--border-color);
       display: flex;
@@ -5224,6 +5225,9 @@
             <button class="btn-secondary-action" id="detailWatchBtn" onclick="openWatchModalFromDetail()">
               <span>🔔</span> <span>Следить за ценой</span>
             </button>
+            <button class="btn-secondary-action" id="detailShareBtn" onclick="shareCurrentProduct()" title="Поделиться товаром">
+              <span>↗️</span> <span>Поделиться</span>
+            </button>
           </div>
         </div>
 
@@ -6019,6 +6023,7 @@
       }
       document.documentElement.setAttribute('data-theme', effective);
       updateProfileThemeCards(mode);
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateColors();
     }
 
     function selectTheme(mode) {
@@ -6029,6 +6034,7 @@
       toggleThemeMenu(false);
       const button = document.getElementById('themePickerBtn');
       if (button) button.focus();
+      if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('selection');
     }
 
     function toggleTheme() {
@@ -6295,6 +6301,234 @@
         console.warn('Auth check error:', e);
       }
     }
+
+    // =============================================================
+    // TELEGRAM MINI APP INTEGRATION (TG-10)
+    // =============================================================
+    const TelegramApp = {
+      isInside: false,
+      tg: null,
+
+      init() {
+        if (!window.Telegram || !window.Telegram.WebApp) return;
+        this.tg = window.Telegram.WebApp;
+        this.isInside = true;
+
+        try {
+          if (typeof this.tg.ready === 'function') this.tg.ready();
+          if (typeof this.tg.expand === 'function') this.tg.expand();
+          if (typeof this.tg.enableClosingConfirmation === 'function') {
+            this.tg.enableClosingConfirmation();
+          }
+        } catch (e) {
+          console.warn('TelegramApp init error:', e);
+        }
+
+        this.syncTheme();
+        this.setupBackButton();
+        this.setupEventListeners();
+        this.handleStartParam();
+      },
+
+      syncTheme() {
+        if (!this.tg) return;
+        try {
+          const savedTheme = localStorage.getItem('kz_theme_mode');
+          if (!savedTheme || savedTheme === 'auto') {
+            const scheme = this.tg.colorScheme || (this.tg.themeParams && this.tg.themeParams.bg_color ? 'dark' : 'light');
+            applyThemeMode(scheme === 'dark' ? 'dark' : 'light');
+          }
+          this.updateColors();
+        } catch (e) {}
+      },
+
+      updateColors() {
+        if (!this.tg) return;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const headerBg = isDark ? '#0b1120' : '#ffffff';
+        const pageBg = isDark ? '#0b1120' : '#f8fafc';
+        try {
+          if (typeof this.tg.setHeaderColor === 'function') {
+            this.tg.setHeaderColor(headerBg);
+          }
+          if (typeof this.tg.setBackgroundColor === 'function') {
+            this.tg.setBackgroundColor(pageBg);
+          }
+          if (typeof this.tg.setBottomBarColor === 'function') {
+            this.tg.setBottomBarColor(headerBg);
+          }
+        } catch (e) {}
+      },
+
+      setupBackButton() {
+        if (!this.tg || !this.tg.BackButton) return;
+        try {
+          this.tg.BackButton.onClick(() => {
+            this.onBackButtonClick();
+          });
+        } catch (e) {}
+      },
+
+      onBackButtonClick() {
+        this.haptic('selection');
+        if (typeof isFiltersDialogOpen === 'function' && isFiltersDialogOpen()) {
+          closeMobileFilters();
+          this.updateBackButton();
+          return;
+        }
+        const d = document.getElementById('productPhotoDialog');
+        if (d && d.open) {
+          closeProductPhotos();
+          this.updateBackButton();
+          return;
+        }
+        const cm = document.getElementById('catalogModal');
+        if (cm && cm.classList.contains('open')) {
+          closeCatalogModal();
+          this.updateBackButton();
+          return;
+        }
+        const wm = document.getElementById('watchModalBackdrop');
+        if (wm && wm.classList.contains('open')) {
+          closeWatchModal();
+          this.updateBackButton();
+          return;
+        }
+        const clm = document.getElementById('modalChangelog');
+        if (clm && clm.classList.contains('open')) {
+          closeChangelogModal();
+          this.updateBackButton();
+          return;
+        }
+        const rsm = document.getElementById('modalRegisterSeller');
+        if (rsm && rsm.classList.contains('open')) {
+          closeRegisterSellerModal();
+          this.updateBackButton();
+          return;
+        }
+
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/' && currentPath !== '') {
+          if (window.history.length > 1) {
+            window.history.back();
+          } else {
+            navigateTo(null, '/');
+          }
+        } else {
+          this.tg.BackButton.hide();
+        }
+      },
+
+      updateBackButton() {
+        if (!this.tg || !this.tg.BackButton) return;
+        try {
+          const currentPath = window.location.pathname;
+          const isHome = (currentPath === '/' || currentPath === '');
+          const hasModal = (
+            (typeof isFiltersDialogOpen === 'function' && isFiltersDialogOpen()) ||
+            (document.getElementById('productPhotoDialog')?.open) ||
+            (document.getElementById('catalogModal')?.classList.contains('open')) ||
+            (document.getElementById('watchModalBackdrop')?.classList.contains('open')) ||
+            (document.getElementById('modalChangelog')?.classList.contains('open')) ||
+            (document.getElementById('modalRegisterSeller')?.classList.contains('open'))
+          );
+          if (!isHome || hasModal) {
+            this.tg.BackButton.show();
+          } else {
+            this.tg.BackButton.hide();
+          }
+        } catch (e) {}
+      },
+
+      setupEventListeners() {
+        if (!this.tg) return;
+        try {
+          if (typeof this.tg.onEvent === 'function') {
+            this.tg.onEvent('themeChanged', () => {
+              this.syncTheme();
+            });
+          }
+        } catch (e) {}
+      },
+
+      haptic(type, arg) {
+        if (!this.tg || !this.tg.HapticFeedback) return;
+        try {
+          if (type === 'impact') {
+            this.tg.HapticFeedback.impactOccurred(arg || 'medium');
+          } else if (type === 'notification') {
+            this.tg.HapticFeedback.notificationOccurred(arg || 'success');
+          } else if (type === 'selection') {
+            this.tg.HapticFeedback.selectionChanged();
+          }
+        } catch (e) {}
+      },
+
+      async shareProduct(title, url, dealOrProduct) {
+        if (this.tg && typeof this.tg.shareMessage === 'function' && this.tg.initDataUnsafe && this.tg.initDataUnsafe.user) {
+          try {
+            const userId = this.tg.initDataUnsafe.user.id;
+            const price = dealOrProduct ? (dealOrProduct.current_price || dealOrProduct.price || 0) : 0;
+            const shop = dealOrProduct ? (dealOrProduct.shop || '') : '';
+            const img = dealOrProduct ? (dealOrProduct.image_url || '') : '';
+            const city = (typeof AppState !== 'undefined' && AppState.city) ? AppState.city : '';
+
+            const res = await fetch('/api/telegram/prepared-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user_id: userId,
+                title: title,
+                price: price,
+                shop: shop,
+                url: url,
+                city: city,
+                image_url: img
+              })
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.status === 'ok' && data.prepared_message_id) {
+                this.haptic('impact', 'light');
+                this.tg.shareMessage(data.prepared_message_id, (sent) => {
+                  if (sent) {
+                    this.haptic('notification', 'success');
+                    if (typeof showToast === 'function') showToast('Карточка отправлена в чат! ✨');
+                  }
+                });
+                return true;
+              }
+            }
+          } catch (e) {
+            console.warn('TelegramApp share error:', e);
+          }
+        }
+        return false;
+      },
+
+      handleStartParam() {
+        if (!this.tg) return;
+        try {
+          const param = this.tg.initDataUnsafe?.start_param || new URLSearchParams(window.location.search).get('tgWebAppStartParam');
+          if (!param) return;
+          if (param.startsWith('p_')) {
+            const prodId = param.slice(2);
+            if (prodId) {
+              setTimeout(() => navigateTo(null, '/product/' + encodeURIComponent(prodId)), 150);
+            }
+          } else if (param.startsWith('q_')) {
+            const query = decodeURIComponent(param.slice(2));
+            if (query) {
+              setTimeout(() => navigateTo(null, '/search?q=' + encodeURIComponent(query)), 150);
+            }
+          } else if (param === 'deals') {
+            setTimeout(() => navigateTo(null, '/deals'), 150);
+          } else if (param === 'favorites') {
+            setTimeout(() => navigateTo(null, '/favorites'), 150);
+          }
+        } catch (e) {}
+      }
+    };
 
     async function autoLoginTelegramWebApp() {
       try {
@@ -6662,6 +6896,7 @@
       sb.setAttribute('aria-label', 'Фильтры');
       setFiltersExpanded(true);
       document.getElementById('closeFiltersBtn').focus();
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
     document.addEventListener('click', (e) => {
@@ -6680,6 +6915,7 @@
       setFiltersExpanded(false);
       if (restoreFocus && filtersOpener && filtersOpener.isConnected) filtersOpener.focus();
       filtersOpener = null;
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
     document.addEventListener('keydown', (e) => {
@@ -6775,9 +7011,11 @@
         showView('viewHome');
         updateNavState('search');
       }
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
     function updateNavState(name) {
+      if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('selection');
       document.querySelectorAll('.header-nav .nav-link').forEach(el => el.classList.remove('active'));
       if (name) {
         const hLink = document.getElementById('navLink' + name.charAt(0).toUpperCase() + name.slice(1));
@@ -7228,6 +7466,7 @@
         if (clearBtn) clearBtn.style.display = 'none';
         setTimeout(() => searchInput.focus(), 80);
       }
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
     function closeCatalogModal() {
@@ -7245,6 +7484,7 @@
 
       const grid = document.getElementById('catalogModalGrid');
       if (grid) grid.classList.remove('mobile-subcats');
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
     function onCatalogOverlayClick(e) {
@@ -8501,6 +8741,7 @@
       document.getElementById('detailSourceLinks').replaceChildren();
       document.getElementById('offerContextBanner').hidden=true;
       document.getElementById('detailFavBtn').disabled=true;document.getElementById('detailWatchBtn').disabled=true;
+      const shBtn = document.getElementById('detailShareBtn'); if (shBtn) shBtn.disabled = true;
       const titleEl = document.getElementById('detailProductTitle');
       const bestPriceEl = document.getElementById('detailBestPrice');
       const tableBody = document.getElementById('offersTableBody');
@@ -8630,6 +8871,7 @@
 
       const selected=data.selected_offer,banner=document.getElementById('offerContextBanner');banner.replaceChildren();banner.hidden=!selected;
       document.getElementById('detailFavBtn').disabled=false;document.getElementById('detailWatchBtn').disabled=false;
+      const shBtnLoaded = document.getElementById('detailShareBtn'); if (shBtnLoaded) shBtnLoaded.disabled = false;
       document.getElementById('detailPriceLabel').textContent=selected?'Цена этого предложения:':'Лучшая доступная цена:';
       document.getElementById('offersSectionLabel').textContent=selected?'Предложение продавца': (offers.length === 1 ? 'Предложение продавца' : 'Предложения от продавцов');
       if(selected){
@@ -8788,11 +9030,12 @@
       document.body.style.overflow='hidden';document.documentElement.style.overflow='hidden';
       document.getElementById('productPhotoTitle').textContent=document.getElementById('detailProductTitle').textContent||'Фотографии товара';
       productPhotoZoom=1;dialog.showModal();updateProductPhoto();document.getElementById('productPhotoClose').focus();
+      if(typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
     function restoreProductPhotoScroll(){
       if(photoScrollRestore){document.body.style.overflow=photoScrollRestore.body;document.documentElement.style.overflow=photoScrollRestore.html;photoScrollRestore=null;}photoTouchStart=null;
     }
-    function closeProductPhotos(){const d=document.getElementById('productPhotoDialog');if(d&&d.open){restoreProductPhotoScroll();d.close();}}
+    function closeProductPhotos(){const d=document.getElementById('productPhotoDialog');if(d&&d.open){restoreProductPhotoScroll();d.close();if(typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();}}
     function toggleProductPhotoZoom(){productPhotoZoom=productPhotoZoom===1?2:1;sizeProductPhoto();}
     function sizeProductPhoto(){
       const stage=document.getElementById('photoViewerStage'),img=document.getElementById('productPhotoLarge');
@@ -9532,6 +9775,7 @@
           list.splice(idx, 1);
           added = false;
           showToast('Удалено из избранного');
+          if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('impact', 'light');
           fetch('/api/me/favorites/' + encodeURIComponent(strId), { method: 'DELETE' }).catch(() => {});
         } else {
           const entry = {
@@ -9556,6 +9800,7 @@
           list.unshift(entry);
           added = true;
           showToast('Добавлено в избранное ♡');
+          if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('notification', 'success');
           fetch('/api/me/favorites', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -9960,7 +10205,7 @@
       const deal = card ? DealsFeedState.items[Number(card.dataset.index)] : null;
       if (!deal) return;
       if (action === 'favorite') toggleDealFavorite(el, deal);
-      else if (action === 'share') shareDeal(deal.title, safeHttpUrl(deal.url) || window.location.href);
+      else if (action === 'share') shareDeal(deal.title, safeHttpUrl(deal.url) || window.location.href, deal);
       else if (action === 'watch') openWatchModalFromDeal(deal);
       else if (action === 'open') openCatalogItem(deal.canonical_product_id, deal.title);
     }
@@ -9990,7 +10235,11 @@
       return /^prod_[0-9a-f]{16}$/.test(String(item.product_id || '')) ? item.product_id : null;
     }
 
-    function shareDeal(title, url) {
+    async function shareDeal(title, url, deal) {
+      if (typeof TelegramApp !== 'undefined' && TelegramApp.isInside) {
+        const shared = await TelegramApp.shareProduct(title, url, deal);
+        if (shared) return;
+      }
       if (navigator.share) {
         navigator.share({
           title: title,
@@ -10004,6 +10253,23 @@
           showToast('Ссылка: ' + url);
         });
       }
+    }
+
+    function shareCurrentProduct() {
+      if (!AppState.currentProduct) return;
+      const p = AppState.currentProduct;
+      const prod = p.product || {};
+      const title = prod.title || p.title || 'Товар в KZ Price Hunter';
+      const best = (p.offers && p.offers[0]) ? p.offers[0] : (p.selected_offer || {});
+      const url = window.location.href;
+      const dealLike = {
+        title: title,
+        current_price: p.best_price || best.price || 0,
+        shop: best.seller_name || best.shop || '',
+        image_url: (p.images && p.images[0]) || p.image_url || '',
+        url: url
+      };
+      shareDeal(title, url, dealLike);
     }
 
     function isDealsShowcase() {
@@ -10515,6 +10781,7 @@
       };
       window.visualViewport.addEventListener('resize', syncModalViewport);
       syncModalViewport();
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
     function closeWatchModal(e) {
@@ -10523,6 +10790,7 @@
       }
       const modal = document.getElementById('watchModalBackdrop');
       if (modal) modal.classList.remove('open');
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
     function onWatchConditionChange(val) {
@@ -10591,6 +10859,7 @@
         return;
       }
 
+      if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('notification', 'success');
       closeWatchModal();
       const city = result.watch.city || 'все города';
       showToast(result.watch.already_existed
@@ -10836,11 +11105,13 @@
       const m = document.getElementById('modalChangelog');
       if (m) m.classList.add('open');
       if (!changelogLoaded) loadChangelog();
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
     function closeChangelogModal() {
       const m = document.getElementById('modalChangelog');
       if (m) m.classList.remove('open');
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
     function openRegisterSellerModal() {
@@ -10851,11 +11122,13 @@
         msg.textContent = '';
       }
       if (m) m.classList.add('open');
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
     function closeRegisterSellerModal() {
       const m = document.getElementById('modalRegisterSeller');
       if (m) m.classList.remove('open');
+      if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
     async function submitRegisterSellerForm(event) {
@@ -11327,6 +11600,7 @@
 
     // Init on load
     document.addEventListener('DOMContentLoaded', async () => {
+      TelegramApp.init();
       initTheme();
       initCity();
       loadVersion();
