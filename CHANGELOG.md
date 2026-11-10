@@ -3,6 +3,28 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.30.0] - 2026-11-10
+
+### Для пользователей
+- 🔐 Кнопки бота, ведущие на сайт («Все результаты на сайте», «Мои наблюдения», «Дашборд цен»), открывают его прямо в Telegram — входить заново не нужно.
+- 🔕 Если вы заблокировали бота, он перестаёт готовить для вас уведомления; после разблокировки или любого сообщения боту они возобновляются.
+- 🧩 Новые возможности бота, которые включаются постепенно:
+  - результаты `/search` приходят карточкой: по одному лучшему предложению от магазина, сортировка «дешевле / скидка больше / только со скидкой», кнопки «Следить за ценой» и «Обновить»;
+  - пока консультант готовит ответ, видно, чем он занят («Думаю…», поиск товаров, сравнение цен), и ответ можно остановить;
+  - находка, которая перестала быть правдой (цена выросла или товар сняли с продажи), помечается прямо в сообщении как неактуальная;
+  - быстрые команды бота доступны по кнопке меню и по «/».
+
+### Для разработчиков
+- 🤖 **Поколение TG: возможности Bot API 10.x — Claude**. Обзор, пределы и состояние — `docs/TELEGRAM_BOT.md`.
+  - **TGW-01** (`TELEGRAM_SEARCH_WIDGET=off|admins|all`, по умолчанию `off`): `telegram_widgets.py` собирает HTML-виджет карточки `/search` (пределы 32768 байт и 4096 байт после zlib-9, высота до 600 px), `telegram_bot.py` — `sendWidget`, `answerWidgetQuery`, `editMessageWidgetData`, обработка `widget_query`; при любом отказе отправляется прежний текст.
+  - **TG-05** (`TELEGRAM_MENU_BUTTON=off|commands|webapp`, по умолчанию `off`): `setMyCommands` и `setChatMenuButton` при запуске бота; раздел и подпись для `webapp` — `TELEGRAM_MENU_BUTTON_PATH`, `TELEGRAM_MENU_BUTTON_TEXT`.
+  - **TG-02** (`TELEGRAM_AI_DRAFTS=off|admins|all`, по умолчанию `off`): ход работы консультанта черновиком `sendMessageDraft` с кнопкой «Стоп» (`stopped_message_generation` обрабатывается мимо очереди чата); `ai_service.ask_ai_consultant` получил необязательный `on_stage`.
+  - **TG-04** (`TELEGRAM_BLOCK_TRACKING`, по умолчанию включено): аддитивная колонка `users.bot_blocked_at`; отметка по `my_chat_member` и по ответу 403, снятие при разблокировке или сообщении боту; получатели с отметкой исключаются из очереди и доставки. Поле `bot_blocked` в `/api/admin/users`, `bot_blocked_at` в выгрузке данных пользователя.
+  - **Кнопки на сайт** (`TELEGRAM_SITE_BUTTONS=webapp|url`, по умолчанию `webapp`): `notifier.site_button` делает `web_app`-кнопку для адресов сайта по https; запрос в ссылке на выдачу кодируется для URL.
+  - **TG-06** (`TELEGRAM_STALE_MARK=off|on`, по умолчанию `off`): аддитивные колонки `notification_outbox.tg_message_id`, `tg_has_photo`, `sent_at`, `stale_checked_at`; `notifier.mark_stale_alerts` раз в 5 минут правит до 5 устаревших находок (`editMessageCaption` / `editMessageText`).
+  - Схема базы: только аддитивные колонки через `_add_column`, версия схемы прежняя (5); код 6.29.5 открывает обновлённую базу.
+  - Тесты: `tests/notifications/test_search_widget.py`, `test_ai_drafts.py`, `test_bot_block_tracking.py`, `test_stale_alerts.py`.
+
 ## [6.29.5] - 2026-11-09
 
 ### Для пользователей
