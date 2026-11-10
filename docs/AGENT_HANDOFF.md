@@ -2,6 +2,36 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IMPLEMENTED TG-07: Виджет /watches карточкой — Antigravity (2026-11-10 21:40)
+
+- **Поручение владельца (чат, 2026-11-10):** выбор TG-07: Виджет `/watches` (компактная карточка со списком наблюдений и кнопками управления без спама сообщениями).
+- **Исполнитель:** Antigravity.
+- **Что сделано:**
+  1. `telegram_widgets.py`:
+     - `watches_widget_mode()`, `watches_widget_enabled(user_id)` (выключатель `TELEGRAM_WATCHES_WIDGET=off|admins|all`).
+     - `MAX_WATCHES = 8`, `REQUEST_DELETE_PREFIX = "d"`.
+     - `pick_watches(...)`: форматирование условий («любое снижение цены», «цена ниже X ₸», «скидка от Y%» и т.д.), иконки по типам наблюдений (поиск, товар, модель, категория).
+     - `_WATCHES_TEMPLATE` и `build_watches_widget(...)`: HTML/CSS/JS карточка с подгонкой высоты (`fit()`), кнопками быстрого отключения «🔕» в строке, кнопкой «↻ Обновить» и статусной строкой.
+     - `build_watches_caption(...)`: подпись к карточке (`🔔 Ваши наблюдения за ценами (N активных)`).
+     - `build_watches_chat_data(...)`: компактная сериализация активных ID для тихого обновления интерфейса карточки.
+  2. `telegram_bot.py`:
+     - `_send_watches_widget`: отправка карточки виджета при включённом выключателе и непустом списке активных наблюдений.
+     - `handle_watches_command`: интеграция виджета с fallback на стандартное текстовое сообщение при выключенном режиме, пустом списке или отказе `sendWidget`.
+     - `handle_widget_query`: обработка запросов виджета `d<watch_id>` (удаление через `delete_watch` и тихое обновление `chat_data` карточки без новых сообщений в чат) и `r` (обновление списка активных наблюдений из базы с cooldown 30 секунд).
+  3. `.env.example`: добавлена переменная `TELEGRAM_WATCHES_WIDGET=off`.
+  4. Тесты: новый файл `tests/notifications/test_watches_widget.py` (16 тестов: верстка, сжатие, лимиты, выключатель, отправка виджета, fallback, удаление и обновление через widget_query).
+  5. Документация: обновлены `docs/TELEGRAM_BOT.md` (раздел 2е и таблицы) и `docs/DEVELOPMENT_PLAN.md`.
+- **Проверено:**
+  - `pytest tests/notifications/test_watches_widget.py` — **16 passed** in 0.18s;
+  - `pytest tests/notifications/test_search_widget.py` — **25 passed** in 0.15s;
+  - `pytest tests/notifications` — **257 passed** in 12.23s.
+- **Не проверено:**
+  - Работа в реальном клиенте Telegram на стенде (требует переноса на стенд через git bundle).
+- **Следующий точный шаг:**
+  - Перенести на стенд без push через `git bundle` (согласно `docs/AGENT_HANDOFF.md`) для проверки владельцем в `@kzph_dev_bot`, либо выбрать следующую задачу поколения TG (TG-09, TG-08, TG-03).
+
+---
+
 ## PROD_CONFIG v6.30.0 → Владелец: возможности бота включены на проде как на стенде — Claude (2026-11-10)
 
 - **Поручение владельца (чат, 2026-11-10):** «Да, как на стенде» — в ответ на вопрос «Включить на проде тот же набор возможностей, что на стенде?».

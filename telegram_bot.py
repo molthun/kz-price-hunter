@@ -351,6 +351,10 @@ async def handle_watches_command(session: aiohttp.ClientSession, token: str, cha
         await send_tg_message(session, token, chat_id, text, reply_markup)
         return
 
+    # TG-07: карточка-виджет наблюдений; при любом отказе — прежнее текстовое сообщение ниже
+    if telegram_widgets.watches_widget_enabled(chat_id) and await _send_watches_widget(session, token, chat_id, watches):
+        return
+
     text = f"🔔 <b>Ваши активные наблюдения ({len(watches)}):</b>\n\n"
     keyboard = []
     for idx, w in enumerate(watches[:15], 1):
@@ -408,12 +412,31 @@ async def _send_search_widget(session: aiohttp.ClientSession, token: str, chat_i
                                       {"inline_keyboard": keyboard} if keyboard else None)
     if message_id is None:
         return False
-    _widget_cards[(chat_id, message_id)] = {"query": query, "offers": offers, "refreshed": 0.0}
+    _widget_cards[(chat_id, message_id)] = {"type": "search", "query": query, "offers": offers, "refreshed": 0.0}
+    return True
+
+
+async def _send_watches_widget(session: aiohttp.ClientSession, token: str, chat_id: int,
+                               watches: List[Dict[str, Any]]) -> bool:
+    """Карточка-виджет наблюдений вместо текста. False — карточки нет, вызывающий код отправляет текст."""
+    built = telegram_widgets.build_watches_widget(watches)
+    if not built:
+        return False
+    widget_html, watch_items = built
+    keyboard = []
+    if APP_URL:
+        keyboard.append([site_button("⚙️ Все наблюдения на сайте", APP_URL)])
+    message_id = await send_tg_widget(session, token, chat_id, widget_html,
+                                      telegram_widgets.build_watches_caption(watch_items, len(watches)),
+                                      {"inline_keyboard": keyboard} if keyboard else None)
+    if message_id is None:
+        return False
+    _widget_cards[(chat_id, message_id)] = {"type": "watches", "watches": watch_items, "refreshed": 0.0}
     return True
 
 
 async def handle_widget_query(session: aiohttp.ClientSession, token: str, wq: Dict[str, Any]):
-    """Нажатие в карточке: «Следить» или «Обновить». Отвечаем всегда — иначе карточка ждёт 15 секунд."""
+    """Нажатие в карточке: «Следить», «Обновить», «Отключить». Отвечаем всегда — иначе карточка ждёт 15 секунд."""
     wq_id = str(wq.get("id") or "")
     from_user = wq.get("from") or {}
     user_id = from_user.get("id")
@@ -434,7 +457,55 @@ async def handle_widget_query(session: aiohttp.ClientSession, token: str, wq: Di
     if not card:
         await answer_widget_query(session, token, wq_id, "Карточка устарела — повторите /search")
         return
+    card_type = card.get("type", "search")
     action = str(wq.get("data") or "")
+
+    if card_type == "watches":
+        if action.startswith(telegram_widgets.REQUEST_DELETE_PREFIX):
+            watch_id_str = action[len(telegram_widgets.REQUEST_DELETE_PREFIX):]
+            try:
+                watch_id = int(watch_id_str)
+            except ValueError:
+                await answer_widget_query(session, token, wq_id, "Некорректный запрос")
+                return
+            try:
+                from database import delete_watch, list_watches
+                deleted = await asyncio.to_thread(delete_watch, user_id, watch_id)
+            except Exception as e:
+                print(f"[Telegram Bot] Ошибка отключения наблюдения из карточки: {type(e).__name__}")
+                await answer_widget_query(session, token, wq_id, "Не получилось отключить")
+                return
+            if deleted:
+                current_watches = await asyncio.to_thread(list_watches, user_id, only_active=True)
+                active_ids = {w["id"] for w in current_watches}
+                chat_data = telegram_widgets.build_watches_chat_data(card["watches"], active_ids)
+                await edit_tg_widget_data(session, token, chat_id, message_id, chat_data)
+                await answer_widget_query(session, token, wq_id, "Наблюдение отключено")
+            else:
+                await answer_widget_query(session, token, wq_id, "Наблюдение уже не активно")
+            return
+
+        if action == telegram_widgets.REQUEST_REFRESH:
+            if time.monotonic() - card.get("refreshed", 0.0) < WIDGET_REFRESH_COOLDOWN_SECONDS:
+                await answer_widget_query(session, token, wq_id, "Список только что обновлён")
+                return
+            try:
+                from database import list_watches
+                current_watches = await asyncio.to_thread(list_watches, user_id, only_active=True)
+                active_ids = {w["id"] for w in current_watches}
+                chat_data = telegram_widgets.build_watches_chat_data(card["watches"], active_ids)
+            except Exception as e:
+                print(f"[Telegram Bot] Ошибка обновления карточки наблюдений: {type(e).__name__}")
+                await answer_widget_query(session, token, wq_id, "Не получилось обновить список")
+                return
+            updated = await edit_tg_widget_data(session, token, chat_id, message_id, chat_data)
+            if updated:
+                card["refreshed"] = time.monotonic()
+            await answer_widget_query(session, token, wq_id, "Список обновлён" if updated else "Не получилось обновить")
+            return
+
+        await answer_widget_query(session, token, wq_id)
+        return
 
     if action == telegram_widgets.REQUEST_WATCH:
         if not user:
