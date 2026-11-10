@@ -237,7 +237,7 @@ class BotMenuTests(unittest.TestCase):
     def test_commands_mode_registers_handled_commands_and_default_button(self):
         calls = dict(bot.menu_setup_calls('commands', 'https://shop.example.kz'))
         commands = [c['command'] for c in calls['setMyCommands']['commands']]
-        self.assertEqual(commands, ['search', 'deals', 'favorites', 'ai', 'watches', 'new', 'status', 'help'])
+        self.assertEqual(commands, ['search', 'deals', 'favorites', 'scan', 'ai', 'watches', 'new', 'status', 'help'])
         self.assertEqual(calls['setChatMenuButton']['menu_button'], {'type': 'commands'})
         source = open(bot.__file__, encoding='utf-8').read()
         for command in commands:  # в меню только команды, которые бот действительно обрабатывает

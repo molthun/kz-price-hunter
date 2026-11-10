@@ -2,6 +2,39 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IMPLEMENTED TG-25 (сканер штрих-кодов и /scan) + TG-26 (MainButton и SecondaryButton) + TG-27 (requestWriteAccess) — Antigravity (2026-11-11 00:43)
+
+- **Поручение владельца (чат, 2026-11-10):** «продолжай дальше». Работаем на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`. Готовится сборка bundle и деплой на стенд.
+- **Область файлов:** `telegram_bot.py`, `web/templates/search_first.html`, `tests/notifications/test_effects_and_keyboard.py`, `tests/notifications/test_search_widget.py`, `tests/notifications/test_scanner_and_miniapp_buttons.py`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`.
+- **Что сделано:**
+  1. **TG-25 (Нативный сканер QR- и штрих-кодов, Bot API 6.4/7.7):**
+     - В `telegram_bot.py` реализована команда `/scan` и обработка кнопки «📷 Сканер штрихкода».
+     - Добавлена кнопка сканера с `web_app` в постоянную клавиатуру `ReplyKeyboardMarkup`.
+     - В меню `BOT_COMMANDS` и `BOT_COMMANDS_KK` добавлена команда `scan`.
+     - В `web/templates/search_first.html` встроена кнопка вызова сканера в поисковую строку главной страницы и в карточку профиля.
+     - В `TelegramApp` реализован метод `scanQrCode()` с вызовом нативного `tg.showScanQrPopup`, тактильным виброоткликом, распознаванием EAN/UPC штрихкодов в магазинах и мгновенным поиском.
+     - В `handleStartParam()` поддержан параметр запуска `scan=1` для автоматического открытия сканера из меню бота.
+  2. **TG-26 (Нативные системные кнопки MainButton и SecondaryButton, Bot API 7.10+):**
+     - В `TelegramApp` реализованы методы `showProductActions(product)` и `hideProductActions()`.
+     - При открытии товара нижняя нативная панель Telegram адаптируется: `MainButton` («🛍 Купить от X ₸») и `SecondaryButton` («🔔 Следить за ценой»).
+     - При переходе между разделами обе кнопки плавно скрываются.
+  3. **TG-27 (Запрос системного разрешения на сообщения requestWriteAccess, Bot API 6.9+):**
+     - Метод `TelegramApp.requestWriteAccess()` запрашивает у Telegram разрешение на доставку уведомлений при сохранении наблюдений или добавлении в избранное.
+  4. **Тесты и документация:**
+     - Создан `tests/notifications/test_scanner_and_miniapp_buttons.py` (5 тестов).
+     - Обновлены `test_search_widget.py` и `test_effects_and_keyboard.py`.
+     - Обновлены разделы в `docs/TELEGRAM_BOT.md` и `docs/DEVELOPMENT_PLAN.md`.
+- **Проверки:**
+  - Локально: `venv/bin/python3 -m unittest tests/notifications/test_scanner_and_miniapp_buttons.py`: 5 тестов OK (0.006s).
+  - Локально: `venv/bin/python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 343 теста OK (12.080s).
+- **Следующий точный шаг:**
+  - Закоммитить локально, собрать `git bundle`, доставить на стенд `192.168.28.25:2222`, сделать `git merge --ff-only`, пересобрать Docker-контейнер стенда, прогнать тесты внутри контейнера, проверить `api/health` и обновить статус до `STAND_DEPLOYED`.
+
+---
+
 ## STAND_DEPLOYED TG-22 (нативные реакции) + TG-23 (команды /deals и /favorites) + TG-24 (интерактивный шеринг скидок и поиска chosen chat) — Antigravity (2026-11-11 00:22)
 
 - **Поручение владельца (чат, 2026-11-10):** «Делай дальше. нужны самые последние фишки телеграм в боте. самые лучшие.» -> «продолжи по плану» -> «Делаем». Работаем на стенде, в прод ничего не отправляем.

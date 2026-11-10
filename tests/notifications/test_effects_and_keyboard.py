@@ -1,4 +1,5 @@
 """Тесты визуальных эффектов (TG-14, Bot API 7.5), постоянной клавиатуры (TG-15) и профиля (ru/kk)."""
+from tests import test_support  # noqa: F401
 import unittest
 from unittest.mock import patch, Mock, AsyncMock
 
@@ -77,14 +78,17 @@ class ReplyKeyboardAndProfileTests(unittest.TestCase):
         self.assertTrue(kb.get("is_persistent"))
         self.assertTrue(kb.get("resize_keyboard"))
         buttons = kb.get("keyboard", [])
-        self.assertEqual(len(buttons), 2)
-        # First row has web_app button
+        self.assertEqual(len(buttons), 3)
+        # First row has web_app catalog and barcode scanner buttons
         first_btn = buttons[0][0]
         self.assertEqual(first_btn["text"], "🛍 Открыть каталог")
         self.assertEqual(first_btn["web_app"]["url"], "https://shdev.molthun.ru")
-        self.assertEqual(buttons[0][1]["text"], "🔥 Горячие скидки")
-        self.assertEqual(buttons[1][0]["text"], "🔔 Мои наблюдения")
-        self.assertEqual(buttons[1][1]["text"], "🤖 AI-Консультант")
+        self.assertEqual(buttons[0][1]["text"], "📷 Сканер штрихкода")
+        self.assertIn("scan=1", buttons[0][1]["web_app"]["url"])
+        self.assertEqual(buttons[1][0]["text"], "🔥 Горячие скидки")
+        self.assertEqual(buttons[1][1]["text"], "❤️ Избранное")
+        self.assertEqual(buttons[2][0]["text"], "🔔 Мои наблюдения")
+        self.assertEqual(buttons[2][1]["text"], "🤖 AI-Консультант")
 
     def test_profile_setup_calls_contains_ru_and_kk(self):
         calls = profile_setup_calls()

@@ -502,10 +502,14 @@ def get_default_reply_keyboard(app_url: str = "") -> Dict[str, Any]:
     first_row = []
     if target_url and target_url.startswith("https://"):
         first_row.append({"text": "🛍 Открыть каталог", "web_app": {"url": target_url}})
-    first_row.append({"text": "🔥 Горячие скидки"})
+        first_row.append({"text": "📷 Сканер штрихкода", "web_app": {"url": f"{target_url}?scan=1"}})
+    else:
+        first_row.append({"text": "🛍 Открыть каталог"})
+        first_row.append({"text": "🔥 Горячие скидки"})
 
     keyboard = [
         first_row,
+        [{"text": "🔥 Горячие скидки"}, {"text": "❤️ Избранное"}],
         [{"text": "🔔 Мои наблюдения"}, {"text": "🤖 AI-Консультант"}]
     ]
     return {
@@ -1066,6 +1070,30 @@ async def handle_favorites_command(
     )
 
 
+async def handle_scan_command(
+    session: aiohttp.ClientSession,
+    token: str,
+    chat_id: int,
+    message_thread_id: Optional[int] = None,
+):
+    """TG-25: команда /scan (Сканер штрихкодов и QR-кодов в магазине, Bot API 6.4/7.7)."""
+    target_url = APP_URL or config.PUBLIC_ORIGIN or ""
+    scan_url = f"{target_url}?scan=1" if target_url else ""
+    keyboard = []
+    if scan_url:
+        keyboard.append([{"text": "📷 Открыть сканер штрихкода", "web_app": {"url": scan_url}}])
+    keyboard.append([choose_chat_button("📤 Поделиться сканером с другом", query="сканер")])
+    reply_markup = {"inline_keyboard": keyboard} if keyboard else None
+    text = (
+        "📷 <b>Сканер штрихкодов и QR-кодов KZ Price Hunter</b>\n\n"
+        "Находитесь в магазине электроники или супермаркете (Kaspi, Technodom, Sulpak, Magnum)?\n\n"
+        "Нажмите кнопку ниже, чтобы открыть камеру прямо в Telegram:\n"
+        "• Мгновенно распознает штрихкод товара на коробке или ценнике\n"
+        "• Покажет сравнение цен и где купить дешевле всего в Казахстане!"
+    )
+    await send_tg_message(session, token, chat_id, text, reply_markup=reply_markup, message_thread_id=message_thread_id)
+
+
 # Память диалога консультанта в Telegram: chat_id -> (время последней реплики, реплики)
 CHAT_HISTORY_TTL_SECONDS = 30 * 60
 # Истёкшие диалоги удаляются сами, а не при следующем сообщении того же чата (M03)
@@ -1412,6 +1440,9 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
     elif cmd in ("/favorites", "/favs", "/saved"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "❤️")
         await handle_favorites_command(session, token, chat_id, user_id, **kwargs)
+    elif cmd in ("/scan", "/barcode", "/qr"):
+        await set_tg_message_reaction(session, token, chat_id, message_id, "📷")
+        await handle_scan_command(session, token, chat_id, **kwargs)
     elif cmd in ("/search", "/find", "/price"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "🔍")
         query = text[len(cmd):].strip()
@@ -1434,6 +1465,10 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
         elif clean_text in ("❤️ Избранное", "Моё избранное", "Таңдаулы"):
             await set_tg_message_reaction(session, token, chat_id, message_id, "❤️")
             await handle_favorites_command(session, token, chat_id, user_id, **kwargs)
+            return
+        elif clean_text in ("📷 Сканер штрихкода", "📷 Сканер", "Сканер", "Штрихкод"):
+            await set_tg_message_reaction(session, token, chat_id, message_id, "📷")
+            await handle_scan_command(session, token, chat_id, **kwargs)
             return
         elif clean_text in ("🤖 AI-Консультант", "AI-Консультант"):
             await set_tg_message_reaction(session, token, chat_id, message_id, "✨")
@@ -1463,6 +1498,7 @@ BOT_COMMANDS = [
     ("search", "Лучшие цены на товар"),
     ("deals", "Горячие скидки прямо сейчас"),
     ("favorites", "Мои сохранённые товары"),
+    ("scan", "Сканер штрихкодов в магазине"),
     ("ai", "Спросить AI-консультанта"),
     ("watches", "Мои наблюдения за ценами"),
     ("new", "Новый разговор с консультантом"),
@@ -1474,6 +1510,7 @@ BOT_COMMANDS_KK = [
     ("search", "Тауар бағаларын салыстыру"),
     ("deals", "Ыстық жеңілдіктер мен бағалар"),
     ("favorites", "Менің таңдаулыларым"),
+    ("scan", "Дүкендегі штрихкод сканері"),
     ("ai", "AI-кеңесшіден сұрау"),
     ("watches", "Менің бақылауларым"),
     ("new", "Жаңа диалог"),

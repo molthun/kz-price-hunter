@@ -418,6 +418,26 @@
       background: var(--primary-hover);
     }
 
+    .search-scan-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 8px 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-full);
+      transition: color 0.15s, background-color 0.15s;
+      flex-shrink: 0;
+      margin-right: 4px;
+    }
+
+    .search-scan-btn:hover {
+      color: var(--primary);
+      background: var(--bg-hover);
+    }
+
     /* Quick Filter Chips */
     .quick-chips-wrapper {
       display: flex;
@@ -4922,6 +4942,15 @@
             placeholder="Что хотите найти? Например: iPhone 16, ноутбук, кроссовки..."
             autocomplete="off"
           />
+          <button type="button" class="search-scan-btn" onclick="TelegramApp.scanQrCode()" title="Сканировать штрихкод или QR-код товара" aria-label="Сканировать штрихкод товара">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+              <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+              <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+              <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+              <line x1="7" y1="12" x2="17" y2="12"></line>
+            </svg>
+          </button>
           <button type="submit" class="search-btn-home">
             <span>🔍</span>
             <span>Найти</span>
@@ -5474,6 +5503,9 @@
           <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
             <button type="button" class="btn-secondary-action" id="profileAddToHomeBtn" onclick="TelegramApp.addToHomeScreen()" style="display: none;">
               <span>📲</span> <span>Добавить на экран «Домой»</span>
+            </button>
+            <button type="button" class="btn-secondary-action" onclick="TelegramApp.scanQrCode()">
+              <span>📷</span> <span>Сканер штрихкодов</span>
             </button>
             <button type="button" class="btn-secondary-action" onclick="if(TelegramApp.tg && TelegramApp.tg.requestFullscreen) TelegramApp.tg.requestFullscreen();">
               <span>⛶</span> <span>На весь экран</span>
@@ -6642,10 +6674,110 @@
         }
       },
 
+      // TG-25: Нативный сканер QR- и штрих-кодов (Bot API 6.4/7.7)
+      scanQrCode() {
+        if (this.tg && typeof this.tg.showScanQrPopup === 'function') {
+          try {
+            this.haptic('impact', 'light');
+            this.tg.showScanQrPopup({
+              text: 'Наведите камеру на штрихкод (EAN/UPC) или QR-код товара'
+            }, (text) => {
+              if (!text) return false;
+              this.haptic('notification', 'success');
+              if (typeof this.tg.closeScanQrPopup === 'function') {
+                this.tg.closeScanQrPopup();
+              }
+              const homeInput = document.getElementById('homeSearchInput');
+              if (homeInput) homeInput.value = text;
+              executeDirectSearch(text);
+              return true;
+            });
+            return true;
+          } catch (e) {
+            console.warn('showScanQrPopup error:', e);
+          }
+        }
+        if (typeof showToast === 'function') {
+          showToast('📷 Наведите камеру на штрихкод товара в мобильном Telegram Mini App');
+        }
+        return false;
+      },
+
+      // TG-26: Нативные кнопки MainButton и SecondaryButton в Mini App (Bot API 7.10+)
+      showProductActions(product) {
+        if (!this.tg) return;
+        try {
+          const offers = product.offers || [];
+          const best = (offers.length > 0) ? offers[0] : (product.best_offer || {});
+          const bestPrice = product.best_price || best.price || 0;
+          const bestUrl = best.url || '';
+
+          if (this.tg.MainButton) {
+            const btnText = bestPrice ? `🛍 Купить от ${formatPrice(bestPrice)}` : '🛍 Перейти к предложению';
+            this.tg.MainButton.setText(btnText);
+            this.tg.MainButton.onClick(this._onMainButtonClick = () => {
+              this.haptic('impact', 'medium');
+              if (bestUrl) window.open(bestUrl, '_blank');
+            });
+            this.tg.MainButton.show();
+          }
+
+          if (this.tg.SecondaryButton) {
+            this.tg.SecondaryButton.setText('🔔 Следить за ценой');
+            this.tg.SecondaryButton.onClick(this._onSecondaryButtonClick = () => {
+              this.haptic('selection');
+              openWatchModalFromDetail();
+            });
+            this.tg.SecondaryButton.show();
+          }
+        } catch (e) {
+          console.warn('showProductActions error:', e);
+        }
+      },
+
+      hideProductActions() {
+        if (!this.tg) return;
+        try {
+          if (this.tg.MainButton) {
+            if (this._onMainButtonClick) {
+              this.tg.MainButton.offClick(this._onMainButtonClick);
+              this._onMainButtonClick = null;
+            }
+            this.tg.MainButton.hide();
+          }
+          if (this.tg.SecondaryButton) {
+            if (this._onSecondaryButtonClick) {
+              this.tg.SecondaryButton.offClick(this._onSecondaryButtonClick);
+              this._onSecondaryButtonClick = null;
+            }
+            this.tg.SecondaryButton.hide();
+          }
+        } catch (e) {}
+      },
+
+      // TG-27: Запрос разрешения на отправку сообщений (Bot API 6.9+)
+      requestWriteAccess(callback) {
+        if (this.tg && typeof this.tg.requestWriteAccess === 'function') {
+          try {
+            this.tg.requestWriteAccess((allowed) => {
+              if (typeof callback === 'function') callback(allowed);
+            });
+            return true;
+          } catch (e) {
+            console.warn('requestWriteAccess error:', e);
+          }
+        }
+        if (typeof callback === 'function') callback(false);
+        return false;
+      },
+
       handleStartParam() {
         if (!this.tg) return;
         try {
           const param = this.tg.initDataUnsafe?.start_param || new URLSearchParams(window.location.search).get('tgWebAppStartParam');
+          if (param === 'scan' || new URLSearchParams(window.location.search).get('scan') === '1') {
+            setTimeout(() => this.scanQrCode(), 300);
+          }
           if (!param) return;
           if (param.startsWith('p_')) {
             const prodId = param.slice(2);
@@ -7197,6 +7329,10 @@
       const activeEl = document.getElementById(viewId);
       if (activeEl) activeEl.classList.add('active');
       window.scrollTo(0, 0);
+      if (typeof TelegramApp !== 'undefined') {
+        if (viewId !== 'viewDetail') TelegramApp.hideProductActions();
+        TelegramApp.updateBackButton();
+      }
     }
 
     // -------------------------------------------------------------
@@ -9109,6 +9245,14 @@
         if (opt.values.some(v => v.value === wanted)) detailSelectedOptions[opt.id] = wanted;
       });
       applyDetailOptions();
+      if (typeof TelegramApp !== 'undefined') {
+        TelegramApp.showProductActions({
+          title: prod.title,
+          best_price: data.min_price,
+          best_offer: data.best_offer || (offers[0] || null),
+          offers: offers
+        });
+      }
     }
 
     let productPhotoUrls=[],productPhotoIndex=0,productPhotoZoom=1,photoScrollRestore=null,photoTouchStart=null,photoSkipImageClickUntil=0;
@@ -9946,7 +10090,10 @@
           list.unshift(entry);
           added = true;
           showToast('Добавлено в избранное ♡');
-          if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('notification', 'success');
+          if (typeof TelegramApp !== 'undefined') {
+        TelegramApp.haptic('notification', 'success');
+        TelegramApp.requestWriteAccess();
+      }
           fetch('/api/me/favorites', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -11015,7 +11162,10 @@
         return;
       }
 
-      if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('notification', 'success');
+      if (typeof TelegramApp !== 'undefined') {
+        TelegramApp.haptic('notification', 'success');
+        TelegramApp.requestWriteAccess();
+      }
       closeWatchModal();
       const city = result.watch.city || 'все города';
       showToast(result.watch.already_existed
