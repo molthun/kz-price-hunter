@@ -582,6 +582,13 @@ def topics_mode_enabled() -> bool:
     return os.getenv("TELEGRAM_TOPICS", "").strip().lower() in ("on", "1", "true", "yes")
 
 
+def message_effects_enabled() -> bool:
+    """TG-14: визуальные эффекты сообщений Telegram (message_effect_id, Bot API 7.5).
+    По умолчанию on; TELEGRAM_MESSAGE_EFFECTS=off отключает.
+    """
+    return os.getenv("TELEGRAM_MESSAGE_EFFECTS", "on").strip().lower() not in ("off", "0", "false", "no")
+
+
 def get_bot_token():
     """Токен Telegram-бота: переменная окружения, для совместимости — старое поле settings.json."""
     return (

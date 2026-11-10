@@ -38,6 +38,7 @@ from database import get_user
 _message_limiter = RateLimiter(max_calls=10, period=60)
 from search_engine import search_in_database
 import telegram_widgets
+from notifier import EFFECT_FIRE, EFFECT_CONFETTI
 
 # Пилот TGW-01: карточка /search виджетом. Запросы карточки ограничены отдельно от сообщений,
 # иначе нажатия в карточке съедали бы лимит переписки с консультантом.
@@ -84,6 +85,7 @@ async def send_tg_message(
     text: str,
     reply_markup: Optional[Dict[str, Any]] = None,
     message_thread_id: Optional[int] = None,
+    message_effect_id: Optional[str] = None,
 ):
     """Отправляет текстовое сообщение пользователю через Telegram Bot API."""
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -95,6 +97,8 @@ async def send_tg_message(
     }
     if message_thread_id is not None:
         payload["message_thread_id"] = message_thread_id
+    if message_effect_id:
+        payload["message_effect_id"] = message_effect_id
     if reply_markup:
         payload["reply_markup"] = reply_markup
 
@@ -117,6 +121,7 @@ async def send_tg_rich_message(
     markdown: str,
     reply_markup: Optional[Dict[str, Any]] = None,
     message_thread_id: Optional[int] = None,
+    message_effect_id: Optional[str] = None,
 ) -> bool:
     """TG-03: отправляет структурированное Rich Message (Bot API 10.1+).
     Возвращает True при успехе, False при ошибке (вызывающий код делает fallback на send_tg_message).
@@ -130,6 +135,8 @@ async def send_tg_rich_message(
     }
     if message_thread_id is not None:
         payload["message_thread_id"] = message_thread_id
+    if message_effect_id:
+        payload["message_effect_id"] = message_effect_id
     if reply_markup:
         payload["reply_markup"] = reply_markup
     try:
@@ -462,6 +469,25 @@ def decode_deep_link_param(param: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def get_default_reply_keyboard(app_url: str = "") -> Dict[str, Any]:
+    """TG-15: постоянная нижняя клавиатура быстрого доступа с кнопкой запуска Mini App (Bot API 7.0)."""
+    target_url = app_url or APP_URL or config.PUBLIC_ORIGIN or ""
+    first_row = []
+    if target_url and target_url.startswith("https://"):
+        first_row.append({"text": "🛍 Открыть каталог", "web_app": {"url": target_url}})
+    first_row.append({"text": "🔥 Горячие скидки"})
+
+    keyboard = [
+        first_row,
+        [{"text": "🔔 Мои наблюдения"}, {"text": "🤖 AI-Консультант"}]
+    ]
+    return {
+        "keyboard": keyboard,
+        "resize_keyboard": True,
+        "is_persistent": True
+    }
+
+
 async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_id: int,
                                user_first_name: str = "", payload: str = "",
                                from_user: Optional[Dict[str, Any]] = None,
@@ -609,10 +635,7 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
         "Для поиска без AI используйте /search; /new очищает текущий контекст.\n\n"
         "🔔 Уведомления включаются в личных настройках сайта."
     )
-    keyboard = []
-    if APP_URL:
-        keyboard.append([site_button("📊 Открыть дашборд цен", APP_URL)])
-    reply_markup = {"inline_keyboard": keyboard} if keyboard else None
+    reply_markup = get_default_reply_keyboard(APP_URL)
     await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
 
 
@@ -1239,6 +1262,49 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
         query = text[len(cmd):].strip()
         await handle_ai_consultant_message(session, token, chat_id, query, **kwargs)
     else:
+        # Быстрые действия постоянной клавиатуры (TG-15)
+        clean_text = text.strip()
+        if clean_text in ("🔥 Горячие скидки", "🔥 Топ скидки", "Горячие скидки"):
+            from database import get_alerts
+            alerts = await asyncio.to_thread(get_alerts, limit=5)
+            if alerts:
+                lines = ["🔥 <b>Топ горячих скидок в магазинах Казахстана:</b>\n"]
+                keyboard = []
+                for it in alerts:
+                    p = format_price(int(it.get("price") or 0))
+                    drop = it.get("drop_pct") or 0
+                    shop = it.get("shop") or "Магазин"
+                    title = html.escape(str(it.get("title") or "Товар"))
+                    emoji = _shop_emoji(shop)
+                    lines.append(f"{emoji} <b>-{drop}%</b> | {p} — {title} ({shop})")
+                    if it.get("url") and it["url"].startswith("http"):
+                        keyboard.append([url_button(f"{emoji} {shop}: {p}", it["url"], style="primary")])
+                if APP_URL:
+                    keyboard.append([site_button("📊 Все скидки на сайте", APP_URL)])
+                reply_markup = {"inline_keyboard": keyboard} if keyboard else None
+                await send_tg_message(session, token, chat_id, "\n".join(lines), reply_markup=reply_markup, message_effect_id=EFFECT_FIRE, **kwargs)
+            else:
+                await send_tg_message(session, token, chat_id, "ℹ️ Сейчас нет новых аномалий цен. Попробуйте поиск <code>/search &lt;товар&gt;</code>.", **kwargs)
+            return
+        elif clean_text in ("🔔 Мои наблюдения", "Мои наблюдения"):
+            await handle_watches_command(session, token, chat_id, **kwargs)
+            return
+        elif clean_text in ("🤖 AI-Консультант", "AI-Консультант"):
+            prompt_text = (
+                "✨ <b>AI-Консультант KZ Price Hunter готов помочь!</b>\n\n"
+                "Задайте любой вопрос по выбору техники, продуктов или товаров для дома прямо в чат, например:\n"
+                "• <i>«Какой игровой ноутбук выбрать до 350к?»</i>\n"
+                "• <i>«Посоветуй надежную стиральную машину»</i>\n"
+                "• <i>«Сравни iPhone 15 и Samsung S24»</i>"
+            )
+            await send_tg_message(session, token, chat_id, prompt_text, **kwargs)
+            return
+        elif clean_text in ("🛍 Открыть каталог", "Каталог"):
+            if APP_URL:
+                await send_tg_message(session, token, chat_id, "🛍 <b>Каталог товаров и скидок:</b>",
+                                      reply_markup={"inline_keyboard": [[site_button("📊 Открыть каталог", APP_URL)]]}, **kwargs)
+            return
+
         # Любое обычное сообщение без слеша считается вопросом к AI-консультанту
         await handle_ai_consultant_message(session, token, chat_id, text, **kwargs)
 
@@ -1253,6 +1319,61 @@ BOT_COMMANDS = [
     ("status", "Состояние сервиса"),
     ("help", "Что умеет бот"),
 ]
+
+BOT_COMMANDS_KK = [
+    ("search", "Тауар бағаларын салыстыру"),
+    ("ai", "AI-кеңесшіден сұрау"),
+    ("watches", "Менің бақылауларым"),
+    ("new", "Жаңа диалог"),
+    ("status", "Бот жағдайы"),
+    ("help", "Бот көмегі"),
+]
+
+BOT_DESCRIPTION_RU = (
+    "🤖 KZ Price Hunter — умный поисковик лучших цен и скидок в магазинах Казахстана "
+    "(Kaspi, DNS, Белый Ветер, Мечта, Sulpak, 12 Месяцев, Arbuz и др.).\n\n"
+    "⚡️ Сравнение цен по магазинам\n"
+    "🔥 Уведомления о падении цен\n"
+    "🧠 Персональный AI-консультант"
+)
+
+BOT_DESCRIPTION_KK = (
+    "🤖 KZ Price Hunter — Қазақстан дүкендеріндегі ең тиімді бағалар мен жеңілдіктерді іздейтін ақылды сервис "
+    "(Kaspi, DNS, Белый Ветер, Мечта, Sulpak, 12 Месяцев, Arbuz және т.б.).\n\n"
+    "⚡️ Дүкендер бойынша бағаларды салыстыру\n"
+    "🔥 Баға түскенде хабарлама жіберу\n"
+    "🧠 AI-кеңесші көмегі"
+)
+
+BOT_SHORT_DESCRIPTION_RU = "Поиск лучших цен, скидки и AI-консультант в магазинах Казахстана 🇰🇿"
+BOT_SHORT_DESCRIPTION_KK = "Қазақстан дүкендеріндегі ең тиімді бағалар мен жеңілдіктер 🇰🇿"
+
+
+def profile_setup_calls() -> List[tuple]:
+    """TG-05б: вызовы Bot API для установки двуязычного описания и команд (ru/kk, Bot API 6.7/7.0)."""
+    return [
+        ("setMyDescription", {"description": BOT_DESCRIPTION_RU, "language_code": "ru"}),
+        ("setMyDescription", {"description": BOT_DESCRIPTION_KK, "language_code": "kk"}),
+        ("setMyDescription", {"description": BOT_DESCRIPTION_RU}),
+        ("setMyShortDescription", {"short_description": BOT_SHORT_DESCRIPTION_RU, "language_code": "ru"}),
+        ("setMyShortDescription", {"short_description": BOT_SHORT_DESCRIPTION_KK, "language_code": "kk"}),
+        ("setMyShortDescription", {"short_description": BOT_SHORT_DESCRIPTION_RU}),
+        ("setMyCommands", {"commands": [{"command": c, "description": d} for c, d in BOT_COMMANDS], "language_code": "ru"}),
+        ("setMyCommands", {"commands": [{"command": c, "description": d} for c, d in BOT_COMMANDS_KK], "language_code": "kk"}),
+    ]
+
+
+async def setup_bot_profile(session: aiohttp.ClientSession, token: str) -> None:
+    """Устанавливает локализованные описания и команды."""
+    for method, payload in profile_setup_calls():
+        try:
+            async with session.post(f"https://api.telegram.org/bot{token}/{method}", json=payload,
+                                    timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                pass
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass
 # Main App (кнопка «Открыть» в профиле бота) уже ведёт на главную сайта, поэтому кнопка меню открывает
 # отдельный раздел. Разделы сайта, доступные по прямому адресу: /deals, /search, /favorites, /profile.
 MENU_BUTTON_DEFAULT_PATH = "/deals"
@@ -1299,6 +1420,7 @@ async def setup_bot_menu(session: aiohttp.ClientSession, token: str) -> None:
             raise
         except Exception as e:
             print(f"[Telegram Bot] Ошибка {method}: {type(e).__name__}")
+    await setup_bot_profile(session, token)
 
 
 class TelegramDispatcher:

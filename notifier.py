@@ -29,6 +29,13 @@ SHOP_EMOJI = [
     (("ispace",), "🍏"),
 ]
 
+# TG-14: стандартные визуальные эффекты сообщений Telegram (Bot API 7.5)
+EFFECT_FIRE = "5104841245755180586"       # 🔥 Огонь (горячие скидки, падение цены)
+EFFECT_CONFETTI = "5046509860389126442"   # 🎉 Конфетти (срабатывание наблюдения)
+EFFECT_THUMBS_UP = "5107584321108051014"  # 👍 Лайк
+EFFECT_HEART = "5159385139981059251"      # ❤️ Сердце
+
+
 def format_price(amount: int) -> str:
     return f"{amount:,} ₸".replace(",", " ")
 
@@ -393,6 +400,12 @@ def send_telegram_alert(
         keyboard.append(second_row)
     reply_markup = {"inline_keyboard": keyboard}
 
+    message_effect_id = None
+    if config.message_effects_enabled():
+        drop = anomaly.get("drop_pct") or 0
+        if drop >= 25 or anomaly.get("is_anomaly"):
+            message_effect_id = EFFECT_FIRE
+
     try:
         if is_safe_image_url(image_url):
             photo_payload: Dict[str, Any] = {
@@ -401,6 +414,8 @@ def send_telegram_alert(
             }
             if message_thread_id is not None:
                 photo_payload["message_thread_id"] = message_thread_id
+            if message_effect_id:
+                photo_payload["message_effect_id"] = message_effect_id
             result = classify_telegram_response(telegram_api("sendPhoto", photo_payload))
             result.has_photo = bool(result)
             # Текстом — только если Telegram не смог взять фото (400); 429/403/5xx возвращаются как есть
@@ -414,6 +429,8 @@ def send_telegram_alert(
         }
         if message_thread_id is not None:
             msg_payload["message_thread_id"] = message_thread_id
+        if message_effect_id:
+            msg_payload["message_effect_id"] = message_effect_id
         result = classify_telegram_response(telegram_api("sendMessage", msg_payload))
         if not result:
             print(f"[Telegram Error] {result.error}")
@@ -500,6 +517,10 @@ def send_watch_message(
         keyboard.append(second_row)
     if APP_URL:
         keyboard.append([site_button("🔔 Мои наблюдения", APP_URL)])
+    message_effect_id = None
+    if config.message_effects_enabled():
+        message_effect_id = EFFECT_CONFETTI
+
     try:
         msg_payload: Dict[str, Any] = {
             "chat_id": chat_id, "text": text, "parse_mode": "HTML",
@@ -507,6 +528,8 @@ def send_watch_message(
         }
         if message_thread_id is not None:
             msg_payload["message_thread_id"] = message_thread_id
+        if message_effect_id:
+            msg_payload["message_effect_id"] = message_effect_id
         return classify_telegram_response(telegram_api("sendMessage", msg_payload))
     except Exception as e:
         print(f"[Telegram Exception] {type(e).__name__}")
