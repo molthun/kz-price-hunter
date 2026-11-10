@@ -2,10 +2,11 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-07: Виджет /watches карточкой — Antigravity (2026-11-10 21:40)
+## STAND_DEPLOYED TG-07: Виджет /watches карточкой — Antigravity (2026-11-10 21:46)
 
-- **Поручение владельца (чат, 2026-11-10):** выбор TG-07: Виджет `/watches` (компактная карточка со списком наблюдений и кнопками управления без спама сообщениями).
+- **Поручения владельца (чат, 2026-11-10):** выбор TG-07: Виджет `/watches` (компактная карточка со списком наблюдений и кнопками управления без спама сообщениями); «пока работаем на стенде. в прод ничего не ложим».
 - **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогался.
 - **Что сделано:**
   1. `telegram_widgets.py`:
      - `watches_widget_mode()`, `watches_widget_enabled(user_id)` (выключатель `TELEGRAM_WATCHES_WIDGET=off|admins|all`).
@@ -21,14 +22,18 @@
   3. `.env.example`: добавлена переменная `TELEGRAM_WATCHES_WIDGET=off`.
   4. Тесты: новый файл `tests/notifications/test_watches_widget.py` (16 тестов: верстка, сжатие, лимиты, выключатель, отправка виджета, fallback, удаление и обновление через widget_query).
   5. Документация: обновлены `docs/TELEGRAM_BOT.md` (раздел 2е и таблицы) и `docs/DEVELOPMENT_PLAN.md`.
-- **Проверено:**
-  - `pytest tests/notifications/test_watches_widget.py` — **16 passed** in 0.18s;
-  - `pytest tests/notifications/test_search_widget.py` — **25 passed** in 0.15s;
-  - `pytest tests/notifications` — **257 passed** in 12.23s.
+- **Проверки:**
+  - Локально: `pytest tests/notifications/test_watches_widget.py` — **16 passed** in 0.18s; `pytest tests/notifications` — **257 passed** in 12.23s.
+  - Коммит `fa792f5` перенесён на стенд (`~/kzph-stand` на `192.168.28.25`) через `git bundle` **без push** (`main` fast-forward до `fa792f5`).
+  - В `.env` стенда добавлено `TELEGRAM_WATCHES_WIDGET=admins`.
+  - Контейнер `kzph-stand` пересобран (`docker compose -f docker-compose.stand.yml up -d --build`) → `healthy`, `/api/health` ok.
+  - Внутри контейнера стенда: `python3 -m unittest discover -s tests/notifications -p 'test_*.py'` — **Ran 255 tests, OK** (27.16s).
+  - На базе стенда проверен сквозной цикл: создание тестового наблюдения, рендер виджета (сжатый размер 1726 байт) и удаление.
 - **Не проверено:**
-  - Работа в реальном клиенте Telegram на стенде (требует переноса на стенд через git bundle).
+  - Открытие карточки и нажатие кнопки «🔕» в реальном приложении Telegram на мобильном телефоне (это видит только владелец).
 - **Следующий точный шаг:**
-  - Перенести на стенд без push через `git bundle` (согласно `docs/AGENT_HANDOFF.md`) для проверки владельцем в `@kzph_dev_bot`, либо выбрать следующую задачу поколения TG (TG-09, TG-08, TG-03).
+  - Владелец проверяет `/watches` в чате с `@kzph_dev_bot` на стенде (создать наблюдение через `/search` или сайт, выполнить `/watches`, проверить отключение кнопкой «🔕»).
+  - Выбор следующей задачи на стенде: **TG-09** (глубокие ссылки с сайта), **TG-08** (кнопка копирования `copy_text` и цвета кнопок) или **TG-03** (таблицы цен и rich messages).
 
 ---
 
