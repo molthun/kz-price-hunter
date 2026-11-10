@@ -2,11 +2,12 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-04 (подсказка на сайте) + TG-19 (deep link в Mini App из уведомлений) + TG-21 (Telegram WebApp CloudStorage) — Antigravity (2026-11-11 00:05)
+## STAND_DEPLOYED TG-04 (подсказка на сайте) + TG-19 (deep link в Mini App из уведомлений) + TG-21 (Telegram WebApp CloudStorage) — Antigravity (2026-11-11 00:08)
 
 - **Поручение владельца (чат, 2026-11-10):** «продолжи по плану»; работаем на стенде, в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
 - **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`, коммит `49e59d8222`. Контейнер пересобран и перезапущен.
 - **Область файлов:** `web/server.py`, `notifier.py`, `web/templates/search_first.html`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`, `tests/notifications/test_miniapp_deep_links_and_cloud.py`.
 - **Что сделано:**
   1. **TG-04 (Подсказка блокировки бота на сайте):**
@@ -21,11 +22,10 @@
 - **Проверки:**
   - Локально: `venv/bin/python3 -m unittest tests/notifications/test_miniapp_deep_links_and_cloud.py`: 4 теста OK (0.002s).
   - Локально: `venv/bin/python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 332 теста OK (12.083s).
+  - На стенде: `docker exec kzph-stand python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 332 теста OK (27.897s).
+  - `curl -k -s https://shdev.molthun.ru/api/health`: `{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}`.
 - **Следующий точный шаг:**
-  - Закоммитить локально.
-  - Собрать bundle и отправить на стенд.
-  - Прогнать тесты на стенде внутри Docker-контейнера `kzph-stand`.
-  - Обновить handoff до STAND_DEPLOYED.
+  - Согласовать дальнейшие шаги с владельцем или реализовать следующее улучшение.
 
 ---
 
