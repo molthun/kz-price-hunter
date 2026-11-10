@@ -2,6 +2,32 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## PROD_DEPLOYED v6.29.5 → Владелец / Codex: Релиз v6.29.5 на проде — деактивация Wildberries KZ и Ozon KZ — Antigravity (2026-11-10)
+
+- **Поручение:** «Ozon KZ Wildberries KZ отказываемся от них. Полностью удалить Wildberries KZ и Ozon KZ из активных скраперов (отключить в SHOP_REGISTRY, config, расписании и витринах), сохранив стабильную кодовую базу». Исполнитель: Antigravity (основной разработчик).
+- **Срез:** коммиты `647ed54e34` + `9b8d0b5ae2` (тег `v6.29.5`, ветка `main` отправлена в `origin/main`).
+- **Стенд:** `~/kzph-stand` на `192.168.28.25`, `https://shdev.molthun.ru`, обновлен через git bundle `kzph-v6.29.5.bundle` и `kzph-v6.29.5-fix.bundle`. Контейнер `kzph-stand` пересобран и работает: `/api/version` = 6.29.5, `/api/health` = ok. Внутренние тесты скраперов: **223 OK**, 14.58 с.
+- **CI / GitHub Actions:**
+  - Workflow `Build and Publish Docker Image` (run ID `42806681341` на `main` и run ID `42806697153` на `v6.29.5`): **все джобы успешно завершены (✓)**.
+  - Образ `ghcr.io/molthun/kz-price-hunter:v6.29.5` и `:latest` успешно опубликован.
+- **Прод:** `https://shop.molthun.ru`
+  - Watchtower автоматически подтянул новый образ `:latest` и перезапустил продакшн-контейнер.
+  - `/api/version` → `{"version": "6.29.5", "app_name": "KZ Price Hunter", "release_date": "2026-11-09", "author": "Advanced Agentic Coding"}`.
+  - `/api/health` → `{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 14, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}`.
+  - База данных SQLite (2.2 ГБ) интактна и полностью здорова.
+- **Что сделано в релизе v6.29.5:**
+  1. `web/server.py`: `wildberries` и `ozon` исключены из `SHOP_REGISTRY`; удалены неиспользуемые импорты категорий и скраперов из конвейера обхода.
+  2. `config.py`: ключи `wildberries` и `ozon` удалены из `SHOP_KEYS` (активных магазинов: 38); категории `WILDBERRIES_CATEGORIES` и `OZON_CATEGORIES` сохранены как пустые списки-заглушки для предотвращения ошибок импорта.
+  3. `domain/channel_scheduler.py`: каналы Wildberries и Ozon исключены из расчёта `is_due` и очереди фоновой синхронизации витрин; в расписании статус фиксируется как `disabled` с причиной «Отключено решением владельца».
+  4. `domain/channel_sync.py`: добавлен параметр `allow_disabled: bool = False` (по умолчанию синхронизация витрин WB/Ozon немедленно возвращает `status="error"`, `error="Витрины Wildberries и Ozon отключены решением владельца"` без сетевых запросов).
+  5. `scrapers/showcase_scanners.py`: добавлен явный импорт `logger = logging.getLogger("kz_price_hunter.showcase_scanners")` во избежание сбоев при перехвате ошибок.
+  6. `tests/frontend/test_frontend_offer_details.cjs`: добавлено явное ожидание бейджа количества предложений на широких экранах для стабилизации Playwright CI.
+  7. `docs/DEVELOPMENT_PLAN.md`: этап G7-1 переведён в статус «ОТКЛОНЕНО / ОТКАЗ по решению владельца».
+  8. Все тесты: 2893 passed, 1286 subtests passed, 0 failed.
+- **Следующий точный шаг:** Владелец / Codex — выбор следующей задачи дорожной карты из `docs/DEVELOPMENT_PLAN.md` (или новой инициативы).
+
+---
+
 ## STAND_DEPLOYED v6.29.5 → Владелец / Codex: Wildberries KZ и Ozon KZ деактивированы по решению владельца — Antigravity (2026-11-09)
 
 - Поручение: «Ozon KZ Wildberries KZ отказываемся от них. Полностью удалить Wildberries KZ и Ozon KZ из активных скраперов (отключить в SHOP_REGISTRY, config, расписании и витринах), сохранив стабильную кодовую базу». Исполнитель: Antigravity (основной разработчик).
