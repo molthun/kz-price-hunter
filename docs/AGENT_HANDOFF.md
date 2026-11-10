@@ -2,12 +2,12 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-25 FIX: встроенный сканер EAN-13 с узким лазерным видоискателем и умный QR-анализатор — Antigravity (2026-11-11 01:03)
+## STAND_DEPLOYED TG-25 FIX: встроенный сканер EAN-13 с узким лазерным видоискателем и умный QR-анализатор — Antigravity (2026-11-11 01:04)
 
 - **Поручение владельца (чат, 2026-11-10):** «2 проблемы. первая не читает код EAN-13. вторая часто рядом с ним расположен QR код вот его видит и читает но это в большинстве случаев ссылка на производителя товара. а EAN как будто не замечает.» Работаем на стенде, в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
 - **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
-- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`. Готовится сборка bundle и деплой на стенд.
+- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`, коммит `cc08c90`. Контейнер пересобран и перезапущен.
 - **Область файлов:** `web/templates/search_first.html`, `tests/notifications/test_scanner_and_miniapp_buttons.py`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`.
 - **Что сделано:**
   1. **Узкий прицельный видоискатель для штрих-кодов EAN-13 (`BarcodeScannerManager`):**
@@ -26,8 +26,10 @@
 - **Проверки:**
   - Локально: `venv/bin/python3 -m unittest tests/notifications/test_scanner_and_miniapp_buttons.py`: 6 тестов OK (0.006s).
   - Локально: `venv/bin/python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 344 теста OK (12.045s).
+  - На стенде: `docker exec kzph-stand python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 344 теста OK (28.402s).
+  - `curl -k -s https://shdev.molthun.ru/api/health`: `{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}`.
 - **Следующий точный шаг:**
-  - Закоммитить локально, собрать `git bundle`, доставить на стенд `192.168.28.25:2222`, сделать `git merge --ff-only`, пересобрать Docker-контейнер стенда, прогнать тесты внутри контейнера, проверить `api/health` и обновить статус до `STAND_DEPLOYED`.
+  - Согласовать дальнейшие шаги с владельцем или реализовать следующее улучшение.
 
 ---
 
