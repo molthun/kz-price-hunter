@@ -157,6 +157,28 @@ def copy_button(text: str, copy_text: str, style: Optional[str] = None) -> Optio
     return btn
 
 
+def choose_chat_button(
+    text: str,
+    query: str = "",
+    allow_user_chats: bool = True,
+    allow_group_chats: bool = True,
+    style: Optional[str] = None,
+) -> Dict[str, Any]:
+    """TG-24: кнопка выбора чата для шеринга (switch_inline_query_chosen_chat, Bot API 6.7+)."""
+    btn: Dict[str, Any] = {
+        "text": text,
+        "switch_inline_query_chosen_chat": {
+            "query": query,
+            "allow_user_chats": bool(allow_user_chats),
+            "allow_group_chats": bool(allow_group_chats),
+        }
+    }
+    st = button_style(style)
+    if st:
+        btn["style"] = st
+    return btn
+
+
 def site_button(text: str, url: str, style: Optional[str] = None) -> Dict[str, Any]:
     """Кнопка на наш сайт. По https открывает его как Mini App: сайт получает initData и входит сам.
 

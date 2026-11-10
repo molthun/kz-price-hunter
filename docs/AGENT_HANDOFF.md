@@ -2,6 +2,43 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IMPLEMENTED TG-22 (нативные реакции) + TG-23 (команды /deals и /favorites) + TG-24 (интерактивный шеринг скидок и поиска chosen chat) — Antigravity (2026-11-11 00:20)
+
+- **Поручение владельца (чат, 2026-11-10):** «Делай дальше. нужны самые последние фишки телеграм в боте. самые лучшие.» -> «продолжи по плану» -> «Делаем». Работаем на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`. Готовится сборка bundle и деплой на стенд.
+- **Область файлов:** `config.py`, `notifier.py`, `telegram_bot.py`, `tests/notifications/test_search_widget.py`, `tests/notifications/test_reactions_deals_and_share.py`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`.
+- **Что сделано:**
+  1. **TG-22 (Нативные реакции бота на сообщения, Bot API 7.0/7.1):**
+     - Выключатель `reactions_enabled()` в `config.py` (`TELEGRAM_REACTIONS=on|off`, по умолчанию `on`).
+     - Метод `set_tg_message_reaction(session, token, chat_id, message_id, emoji, is_big)` в `telegram_bot.py`.
+     - Мгновенная простановка нативных эмодзи-реакций при обработке сообщений:
+       - `🔍` — поисковые запросы;
+       - `🤔` — вопросы к AI-консультанту;
+       - `🔥` — скидки `/deals`;
+       - `❤️` — избранное `/favorites`;
+       - `🔔` — наблюдения `/watches`;
+       - `⚡️` — приветствие `/start`.
+  2. **TG-23 (Команды /deals и /favorites, Bot API 6.7/7.0):**
+     - Обработчик `handle_deals_command(...)`: вывод топ-5 скидок с эффектом огня 🔥, кнопками перехода в магазины и кнопкой открытия ленты скидок в Mini App.
+     - Обработчик `handle_favorites_command(...)`: персональный список избранного пользователя с ценами и индикаторами снижения цены.
+     - Команды добавлены в локализованное меню `setMyCommands` для `ru` и `kk`.
+  3. **TG-24 (Интерактивный шеринг chosen chat, Bot API 6.7+):**
+     - Функция `choose_chat_button(text, query, ...)` в `notifier.py`.
+     - Кнопка «📤 Поделиться поиском с другом» в результатах поиска `/search` и скидках `/deals`, открывающая нативный диалог выбора чата с предзаполненным inline-запросом.
+  4. **Тесты и документация:**
+     - Создан `tests/notifications/test_reactions_deals_and_share.py` (6 тестов: вызов реакций, выключатель, форматирование /deals, шеринг-кнопки).
+     - Обновлён `tests/notifications/test_search_widget.py`.
+     - Обновлены разделы в `docs/TELEGRAM_BOT.md` и `docs/DEVELOPMENT_PLAN.md`.
+- **Проверки:**
+  - Локально: `venv/bin/python3 -m unittest tests/notifications/test_reactions_deals_and_share.py`: 6 тестов OK (0.003s).
+  - Локально: `venv/bin/python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 338 тестов OK (12.083s).
+- **Следующий точный шаг:**
+  - Закоммитить локально, сформировать `git bundle`, скопировать на стенд `192.168.28.25:2222`, сделать `git merge --ff-only`, пересобрать Docker-контейнер стенда, прогнать тесты внутри контейнера, проверить `api/health` и обновить статус до `STAND_DEPLOYED`.
+
+---
+
 ## STAND_DEPLOYED TG-04 (подсказка на сайте) + TG-19 (deep link в Mini App из уведомлений) + TG-21 (Telegram WebApp CloudStorage) — Antigravity (2026-11-11 00:08)
 
 - **Поручение владельца (чат, 2026-11-10):** «продолжи по плану»; работаем на стенде, в прод ничего не отправляем.

@@ -589,6 +589,13 @@ def message_effects_enabled() -> bool:
     return os.getenv("TELEGRAM_MESSAGE_EFFECTS", "on").strip().lower() not in ("off", "0", "false", "no")
 
 
+def reactions_enabled() -> bool:
+    """TG-22: нативные реакции бота на сообщения пользователей (setMessageReaction, Bot API 7.0/7.1).
+    По умолчанию on; TELEGRAM_REACTIONS=off отключает.
+    """
+    return os.getenv("TELEGRAM_REACTIONS", "on").strip().lower() not in ("off", "0", "false", "no")
+
+
 def get_bot_token():
     """Токен Telegram-бота: переменная окружения, для совместимости — старое поле settings.json."""
     return (

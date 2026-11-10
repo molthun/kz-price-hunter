@@ -29,7 +29,7 @@ from config import get_bot_token, APP_URL
 from notifier import (
     _shop_emoji, format_price, site_button, url_button, callback_button, copy_button, button_style,
     tg_time_tag, expandable_quote, send_telegram_rich_message, is_safe_image_url, save_prepared_inline_message,
-    make_link_preview_options
+    make_link_preview_options, choose_chat_button
 )
 import ai_service
 from bounded_cache import BoundedTTLCache
@@ -404,6 +404,31 @@ async def send_tg_chat_action(session: aiohttp.ClientSession, token: str, chat_i
         await session.post(url, json={"chat_id": chat_id, "action": action}, timeout=aiohttp.ClientTimeout(total=5))
     except Exception:
         pass
+
+
+async def set_tg_message_reaction(
+    session: aiohttp.ClientSession,
+    token: str,
+    chat_id: int,
+    message_id: int,
+    emoji: str,
+    is_big: bool = False,
+) -> bool:
+    """TG-22: установка нативной реакции бота на сообщение пользователя (Bot API 7.0/7.1)."""
+    if not config.reactions_enabled() or not token or not message_id or not emoji:
+        return False
+    url = f"https://api.telegram.org/bot{token}/setMessageReaction"
+    payload = {
+        "chat_id": chat_id,
+        "message_id": int(message_id),
+        "reaction": [{"type": "emoji", "emoji": str(emoji)}],
+        "is_big": bool(is_big),
+    }
+    try:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=4)) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
 
 
 # --- TG-09: Глубокие ссылки с сайта (t.me/<bot>?start=<param>) ---
@@ -933,10 +958,112 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
     if APP_URL:
         keyboard.append([site_button("📊 Все результаты на сайте", _site_search_url(q))])
 
+    # TG-24: шеринг поиска в любой чат
+    keyboard.append([choose_chat_button("📤 Поделиться поиском с другом", query=q, style="success")])
+
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
     rich_table = build_price_comparison_markdown(q, top)
     if not await send_tg_rich_message(session, token, chat_id, rich_table, reply_markup, message_thread_id=message_thread_id):
         await send_tg_message(session, token, chat_id, "\n".join(lines), reply_markup, message_thread_id=message_thread_id)
+
+
+async def handle_deals_command(
+    session: aiohttp.ClientSession,
+    token: str,
+    chat_id: int,
+    message_thread_id: Optional[int] = None,
+):
+    """TG-23: команда /deals (Горячие скидки)."""
+    if message_thread_id is None:
+        message_thread_id = await get_or_create_tg_topic(session, token, chat_id, "alerts")
+
+    from database import get_alerts
+    alerts = await asyncio.to_thread(get_alerts, limit=5)
+    if not alerts:
+        from database import get_store_deals
+        deals_data = await asyncio.to_thread(get_store_deals, limit=5, sort_by="discount_desc")
+        alerts = deals_data.get("deals", []) if isinstance(deals_data, dict) else []
+
+    if alerts:
+        lines = ["🔥 <b>Топ горячих скидок прямо сейчас:</b>\n"]
+        keyboard = []
+        for idx, it in enumerate(alerts[:5], 1):
+            p = format_price(int(it.get("price") or it.get("current_price") or 0))
+            drop = int(it.get("drop_pct") or it.get("discount_pct") or 0)
+            shop = it.get("shop") or "Магазин"
+            title = html.escape(str(it.get("title") or "Товар")[:50])
+            emoji = _shop_emoji(shop)
+            lines.append(f"{idx}. {emoji} <b>-{drop}%</b> | {p} — {title} ({html.escape(shop)})")
+            url = it.get("url")
+            if url and url.startswith("http"):
+                keyboard.append([url_button(f"{idx}. В {shop} ({p})", url, style="primary")])
+
+        if APP_URL:
+            keyboard.append([site_button("🔥 Все скидки в каталоге", f"{APP_URL}/deals")])
+
+        # TG-24: Кнопка выбора чата для шеринга
+        keyboard.append([choose_chat_button("📤 Поделиться скидками с другом", query="скидки", style="success")])
+
+        reply_markup = {"inline_keyboard": keyboard} if keyboard else None
+        await send_tg_message(
+            session, token, chat_id, "\n".join(lines),
+            reply_markup=reply_markup,
+            message_effect_id=EFFECT_FIRE,
+            message_thread_id=message_thread_id
+        )
+    else:
+        await send_tg_message(
+            session, token, chat_id,
+            "ℹ️ Сейчас нет новых аномалий цен. Попробуйте поиск <code>/search &lt;товар&gt;</code> или откройте каталог.",
+            reply_markup={"inline_keyboard": [[site_button("🛍 Открыть каталог", APP_URL)]]} if APP_URL else None,
+            message_thread_id=message_thread_id
+        )
+
+
+async def handle_favorites_command(
+    session: aiohttp.ClientSession,
+    token: str,
+    chat_id: int,
+    user_id: int,
+    message_thread_id: Optional[int] = None,
+):
+    """TG-23: команда /favorites (Моё избранное)."""
+    if message_thread_id is None:
+        message_thread_id = await get_or_create_tg_topic(session, token, chat_id, "watches")
+
+    from database import list_user_favorites
+    favs = await asyncio.to_thread(list_user_favorites, user_id)
+
+    if not favs:
+        await send_tg_message(
+            session, token, chat_id,
+            "❤️ <b>Ваше избранное пусто</b>\n\nВы можете сохранять товары в каталоге или Mini App, нажимая на сердечко ♡.",
+            reply_markup={"inline_keyboard": [[site_button("🛍 Открыть каталог", APP_URL)]]} if APP_URL else None,
+            message_thread_id=message_thread_id,
+        )
+        return
+
+    lines = [f"❤️ <b>Ваши сохранённые товары ({len(favs)}):</b>\n"]
+    keyboard = []
+    for idx, f in enumerate(favs[:5], 1):
+        title = html.escape(str(f.get("title") or "Товар")[:50])
+        price = format_price(int(f.get("new_price") or f.get("saved_price") or 0))
+        shop = f.get("shop", "")
+        drop_badge = " 📉 <b>Снизилась!</b>" if f.get("has_price_drop") else ""
+        lines.append(f"{idx}. 🏷 <b>{title}</b>\n   ✅ {price}{drop_badge}")
+
+        url = f.get("url")
+        if url and url.startswith("http"):
+            keyboard.append([url_button(f"{idx}. {title[:20]}…", url)])
+
+    if APP_URL:
+        keyboard.append([site_button("❤️ Открыть всё избранное", f"{APP_URL}/favorites")])
+
+    await send_tg_message(
+        session, token, chat_id, "\n".join(lines),
+        reply_markup={"inline_keyboard": keyboard},
+        message_thread_id=message_thread_id,
+    )
 
 
 # Память диалога консультанта в Telegram: chat_id -> (время последней реплики, реплики)
@@ -1263,6 +1390,7 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
     # Команды
     cmd = text.split()[0].lower() if text.startswith("/") else ""
     kwargs = {"message_thread_id": thread_id} if thread_id is not None else {}
+    message_id = msg.get("message_id", 0)
 
     if cmd in ("/start", "/help", "/new"):
         reset_chat_history(chat_id)
@@ -1270,46 +1398,45 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
         if cmd == "/start":
             parts = text.split(maxsplit=1)
             payload = parts[1].strip() if len(parts) > 1 else ""
+        await set_tg_message_reaction(session, token, chat_id, message_id, "⚡️")
         await handle_start_command(session, token, chat_id, first_name, payload=payload, from_user=from_user, **kwargs)
     elif cmd in ("/status", "/info"):
+        await set_tg_message_reaction(session, token, chat_id, message_id, "🩺")
         await handle_status_command(session, token, chat_id, **kwargs)
     elif cmd in ("/watches", "/my_watches", "/subs", "/tracking"):
+        await set_tg_message_reaction(session, token, chat_id, message_id, "🔔")
         await handle_watches_command(session, token, chat_id, **kwargs)
+    elif cmd in ("/deals", "/hot", "/discounts"):
+        await set_tg_message_reaction(session, token, chat_id, message_id, "🔥")
+        await handle_deals_command(session, token, chat_id, **kwargs)
+    elif cmd in ("/favorites", "/favs", "/saved"):
+        await set_tg_message_reaction(session, token, chat_id, message_id, "❤️")
+        await handle_favorites_command(session, token, chat_id, user_id, **kwargs)
     elif cmd in ("/search", "/find", "/price"):
+        await set_tg_message_reaction(session, token, chat_id, message_id, "🔍")
         query = text[len(cmd):].strip()
         await handle_search_command(session, token, chat_id, query, **kwargs)
     elif cmd in ("/ai", "/ask"):
+        await set_tg_message_reaction(session, token, chat_id, message_id, "🤔")
         query = text[len(cmd):].strip()
         await handle_ai_consultant_message(session, token, chat_id, query, **kwargs)
     else:
         # Быстрые действия постоянной клавиатуры (TG-15)
         clean_text = text.strip()
         if clean_text in ("🔥 Горячие скидки", "🔥 Топ скидки", "Горячие скидки"):
-            from database import get_alerts
-            alerts = await asyncio.to_thread(get_alerts, limit=5)
-            if alerts:
-                lines = ["🔥 <b>Топ горячих скидок в магазинах Казахстана:</b>\n"]
-                keyboard = []
-                for it in alerts:
-                    p = format_price(int(it.get("price") or 0))
-                    drop = it.get("drop_pct") or 0
-                    shop = it.get("shop") or "Магазин"
-                    title = html.escape(str(it.get("title") or "Товар"))
-                    emoji = _shop_emoji(shop)
-                    lines.append(f"{emoji} <b>-{drop}%</b> | {p} — {title} ({shop})")
-                    if it.get("url") and it["url"].startswith("http"):
-                        keyboard.append([url_button(f"{emoji} {shop}: {p}", it["url"], style="primary")])
-                if APP_URL:
-                    keyboard.append([site_button("📊 Все скидки на сайте", APP_URL)])
-                reply_markup = {"inline_keyboard": keyboard} if keyboard else None
-                await send_tg_message(session, token, chat_id, "\n".join(lines), reply_markup=reply_markup, message_effect_id=EFFECT_FIRE, **kwargs)
-            else:
-                await send_tg_message(session, token, chat_id, "ℹ️ Сейчас нет новых аномалий цен. Попробуйте поиск <code>/search &lt;товар&gt;</code>.", **kwargs)
+            await set_tg_message_reaction(session, token, chat_id, message_id, "🔥")
+            await handle_deals_command(session, token, chat_id, **kwargs)
             return
         elif clean_text in ("🔔 Мои наблюдения", "Мои наблюдения"):
+            await set_tg_message_reaction(session, token, chat_id, message_id, "🔔")
             await handle_watches_command(session, token, chat_id, **kwargs)
             return
+        elif clean_text in ("❤️ Избранное", "Моё избранное", "Таңдаулы"):
+            await set_tg_message_reaction(session, token, chat_id, message_id, "❤️")
+            await handle_favorites_command(session, token, chat_id, user_id, **kwargs)
+            return
         elif clean_text in ("🤖 AI-Консультант", "AI-Консультант"):
+            await set_tg_message_reaction(session, token, chat_id, message_id, "✨")
             prompt_text = (
                 "✨ <b>AI-Консультант KZ Price Hunter готов помочь!</b>\n\n"
                 "Задайте любой вопрос по выбору техники, продуктов или товаров для дома прямо в чат, например:\n"
@@ -1326,6 +1453,7 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
             return
 
         # Любое обычное сообщение без слеша считается вопросом к AI-консультанту
+        await set_tg_message_reaction(session, token, chat_id, message_id, "🤔")
         await handle_ai_consultant_message(session, token, chat_id, text, **kwargs)
 
 
@@ -1333,6 +1461,8 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
 # вход там происходит сам — сайт принимает initData через /api/auth/telegram-webapp.
 BOT_COMMANDS = [
     ("search", "Лучшие цены на товар"),
+    ("deals", "Горячие скидки прямо сейчас"),
+    ("favorites", "Мои сохранённые товары"),
     ("ai", "Спросить AI-консультанта"),
     ("watches", "Мои наблюдения за ценами"),
     ("new", "Новый разговор с консультантом"),
@@ -1342,6 +1472,8 @@ BOT_COMMANDS = [
 
 BOT_COMMANDS_KK = [
     ("search", "Тауар бағаларын салыстыру"),
+    ("deals", "Ыстық жеңілдіктер мен бағалар"),
+    ("favorites", "Менің таңдаулыларым"),
     ("ai", "AI-кеңесшіден сұрау"),
     ("watches", "Менің бақылауларым"),
     ("new", "Жаңа диалог"),
