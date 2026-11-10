@@ -2,6 +2,42 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED TG-25 PWA FIX: открытие сканера в автономном PWA, 2x зум и адаптивный EAN-13 декодер — Antigravity (2026-11-11 01:14)
+
+- **Поручение владельца (чат, 2026-11-10):** «А в PWA приложении даже не открываеться сканер.» Работаем на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`, коммит `a04d89c`. Контейнер пересобран и перезапущен.
+- **Область файлов:** `web/templates/search_first.html`, `tests/notifications/test_scanner_and_miniapp_buttons.py`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`.
+- **Что сделано:**
+  1. **Надежное открытие и жизненный цикл камеры в PWA (`openBarcodeScanner` / `BarcodeScannerManager`):**
+     - Устранена критическая проблема мгновенного закрытия (`this.close()`) при открытии сканера в автономном PWA режиме.
+     - Добавлен 3-ступенчатый адаптивный fallback `getUserMedia` constraints:
+       1) `{ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } }`;
+       2) `{ video: { facingMode: { ideal: 'environment' } } }`;
+       3) `{ video: true }`.
+     - Гарантированы мобильные флаги: `playsinline=true`, `webkit-playsinline=true`, `muted=true`.
+     - Добавлено состояние загрузки `#scannerLoadingOverlay` (спиннер + «Подключение камеры...»).
+     - Добавлен дружелюбный экран ошибки доступа `#scannerErrorOverlay`: при отказе в разрешениях (`NotAllowedError` / `PermissionDeniedError`) модалка НЕ закрывается молча, а выводит понятное сообщение с кнопками «🔄 Повторить попытку», «⌨️ Ввести штрихкод вручную» (с фокусом в строку поиска) и при наличии Telegram — «📱 Сканер Telegram».
+  2. **Кнопка масштабирования (Zoom 1x / 2x):**
+     - Добавлена кнопка переключения зума `id="scannerZoomBtn"` в верхней панели сканера.
+     - Поддерживает аппаратный зум через `applyConstraints({ advanced: [{ zoom }] })`, либо плавный аппаратный CSS-масштаб `scale(1.75)`.
+     - Позволяет держать смартфон на комфортном расстоянии 15–20 см от упаковки без потери резкости и размытия макрофокуса.
+  3. **Локальный адаптивный алгоритм декодирования EAN-13 (`decodeEan13FromCanvas`):**
+     - Заменен примитивный глобальный порог `(min+max)/2` на алгоритм адаптивного скользящего окна (Adaptive Moving Window), устойчивый к теням, боковому свету и бликам на упаковках.
+     - Сканирование 12 горизонтальных срезов по всей высоте видоискателя.
+     - Поддержка чтения как слева направо, так и справа налево (перевернутый штрихкод).
+     - В режиме `barcode` КАТЕГОРИЧЕСКИ отфильтровываются соседние QR-коды и DataMatrix маркировки, гарантируя мгновенный захват именно штрихкода товара.
+- **Проверки:**
+  - Локально: `venv/bin/python3 -m unittest tests/notifications/test_scanner_and_miniapp_buttons.py`: 6 тестов OK (0.006s).
+  - Локально: `venv/bin/python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 344 теста OK (12.253s).
+  - На стенде: `docker exec kzph-stand python3 -m unittest tests/notifications/test_scanner_and_miniapp_buttons.py`: 6 тестов OK (0.008s).
+  - `curl -k -s https://shdev.molthun.ru/api/health`: `{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}`.
+- **Следующий точный шаг:**
+  - Получить обратную связь владельца по работе сканера в PWA и на стенде.
+
+---
+
 ## STAND_DEPLOYED TG-25 FIX: встроенный сканер EAN-13 с узким лазерным видоискателем и умный QR-анализатор — Antigravity (2026-11-11 01:04)
 
 - **Поручение владельца (чат, 2026-11-10):** «2 проблемы. первая не читает код EAN-13. вторая часто рядом с ним расположен QR код вот его видит и читает но это в большинстве случаев ссылка на производителя товара. а EAN как будто не замечает.» Работаем на стенде, в прод ничего не отправляем.
