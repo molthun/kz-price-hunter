@@ -560,6 +560,16 @@ def copy_button_enabled() -> bool:
     return os.getenv("TELEGRAM_COPY_BUTTON", "on").strip().lower() not in ("off", "0", "false", "no")
 
 
+def rich_messages_enabled() -> bool:
+    """TG-03: форматированные Rich Messages (sendRichMessage, Bot API 10.1+). Включено; TELEGRAM_RICH_MESSAGES=off отключает."""
+    return os.getenv("TELEGRAM_RICH_MESSAGES", "on").strip().lower() not in ("off", "0", "false", "no")
+
+
+def native_time_enabled() -> bool:
+    """TG-13: нативное локальное время пользователя <tg-time> (Bot API 9.5). Включено; TELEGRAM_NATIVE_TIME=off отключает."""
+    return os.getenv("TELEGRAM_NATIVE_TIME", "on").strip().lower() not in ("off", "0", "false", "no")
+
+
 def get_bot_token():
     """Токен Telegram-бота: переменная окружения, для совместимости — старое поле settings.json."""
     return (

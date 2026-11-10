@@ -27,7 +27,8 @@ import aiohttp
 import config
 from config import get_bot_token, APP_URL
 from notifier import (
-    _shop_emoji, format_price, site_button, url_button, callback_button, copy_button, button_style
+    _shop_emoji, format_price, site_button, url_button, callback_button, copy_button, button_style,
+    tg_time_tag, expandable_quote, send_telegram_rich_message
 )
 import ai_service
 from bounded_cache import BoundedTTLCache
@@ -98,6 +99,38 @@ async def send_tg_message(session: aiohttp.ClientSession, token: str, chat_id: i
                 await session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10))
     except Exception as e:
         print(f"[Telegram Bot] Ошибка отправки сообщения: {type(e).__name__}")
+
+
+async def send_tg_rich_message(
+    session: aiohttp.ClientSession,
+    token: str,
+    chat_id: int,
+    markdown: str,
+    reply_markup: Optional[Dict[str, Any]] = None,
+) -> bool:
+    """TG-03: отправляет структурированное Rich Message (Bot API 10.1+).
+    Возвращает True при успехе, False при ошибке (вызывающий код делает fallback на send_tg_message).
+    """
+    if not config.rich_messages_enabled() or not markdown:
+        return False
+    url = f"https://api.telegram.org/bot{token}/sendRichMessage"
+    payload: Dict[str, Any] = {
+        "chat_id": chat_id,
+        "rich_message": {"markdown": markdown[:32768]},
+    }
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    try:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            if resp.status == 200:
+                data = await resp.json(content_type=None)
+                return bool(data.get("ok"))
+            err_text = await resp.text()
+            print(f"[Telegram Bot] sendRichMessage отклонен ({resp.status}): {err_text[:160]}")
+            return False
+    except Exception as e:
+        print(f"[Telegram Bot] Ошибка sendRichMessage: {type(e).__name__}")
+        return False
 
 
 async def send_tg_widget(session: aiohttp.ClientSession, token: str, chat_id: int, widget_html: str,
@@ -510,12 +543,14 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
 async def handle_status_command(session: aiohttp.ClientSession, token: str, chat_id: int):
     ai_conf = config.get_ai_config()
     ai_status = f"✅ Активен ({ai_conf['provider']})" if ai_conf["configured"] and ai_conf["enabled"] else "⚠️ Не настроен"
+    time_badge = tg_time_tag(format_spec="wDT", fallback=time.strftime("%Y-%m-%d %H:%M"))
     
     text = (
         "📊 <b>Статус системы KZ Price Hunter</b>\n\n"
         f"🧠 <b>AI-консультант:</b> {ai_status}\n"
         f"🏪 <b>Подключенных сетей:</b> {len(config.SHOP_KEYS)}\n"
-        "📍 <b>Основной регион сбора:</b> Астана / Алматы / Доставка по РК\n\n"
+        "📍 <b>Основной регион сбора:</b> Астана / Алматы / Доставка по РК\n"
+        f"🕒 <b>Время проверки:</b> {time_badge}\n\n"
         "Чтобы получить совет по выбору товара, просто напишите мне свой вопрос!"
     )
     await send_tg_message(session, token, chat_id, text)
@@ -734,6 +769,19 @@ async def handle_widget_query(session: aiohttp.ClientSession, token: str, wq: Di
     await answer_widget_query(session, token, wq_id)
 
 
+def build_price_comparison_markdown(query: str, items: List[Dict[str, Any]]) -> str:
+    """TG-03: строит Markdown таблицу сравнения цен по магазинам."""
+    lines = [f"🔍 **Лучшие цены по запросу «{query}»:**\n"]
+    lines.append("| Магазин | Цена | Товар |")
+    lines.append("|---|---|---|")
+    for it in items[:5]:
+        shop = it.get("shop", "Магазин")
+        price = format_price(it.get("current_price", 0))
+        title = (it.get("title") or "")[:32].replace("|", " ")
+        lines.append(f"| {shop} | **{price}** | {title} |")
+    return "\n".join(lines)
+
+
 async def handle_search_command(session: aiohttp.ClientSession, token: str, chat_id: int, query: str):
     q = query.strip()
     if not q:
@@ -779,7 +827,9 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
         keyboard.append([site_button("📊 Все результаты на сайте", _site_search_url(q))])
 
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
-    await send_tg_message(session, token, chat_id, "\n".join(lines), reply_markup)
+    rich_table = build_price_comparison_markdown(q, top)
+    if not await send_tg_rich_message(session, token, chat_id, rich_table, reply_markup):
+        await send_tg_message(session, token, chat_id, "\n".join(lines), reply_markup)
 
 
 # Память диалога консультанта в Telegram: chat_id -> (время последней реплики, реплики)
@@ -843,7 +893,9 @@ async def handle_ai_consultant_message(session: aiohttp.ClientSession, token: st
         keyboard.append([site_button("📊 Смотреть на сайте", APP_URL)])
 
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
-    await send_tg_message(session, token, chat_id, f"✨ <b>AI-Консультант:</b>\n\n{answer_html}", reply_markup)
+    rich_md = f"✨ **AI-Консультант:**\n\n{answer_raw}"
+    if not await send_tg_rich_message(session, token, chat_id, rich_md, reply_markup):
+        await send_tg_message(session, token, chat_id, f"✨ <b>AI-Консультант:</b>\n\n{answer_html}", reply_markup)
 
 
 async def process_telegram_update(session: aiohttp.ClientSession, token: str, update: Dict[str, Any]):

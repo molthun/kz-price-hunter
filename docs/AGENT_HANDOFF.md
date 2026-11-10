@@ -2,6 +2,40 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IMPLEMENTED TG-03 / TG-13: Форматированные Rich Messages, таблицы цен и локальное время — Antigravity (2026-11-10 22:25)
+
+- **Поручение владельца (чат, 2026-11-10):** «Делай дальше. нужны самые последние фишки телеграм в боте. самые лучшие.»; работаем на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогался.
+- **Что сделано:**
+  1. `config.py`:
+     - `rich_messages_enabled()`: выключатель `TELEGRAM_RICH_MESSAGES=on|off` (по умолчанию `on`).
+     - `native_time_enabled()`: выключатель `TELEGRAM_NATIVE_TIME=on|off` (по умолчанию `on`).
+  2. `notifier.py`:
+     - `tg_time_tag(unix_ts, format_spec, fallback)`: формирование нативного тега Telegram `<tg-time unix="..." format="...">` (Bot API 9.5). Telegram автоматически форматирует время в локальном часовом поясе и языке пользователя на устройстве.
+     - `expandable_quote(text)`: интерактивные сворачиваемые цитаты `<blockquote expandable>` (Bot API 7.8+).
+     - `send_telegram_rich_message(chat_id, markdown, reply_markup)`: синхронная отправка Rich Message (Bot API 10.1+) с лимитом до 32К символов.
+     - В `send_telegram_alert` и `send_watch_message`: добавлено локальное время фиксации цены (`format="r"` — «только что», «10 минут назад»), а длинные обоснования скидки упакованы в `<blockquote expandable>`.
+  3. `telegram_bot.py`:
+     - `send_tg_rich_message`: асинхронная отправка структурированных сообщений (`sendRichMessage`, Bot API 10.1+).
+     - `build_price_comparison_markdown`: генерация наглядных Markdown таблиц сравнения цен (`| Магазин | Цена | Товар |`).
+     - `handle_search_command`: при выводе результатов поиска отправляется интерактивная таблица через `send_tg_rich_message` с автоматическим fallback на `send_tg_message` при сбое.
+     - `handle_ai_query`: ответ AI-консультанта отправляется через `send_tg_rich_message` в исходном Markdown (с таблицами, списками, цитатами модели без потерь при переводе в HTML).
+     - `handle_status_command`: добавлено локальное время проверки сервера через `<tg-time>` (`format="wDT"`).
+  4. `.env.example`:
+     - Документированы `TELEGRAM_RICH_MESSAGES=on` и `TELEGRAM_NATIVE_TIME=on`.
+  5. Тесты:
+     - Новый файл `tests/notifications/test_rich_messages.py` (11 тестов: нативное время, сворачиваемые блоки, отправка `sendRichMessage`, генерация таблиц цен, приоритет Rich Message над обычным текстом, fallback).
+  6. Документация:
+     - Обновлены `docs/TELEGRAM_BOT.md` (раздел 2и, таблица возможностей, журнал) и `docs/DEVELOPMENT_PLAN.md`.
+- **Проверки:**
+  - `pytest tests/notifications/test_rich_messages.py` — **11 passed** in 0.13s;
+  - `pytest tests/notifications` — **291 passed, 0 failed** in 12.25s.
+- **Следующий точный шаг:**
+  - Перенести коммит на тестовый стенд через `git bundle` (без push в `origin/main`), пересобрать контейнер `kzph-stand` и протестировать работу.
+
+---
+
 ## STAND_DEPLOYED TG-08: Кнопки копирования и стили (copy_text, style) — Antigravity (2026-11-10 22:18)
 
 - **Поручение владельца (чат, 2026-11-10):** продолжение разработки на стенде; реализация TG-08 (кнопки копирования ссылок `copy_text` и цветовая дифференциация действий `style`); в прод ничего не отправляем.

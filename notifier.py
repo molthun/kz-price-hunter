@@ -167,6 +167,46 @@ def site_button(text: str, url: str, style: Optional[str] = None) -> Dict[str, A
     return btn
 
 
+def tg_time_tag(unix_ts: Optional[float] = None, format_spec: str = "t", fallback: str = "") -> str:
+    """TG-13: формирует нативный тег времени Telegram <tg-time unix="..." format="..."> (Bot API 9.5).
+    Если отключено через TELEGRAM_NATIVE_TIME=off, возвращает экранированный fallback.
+    """
+    ts = int(unix_ts if unix_ts is not None else time.time())
+    fb = fallback or time.strftime("%H:%M", time.localtime(ts))
+    if not config.native_time_enabled():
+        return html.escape(fb)
+    return f'<tg-time unix="{ts}" format="{html.escape(format_spec)}">{html.escape(fb)}</tg-time>'
+
+
+def expandable_quote(text: str) -> str:
+    """TG-03: сворачиваемый блок цитаты <blockquote expandable>...</blockquote> (Bot API 7.8+)."""
+    if not text:
+        return ""
+    return f"<blockquote expandable>{text}</blockquote>"
+
+
+def send_telegram_rich_message(
+    chat_id: int,
+    markdown: str,
+    reply_markup: Optional[Dict[str, Any]] = None,
+) -> DeliveryResult:
+    """TG-03: синхронная отправка структурированного сообщения Rich Message (Bot API 10.1+)."""
+    if not config.rich_messages_enabled() or not markdown:
+        return DeliveryResult("permanent", None, "rich_messages_disabled")
+    payload: Dict[str, Any] = {
+        "chat_id": chat_id,
+        "rich_message": {"markdown": markdown[:32768]},
+    }
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    try:
+        res = telegram_api("sendRichMessage", payload)
+        return classify_telegram_response(res)
+    except Exception as e:
+        print(f"[Telegram Exception] {type(e).__name__}")
+        return DeliveryResult("retry", None, type(e).__name__)
+
+
 def note_delivery_result(user_id: int, result: DeliveryResult) -> None:
     """TG-04: 403 на отправку в личный чат — бот заблокирован, чат не начат или аккаунт удалён.
 
@@ -192,6 +232,9 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
     image_url = product.get("image_url", "")
 
     # Названия товаров приходят с сайтов магазинов — экранируем для HTML-разметки Telegram
+    reason_raw = str(anomaly.get("reason") or "").strip()
+    reason_html = expandable_quote(html.escape(reason_raw)) if len(reason_raw) > 70 else html.escape(reason_raw)
+    time_badge = f"⏱ {tg_time_tag(format_spec='r', fallback='только что')}"
     message_text = (
         f"{html.escape(anomaly['emoji'])}\n\n"
         f"{_shop_emoji(shop)} <b>Магазин:</b> {html.escape(shop)}\n"
@@ -201,7 +244,8 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
         f"❌ <b>Старая цена:</b> <s>{format_price(anomaly['old_price'])}</s>\n"
         f"✅ <b>Новая цена:</b> <b>{format_price(anomaly['new_price'])}</b> (-{anomaly['drop_pct']}%)\n"
         f"💰 <b>Выгода:</b> <b>{format_price(anomaly['savings'])}</b>\n\n"
-        f"ℹ️ {html.escape(anomaly['reason'])}"
+        f"ℹ️ {reason_html}\n"
+        f"{time_badge}"
     )
     keyboard = [[url_button(f"⚡️ Открыть товар в {shop}", url, style="primary")]]
     second_row = []
@@ -283,12 +327,16 @@ def send_watch_message(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
     details.append(f"✅ <b>Цена:</b> <b>{format_price(price)}</b>")
 
     body = "\n".join(details)
+    reason_raw = str(reason or "").strip()
+    reason_html = expandable_quote(html.escape(reason_raw)) if len(reason_raw) > 70 else html.escape(reason_raw)
+    time_badge = f"⏱ {tg_time_tag(format_spec='r', fallback='только что')}"
     text = (
         f"🔔 <b>Сработало ваше наблюдение</b>\n"
         f"{sub_header}"
         f"{html.escape(desc)}\n\n"
         f"{body}\n\n"
-        f"ℹ️ {html.escape(reason)}"
+        f"ℹ️ {reason_html}\n"
+        f"{time_badge}"
     )
     prod_url = product.get("url") or APP_URL or ""
     keyboard = []
