@@ -1117,6 +1117,15 @@ def _create_schema(cursor) -> None:
     _add_column(cursor, "notification_outbox", "tg_has_photo", "INTEGER NOT NULL DEFAULT 0")
     _add_column(cursor, "notification_outbox", "sent_at", "REAL")
     _add_column(cursor, "notification_outbox", "stale_checked_at", "REAL")
+    # TG-09: глубокие ссылки в Telegram-бот (t.me/<bot>?start=<token>)
+    cursor.execute("""CREATE TABLE IF NOT EXISTS bot_deep_links (
+        token TEXT PRIMARY KEY,
+        action TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        created_at REAL NOT NULL,
+        expires_at REAL NOT NULL
+    )""")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_bot_deep_links_expires ON bot_deep_links(expires_at)")
     # C01, C02, C05: Персистентный журнал очереди задач сохранения товаров в SQLite (Spool / Outbox).
     # Обеспечивает строгую транзакционность, гарантию непотери задач при kill -9/рестартах и fencing поколений.
     cursor.execute("""CREATE TABLE IF NOT EXISTS product_queue_spool (
@@ -6691,3 +6700,58 @@ def prune_spool_archive(days: int = 14) -> int:
                                (cutoff,)).rowcount
         conn.commit()
     return deleted
+
+
+# --- TG-09: Глубокие ссылки в Telegram-бот (t.me/<bot>?start=<token>) ---
+
+_deep_links_table_checked = False
+
+def _ensure_bot_deep_links_table(conn):
+    global _deep_links_table_checked
+    if not _deep_links_table_checked:
+        conn.execute("""CREATE TABLE IF NOT EXISTS bot_deep_links (
+            token TEXT PRIMARY KEY,
+            action TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            created_at REAL NOT NULL,
+            expires_at REAL NOT NULL
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_bot_deep_links_expires ON bot_deep_links(expires_at)")
+        _deep_links_table_checked = True
+
+
+def create_bot_deep_link(action: str, payload: Dict[str, Any], ttl_seconds: int = 30 * 86400) -> str:
+    """Создаёт токен для глубокой ссылки Telegram-бота."""
+    token = secrets.token_urlsafe(9)
+    now = time.time()
+    expires = now + ttl_seconds
+    with get_connection() as conn:
+        _ensure_bot_deep_links_table(conn)
+        conn.execute("""
+            INSERT OR REPLACE INTO bot_deep_links (token, action, payload_json, created_at, expires_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, (token, action, json.dumps(payload, ensure_ascii=False), now, expires))
+        conn.commit()
+    return token
+
+
+def get_bot_deep_link(token: str) -> Optional[Dict[str, Any]]:
+    """Возвращает действие и полезную нагрузку по токену глубокой ссылки."""
+    now = time.time()
+    with get_connection() as conn:
+        _ensure_bot_deep_links_table(conn)
+        row = conn.execute("""
+            SELECT action, payload_json, expires_at FROM bot_deep_links WHERE token = ?
+        """, (token,)).fetchone()
+        if not row:
+            return None
+        if row["expires_at"] and row["expires_at"] < now:
+            return None
+        try:
+            payload = json.loads(row["payload_json"] or "{}")
+        except Exception:
+            payload = {}
+        return {"action": row["action"], "payload": payload}
+
+
+upsert_user = upsert_telegram_user

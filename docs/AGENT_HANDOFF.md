@@ -2,6 +2,40 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IMPLEMENTED TG-09: Глубокие ссылки с сайта (t.me/bot?start=...) — Antigravity (2026-11-10 21:58)
+
+- **Поручение владельца (чат, 2026-11-10):** выбор TG-09: Глубокие ссылки с сайта (кнопка «Следить в Telegram» на сайте с открытием бота `t.me/bot?start=...`); работаем на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогался.
+- **Что сделано:**
+  1. `database.py`:
+     - Создание аддитивной таблицы `bot_deep_links (token TEXT PRIMARY KEY, action TEXT, payload_json TEXT, created_at REAL, expires_at REAL)`.
+     - `create_bot_deep_link(action, payload, ttl_seconds)`, `get_bot_deep_link(token)`.
+     - Алиас `upsert_user = upsert_telegram_user`.
+  2. `telegram_bot.py`:
+     - `encode_deep_link_param`: компактные нагрузки кодируются напрямую в base64url (`s_<b64>`, `ws_<b64>`, `wp_<b64>`), длинные — сохраняются в `bot_deep_links` с токеном `t_<token>` (всегда укладываются в предел Telegram 64 символа).
+     - `decode_deep_link_param`: распознавание и декодирование inline-параметров и DB-токенов.
+     - `handle_start_command`:
+       - При наличии `from_user` — авторегистрация (`upsert_user`).
+       - `action == "search"`: перенаправление в `handle_search_command`.
+       - `action == "watch_search"`: создание наблюдения за поисковым запросом с карточкой-подтверждением и кнопкой отмены «🔕».
+       - `action == "watch_product"`: поиск товара, создание наблюдения за товаром с ценой, магазином, кнопкой перехода в магазин и кнопкой «🔕».
+       - При некорректном/устаревшем payload — дружелюбное сообщение с подсказкой команд.
+  3. `web/server.py`:
+     - `GET /api/telegram/deep-link`: публичный эндпоинт генерации ссылки вида `https://t.me/<bot_username>?start=<param>`.
+  4. Шаблоны (`web/templates/search_first.html`, `web/templates/index.html`):
+     - `search_first.html`: в модальном окне наблюдения добавлена кнопка «✈️ Следить в Telegram-боте (без входа на сайт)»; при попытке создания гостем предлагается быстрый переход в бота.
+     - `index.html`: для неавторизованных пользователей кнопка «Следить за ценой» превращается в «Следить в Telegram» с автогенерацией deep link.
+  5. Тесты: `tests/notifications/test_deep_links.py` (11 тестов: кодирование, декодирование, inline-параметры, fallback на DB-токен, обработка `/start`, авторегистрация, валидация API).
+  6. Документация: обновлены `docs/TELEGRAM_BOT.md` (раздел 2ж, таблицы) и `docs/DEVELOPMENT_PLAN.md`.
+- **Проверки:**
+  - `pytest tests/notifications/test_deep_links.py` — **11 passed** in 0.27s;
+  - `pytest tests/notifications` — **268 passed, 0 failed** in 12.31s.
+- **Следующий точный шаг:**
+  - Перенести коммит на стенд через `git bundle` (без push в `origin/main`), пересобрать контейнер `kzph-stand` и проверить сквозной сценарий перехода по ссылке.
+
+---
+
 ## STAND_DEPLOYED TG-07: Виджет /watches карточкой — Antigravity (2026-11-10 21:46)
 
 - **Поручения владельца (чат, 2026-11-10):** выбор TG-07: Виджет `/watches` (компактная карточка со списком наблюдений и кнопками управления без спама сообщениями); «пока работаем на стенде. в прод ничего не ложим».

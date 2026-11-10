@@ -3285,6 +3285,42 @@ async def delete_watch_handler(request):
     return web.json_response({"status": "ok"})
 
 
+# --- TG-09: Глубокие ссылки Telegram-бота ---
+
+@routes.get("/api/telegram/deep-link")
+async def telegram_deep_link_handler(request):
+    """TG-09: Генерация глубокой ссылки в Telegram-бот (t.me/<bot>?start=<param>)."""
+    bot_username = await asyncio.to_thread(get_bot_username)
+    if not bot_username:
+        return web.json_response({"status": "error", "message": "Telegram-бот не настроен"}, status=503)
+
+    action = request.query.get("action", "").strip()
+    target = request.query.get("target", "").strip()
+    title = request.query.get("title", "").strip()
+    if not action or not target:
+        return web.json_response({"status": "error", "message": "Не указаны action или target"}, status=400)
+
+    payload = {"title": title} if title else {}
+    if action == "watch_product":
+        payload["product_id"] = target
+    elif action in ("watch_search", "search"):
+        payload["query"] = target
+    else:
+        return web.json_response({"status": "error", "message": f"Неизвестное действие: {action}"}, status=400)
+
+    import telegram_bot
+    param = await asyncio.to_thread(telegram_bot.encode_deep_link_param, action, payload)
+    url = f"https://t.me/{bot_username}?start={param}"
+
+    return web.json_response({
+        "status": "ok",
+        "bot_username": bot_username,
+        "action": action,
+        "param": param,
+        "url": url,
+    })
+
+
 # =====================================================================
 # USER FAVORITES API (KZPH-G5-04)
 # =====================================================================

@@ -5742,7 +5742,14 @@
           <div class="watch-channel-info">
             <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">Канал уведомлений:</div>
             <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
-              🤖 Уведомления отправляются через официального Telegram-бота <strong>@kz_price_hunter_bot</strong>.
+              🤖 Уведомления отправляются через официального Telegram-бота.
+            </div>
+            <div style="margin-top: 10px;">
+              <a id="watchTelegramDeepBtn" href="#" target="_blank" rel="noopener noreferrer"
+                 style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 8px 12px; border-radius: var(--radius-md); background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); color: var(--text-main); font-size: 0.84rem; font-weight: 600; text-decoration: none; transition: background 0.15s ease;">
+                <span>✈️ Следить в Telegram-боте</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">(без входа на сайт)</span>
+              </a>
             </div>
           </div>
 
@@ -10457,6 +10464,17 @@
       if (modal) modal.classList.add('open');
       const body = document.getElementById('watchModalBody');
       if (body) body.scrollTop = 0;
+
+      const tgBtn = document.getElementById('watchTelegramDeepBtn');
+      if (tgBtn && product.target) {
+        tgBtn.href = '#';
+        fetch('/api/telegram/deep-link?action=watch_product&target=' + encodeURIComponent(product.target) + '&title=' + encodeURIComponent(product.title || ''))
+          .then(r => r.json())
+          .then(data => {
+            if (data && data.url) tgBtn.href = data.url;
+          })
+          .catch(() => {});
+      }
     }
 
     // Единая модель действий на странице товара из настоящего DTO; нет цены — null, а не ноль
@@ -10565,7 +10583,7 @@
       }
 
       if (result.error === 'guest') {
-        showWatchFormError('Наблюдения работают после входа через Telegram. Наблюдение не создано.', true);
+        showWatchFormError('Наблюдения на сайте работают после входа через Telegram. Либо нажмите кнопку «Следить в Telegram-боте» ниже.', true);
         return;
       }
       if (result.error) {

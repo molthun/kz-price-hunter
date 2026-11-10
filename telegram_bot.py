@@ -19,6 +19,7 @@ import os
 import time
 import asyncio
 import re
+import base64
 import urllib.parse
 from typing import Dict, Any, List, Optional
 import aiohttp
@@ -291,7 +292,186 @@ async def send_tg_chat_action(session: aiohttp.ClientSession, token: str, chat_i
         pass
 
 
-async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_id: int, user_first_name: str = ""):
+# --- TG-09: Глубокие ссылки с сайта (t.me/<bot>?start=<param>) ---
+
+def encode_deep_link_param(action: str, payload: Dict[str, Any]) -> str:
+    """TG-09: Генерирует параметр для t.me/<bot>?start=<param> (до 64 символов).
+    Компактная полезная нагрузка кодируется в base64url без обращения к БД.
+    Длинные запросы и сложные данные сохраняются в bot_deep_links."""
+    if action == "search":
+        q = str(payload.get("query") or "").strip()
+        b64 = base64.urlsafe_b64encode(q.encode("utf-8")).decode("ascii").rstrip("=")
+        param = f"s_{b64}"
+        if len(param) <= 64:
+            return param
+    elif action == "watch_search":
+        q = str(payload.get("query") or "").strip()
+        b64 = base64.urlsafe_b64encode(q.encode("utf-8")).decode("ascii").rstrip("=")
+        param = f"ws_{b64}"
+        if len(param) <= 64:
+            return param
+    elif action == "watch_product":
+        pid = str(payload.get("product_id") or "").strip()
+        b64 = base64.urlsafe_b64encode(pid.encode("utf-8")).decode("ascii").rstrip("=")
+        param = f"wp_{b64}"
+        if len(param) <= 64 and not payload.get("title"):
+            return param
+
+    from database import create_bot_deep_link
+    token = create_bot_deep_link(action, payload)
+    return f"t_{token}"
+
+
+def decode_deep_link_param(param: str) -> Optional[Dict[str, Any]]:
+    """TG-09: Декодирует параметр start=<param> из Telegram-команды /start."""
+    param = param.strip()
+    if not param or len(param) > 64:
+        return None
+
+    if param.startswith("t_"):
+        token = param[2:]
+        from database import get_bot_deep_link
+        return get_bot_deep_link(token)
+
+    try:
+        if param.startswith("s_"):
+            raw = param[2:]
+            padded = raw + "=" * ((4 - len(raw) % 4) % 4)
+            query = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
+            return {"action": "search", "payload": {"query": query}}
+
+        if param.startswith("ws_"):
+            raw = param[3:]
+            padded = raw + "=" * ((4 - len(raw) % 4) % 4)
+            query = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
+            return {"action": "watch_search", "payload": {"query": query}}
+
+        if param.startswith("wp_"):
+            raw = param[3:]
+            padded = raw + "=" * ((4 - len(raw) % 4) % 4)
+            product_id = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
+            return {"action": "watch_product", "payload": {"product_id": product_id}}
+    except Exception:
+        return None
+
+    return None
+
+
+async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_id: int,
+                               user_first_name: str = "", payload: str = "",
+                               from_user: Optional[Dict[str, Any]] = None):
+    # Обеспечиваем регистрацию пользователя в users при переходе по глубокой ссылке
+    if from_user:
+        try:
+            from database import upsert_user
+            await asyncio.to_thread(upsert_user, from_user)
+        except Exception as e:
+            print(f"[Telegram Bot] Ошибка регистрации пользователя: {type(e).__name__}")
+
+    # Обработка глубокой ссылки (TG-09)
+    if payload:
+        action_data = await asyncio.to_thread(decode_deep_link_param, payload)
+        if action_data:
+            action = action_data.get("action")
+            action_payload = action_data.get("payload") or {}
+
+            if action == "search":
+                query = str(action_payload.get("query") or "").strip()
+                if query:
+                    await handle_search_command(session, token, chat_id, query)
+                    return
+
+            elif action == "watch_search":
+                query = str(action_payload.get("query") or "").strip()
+                if query:
+                    from database import create_watch
+                    watch = await asyncio.to_thread(create_watch, chat_id, {
+                        "kind": "search", "target": query, "condition": "any_drop"})
+                    if watch.get("already_existed"):
+                        text = (
+                            f"🔔 <b>Вы уже следите за этим запросом:</b>\n"
+                            f"«<b>{html.escape(query)}</b>»\n\n"
+                            "Я сообщу вам сюда, как только появятся новые предложения или снизится цена."
+                        )
+                    else:
+                        text = (
+                            f"🔔 <b>Наблюдение включено!</b>\n\n"
+                            f"🔍 Поисковый запрос: «<b>{html.escape(query)}</b>»\n"
+                            "Условие: <b>любое снижение цены</b>\n\n"
+                            "Я пришлю уведомление прямо в этот чат, как только цена снизится."
+                        )
+                    keyboard = []
+                    if APP_URL:
+                        keyboard.append([site_button("⚙️ Мои наблюдения на сайте", APP_URL)])
+                    keyboard.append([{"text": "🔕 Отключить наблюдение", "callback_data": f"unwatch:{watch['id']}"}])
+                    reply_markup = {"inline_keyboard": keyboard}
+                    await send_tg_message(session, token, chat_id, text, reply_markup)
+                    return
+
+            elif action == "watch_product":
+                product_id = str(action_payload.get("product_id") or "").strip()
+                if product_id:
+                    from database import get_connection, create_watch
+                    def _find_and_watch():
+                        with get_connection() as conn:
+                            row = conn.execute("SELECT id, title, current_price, shop, url FROM products WHERE id = ?",
+                                               (product_id,)).fetchone()
+                            if not row:
+                                row = conn.execute("SELECT id, title, current_price, shop, url FROM offers WHERE id = ?",
+                                                   (product_id,)).fetchone()
+                        row_dict = dict(row) if row else {}
+                        p_title = row_dict.get("title") or action_payload.get("title") or product_id
+                        watch_res = create_watch(chat_id, {
+                            "kind": "product", "target": product_id, "title": p_title, "condition": "any_drop"})
+                        return row_dict, p_title, watch_res
+
+                    row_dict, p_title, watch = await asyncio.to_thread(_find_and_watch)
+                    price = int(row_dict.get("current_price") or 0)
+                    shop = str(row_dict.get("shop") or "")
+                    url = str(row_dict.get("url") or "")
+
+                    if watch.get("already_existed"):
+                        text = (
+                            f"🔔 <b>Вы уже следите за этим товаром:</b>\n\n"
+                            f"📦 <b>{html.escape(p_title)}</b>\n"
+                        )
+                        if price > 0:
+                            text += f"Текущая цена: <b>{format_price(price)}</b>" + (f" ({shop})" if shop else "") + "\n"
+                        text += "\nЯ напишу вам сюда, как только цена снизится."
+                    else:
+                        text = (
+                            f"🔔 <b>Наблюдение включено!</b>\n\n"
+                            f"📦 <b>{html.escape(p_title)}</b>\n"
+                        )
+                        if price > 0:
+                            text += f"Текущая цена: <b>{format_price(price)}</b>" + (f" ({shop})" if shop else "") + "\n"
+                        text += "Условие: <b>любое снижение цены</b>\n\nЯ пришлю уведомление прямо в этот чат, как только цена снизится."
+
+                    keyboard = []
+                    if url and url.startswith("http"):
+                        keyboard.append([{"text": f"🛒 Открыть в {shop or 'магазине'}", "url": url}])
+                    keyboard.append([{"text": "🔕 Отключить наблюдение", "callback_data": f"unwatch:{watch['id']}"}])
+                    if APP_URL:
+                        keyboard.append([site_button("⚙️ Все наблюдения на сайте", APP_URL)])
+                    reply_markup = {"inline_keyboard": keyboard}
+                    await send_tg_message(session, token, chat_id, text, reply_markup)
+                    return
+
+        # Некорректный или устаревший payload
+        greeting = f"Привет, {html.escape(user_first_name)}! " if user_first_name else "Привет! "
+        text = (
+            f"👋 {greeting}\n\n"
+            "Ссылка устарела или содержит некорректный код.\n"
+            "Вы можете найти товар через <b>/search &lt;товар&gt;</b> или посмотреть свои активные наблюдения через <b>/watches</b>."
+        )
+        keyboard = []
+        if APP_URL:
+            keyboard.append([site_button("📊 Перейти в каталог", APP_URL)])
+        reply_markup = {"inline_keyboard": keyboard} if keyboard else None
+        await send_tg_message(session, token, chat_id, text, reply_markup)
+        return
+
+    # Стандартное приветствие без payload
     greeting = f"Привет, {html.escape(user_first_name)}! " if user_first_name else "Привет! "
     text = (
         f"👋 {greeting}Я умный бот-ассистент <b>KZ Price Hunter</b> 🇰🇿\n\n"
@@ -732,7 +912,11 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
 
     if cmd in ("/start", "/help", "/new"):
         reset_chat_history(chat_id)
-        await handle_start_command(session, token, chat_id, first_name)
+        payload = ""
+        if cmd == "/start":
+            parts = text.split(maxsplit=1)
+            payload = parts[1].strip() if len(parts) > 1 else ""
+        await handle_start_command(session, token, chat_id, first_name, payload=payload, from_user=from_user)
     elif cmd in ("/status", "/info"):
         await handle_status_command(session, token, chat_id)
     elif cmd in ("/watches", "/my_watches", "/subs", "/tracking"):
