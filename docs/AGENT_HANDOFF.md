@@ -2,11 +2,11 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-11: Темы (форум-топики) в личном чате пользователя — Antigravity (2026-11-10 23:28)
+## STAND_DEPLOYED TG-11: Темы (форум-топики) в личном чате пользователя — Antigravity (2026-11-10 23:30)
 
 - **Поручение владельца (чат, 2026-11-10):** «продолжай»; работаем на стенде, в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
-- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогался.
 - **Область файлов:** `config.py`, `.env.example`, `database.py`, `notifier.py`, `telegram_bot.py`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`, `tests/notifications/test_topics_mode.py`.
 - **Что сделано:**
   1. `config.py` & `.env.example`:
@@ -31,12 +31,12 @@
      - Обработка ошибок 400/403: если чат не поддерживает темы, chat_id добавляется в `_unsupported_topics_chats`, и все сообщения продолжают доставляться в общий диалог.
   5. Тесты:
      - Создан набор тестов `tests/notifications/test_topics_mode.py` (11 тестов: база данных, синхронные и асинхронные методы Bot API, маршрутизация поиска, AI и алертов).
-     - Все 311 тестов в `tests/notifications/` успешно пройдены локально: `Ran 311 tests in 12.004s, OK`.
+     - Локально: `Ran 311 tests in 12.004s, OK`.
+     - На стенде внутри Docker `kzph-stand`: `Ran 311 tests in 27.338s, OK`.
+     - Диагностика стенда `https://shdev.molthun.ru/api/health`: `status: ok`, `db: ok`, `worker_running: true`.
+- **Коммит:** `f0274f3` (развёрнут на стенде).
 - **Следующий точный шаг:**
-  - Закоммитить изменения локально.
-  - Создать git bundle и доставить на тестовый стенд (`192.168.28.25:2222`).
-  - Прогнать тесты внутри Docker-контейнера на стенде.
-  - Обновить handoff до `STAND_DEPLOYED TG-11`.
+  - Следующая задача по плану Bot API: **TG-02б (Потоковый текст ответа AI-консультанта)** или расширение интерактивности виджетов по решению владельца.
 
 ---
 
