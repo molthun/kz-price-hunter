@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-09: Глубокие ссылки с сайта (t.me/bot?start=...) — Antigravity (2026-11-10 21:58)
+## STAND_DEPLOYED TG-09: Глубокие ссылки с сайта (t.me/bot?start=...) — Antigravity (2026-11-10 22:05)
 
 - **Поручение владельца (чат, 2026-11-10):** выбор TG-09: Глубокие ссылки с сайта (кнопка «Следить в Telegram» на сайте с открытием бота `t.me/bot?start=...`); работаем на стенде, в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
@@ -23,16 +23,22 @@
        - При некорректном/устаревшем payload — дружелюбное сообщение с подсказкой команд.
   3. `web/server.py`:
      - `GET /api/telegram/deep-link`: публичный эндпоинт генерации ссылки вида `https://t.me/<bot_username>?start=<param>`.
-  4. Шаблоны (`web/templates/search_first.html`, `web/templates/index.html`):
+  4. `auth.py`:
+     - Добавлен `/api/telegram/deep-link` в `_allowed_api`, чтобы генерация ссылки работала даже для неавторизованных гостей при включённом `MAINTENANCE_DEV_MODE`.
+  5. Шаблоны (`web/templates/search_first.html`, `web/templates/index.html`):
      - `search_first.html`: в модальном окне наблюдения добавлена кнопка «✈️ Следить в Telegram-боте (без входа на сайт)»; при попытке создания гостем предлагается быстрый переход в бота.
      - `index.html`: для неавторизованных пользователей кнопка «Следить за ценой» превращается в «Следить в Telegram» с автогенерацией deep link.
-  5. Тесты: `tests/notifications/test_deep_links.py` (11 тестов: кодирование, декодирование, inline-параметры, fallback на DB-токен, обработка `/start`, авторегистрация, валидация API).
-  6. Документация: обновлены `docs/TELEGRAM_BOT.md` (раздел 2ж, таблицы) и `docs/DEVELOPMENT_PLAN.md`.
+  6. Тесты: `tests/notifications/test_deep_links.py` (12 тестов: кодирование, декодирование, inline-параметры, fallback на DB-токен, обработка `/start`, авторегистрация, валидация API, прохождение шлюза закрытой разработки).
+  7. Документация: обновлены `docs/TELEGRAM_BOT.md` (раздел 2ж, таблицы) и `docs/DEVELOPMENT_PLAN.md`.
 - **Проверки:**
-  - `pytest tests/notifications/test_deep_links.py` — **11 passed** in 0.27s;
-  - `pytest tests/notifications` — **268 passed, 0 failed** in 12.31s.
+  - Локально: `pytest tests/notifications/test_deep_links.py` — **12 passed**; `pytest tests/notifications` — **269 passed, 0 failed** in 12.18s.
+  - Коммиты доставлены на стенд (`~/kzph-stand` на `192.168.28.25`) через `git bundle` **без push в origin/main**.
+  - Контейнер `kzph-stand` пересобран (`docker compose -f docker-compose.stand.yml up -d --build`) → `healthy`, `/api/health` ok.
+  - Внутри контейнера стенда: `python3 -m unittest discover -s tests/notifications -p 'test_*.py'` — **Ran 266 tests, OK** (34s).
+  - Сквозной тест `/api/telegram/deep-link?action=watch_search&target=iphone+16` на стенде проверен.
 - **Следующий точный шаг:**
-  - Перенести коммит на стенд через `git bundle` (без push в `origin/main`), пересобрать контейнер `kzph-stand` и проверить сквозной сценарий перехода по ссылке.
+  - Владелец может протестировать ссылки на стенде `https://shdev.molthun.ru` и переход в `@kzph_dev_bot`.
+  - Выбор следующей задачи: **TG-08** (кнопка копирования `copy_text` и цвета кнопок в уведомлениях) или **TG-03** (таблицы цен и rich messages).
 
 ---
 

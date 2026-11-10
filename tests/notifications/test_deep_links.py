@@ -134,6 +134,19 @@ class DeepLinkApiTests(unittest.IsolatedAsyncioTestCase):
             data = res_ok.body.decode('utf-8')
             self.assertIn('https://t.me/kz_price_hunter_bot?start=', data)
 
+    async def test_deep_link_allowed_in_maintenance_dev_mode(self):
+        from auth import auth_middleware
+        from aiohttp.test_utils import make_mocked_request
+        from aiohttp import web
+
+        req = make_mocked_request('GET', '/api/telegram/deep-link?action=watch_search&target=iphone', headers={})
+        async def dummy_handler(r):
+            return web.Response(text="passed_gate")
+
+        with patch('auth.MAINTENANCE_DEV_MODE', True):
+            res = await auth_middleware(req, dummy_handler)
+            self.assertEqual(res.text, "passed_gate")
+
 
 if __name__ == '__main__':
     unittest.main()

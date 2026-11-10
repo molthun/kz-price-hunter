@@ -295,7 +295,7 @@ async def auth_middleware(request: web.Request, handler):
     if MAINTENANCE_DEV_MODE and request.path.startswith("/api/"):
         _allowed_api = {"/api/me", "/api/auth/telegram", "/api/auth/telegram-webapp",
                         "/api/auth/dev-login", "/api/auth/logout", "/api/diag",
-                        "/api/version"}
+                        "/api/version", "/api/telegram/deep-link"}
         if request.path not in _allowed_api:
             if not is_confirmed_user(request["user"]):
                 return web.json_response({
