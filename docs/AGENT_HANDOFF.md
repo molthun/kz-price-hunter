@@ -2,11 +2,11 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-10: Сайт как полноценный Mini App (Telegram Web App) — Antigravity (2026-11-10 23:04)
+## STAND_DEPLOYED TG-10: Сайт как полноценный Mini App (Telegram Web App) — Antigravity (2026-11-10 23:07)
 
 - **Поручение владельца (чат, 2026-11-10):** «продолжай»; работаем на стенде, в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
-- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогался.
 - **Область файлов:** `web/templates/search_first.html`, `tests/frontend/test_telegram_webapp.mjs`, `tests/notifications/test_webapp_integration.py`.
 - **Что сделано:**
   1. `web/templates/search_first.html`:
@@ -25,11 +25,12 @@
 - **Проверки:**
   - Локально Playwright: `deno run -A tests/frontend/test_telegram_webapp.mjs` — **PASS**.
   - Локально pytest: `pytest tests/notifications/test_webapp_integration.py` — **5 passed** in 0.03s; `pytest tests/notifications` — **302 passed, 0 failed** in 12.24s.
+  - Коммит перенесён на стенд через `git bundle` **без push в origin/main**.
+  - Контейнер `kzph-stand` пересобран и перезапущен (`docker compose -f docker-compose.stand.yml up -d --build`) → `healthy`, `/api/health` ok.
+  - Внутри контейнера стенда: `python3 -m unittest discover -s tests/notifications -p 'test_*.py'` — **Ran 300 tests, OK** (26.9s).
 - **Следующий точный шаг:**
-  - Закоммитить изменения локально.
-  - Доставить на стенд через `git bundle` (без push в origin/main).
-  - Пересобрать стенд, прогнать тесты внутри контейнера.
-  - Обновить handoff до `STAND_DEPLOYED TG-10`.
+  - Владелец может протестировать открытие сайта через шторку Telegram: адаптивность по высоте, нативную кнопку «Назад», синхронизацию тёмной темы, тактильный отклик и кнопку «Поделиться».
+  - Следующий кандидат: **TG-02б** (потоковый текст ответа AI-консультанта) или **TG-11** (темы/топики в личном чате).
 
 ---
 
