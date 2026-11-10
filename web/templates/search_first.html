@@ -438,6 +438,192 @@
       background: var(--bg-hover);
     }
 
+    /* In-App Camera Barcode & QR Scanner */
+    .scanner-modal-backdrop {
+      z-index: 10000;
+      background: rgba(0, 0, 0, 0.94);
+      padding: 0 !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: fixed;
+      inset: 0;
+    }
+    .scanner-modal-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 540px;
+      display: flex;
+      flex-direction: column;
+      background: #000;
+      overflow: hidden;
+    }
+    .scanner-top-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      padding: max(16px, env(safe-area-inset-top, 16px)) 16px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent);
+      gap: 8px;
+    }
+    .scanner-icon-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: #fff;
+      font-size: 1.2rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.15s;
+    }
+    .scanner-icon-btn:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+    .scanner-mode-switch {
+      display: flex;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 3px;
+      backdrop-filter: blur(8px);
+    }
+    .scanner-mode-pill {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .scanner-mode-pill.active {
+      background: var(--primary, #2563eb);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+    }
+    .scanner-viewfinder-stage {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .scanner-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .scanner-overlay-mask {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    /* EAN-13 Reticle: узкая горизонтальная полоска, чтобы игнорировать соседний QR */
+    .scanner-reticle {
+      position: relative;
+      width: 84%;
+      max-width: 320px;
+      height: 96px;
+      transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.55);
+      border-radius: 12px;
+    }
+    .scanner-reticle.mode-qr {
+      height: 240px;
+      max-width: 240px;
+    }
+    .reticle-corner {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-color: #38bdf8;
+      border-style: solid;
+    }
+    .reticle-tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-top-left-radius: 10px; }
+    .reticle-tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-top-right-radius: 10px; }
+    .reticle-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-bottom-left-radius: 10px; }
+    .reticle-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-bottom-right-radius: 10px; }
+    .scanner-laser-line {
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      top: 50%;
+      height: 2px;
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444, 0 0 16px rgba(239, 68, 68, 0.6);
+      animation: laserSweep 1.8s ease-in-out infinite alternate;
+    }
+    .scanner-laser-line.success {
+      background: #22c55e !important;
+      box-shadow: 0 0 12px #22c55e, 0 0 24px rgba(34, 197, 94, 0.8) !important;
+      animation: none !important;
+      top: 50% !important;
+    }
+    @keyframes laserSweep {
+      0% { top: 15%; opacity: 0.9; }
+      100% { top: 85%; opacity: 0.9; }
+    }
+    .scanner-hint {
+      position: absolute;
+      bottom: 84px;
+      left: 20px;
+      right: 20px;
+      text-align: center;
+      color: #fff;
+      font-size: 0.92rem;
+      font-weight: 500;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+      pointer-events: none;
+      z-index: 5;
+    }
+    .scanner-bottom-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+      display: flex;
+      justify-content: center;
+      background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+    }
+    .btn-scanner-tg {
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      font-size: 0.88rem;
+      font-weight: 500;
+      padding: 8px 18px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.15s;
+    }
+    .btn-scanner-tg:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
     /* Quick Filter Chips */
     .quick-chips-wrapper {
       display: flex;
@@ -6021,6 +6207,71 @@
     </div>
   </div>
 
+  <!-- ============================================================= -->
+  <!-- MODAL: CAMERA SCANNER (EAN-13 & QR)                           -->
+  <!-- ============================================================= -->
+  <div id="scannerModalBackdrop" class="modal-backdrop scanner-modal-backdrop" onclick="BarcodeScannerManager.close(event)" style="display: none;">
+    <div class="scanner-modal-container" onclick="event.stopPropagation()">
+      <!-- Top Bar -->
+      <div class="scanner-top-bar">
+        <button type="button" class="scanner-icon-btn" onclick="BarcodeScannerManager.close()" aria-label="Закрыть сканер">✕</button>
+        <div class="scanner-mode-switch">
+          <button type="button" class="scanner-mode-pill active" id="scannerModeBarcode" onclick="BarcodeScannerManager.setMode('barcode')">📦 Штрихкод EAN</button>
+          <button type="button" class="scanner-mode-pill" id="scannerModeQr" onclick="BarcodeScannerManager.setMode('qr')">📷 QR-код</button>
+          <button type="button" class="scanner-mode-pill" id="scannerModeAll" onclick="BarcodeScannerManager.setMode('all')">⚡️ Все</button>
+        </div>
+        <button type="button" class="scanner-icon-btn" id="scannerTorchBtn" onclick="BarcodeScannerManager.toggleTorch()" title="Включить фонарик" aria-label="Фонарик">🔦</button>
+      </div>
+
+      <!-- Viewfinder Stage -->
+      <div class="scanner-viewfinder-stage" id="scannerStage">
+        <video id="scannerVideo" class="scanner-video" playsinline autoplay muted></video>
+        <canvas id="scannerCanvas" style="display: none;"></canvas>
+
+        <!-- Shading mask with cutout -->
+        <div class="scanner-overlay-mask">
+          <div class="scanner-reticle" id="scannerReticle">
+            <div class="reticle-corner reticle-tl"></div>
+            <div class="reticle-corner reticle-tr"></div>
+            <div class="reticle-corner reticle-bl"></div>
+            <div class="reticle-corner reticle-br"></div>
+            <div class="scanner-laser-line" id="scannerLaser"></div>
+          </div>
+        </div>
+
+        <div class="scanner-hint" id="scannerHint">Наведите лазерную полоску на штрихкод EAN-13</div>
+      </div>
+
+      <!-- Bottom Controls -->
+      <div class="scanner-bottom-bar">
+        <button type="button" class="btn-scanner-tg" id="scannerTgFallbackBtn" onclick="BarcodeScannerManager.openTelegramScanner()">
+          <span>📱</span> <span>Сканер Telegram</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Scanned URL / Product Resolver Prompt -->
+  <div id="scannedUrlModal" class="modal-backdrop" style="display: none;" onclick="BarcodeScannerManager.closeUrlPrompt()">
+    <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="scannedPromptTitle">📷 Результат сканирования</h3>
+        <button class="modal-close-btn" onclick="BarcodeScannerManager.closeUrlPrompt()" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div id="scannedPromptBody" style="font-size: 0.95rem; line-height: 1.5; color: var(--text-main); margin-bottom: 20px;"></div>
+        <div style="display: flex; gap: 10px; flex-direction: column;">
+          <button type="button" class="btn-primary" id="scannedPromptActionBtn" style="width: 100%; justify-content: center;">
+            🔍 Искать этот товар
+          </button>
+          <button type="button" class="btn-secondary" onclick="BarcodeScannerManager.closeUrlPrompt(); BarcodeScannerManager.open('barcode');" style="width: 100%; justify-content: center;">
+            📦 Сканировать штрихкод EAN-13 заново
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toastPopup" class="toast-popup">Уведомление</div>
 
@@ -6357,6 +6608,535 @@
     }
 
     // =============================================================
+    // SMART BARCODE & QR RESOLVER (EAN-13, GS1, BRAND URLS)
+    // =============================================================
+    function extractProductFromScannedText(text) {
+      if (!text || typeof text !== 'string') return null;
+      text = text.trim();
+
+      // 1. Прямой EAN-13 / EAN-8 / UPC-A / GTIN-14
+      if (/^\d{13}$/.test(text)) {
+        return { type: 'ean13', query: text, raw: text, label: 'Штрихкод EAN-13: ' + text };
+      }
+      if (/^\d{12}$/.test(text)) {
+        const ean = '0' + text;
+        return { type: 'ean13', query: ean, raw: text, label: 'Штрихкод UPC/EAN: ' + ean };
+      }
+      if (/^\d{8}$/.test(text)) {
+        return { type: 'ean8', query: text, raw: text, label: 'Штрихкод EAN-8: ' + text };
+      }
+      if (/^\d{14}$/.test(text)) {
+        const ean = text.startsWith('0') ? text.slice(1) : text;
+        return { type: 'ean13', query: ean, raw: text, label: 'Штрихкод EAN-13: ' + ean };
+      }
+
+      // 2. DataMatrix / Честный Знак / Naqty Onim (Казахстан) / GS1
+      // Формат: (01)04870001234567... или 010487000123456721...
+      const gs1Match = text.match(/(?:(?:^|[^\d])01|\(01\))(\d{14})/);
+      if (gs1Match && gs1Match[1]) {
+        const gtin14 = gs1Match[1];
+        const ean13 = gtin14.startsWith('0') ? gtin14.slice(1) : gtin14;
+        return {
+          type: 'marking',
+          query: ean13,
+          raw: text,
+          label: 'Код маркировки товара (EAN-13: ' + ean13 + ')'
+        };
+      }
+
+      // 3. Если это ссылка (URL) производителя или магазина
+      if (/^https?:\/\//i.test(text)) {
+        try {
+          const url = new URL(text);
+          const searchParams = url.searchParams;
+          for (const p of ['ean', 'barcode', 'gtin', 'ean13']) {
+            const val = searchParams.get(p);
+            if (val && /^\d{8,14}$/.test(val.trim())) {
+              const cleanEan = (val.length === 14 && val.startsWith('0')) ? val.slice(1) : val.trim();
+              return { type: 'ean13', query: cleanEan, raw: text, label: 'Штрихкод EAN-13: ' + cleanEan };
+            }
+          }
+          for (const p of ['model', 'sku', 'article', 'product', 'item', 'q']) {
+            const val = searchParams.get(p);
+            if (val && val.trim().length >= 3) {
+              return { type: 'url_product', query: val.trim(), raw: text, label: 'Модель из ссылки: ' + val.trim() };
+            }
+          }
+
+          // Анализируем сегменты pathname
+          const segments = url.pathname.split('/').filter(Boolean);
+          const ignore = new Set(['kz_ru', 'kz', 'ru', 'en', 'shop', 'p', 'product', 'products', 'item', 'items', 'buy', 'catalog', 'c', 'smartphones', 'electronics', 'consumer', 'goods', 'index', 'default']);
+          const candidates = segments.filter(s => !ignore.has(s.toLowerCase()) && !/^\d+$/.test(s) && s.length >= 3);
+          if (candidates.length > 0) {
+            let lastSegment = candidates[candidates.length - 1];
+            lastSegment = lastSegment.replace(/\.(html?|php|aspx?)$/i, '');
+            lastSegment = lastSegment.replace(/[-_][0-9a-f]{8,}$/i, '').replace(/[-_]\d{5,}$/, '');
+            const readable = decodeURIComponent(lastSegment).replace(/[-_+]/g, ' ').trim();
+            if (readable.length >= 3) {
+              return {
+                type: 'url_product',
+                query: readable,
+                raw: text,
+                hostname: url.hostname,
+                label: 'Товар из ссылки бренда: ' + readable
+              };
+            }
+          }
+
+          // Если это просто ссылка на главную производителя без товара
+          return {
+            type: 'url_brand_home',
+            query: '',
+            raw: text,
+            hostname: url.hostname,
+            label: 'Ссылка на сайт ' + url.hostname
+          };
+        } catch (e) {}
+      }
+
+      // 4. Обычный текст
+      return { type: 'text', query: text, raw: text, label: text };
+    }
+
+    // =============================================================
+    // IN-APP CAMERA BARCODE SCANNER (EAN-13 LASER VIEWFINDER)
+    // =============================================================
+    const EAN_L_CODES = ['0001101','0011001','0010011','0111101','0100011','0110001','0101111','0111011','0110111','0001011'];
+    const EAN_G_CODES = ['0100111','0110011','0011011','0100001','0011101','0111001','0000101','0010001','0001001','0010111'];
+    const EAN_R_CODES = ['1110010','1100110','1101100','1000010','1011100','1001110','1010000','1000100','1001000','1110100'];
+    const EAN_PARITY = ['LLLLLL','LLGLGG','LLGGLG','LLGGGL','LGLLGG','LGGLLG','LGGGLL','LGLGLG','LGLGGL','LGGLGL'];
+
+    function parseEanFromRuns(runs, startIdx, moduleWidth) {
+      let runIdx = startIdx + 3; // Пропускаем start guard 101
+      let leftDigits = '', leftParity = '';
+
+      for (let d = 0; d < 6; d++) {
+        if (runIdx + 3 >= runs.length) return null;
+        const total = runs[runIdx].len + runs[runIdx+1].len + runs[runIdx+2].len + runs[runIdx+3].len;
+        const m = total / 7;
+        let bits = '';
+        for (let i = 0; i < 4; i++) {
+          const count = Math.max(1, Math.min(4, Math.round(runs[runIdx + i].len / m)));
+          bits += String(runs[runIdx + i].v).repeat(count);
+        }
+        runIdx += 4;
+        if (bits.length !== 7) return null;
+
+        let found = false;
+        for (let num = 0; num < 10; num++) {
+          if (bits === EAN_L_CODES[num]) { leftDigits += num; leftParity += 'L'; found = true; break; }
+          if (bits === EAN_G_CODES[num]) { leftDigits += num; leftParity += 'G'; found = true; break; }
+        }
+        if (!found) return null;
+      }
+
+      // Center guard 01010
+      if (runIdx + 4 >= runs.length) return null;
+      runIdx += 5;
+
+      let rightDigits = '';
+      for (let d = 0; d < 6; d++) {
+        if (runIdx + 3 >= runs.length) return null;
+        const total = runs[runIdx].len + runs[runIdx+1].len + runs[runIdx+2].len + runs[runIdx+3].len;
+        const m = total / 7;
+        let bits = '';
+        for (let i = 0; i < 4; i++) {
+          const count = Math.max(1, Math.min(4, Math.round(runs[runIdx + i].len / m)));
+          bits += String(runs[runIdx + i].v).repeat(count);
+        }
+        runIdx += 4;
+        if (bits.length !== 7) return null;
+
+        let found = false;
+        for (let num = 0; num < 10; num++) {
+          if (bits === EAN_R_CODES[num]) { rightDigits += num; found = true; break; }
+        }
+        if (!found) return null;
+      }
+
+      const firstDigit = EAN_PARITY.indexOf(leftParity);
+      if (firstDigit === -1) return null;
+
+      const fullEan = String(firstDigit) + leftDigits + rightDigits;
+      if (fullEan.length !== 13) return null;
+
+      let sum = 0;
+      for (let i = 0; i < 12; i++) {
+        sum += Number(fullEan[i]) * (i % 2 === 0 ? 1 : 3);
+      }
+      const checkDigit = (10 - (sum % 10)) % 10;
+      if (checkDigit !== Number(fullEan[12])) return null;
+
+      return fullEan;
+    }
+
+    function decodeEan13FromCanvas(canvas) {
+      try {
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return null;
+        const w = canvas.width, h = canvas.height;
+        if (w < 95 || h < 10) return null;
+
+        const scanLines = [Math.floor(h * 0.5), Math.floor(h * 0.4), Math.floor(h * 0.6)];
+        for (const y of scanLines) {
+          const imgData = ctx.getImageData(0, y, w, 1);
+          const d = imgData.data;
+
+          let minL = 255, maxL = 0;
+          const lums = new Uint8Array(w);
+          for (let x = 0; x < w; x++) {
+            const idx = x * 4;
+            const lum = (d[idx] * 299 + d[idx + 1] * 587 + d[idx + 2] * 114) / 1000;
+            lums[x] = lum;
+            if (lum < minL) minL = lum;
+            if (lum > maxL) maxL = lum;
+          }
+          if (maxL - minL < 40) continue;
+          const th = (minL + maxL) / 2;
+
+          const runs = [];
+          let curV = lums[0] < th ? 1 : 0, curL = 1;
+          for (let x = 1; x < w; x++) {
+            const v = lums[x] < th ? 1 : 0;
+            if (v === curV) curL++;
+            else { runs.push({ v: curV, len: curL }); curV = v; curL = 1; }
+          }
+          runs.push({ v: curV, len: curL });
+
+          for (let r = 0; r < runs.length - 56; r++) {
+            if (runs[r].v !== 1 || runs[r+1].v !== 0 || runs[r+2].v !== 1) continue;
+            const m = (runs[r].len + runs[r+1].len + runs[r+2].len) / 3;
+            if (m < 0.8) continue;
+
+            const res = parseEanFromRuns(runs, r, m);
+            if (res) return res;
+          }
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    const BarcodeScannerManager = {
+      isOpen: false,
+      mode: 'barcode', // 'barcode' | 'qr' | 'all'
+      stream: null,
+      animId: null,
+      detector: null,
+      torchEnabled: false,
+      videoTrack: null,
+      lastDetectedCode: null,
+      lastDetectedTime: 0,
+
+      initDetector() {
+        if ('BarcodeDetector' in window) {
+          try {
+            const formats = this.mode === 'barcode'
+              ? ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39']
+              : (this.mode === 'qr' ? ['qr_code', 'data_matrix'] : ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code', 'data_matrix']);
+            this.detector = new BarcodeDetector({ formats });
+          } catch (e) {
+            this.detector = null;
+          }
+        }
+      },
+
+      setMode(newMode) {
+        this.mode = newMode;
+        document.querySelectorAll('.scanner-mode-pill').forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById(newMode === 'barcode' ? 'scannerModeBarcode' : (newMode === 'qr' ? 'scannerModeQr' : 'scannerModeAll'));
+        if (btn) btn.classList.add('active');
+
+        const reticle = document.getElementById('scannerReticle');
+        if (reticle) {
+          if (newMode === 'qr') reticle.classList.add('mode-qr');
+          else reticle.classList.remove('mode-qr');
+        }
+
+        const hint = document.getElementById('scannerHint');
+        if (hint) {
+          if (newMode === 'barcode') hint.textContent = 'Наведите лазерную полоску на штрихкод EAN-13';
+          else if (newMode === 'qr') hint.textContent = 'Поместите QR-код в квадрат видоискателя';
+          else hint.textContent = 'Наведите камеру на штрихкод или QR-код';
+        }
+
+        this.initDetector();
+        if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('selection');
+      },
+
+      async open(preferredMode) {
+        this.setMode(preferredMode || 'barcode');
+        const modal = document.getElementById('scannerModalBackdrop');
+        if (modal) modal.style.display = 'flex';
+        this.isOpen = true;
+        if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
+
+        const laser = document.getElementById('scannerLaser');
+        if (laser) laser.classList.remove('success');
+
+        if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1920, min: 640 },
+                height: { ideal: 1080, min: 480 }
+              },
+              audio: false
+            });
+            this.stream = stream;
+            const video = document.getElementById('scannerVideo');
+            if (video) {
+              video.srcObject = stream;
+              await video.play();
+              this.videoTrack = stream.getVideoTracks()[0] || null;
+              this.startScanningLoop();
+              return true;
+            }
+          } catch (err) {
+            console.warn('getUserMedia error, fallback to Telegram popup:', err);
+          }
+        }
+
+        this.close();
+        return this.openTelegramScanner();
+      },
+
+      close(e) {
+        if (e && e.target && e.target.id !== 'scannerModalBackdrop' && !e.target.classList.contains('scanner-icon-btn')) {
+          return;
+        }
+        this.isOpen = false;
+        if (this.animId) {
+          cancelAnimationFrame(this.animId);
+          this.animId = null;
+        }
+        if (this.stream) {
+          this.stream.getTracks().forEach(t => t.stop());
+          this.stream = null;
+        }
+        this.videoTrack = null;
+        this.torchEnabled = false;
+        const video = document.getElementById('scannerVideo');
+        if (video) video.srcObject = null;
+
+        const modal = document.getElementById('scannerModalBackdrop');
+        if (modal) modal.style.display = 'none';
+        if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
+      },
+
+      async toggleTorch() {
+        if (!this.videoTrack) return;
+        try {
+          const caps = this.videoTrack.getCapabilities ? this.videoTrack.getCapabilities() : {};
+          if (caps.torch) {
+            this.torchEnabled = !this.torchEnabled;
+            await this.videoTrack.applyConstraints({
+              advanced: [{ torch: this.torchEnabled }]
+            });
+            const btn = document.getElementById('scannerTorchBtn');
+            if (btn) btn.style.background = this.torchEnabled ? 'rgba(250, 204, 21, 0.45)' : 'rgba(255, 255, 255, 0.2)';
+            if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('impact', 'light');
+          } else {
+            if (typeof showToast === 'function') showToast('Фонарик не поддерживается на этом модуле камеры');
+          }
+        } catch (e) {
+          console.warn('Torch error:', e);
+        }
+      },
+
+      openTelegramScanner() {
+        if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.showScanQrPopup === 'function') {
+          const tg = window.Telegram.WebApp;
+          try {
+            if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('impact', 'light');
+            tg.showScanQrPopup({
+              text: 'Наведите камеру на штрихкод товара (EAN-13) или QR-код'
+            }, (text) => {
+              if (!text) return false;
+              if (typeof tg.closeScanQrPopup === 'function') tg.closeScanQrPopup();
+              this.handleScannedResult(text);
+              return true;
+            });
+            return true;
+          } catch (e) {
+            console.warn('Telegram scanner error:', e);
+          }
+        }
+        if (typeof showToast === 'function') showToast('📷 Разрешите доступ к камере для сканирования штрихкодов');
+        return false;
+      },
+
+      startScanningLoop() {
+        const video = document.getElementById('scannerVideo');
+        const canvas = document.getElementById('scannerCanvas');
+        if (!video || !canvas) return;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        const processFrame = async () => {
+          if (!this.isOpen || video.readyState < 2) {
+            if (this.isOpen) this.animId = requestAnimationFrame(processFrame);
+            return;
+          }
+
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
+          if (vw > 0 && vh > 0) {
+            const reticle = document.getElementById('scannerReticle');
+            const stage = document.getElementById('scannerStage');
+            let cropW = vw, cropH = vh, cropX = 0, cropY = 0;
+
+            if (reticle && stage && stage.clientWidth > 0 && stage.clientHeight > 0) {
+              const rRect = reticle.getBoundingClientRect();
+              const sRect = stage.getBoundingClientRect();
+              const scale = Math.max(vw / sRect.width, vh / sRect.height);
+              cropW = Math.round(rRect.width * scale);
+              cropH = Math.round(rRect.height * scale);
+              cropX = Math.round((vw - cropW) / 2);
+              cropY = Math.round((vh - cropH) / 2);
+            }
+
+            canvas.width = cropW;
+            canvas.height = cropH;
+            ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+            let detected = null;
+
+            // 1. Аппаратный BarcodeDetector
+            if (this.detector) {
+              try {
+                const barcodes = await this.detector.detect(canvas);
+                if (barcodes && barcodes.length > 0) {
+                  for (const b of barcodes) {
+                    const raw = b.rawValue || '';
+                    const format = b.format || '';
+                    if (this.mode === 'barcode' && format.includes('qr')) {
+                      // В режиме штрихкода игнорируем любые QR-коды!
+                      continue;
+                    }
+                    detected = { raw, format };
+                    break;
+                  }
+                }
+              } catch (e) {}
+            }
+
+            // 2. Резервный Canvas 1D EAN-13 декодер
+            if (!detected && (this.mode === 'barcode' || this.mode === 'all')) {
+              const ean = decodeEan13FromCanvas(canvas);
+              if (ean) detected = { raw: ean, format: 'ean_13' };
+            }
+
+            if (detected && detected.raw) {
+              const now = Date.now();
+              if (detected.raw !== this.lastDetectedCode || now - this.lastDetectedTime > 3000) {
+                this.lastDetectedCode = detected.raw;
+                this.lastDetectedTime = now;
+                this.onCodeDetected(detected.raw, detected.format);
+                return;
+              }
+            }
+          }
+
+          if (this.isOpen) {
+            this.animId = requestAnimationFrame(processFrame);
+          }
+        };
+
+        this.animId = requestAnimationFrame(processFrame);
+      },
+
+      onCodeDetected(rawText, format) {
+        const laser = document.getElementById('scannerLaser');
+        if (laser) laser.classList.add('success');
+
+        if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('notification', 'success');
+
+        try {
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(920, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.09);
+        } catch (e) {}
+
+        setTimeout(() => {
+          this.close();
+          this.handleScannedResult(rawText);
+        }, 220);
+      },
+
+      handleScannedResult(rawText) {
+        const item = extractProductFromScannedText(rawText);
+        if (!item) return;
+
+        if (item.type === 'ean13' || item.type === 'ean8' || item.type === 'marking') {
+          const homeInput = document.getElementById('homeSearchInput');
+          if (homeInput) homeInput.value = item.query;
+          if (typeof showToast === 'function') {
+            showToast('✅ ' + item.label);
+          }
+          executeDirectSearch(item.query);
+          return;
+        }
+
+        if (item.type === 'url_product') {
+          this.showUrlPrompt(item);
+          return;
+        }
+
+        if (item.type === 'url_brand_home') {
+          if (typeof showToast === 'function') {
+            showToast('⚠️ Ссылка на сайт ' + item.hostname + '. Наведите камеру на штрихкод EAN-13');
+          }
+          setTimeout(() => this.open('barcode'), 600);
+          return;
+        }
+
+        const homeInput = document.getElementById('homeSearchInput');
+        if (homeInput) homeInput.value = item.query;
+        executeDirectSearch(item.query);
+      },
+
+      showUrlPrompt(item) {
+        const modal = document.getElementById('scannedUrlModal');
+        const body = document.getElementById('scannedPromptBody');
+        const actionBtn = document.getElementById('scannedPromptActionBtn');
+        if (!modal || !body || !actionBtn) return;
+
+        body.innerHTML = `
+          <div style="margin-bottom: 10px; font-weight: 500;">Распознан товар из ссылки производителя:</div>
+          <div style="background: var(--bg-subtle, #f1f5f9); padding: 12px 14px; border-radius: 10px; font-weight: 700; font-size: 1.05rem; color: var(--primary, #2563eb); word-break: break-word;">
+            ${escapeHtml(item.query)}
+          </div>
+          <div style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted, #64748b);">
+            Нажмите кнопку ниже, чтобы найти лучшие цены в магазинах Казахстана, либо отсканируйте штрихкод EAN-13 заново.
+          </div>
+        `;
+
+        actionBtn.onclick = () => {
+          this.closeUrlPrompt();
+          const homeInput = document.getElementById('homeSearchInput');
+          if (homeInput) homeInput.value = item.query;
+          executeDirectSearch(item.query);
+        };
+
+        modal.style.display = 'flex';
+        if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
+      },
+
+      closeUrlPrompt() {
+        const modal = document.getElementById('scannedUrlModal');
+        if (modal) modal.style.display = 'none';
+        if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
+      }
+    };
+
+    // =============================================================
     // TELEGRAM MINI APP INTEGRATION (TG-10)
     // =============================================================
     const TelegramApp = {
@@ -6466,6 +7246,19 @@
           return;
         }
 
+        const smb = document.getElementById('scannerModalBackdrop');
+        if (smb && smb.style.display !== 'none') {
+          BarcodeScannerManager.close();
+          this.updateBackButton();
+          return;
+        }
+        const sum = document.getElementById('scannedUrlModal');
+        if (sum && sum.style.display !== 'none') {
+          BarcodeScannerManager.closeUrlPrompt();
+          this.updateBackButton();
+          return;
+        }
+
         const currentPath = window.location.pathname;
         if (currentPath !== '/' && currentPath !== '') {
           if (window.history.length > 1) {
@@ -6489,7 +7282,9 @@
             (document.getElementById('catalogModal')?.classList.contains('open')) ||
             (document.getElementById('watchModalBackdrop')?.classList.contains('open')) ||
             (document.getElementById('modalChangelog')?.classList.contains('open')) ||
-            (document.getElementById('modalRegisterSeller')?.classList.contains('open'))
+            (document.getElementById('modalRegisterSeller')?.classList.contains('open')) ||
+            (document.getElementById('scannerModalBackdrop')?.style.display !== 'none') ||
+            (document.getElementById('scannedUrlModal')?.style.display !== 'none')
           );
           if (!isHome || hasModal) {
             this.tg.BackButton.show();
@@ -6674,31 +7469,10 @@
         }
       },
 
-      // TG-25: Нативный сканер QR- и штрих-кодов (Bot API 6.4/7.7)
-      scanQrCode() {
-        if (this.tg && typeof this.tg.showScanQrPopup === 'function') {
-          try {
-            this.haptic('impact', 'light');
-            this.tg.showScanQrPopup({
-              text: 'Наведите камеру на штрихкод (EAN/UPC) или QR-код товара'
-            }, (text) => {
-              if (!text) return false;
-              this.haptic('notification', 'success');
-              if (typeof this.tg.closeScanQrPopup === 'function') {
-                this.tg.closeScanQrPopup();
-              }
-              const homeInput = document.getElementById('homeSearchInput');
-              if (homeInput) homeInput.value = text;
-              executeDirectSearch(text);
-              return true;
-            });
-            return true;
-          } catch (e) {
-            console.warn('showScanQrPopup error:', e);
-          }
-        }
-        if (typeof showToast === 'function') {
-          showToast('📷 Наведите камеру на штрихкод товара в мобильном Telegram Mini App');
+      // TG-25: Сканер штрих-кодов и QR-кодов (In-App Camera Scanner)
+      scanQrCode(preferredMode) {
+        if (typeof BarcodeScannerManager !== 'undefined') {
+          return BarcodeScannerManager.open(preferredMode || 'barcode');
         }
         return false;
       },

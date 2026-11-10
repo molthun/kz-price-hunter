@@ -89,9 +89,17 @@ class MiniAppTemplateContractTests(unittest.TestCase):
             content = f.read()
 
         # TG-25: scanQrCode и showScanQrPopup
-        self.assertIn("scanQrCode()", content)
+        self.assertIn("scanQrCode(preferredMode)", content)
         self.assertIn("showScanQrPopup", content)
         self.assertIn("search-scan-btn", content)
+
+        # Выделенный сканер BarcodeScannerManager и EAN-13 видоискатель
+        self.assertIn("BarcodeScannerManager", content)
+        self.assertIn("extractProductFromScannedText", content)
+        self.assertIn("scanner-reticle", content)
+        self.assertIn("decodeEan13FromCanvas", content)
+        self.assertIn("scannerModalBackdrop", content)
+        self.assertIn("scannedUrlModal", content)
 
         # TG-26: MainButton и SecondaryButton
         self.assertIn("showProductActions(product)", content)
@@ -100,3 +108,28 @@ class MiniAppTemplateContractTests(unittest.TestCase):
 
         # TG-27: requestWriteAccess
         self.assertIn("requestWriteAccess(callback)", content)
+
+
+class SmartBarcodeAndQrExtractorContractTests(unittest.TestCase):
+    """Проверка шаблонов и логики резолвинга штрихкодов и QR-кодов."""
+    def test_barcode_and_marking_regex_patterns(self):
+        import re
+
+        # Шаблон EAN-13
+        ean_pattern = re.compile(r"^\d{13}$")
+        self.assertTrue(ean_pattern.match("8806091234567"))
+        self.assertFalse(ean_pattern.match("https://samsung.com"))
+
+        # Шаблон GS1 / Naqty Onim маркировки
+        gs1_pattern = re.compile(r"(?:(?:^|[^\d])01|\(01\))(\d{14})")
+        m1 = gs1_pattern.search("010487000123456721xyz987")
+        self.assertIsNotNone(m1)
+        gtin14 = m1.group(1)
+        self.assertEqual(gtin14, "04870001234567")
+        ean13 = gtin14[1:] if gtin14.startswith("0") else gtin14
+        self.assertEqual(ean13, "4870001234567")
+
+        # GS1 с префиксом (01)
+        m2 = gs1_pattern.search("(01)04870001234567(21)xyz987")
+        self.assertIsNotNone(m2)
+        self.assertEqual(m2.group(1), "04870001234567")
