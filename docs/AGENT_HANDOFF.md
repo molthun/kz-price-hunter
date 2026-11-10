@@ -2,11 +2,11 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-14 + TG-15: Эффекты сообщений (Bot API 7.5), постоянная клавиатура Mini App и двуязычный профиль (ru/kk) — Antigravity (2026-11-10 23:40)
+## STAND_DEPLOYED TG-14 + TG-15: Эффекты сообщений (Bot API 7.5), постоянная клавиатура Mini App и двуязычный профиль (ru/kk) — Antigravity (2026-11-10 23:42)
 
 - **Поручение владельца (чат, 2026-11-10):** «продолжай»; работаем на стенде, в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
-- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогался.
 - **Область файлов:** `config.py`, `.env.example`, `notifier.py`, `telegram_bot.py`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`, `tests/notifications/test_effects_and_keyboard.py`.
 - **Что сделано:**
   1. **TG-14 (Эффекты сообщений `message_effect_id`, Bot API 7.5):**
@@ -18,14 +18,14 @@
      - Обработка нажатий текстовых кнопок в `process_telegram_update`.
   3. **Локализация профиля и мультиязычные команды (ru + kk, Bot API 6.7/7.0):**
      - Метод `setup_bot_profile` с установкой описания (`setMyDescription`), краткого описания (`setMyShortDescription`) и команд (`setMyCommands`) для русского (`ru`) и казахского (`kk`) языков.
-  4. **Тесты:**
+  4. **Тесты и проверки:**
      - Создан `tests/notifications/test_effects_and_keyboard.py` (7 тестов).
      - Локально: `Ran 318 tests in 12.148s, OK`.
+     - На стенде внутри Docker `kzph-stand`: `Ran 318 tests in 27.291s, OK`.
+     - Диагностика стенда `https://shdev.molthun.ru/api/health`: `status: ok`, `db: ok`, `worker_running: true`.
+- **Коммит:** `d2c203b` (развёрнут на стенде).
 - **Следующий точный шаг:**
-  - Закоммитить локально.
-  - Доставить на стенд через `git bundle`.
-  - Прогнать тесты внутри Docker-контейнера на стенде.
-  - Обновить handoff до `STAND_DEPLOYED TG-14 + TG-15`.
+  - Ждать замечаний владельца по стенду или перейти к TG-02б (потоковый AI).
 
 ---
 
