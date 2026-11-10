@@ -26,7 +26,9 @@ import aiohttp
 
 import config
 from config import get_bot_token, APP_URL
-from notifier import _shop_emoji, format_price, site_button
+from notifier import (
+    _shop_emoji, format_price, site_button, url_button, callback_button, copy_button, button_style
+)
 import ai_service
 from bounded_cache import BoundedTTLCache
 from auth import RateLimiter
@@ -403,7 +405,7 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
                     keyboard = []
                     if APP_URL:
                         keyboard.append([site_button("⚙️ Мои наблюдения на сайте", APP_URL)])
-                    keyboard.append([{"text": "🔕 Отключить наблюдение", "callback_data": f"unwatch:{watch['id']}"}])
+                    keyboard.append([callback_button("🔕 Отключить наблюдение", f"unwatch:{watch['id']}", style="danger")])
                     reply_markup = {"inline_keyboard": keyboard}
                     await send_tg_message(session, token, chat_id, text, reply_markup)
                     return
@@ -449,8 +451,12 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
 
                     keyboard = []
                     if url and url.startswith("http"):
-                        keyboard.append([{"text": f"🛒 Открыть в {shop or 'магазине'}", "url": url}])
-                    keyboard.append([{"text": "🔕 Отключить наблюдение", "callback_data": f"unwatch:{watch['id']}"}])
+                        row1 = [url_button(f"🛒 Открыть в {shop or 'магазине'}", url, style="primary")]
+                        c_btn = copy_button("📋 Скопировать ссылку", url)
+                        if c_btn:
+                            row1.append(c_btn)
+                        keyboard.append(row1)
+                    keyboard.append([callback_button("🔕 Отключить наблюдение", f"unwatch:{watch['id']}", style="danger")])
                     if APP_URL:
                         keyboard.append([site_button("⚙️ Все наблюдения на сайте", APP_URL)])
                     reply_markup = {"inline_keyboard": keyboard}
@@ -541,7 +547,7 @@ async def handle_watches_command(session: aiohttp.ClientSession, token: str, cha
         desc = w.get("description") or w.get("title") or f"Наблюдение #{w['id']}"
         text += f"{idx}. <b>{html.escape(desc)}</b>\n"
         w_title = (w.get("title") or f"#{w['id']}")[:24]
-        keyboard.append([{"text": f"🔕 Отключить: {w_title}", "callback_data": f"unwatch:{w['id']}"}])
+        keyboard.append([callback_button(f"🔕 Отключить: {w_title}", f"unwatch:{w['id']}", style="danger")])
 
     if len(watches) > 15:
         text += f"\n<i>(Показаны первые 15 из {len(watches)})</i>\n"
@@ -763,7 +769,11 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
         title = html.escape(it.get("title", ""))
         lines.append(f"{idx}. {emoji} <b>{price}</b> — {title} (<i>{shop}</i>)")
         if it.get("url") and it["url"].startswith("http"):
-            keyboard.append([{"text": f"{emoji} {shop}: {price}", "url": it["url"]}])
+            row = [url_button(f"{emoji} {shop}: {price}", it["url"], style="primary")]
+            c_btn = copy_button("📋", it["url"])
+            if c_btn:
+                row.append(c_btn)
+            keyboard.append(row)
 
     if APP_URL:
         keyboard.append([site_button("📊 Все результаты на сайте", _site_search_url(q))])

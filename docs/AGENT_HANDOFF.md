@@ -2,6 +2,41 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IMPLEMENTED TG-08: Кнопки копирования и стили (copy_text, style) — Antigravity (2026-11-10 22:15)
+
+- **Поручение владельца (чат, 2026-11-10):** продолжение разработки на стенде; реализация TG-08 (кнопки копирования ссылок `copy_text` и цветовая дифференциация действий `style`); в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогался.
+- **Что сделано:**
+  1. `config.py`:
+     - `button_styles_enabled()`: выключатель `TELEGRAM_BUTTON_STYLES=on|off` (по умолчанию `on`).
+     - `copy_button_enabled()`: выключатель `TELEGRAM_COPY_BUTTON=on|off` (по умолчанию `on`).
+  2. `notifier.py`:
+     - `button_style(style)`: валидация стилей по спецификации Bot API 9.4 (`primary`, `success`, `danger`).
+     - `url_button(text, url, style)`: создание кнопки перехода по URL со стилем.
+     - `callback_button(text, data, style)`: создание callback-кнопки со стилем.
+     - `copy_button(text, copy_text, style)`: создание нативной кнопки копирования в буфер обмена (`copy_text`, Bot API 7.11) с лимитом Telegram 256 символов.
+     - `site_button(text, url, style)`: поддержка опционального стиля.
+     - `send_telegram_alert`: главное действие `⚡️ Открыть товар в {shop}` получило стиль `primary`; во второй ряд добавлена кнопка `📋 Скопировать ссылку` (вместе с дашбордом цен).
+     - `send_watch_message`: `⚡️ Открыть предложение` получило стиль `primary`; кнопка отмены `🔕 Не следить` получила стиль `danger`; добавлена кнопка `📋 Скопировать ссылку`.
+  3. `telegram_bot.py`:
+     - `handle_watches_command`: кнопки отключения наблюдений `🔕 Отключить: ...` получили стиль `danger`.
+     - `handle_start_command`: в карточках создания наблюдений по товару и запросу добавлены стили `primary` (переход в магазин), `danger` (отмена наблюдения) и кнопка быстрого копирования ссылки `📋 Скопировать ссылку`.
+     - `handle_search_command` (текстовый fallback): ссылки на магазины получили стиль `primary` и компактную кнопку `📋` для мгновенного копирования ссылки на товар.
+  4. `.env.example`:
+     - Документированы переменные `TELEGRAM_BUTTON_STYLES=on` и `TELEGRAM_COPY_BUTTON=on`.
+  5. Тесты:
+     - Новый файл `tests/notifications/test_button_styles.py` (11 тестов: валидация стилей, генерация `copy_text`, лимит длины 256 символов, выключатели переменных окружения, разметка `send_telegram_alert`, `send_watch_message`, команд `/watches` и `/search`).
+  6. Документация:
+     - Обновлены `docs/TELEGRAM_BOT.md` (раздел 2з, таблица, журнал) и `docs/DEVELOPMENT_PLAN.md`.
+- **Проверки:**
+  - `pytest tests/notifications/test_button_styles.py` — **11 passed** in 0.12s;
+  - `pytest tests/notifications` — **280 passed, 0 failed** in 12.22s.
+- **Следующий точный шаг:**
+  - Перенести коммит на тестовый стенд через `git bundle` (без push в `origin/main`), пересобрать контейнер `kzph-stand` и проверить корректность работы на стенде.
+
+---
+
 ## STAND_DEPLOYED TG-09: Глубокие ссылки с сайта (t.me/bot?start=...) — Antigravity (2026-11-10 22:05)
 
 - **Поручение владельца (чат, 2026-11-10):** выбор TG-09: Глубокие ссылки с сайта (кнопка «Следить в Telegram» на сайте с открытием бота `t.me/bot?start=...`); работаем на стенде, в прод ничего не отправляем.

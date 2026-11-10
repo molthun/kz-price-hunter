@@ -106,7 +106,51 @@ def classify_telegram_response(res) -> DeliveryResult:
     return DeliveryResult("retry", None, f"Telegram {res.status_code}")
 
 
-def site_button(text: str, url: str) -> Dict[str, Any]:
+def button_style(style: Optional[str]) -> Optional[str]:
+    """TG-08: возвращает style (primary, success, danger) по Bot API 9.4, если включен TELEGRAM_BUTTON_STYLES."""
+    if not style or not config.button_styles_enabled():
+        return None
+    s = str(style).lower().strip()
+    return s if s in ("primary", "success", "danger") else None
+
+
+def url_button(text: str, url: str, style: Optional[str] = None) -> Dict[str, Any]:
+    """Кнопка перехода по URL с опциональным стилем."""
+    btn: Dict[str, Any] = {"text": text, "url": url}
+    st = button_style(style)
+    if st:
+        btn["style"] = st
+    return btn
+
+
+def callback_button(text: str, data: str, style: Optional[str] = None) -> Dict[str, Any]:
+    """Кнопка обратного вызова callback_data с опциональным стилем."""
+    btn: Dict[str, Any] = {"text": text, "callback_data": data}
+    st = button_style(style)
+    if st:
+        btn["style"] = st
+    return btn
+
+
+def copy_button(text: str, copy_text: str, style: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """TG-08: кнопка копирования текста в буфер обмена (Bot API 7.11).
+    None если выключено через TELEGRAM_COPY_BUTTON или текст пустой.
+    """
+    if not config.copy_button_enabled() or not copy_text:
+        return None
+    val = str(copy_text).strip()
+    if not val:
+        return None
+    if len(val) > 256:
+        val = val[:256]
+    btn: Dict[str, Any] = {"text": text, "copy_text": {"text": val}}
+    st = button_style(style)
+    if st:
+        btn["style"] = st
+    return btn
+
+
+def site_button(text: str, url: str, style: Optional[str] = None) -> Dict[str, Any]:
     """Кнопка на наш сайт. По https открывает его как Mini App: сайт получает initData и входит сам.
 
     Обычная url-кнопка открывает встроенный браузер Telegram без данных входа — человек видел страницу
@@ -114,8 +158,13 @@ def site_button(text: str, url: str) -> Dict[str, Any]:
     TELEGRAM_SITE_BUTTONS=url возвращает прежние ссылки.
     """
     if url.startswith("https://") and os.getenv("TELEGRAM_SITE_BUTTONS", "webapp").strip().lower() != "url":
-        return {"text": text, "web_app": {"url": url}}
-    return {"text": text, "url": url}
+        btn: Dict[str, Any] = {"text": text, "web_app": {"url": url}}
+    else:
+        btn = {"text": text, "url": url}
+    st = button_style(style)
+    if st:
+        btn["style"] = st
+    return btn
 
 
 def note_delivery_result(user_id: int, result: DeliveryResult) -> None:
@@ -154,9 +203,16 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
         f"💰 <b>Выгода:</b> <b>{format_price(anomaly['savings'])}</b>\n\n"
         f"ℹ️ {html.escape(anomaly['reason'])}"
     )
-    keyboard = [[{"text": f"⚡️ Открыть товар в {shop}", "url": url}]]
+    keyboard = [[url_button(f"⚡️ Открыть товар в {shop}", url, style="primary")]]
+    second_row = []
     if APP_URL:
-        keyboard.append([site_button("📊 Дашборд цен", APP_URL)])
+        second_row.append(site_button("📊 Дашборд цен", APP_URL))
+    if url:
+        c_btn = copy_button("📋 Скопировать ссылку", url)
+        if c_btn:
+            second_row.append(c_btn)
+    if second_row:
+        keyboard.append(second_row)
     reply_markup = {"inline_keyboard": keyboard}
 
     try:
@@ -234,14 +290,21 @@ def send_watch_message(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
         f"{body}\n\n"
         f"ℹ️ {html.escape(reason)}"
     )
-    keyboard = [[{"text": f"⚡️ Открыть предложение", "url": product.get("url") or APP_URL or ""}]]
+    prod_url = product.get("url") or APP_URL or ""
+    keyboard = []
+    if prod_url:
+        keyboard.append([url_button("⚡️ Открыть предложение", prod_url, style="primary")])
     second_row = []
     if watch_id:
-        second_row.append({"text": "🔕 Не следить", "callback_data": f"unwatch:{watch_id}"})
-    if APP_URL:
-        second_row.append(site_button("🔔 Мои наблюдения", APP_URL))
+        second_row.append(callback_button("🔕 Не следить", f"unwatch:{watch_id}", style="danger"))
+    if product.get("url"):
+        c_btn = copy_button("📋 Скопировать ссылку", product["url"])
+        if c_btn:
+            second_row.append(c_btn)
     if second_row:
         keyboard.append(second_row)
+    if APP_URL:
+        keyboard.append([site_button("🔔 Мои наблюдения", APP_URL)])
     try:
         return classify_telegram_response(telegram_api("sendMessage", {
             "chat_id": chat_id, "text": text, "parse_mode": "HTML",

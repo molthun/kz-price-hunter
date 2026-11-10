@@ -550,6 +550,16 @@ def stale_alert_marking_enabled() -> bool:
     return os.getenv("TELEGRAM_STALE_MARK", "").strip().lower() in ("on", "1", "true", "yes")
 
 
+def button_styles_enabled() -> bool:
+    """TG-08: стили кнопок Telegram (primary/danger/success, Bot API 9.4). Включено; TELEGRAM_BUTTON_STYLES=off отключает."""
+    return os.getenv("TELEGRAM_BUTTON_STYLES", "on").strip().lower() not in ("off", "0", "false", "no")
+
+
+def copy_button_enabled() -> bool:
+    """TG-08: кнопка копирования текста copy_text (Bot API 7.11). Включено; TELEGRAM_COPY_BUTTON=off отключает."""
+    return os.getenv("TELEGRAM_COPY_BUTTON", "on").strip().lower() not in ("off", "0", "false", "no")
+
+
 def get_bot_token():
     """Токен Telegram-бота: переменная окружения, для совместимости — старое поле settings.json."""
     return (
