@@ -1086,6 +1086,14 @@ def _create_schema(cursor) -> None:
             PRIMARY KEY (user_id, topic_type)
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ai_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            rating TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     # Сессии: в базе хранится только SHA-256 токена из cookie
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
@@ -4174,6 +4182,37 @@ def get_all_user_topics(user_id: int) -> Dict[str, int]:
             (int(user_id),)
         ).fetchall()
         return {str(r[0]): int(r[1]) for r in rows}
+
+
+def save_ai_feedback(user_id: int, rating: str) -> None:
+    """TG-20: сохранение оценки ответа AI-консультанта (good / bad)."""
+    with get_connection() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                rating TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("INSERT INTO ai_feedback (user_id, rating) VALUES (?, ?)", (int(user_id), str(rating)))
+        conn.commit()
+
+
+def get_ai_feedback_stats() -> Dict[str, int]:
+    """TG-20: статистика оценок AI-консультанта."""
+    with get_connection() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                rating TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        rows = conn.execute("SELECT rating, COUNT(*) FROM ai_feedback GROUP BY rating").fetchall()
+        return {str(r[0]): int(r[1]) for r in rows}
+
 
 def list_users() -> List[Dict[str, Any]]:
     with get_connection() as conn:

@@ -2,6 +2,38 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IMPLEMENTED TG-16 + TG-17 + TG-20: Link Preview Options (7.0/7.8), Mini App 8.0 Fullscreen/HomeScreen/Stories и AI-фидбэк — Antigravity (2026-11-10 23:55)
+
+- **Поручение владельца (чат, 2026-11-10):** «Дальше»; работаем на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Область файлов:** `database.py`, `notifier.py`, `telegram_bot.py`, `web/templates/search_first.html`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`, `tests/notifications/test_link_preview_and_mini_app.py`.
+- **Что сделано:**
+  1. **TG-16 (`link_preview_options`, Bot API 7.0/7.8):**
+     - В `notifier.py` добавлена функция `make_link_preview_options(is_disabled, url, prefer_small_media, show_above_text)`.
+     - Заменён устаревший `disable_web_page_preview` на `link_preview_options` в `send_telegram_alert`, `send_watch_message`, `send_watch_digest`, `send_daily_digest`, `save_prepared_inline_message`, `send_tg_message` и `handle_inline_query`.
+     - Алерты и наблюдения теперь передают компактные превью товаров сбоку/сверху от текста сообщения (`prefer_small_media=True`, `show_above_text=True`).
+  2. **TG-17 (Telegram Mini App 8.0: Fullscreen, HomeScreen, Stories):**
+     - В `TelegramApp` (`search_first.html`):
+       - `requestFullscreen()`: открытие без рамок в полноэкранном режиме Telegram Bot API 8.0 при старте Mini App;
+       - `addToHomeScreen()`: нативный диалог добавления PWA/Mini App на домашний экран смартфона прямо из карточки профиля;
+       - `shareToStory(mediaUrl, text, widgetUrl)`: публикация карточки товара с изображением и ссылкой прямо в Telegram Stories (Bot API 7.8);
+       - Добавлена карточка «Telegram Mini App» в профиле и кнопка «📖 В историю» на странице товара.
+  3. **TG-20 (Интерактивная оценка ответов AI-консультанта):**
+     - В `database.py` создана таблица `ai_feedback` и методы `save_ai_feedback(user_id, rating)` и `get_ai_feedback_stats()`.
+     - В `handle_ai_consultant_message` под каждым ответом AI-консультанта добавляются inline-кнопки `[ 👍 Полезно | 👎 Не то ]`.
+     - В `process_telegram_update` добавлен обработчик `aifb:*` с мгновенным `answerCallbackQuery` и сохранением в БД.
+- **Проверки:**
+  - `venv/bin/python3 -m unittest tests/notifications/test_link_preview_and_mini_app.py`: 10 тестов OK (0.118s).
+  - `venv/bin/python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 328 тестов OK (12.191s).
+- **Следующий точный шаг:**
+  - Закоммитить локально.
+  - Собрать bundle и отправить на стенд.
+  - Прогнать тесты на стенде внутри Docker-контейнера `kzph-stand`.
+  - Обновить handoff до STAND_DEPLOYED.
+
+---
+
 ## STAND_DEPLOYED TG-14 + TG-15: Эффекты сообщений (Bot API 7.5), постоянная клавиатура Mini App и двуязычный профиль (ru/kk) — Antigravity (2026-11-10 23:42)
 
 - **Поручение владельца (чат, 2026-11-10):** «продолжай»; работаем на стенде, в прод ничего не отправляем.

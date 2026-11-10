@@ -192,6 +192,31 @@ def expandable_quote(text: str) -> str:
     return f"<blockquote expandable>{text}</blockquote>"
 
 
+def make_link_preview_options(
+    is_disabled: bool = False,
+    url: Optional[str] = None,
+    prefer_small_media: bool = False,
+    prefer_large_media: bool = False,
+    show_above_text: bool = False,
+) -> Dict[str, Any]:
+    """TG-16: формирование объекта LinkPreviewOptions (Telegram Bot API 7.0/7.8).
+    Заменяет устаревший disable_web_page_preview.
+    """
+    options: Dict[str, Any] = {}
+    if is_disabled:
+        options["is_disabled"] = True
+        return options
+    if url:
+        options["url"] = url
+    if prefer_small_media:
+        options["prefer_small_media"] = True
+    if prefer_large_media:
+        options["prefer_large_media"] = True
+    if show_above_text:
+        options["show_above_text"] = True
+    return options
+
+
 def send_telegram_rich_message(
     chat_id: int,
     markdown: str,
@@ -257,7 +282,7 @@ def save_prepared_inline_message(
         "input_message_content": {
             "message_text": "\n".join(msg_lines),
             "parse_mode": "HTML",
-            "disable_web_page_preview": False
+            "link_preview_options": make_link_preview_options(prefer_small_media=True, url=url if url else None)
         }
     }
     if is_safe_image_url(image_url):
@@ -425,7 +450,8 @@ def send_telegram_alert(
                 return result
         msg_payload: Dict[str, Any] = {
             "chat_id": chat_id, "text": message_text,
-            "parse_mode": "HTML", "reply_markup": reply_markup
+            "parse_mode": "HTML", "reply_markup": reply_markup,
+            "link_preview_options": make_link_preview_options(prefer_small_media=True, show_above_text=True, url=url) if url else make_link_preview_options(is_disabled=True)
         }
         if message_thread_id is not None:
             msg_payload["message_thread_id"] = message_thread_id
@@ -522,9 +548,11 @@ def send_watch_message(
         message_effect_id = EFFECT_CONFETTI
 
     try:
+        preview_opts = make_link_preview_options(prefer_small_media=True, url=prod_url) if prod_url else make_link_preview_options(is_disabled=True)
         msg_payload: Dict[str, Any] = {
             "chat_id": chat_id, "text": text, "parse_mode": "HTML",
-            "reply_markup": {"inline_keyboard": keyboard}
+            "reply_markup": {"inline_keyboard": keyboard},
+            "link_preview_options": preview_opts
         }
         if message_thread_id is not None:
             msg_payload["message_thread_id"] = message_thread_id
@@ -572,7 +600,7 @@ def send_watch_digest(
     try:
         msg_payload: Dict[str, Any] = {
             "chat_id": chat_id, "text": "\n".join(lines), "parse_mode": "HTML",
-            "disable_web_page_preview": True,
+            "link_preview_options": make_link_preview_options(is_disabled=True),
             "reply_markup": {"inline_keyboard": keyboard}
         }
         if message_thread_id is not None:
@@ -700,7 +728,7 @@ def send_daily_digest(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
     try:
         return classify_telegram_response(telegram_api("sendMessage", {
             "chat_id": chat_id, "text": text, "parse_mode": "HTML",
-            "disable_web_page_preview": True,
+            "link_preview_options": make_link_preview_options(is_disabled=True),
             "reply_markup": {"inline_keyboard": keyboard}}))
     except Exception as e:
         print(f"[Telegram Exception] {type(e).__name__}")

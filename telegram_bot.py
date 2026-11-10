@@ -28,7 +28,8 @@ import config
 from config import get_bot_token, APP_URL
 from notifier import (
     _shop_emoji, format_price, site_button, url_button, callback_button, copy_button, button_style,
-    tg_time_tag, expandable_quote, send_telegram_rich_message, is_safe_image_url, save_prepared_inline_message
+    tg_time_tag, expandable_quote, send_telegram_rich_message, is_safe_image_url, save_prepared_inline_message,
+    make_link_preview_options
 )
 import ai_service
 from bounded_cache import BoundedTTLCache
@@ -86,6 +87,7 @@ async def send_tg_message(
     reply_markup: Optional[Dict[str, Any]] = None,
     message_thread_id: Optional[int] = None,
     message_effect_id: Optional[str] = None,
+    link_preview_options: Optional[Dict[str, Any]] = None,
 ):
     """Отправляет текстовое сообщение пользователю через Telegram Bot API."""
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -93,7 +95,7 @@ async def send_tg_message(
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
-        "disable_web_page_preview": True
+        "link_preview_options": link_preview_options if link_preview_options is not None else {"is_disabled": True}
     }
     if message_thread_id is not None:
         payload["message_thread_id"] = message_thread_id
@@ -1006,6 +1008,12 @@ async def handle_ai_consultant_message(
     if APP_URL and result.get("query_used"):
         keyboard.append([site_button("📊 Смотреть на сайте", APP_URL)])
 
+    # TG-20: Интерактивная оценка ответа AI-консультанта
+    keyboard.append([
+        callback_button("👍 Полезно", "aifb:good", style="success"),
+        callback_button("👎 Не то", "aifb:bad", style="danger")
+    ])
+
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
     rich_md = f"✨ **AI-Консультант:**\n\n{answer_raw}"
     if not await send_tg_rich_message(session, token, chat_id, rich_md, reply_markup, message_thread_id=message_thread_id):
@@ -1132,7 +1140,7 @@ async def handle_inline_query(session: aiohttp.ClientSession, token: str, iq: Di
             "input_message_content": {
                 "message_text": "\n".join(msg_lines),
                 "parse_mode": "HTML",
-                "disable_web_page_preview": False
+                "link_preview_options": {"prefer_small_media": True}
             }
         }
         if is_safe_image_url(image_url):
@@ -1197,6 +1205,18 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
                     await answer_callback_query(session, token, cq_id, text="Наблюдение уже не активно")
             except Exception as e:
                 await answer_callback_query(session, token, cq_id, text="Ошибка при отключении")
+        elif data.startswith("aifb:"):
+            # TG-20: Оценка ответа AI-консультанта (good / bad)
+            rating = data.split(":", 1)[1]
+            try:
+                from database import save_ai_feedback
+                save_ai_feedback(user_id, rating)
+                if rating == "good":
+                    await answer_callback_query(session, token, cq_id, text="👍 Спасибо! Рад помочь.")
+                else:
+                    await answer_callback_query(session, token, cq_id, text="🙏 Спасибо за отзыв! Будем улучшать ответы.")
+            except Exception as e:
+                await answer_callback_query(session, token, cq_id, text="Спасибо за отзыв!")
         return
 
     stopped = update.get("stopped_message_generation")

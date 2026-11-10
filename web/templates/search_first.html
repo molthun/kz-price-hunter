@@ -5228,6 +5228,9 @@
             <button class="btn-secondary-action" id="detailShareBtn" onclick="shareCurrentProduct()" title="Поделиться товаром">
               <span>↗️</span> <span>Поделиться</span>
             </button>
+            <button class="btn-secondary-action" id="detailStoryBtn" onclick="shareCurrentProductStory()" title="В Telegram Историю" style="display: none;">
+              <span>📖</span> <span>В историю</span>
+            </button>
           </div>
         </div>
 
@@ -5457,6 +5460,24 @@
               <span class="badge badge-condition-new" id="profileAuthBadge">✓ Локальный режим</span>
             </div>
             <div id="profileTelegramLoginArea" style="margin-top: 14px; display: none;"></div>
+          </div>
+        </div>
+
+        <!-- Telegram Mini App 8.0 Card -->
+        <div class="profile-card" id="profileMiniAppCard" style="display: none;">
+          <div class="profile-section-header">
+            <div>
+              <h2 class="profile-section-title">⚡️ Telegram Mini App</h2>
+              <div class="profile-section-desc">Нативные функции Telegram Bot API 8.0</div>
+            </div>
+          </div>
+          <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
+            <button type="button" class="btn-secondary-action" id="profileAddToHomeBtn" onclick="TelegramApp.addToHomeScreen()" style="display: none;">
+              <span>📲</span> <span>Добавить на экран «Домой»</span>
+            </button>
+            <button type="button" class="btn-secondary-action" onclick="if(TelegramApp.tg && TelegramApp.tg.requestFullscreen) TelegramApp.tg.requestFullscreen();">
+              <span>⛶</span> <span>На весь экран</span>
+            </button>
           </div>
         </div>
 
@@ -6317,6 +6338,9 @@
         try {
           if (typeof this.tg.ready === 'function') this.tg.ready();
           if (typeof this.tg.expand === 'function') this.tg.expand();
+          if (typeof this.tg.requestFullscreen === 'function') {
+            try { this.tg.requestFullscreen(); } catch (e) {}
+          }
           if (typeof this.tg.enableClosingConfirmation === 'function') {
             this.tg.enableClosingConfirmation();
           }
@@ -6328,6 +6352,7 @@
         this.setupBackButton();
         this.setupEventListeners();
         this.handleStartParam();
+        this.initMiniAppUi();
       },
 
       syncTheme() {
@@ -6504,6 +6529,51 @@
           }
         }
         return false;
+      },
+
+      initMiniAppUi() {
+        const miniAppCard = document.getElementById('profileMiniAppCard');
+        if (miniAppCard) miniAppCard.style.display = 'block';
+        if (this.tg && typeof this.tg.addToHomeScreen === 'function') {
+          const homeBtn = document.getElementById('profileAddToHomeBtn');
+          if (homeBtn) homeBtn.style.display = 'inline-flex';
+        }
+        if (this.tg && typeof this.tg.shareToStory === 'function') {
+          const storyBtn = document.getElementById('detailStoryBtn');
+          if (storyBtn) storyBtn.style.display = 'inline-flex';
+        }
+      },
+
+      addToHomeScreen() {
+        if (!this.tg || typeof this.tg.addToHomeScreen !== 'function') return false;
+        try {
+          this.haptic('impact', 'medium');
+          this.tg.addToHomeScreen();
+          return true;
+        } catch (e) {
+          console.warn('addToHomeScreen error:', e);
+          return false;
+        }
+      },
+
+      shareToStory(mediaUrl, text, widgetUrl) {
+        if (!this.tg || typeof this.tg.shareToStory !== 'function') return false;
+        try {
+          this.haptic('impact', 'light');
+          const params = {};
+          if (text) params.text = text;
+          if (widgetUrl) {
+            params.widget_link = {
+              url: widgetUrl,
+              name: 'KZ Price Hunter'
+            };
+          }
+          this.tg.shareToStory(mediaUrl, params);
+          return true;
+        } catch (e) {
+          console.warn('shareToStory error:', e);
+          return false;
+        }
       },
 
       handleStartParam() {
@@ -10270,6 +10340,20 @@
         url: url
       };
       shareDeal(title, url, dealLike);
+    }
+
+    function shareCurrentProductStory() {
+      if (!AppState.currentProduct) return;
+      const p = AppState.currentProduct;
+      const prod = p.product || {};
+      const title = prod.title || p.title || 'Товар в KZ Price Hunter';
+      const best = (p.offers && p.offers[0]) ? p.offers[0] : (p.selected_offer || {});
+      const img = (p.images && p.images[0]) || p.image_url || '';
+      const price = p.best_price || best.price || 0;
+      const text = `${title} — ${formatPrice(price)}`;
+      if (typeof TelegramApp !== 'undefined' && TelegramApp.isInside && img) {
+        TelegramApp.shareToStory(img, text, window.location.href);
+      }
     }
 
     function isDealsShowcase() {
