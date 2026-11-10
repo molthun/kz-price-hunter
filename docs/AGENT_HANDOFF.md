@@ -2,12 +2,12 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-25 (сканер штрих-кодов и /scan) + TG-26 (MainButton и SecondaryButton) + TG-27 (requestWriteAccess) — Antigravity (2026-11-11 00:43)
+## STAND_DEPLOYED TG-25 (сканер штрих-кодов и /scan) + TG-26 (MainButton и SecondaryButton) + TG-27 (requestWriteAccess) — Antigravity (2026-11-11 00:44)
 
 - **Поручение владельца (чат, 2026-11-10):** «продолжай дальше». Работаем на стенде, в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
 - **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
-- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`. Готовится сборка bundle и деплой на стенд.
+- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`, коммит `4383b46`. Контейнер пересобран и перезапущен.
 - **Область файлов:** `telegram_bot.py`, `web/templates/search_first.html`, `tests/notifications/test_effects_and_keyboard.py`, `tests/notifications/test_search_widget.py`, `tests/notifications/test_scanner_and_miniapp_buttons.py`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`.
 - **Что сделано:**
   1. **TG-25 (Нативный сканер QR- и штрих-кодов, Bot API 6.4/7.7):**
@@ -30,8 +30,10 @@
 - **Проверки:**
   - Локально: `venv/bin/python3 -m unittest tests/notifications/test_scanner_and_miniapp_buttons.py`: 5 тестов OK (0.006s).
   - Локально: `venv/bin/python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 343 теста OK (12.080s).
+  - На стенде: `docker exec kzph-stand python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 343 теста OK (30.221s).
+  - `curl -k -s https://shdev.molthun.ru/api/health`: `{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}`.
 - **Следующий точный шаг:**
-  - Закоммитить локально, собрать `git bundle`, доставить на стенд `192.168.28.25:2222`, сделать `git merge --ff-only`, пересобрать Docker-контейнер стенда, прогнать тесты внутри контейнера, проверить `api/health` и обновить статус до `STAND_DEPLOYED`.
+  - Согласовать дальнейшие шаги с владельцем или реализовать следующее улучшение.
 
 ---
 
