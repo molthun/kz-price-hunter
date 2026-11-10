@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-08: Кнопки копирования и стили (copy_text, style) — Antigravity (2026-11-10 22:15)
+## STAND_DEPLOYED TG-08: Кнопки копирования и стили (copy_text, style) — Antigravity (2026-11-10 22:18)
 
 - **Поручение владельца (чат, 2026-11-10):** продолжение разработки на стенде; реализация TG-08 (кнопки копирования ссылок `copy_text` и цветовая дифференциация действий `style`); в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
@@ -30,10 +30,13 @@
   6. Документация:
      - Обновлены `docs/TELEGRAM_BOT.md` (раздел 2з, таблица, журнал) и `docs/DEVELOPMENT_PLAN.md`.
 - **Проверки:**
-  - `pytest tests/notifications/test_button_styles.py` — **11 passed** in 0.12s;
-  - `pytest tests/notifications` — **280 passed, 0 failed** in 12.22s.
+  - Локально: `pytest tests/notifications/test_button_styles.py` — **11 passed**; `pytest tests/notifications` — **280 passed, 0 failed** in 12.22s.
+  - Коммит перенесён на стенд через `git bundle` **без push в origin/main**.
+  - Контейнер `kzph-stand` пересобран и перезапущен (`docker compose -f docker-compose.stand.yml up -d --build`) → `healthy`, `/api/health` ok.
+  - Внутри контейнера стенда: `python3 -m unittest discover -s tests/notifications -p 'test_*.py'` — **Ran 278 tests, OK** (27.1s).
 - **Следующий точный шаг:**
-  - Перенести коммит на тестовый стенд через `git bundle` (без push в `origin/main`), пересобрать контейнер `kzph-stand` и проверить корректность работы на стенде.
+  - Владелец может протестировать отображение цветов кнопок и быстрое копирование ссылок в `@kzph_dev_bot`.
+  - Выбор следующей задачи: **TG-03** (форматированные ответы `sendRichMessage` и таблицы сравнения) или **TG-10** (сайт как Mini App внутри шторки Telegram).
 
 ---
 
