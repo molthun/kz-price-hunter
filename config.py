@@ -575,6 +575,13 @@ def inline_mode_enabled() -> bool:
     return os.getenv("TELEGRAM_INLINE_MODE", "on").strip().lower() not in ("off", "0", "false", "no")
 
 
+def topics_mode_enabled() -> bool:
+    """TG-11: распределение сообщений по темам (форум-топикам) в личном чате (Bot API 9.3/9.4).
+    По умолчанию off; TELEGRAM_TOPICS=on включает.
+    """
+    return os.getenv("TELEGRAM_TOPICS", "").strip().lower() in ("on", "1", "true", "yes")
+
+
 def get_bot_token():
     """Токен Telegram-бота: переменная окружения, для совместимости — старое поле settings.json."""
     return (

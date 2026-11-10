@@ -1076,6 +1076,16 @@ def _create_schema(cursor) -> None:
     # TG-04: когда пользователь заблокировал бота (NULL — не блокировал). Это не is_blocked: тот ставит
     # администратор и закрывает вход на сайт, а здесь человек сам отказался от сообщений бота.
     _add_column(cursor, "users", "bot_blocked_at", "TEXT")
+    # TG-11: темы (форум-топики) личного чата пользователя в Telegram (Bot API 9.3/9.4)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_telegram_topics (
+            user_id INTEGER NOT NULL,
+            topic_type TEXT NOT NULL,
+            thread_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, topic_type)
+        )
+    """)
     # Сессии: в базе хранится только SHA-256 токена из cookie
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
@@ -4133,6 +4143,37 @@ def replace_user_settings(user_id: int, settings: Dict[str, Any]) -> Dict[str, A
         conn.execute("UPDATE users SET settings = ? WHERE id = ?", (json.dumps(merged, ensure_ascii=False), int(user_id)))
         conn.commit()
     return merged
+
+
+def get_user_topic(user_id: int, topic_type: str) -> Optional[int]:
+    """TG-11: возвращает thread_id темы Telegram для пользователя, если она уже создана."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT thread_id FROM user_telegram_topics WHERE user_id = ? AND topic_type = ?",
+            (int(user_id), str(topic_type))
+        ).fetchone()
+        return int(row[0]) if row else None
+
+
+def save_user_topic(user_id: int, topic_type: str, thread_id: int) -> None:
+    """TG-11: сохраняет thread_id созданной темы в базе данных."""
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO user_telegram_topics (user_id, topic_type, thread_id)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id, topic_type) DO UPDATE SET thread_id = excluded.thread_id
+        """, (int(user_id), str(topic_type), int(thread_id)))
+        conn.commit()
+
+
+def get_all_user_topics(user_id: int) -> Dict[str, int]:
+    """TG-11: возвращает все известные темы пользователя {topic_type: thread_id}."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT topic_type, thread_id FROM user_telegram_topics WHERE user_id = ?",
+            (int(user_id),)
+        ).fetchall()
+        return {str(r[0]): int(r[1]) for r in rows}
 
 def list_users() -> List[Dict[str, Any]]:
     with get_connection() as conn:

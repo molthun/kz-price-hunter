@@ -77,7 +77,14 @@ def _markdown_to_telegram_html(text: str) -> str:
     return escaped
 
 
-async def send_tg_message(session: aiohttp.ClientSession, token: str, chat_id: int, text: str, reply_markup: Optional[Dict[str, Any]] = None):
+async def send_tg_message(
+    session: aiohttp.ClientSession,
+    token: str,
+    chat_id: int,
+    text: str,
+    reply_markup: Optional[Dict[str, Any]] = None,
+    message_thread_id: Optional[int] = None,
+):
     """Отправляет текстовое сообщение пользователю через Telegram Bot API."""
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload: Dict[str, Any] = {
@@ -86,6 +93,8 @@ async def send_tg_message(session: aiohttp.ClientSession, token: str, chat_id: i
         "parse_mode": "HTML",
         "disable_web_page_preview": True
     }
+    if message_thread_id is not None:
+        payload["message_thread_id"] = message_thread_id
     if reply_markup:
         payload["reply_markup"] = reply_markup
 
@@ -107,6 +116,7 @@ async def send_tg_rich_message(
     chat_id: int,
     markdown: str,
     reply_markup: Optional[Dict[str, Any]] = None,
+    message_thread_id: Optional[int] = None,
 ) -> bool:
     """TG-03: отправляет структурированное Rich Message (Bot API 10.1+).
     Возвращает True при успехе, False при ошибке (вызывающий код делает fallback на send_tg_message).
@@ -118,6 +128,8 @@ async def send_tg_rich_message(
         "chat_id": chat_id,
         "rich_message": {"markdown": markdown[:32768]},
     }
+    if message_thread_id is not None:
+        payload["message_thread_id"] = message_thread_id
     if reply_markup:
         payload["reply_markup"] = reply_markup
     try:
@@ -131,6 +143,58 @@ async def send_tg_rich_message(
     except Exception as e:
         print(f"[Telegram Bot] Ошибка sendRichMessage: {type(e).__name__}")
         return False
+
+
+_unsupported_topics_chats: Set[int] = set()
+
+
+async def get_or_create_tg_topic(
+    session: aiohttp.ClientSession,
+    token: str,
+    chat_id: int,
+    topic_type: str,
+) -> Optional[int]:
+    """TG-11: асинхронное получение или создание темы (форум-топика) в личном чате (Bot API 9.3/9.4)."""
+    if not config.topics_mode_enabled() or chat_id in _unsupported_topics_chats:
+        return None
+    if not session or not hasattr(session, "post") or not token or not chat_id:
+        return None
+    from database import get_user_topic, save_user_topic
+    try:
+        existing = await asyncio.to_thread(get_user_topic, chat_id, topic_type)
+        if existing:
+            return existing
+    except Exception:
+        pass
+
+    from notifier import TOPIC_METADATA
+    meta = TOPIC_METADATA.get(topic_type)
+    if not meta:
+        return None
+
+    url = f"https://api.telegram.org/bot{token}/createForumTopic"
+    payload = {
+        "chat_id": chat_id,
+        "name": meta["name"],
+        "icon_color": meta["icon_color"]
+    }
+    try:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            if resp.status == 200:
+                data = await resp.json(content_type=None)
+                if data.get("ok"):
+                    tid = (data.get("result") or {}).get("message_thread_id")
+                    if tid:
+                        try:
+                            await asyncio.to_thread(save_user_topic, chat_id, topic_type, tid)
+                        except Exception:
+                            pass
+                        return tid
+            if resp.status in (400, 403):
+                _unsupported_topics_chats.add(chat_id)
+    except Exception as e:
+        print(f"[Telegram Bot] Ошибка создания темы {topic_type}: {type(e).__name__}")
+    return None
 
 
 async def send_tg_widget(session: aiohttp.ClientSession, token: str, chat_id: int, widget_html: str,
@@ -184,9 +248,11 @@ async def edit_tg_widget_data(session: aiohttp.ClientSession, token: str, chat_i
 
 
 async def send_tg_draft(session: aiohttp.ClientSession, token: str, chat_id: int, draft_id: int,
-                        text: str = "", can_stop: bool = True) -> bool:
+                        text: str = "", can_stop: bool = True, message_thread_id: Optional[int] = None) -> bool:
     """Черновик ответа (Bot API 9.3+): временный, живёт около 30 секунд. Пустой текст — заглушка «Думаю…»."""
     payload: Dict[str, Any] = {"chat_id": chat_id, "draft_id": draft_id, "text": text}
+    if message_thread_id is not None:
+        payload["message_thread_id"] = message_thread_id
     if can_stop:
         payload["can_stop"] = True
     try:
@@ -215,8 +281,9 @@ _active_generations: Dict[tuple, "DraftProgress"] = {}
 class DraftProgress:
     """Показывает ход генерации одним черновиком и не даёт ему погаснуть, пока ответ готовится."""
 
-    def __init__(self, session, token: str, chat_id: int):
+    def __init__(self, session, token: str, chat_id: int, message_thread_id: Optional[int] = None):
         self.session, self.token, self.chat_id = session, token, chat_id
+        self.message_thread_id = message_thread_id
         self.draft_id = next(_draft_ids)
         self.text = ""
         self.stopped = False
@@ -224,9 +291,12 @@ class DraftProgress:
         self._keepalive: Optional[asyncio.Task] = None
         self._pushes: set = set()
 
+    def _draft_kwargs(self) -> Dict[str, Any]:
+        return {"message_thread_id": self.message_thread_id} if self.message_thread_id is not None else {}
+
     async def start(self) -> bool:
         """Первый черновик. False — Telegram черновик не принял: вызывающий код работает как раньше."""
-        if not await send_tg_draft(self.session, self.token, self.chat_id, self.draft_id, self.text):
+        if not await send_tg_draft(self.session, self.token, self.chat_id, self.draft_id, self.text, **self._draft_kwargs()):
             return False
         _active_generations[(self.chat_id, self.draft_id)] = self
         self._keepalive = asyncio.create_task(self._keep_alive())
@@ -235,7 +305,7 @@ class DraftProgress:
     async def _keep_alive(self) -> None:
         while True:
             await asyncio.sleep(DRAFT_KEEPALIVE_SECONDS)
-            await send_tg_draft(self.session, self.token, self.chat_id, self.draft_id, self.text)
+            await send_tg_draft(self.session, self.token, self.chat_id, self.draft_id, self.text, **self._draft_kwargs())
 
     def stage(self, name: str, count: int = 0) -> None:
         """Вызывается консультантом синхронно; отправка черновика уходит в фон и ответ не задерживает."""
@@ -244,7 +314,7 @@ class DraftProgress:
             return
         self.text = template.format(count=count)
         push = asyncio.create_task(
-            send_tg_draft(self.session, self.token, self.chat_id, self.draft_id, self.text))
+            send_tg_draft(self.session, self.token, self.chat_id, self.draft_id, self.text, **self._draft_kwargs()))
         self._pushes.add(push)
         push.add_done_callback(self._pushes.discard)
 
@@ -272,7 +342,7 @@ def handle_generation_stopped(stopped: Dict[str, Any]) -> bool:
     return True
 
 
-async def _consult(session, token: str, chat_id: int, query: str) -> Optional[Dict[str, Any]]:
+async def _consult(session, token: str, chat_id: int, query: str, message_thread_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
     """Ответ консультанта; с включённым TG-02 — с черновиком хода работы и кнопкой «Стоп».
 
     None — пользователь остановил генерацию: отвечать нечем, сообщение об этом уже отправлено.
@@ -280,7 +350,7 @@ async def _consult(session, token: str, chat_id: int, query: str) -> Optional[Di
     history = _get_chat_history(chat_id)
     progress = None
     if telegram_widgets.feature_enabled("TELEGRAM_AI_DRAFTS", chat_id):
-        progress = DraftProgress(session, token, chat_id)
+        progress = DraftProgress(session, token, chat_id, message_thread_id=message_thread_id)
         if not await progress.start():
             progress = None
     if not progress:
@@ -295,7 +365,7 @@ async def _consult(session, token: str, chat_id: int, query: str) -> Optional[Di
         if not progress.stopped:        # отменяют сам обработчик (остановка бота), а не генерацию
             progress.generation.cancel()
             raise
-        await send_tg_message(session, token, chat_id, "⏹ Остановлено. Задайте вопрос заново, когда будете готовы.")
+        await send_tg_message(session, token, chat_id, "⏹ Остановлено. Задайте вопрос заново, когда будете готовы.", message_thread_id=message_thread_id)
         return None
     finally:
         await progress.close()
@@ -394,7 +464,8 @@ def decode_deep_link_param(param: str) -> Optional[Dict[str, Any]]:
 
 async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_id: int,
                                user_first_name: str = "", payload: str = "",
-                               from_user: Optional[Dict[str, Any]] = None):
+                               from_user: Optional[Dict[str, Any]] = None,
+                               message_thread_id: Optional[int] = None):
     # Обеспечиваем регистрацию пользователя в users при переходе по глубокой ссылке
     if from_user:
         try:
@@ -413,12 +484,15 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
             if action == "search":
                 query = str(action_payload.get("query") or "").strip()
                 if query:
-                    await handle_search_command(session, token, chat_id, query)
+                    s_kwargs = {"message_thread_id": message_thread_id} if message_thread_id is not None else {}
+                    await handle_search_command(session, token, chat_id, query, **s_kwargs)
                     return
 
             elif action == "watch_search":
                 query = str(action_payload.get("query") or "").strip()
                 if query:
+                    if message_thread_id is None:
+                        message_thread_id = await get_or_create_tg_topic(session, token, chat_id, "watches")
                     from database import create_watch
                     watch = await asyncio.to_thread(create_watch, chat_id, {
                         "kind": "search", "target": query, "condition": "any_drop"})
@@ -440,12 +514,14 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
                         keyboard.append([site_button("⚙️ Мои наблюдения на сайте", APP_URL)])
                     keyboard.append([callback_button("🔕 Отключить наблюдение", f"unwatch:{watch['id']}", style="danger")])
                     reply_markup = {"inline_keyboard": keyboard}
-                    await send_tg_message(session, token, chat_id, text, reply_markup)
+                    await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
                     return
 
             elif action == "watch_product":
                 product_id = str(action_payload.get("product_id") or "").strip()
                 if product_id:
+                    if message_thread_id is None:
+                        message_thread_id = await get_or_create_tg_topic(session, token, chat_id, "watches")
                     from database import get_connection, create_watch
                     def _find_and_watch():
                         with get_connection() as conn:
@@ -493,7 +569,7 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
                     if APP_URL:
                         keyboard.append([site_button("⚙️ Все наблюдения на сайте", APP_URL)])
                     reply_markup = {"inline_keyboard": keyboard}
-                    await send_tg_message(session, token, chat_id, text, reply_markup)
+                    await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
                     return
 
         # Некорректный или устаревший payload
@@ -507,7 +583,7 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
         if APP_URL:
             keyboard.append([site_button("📊 Перейти в каталог", APP_URL)])
         reply_markup = {"inline_keyboard": keyboard} if keyboard else None
-        await send_tg_message(session, token, chat_id, text, reply_markup)
+        await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
         return
 
     # Стандартное приветствие без payload
@@ -537,10 +613,10 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
     if APP_URL:
         keyboard.append([site_button("📊 Открыть дашборд цен", APP_URL)])
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
-    await send_tg_message(session, token, chat_id, text, reply_markup)
+    await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
 
 
-async def handle_status_command(session: aiohttp.ClientSession, token: str, chat_id: int):
+async def handle_status_command(session: aiohttp.ClientSession, token: str, chat_id: int, message_thread_id: Optional[int] = None):
     ai_conf = config.get_ai_config()
     ai_status = f"✅ Активен ({ai_conf['provider']})" if ai_conf["configured"] and ai_conf["enabled"] else "⚠️ Не настроен"
     time_badge = tg_time_tag(format_spec="wDT", fallback=time.strftime("%Y-%m-%d %H:%M"))
@@ -553,11 +629,14 @@ async def handle_status_command(session: aiohttp.ClientSession, token: str, chat
         f"🕒 <b>Время проверки:</b> {time_badge}\n\n"
         "Чтобы получить совет по выбору товара, просто напишите мне свой вопрос!"
     )
-    await send_tg_message(session, token, chat_id, text)
+    await send_tg_message(session, token, chat_id, text, message_thread_id=message_thread_id)
 
 
-async def handle_watches_command(session: aiohttp.ClientSession, token: str, chat_id: int):
+async def handle_watches_command(session: aiohttp.ClientSession, token: str, chat_id: int, message_thread_id: Optional[int] = None):
     """Показывает список активных наблюдений за ценами пользователя и позволяет отключить их."""
+    if message_thread_id is None:
+        message_thread_id = await get_or_create_tg_topic(session, token, chat_id, "watches")
+
     from database import list_watches
     watches = list_watches(chat_id, only_active=True)
     if not watches:
@@ -569,7 +648,7 @@ async def handle_watches_command(session: aiohttp.ClientSession, token: str, cha
         if APP_URL:
             keyboard.append([site_button("🔍 Перейти в каталог", APP_URL)])
         reply_markup = {"inline_keyboard": keyboard} if keyboard else None
-        await send_tg_message(session, token, chat_id, text, reply_markup)
+        await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
         return
 
     # TG-07: карточка-виджет наблюдений; при любом отказе — прежнее текстовое сообщение ниже
@@ -591,7 +670,7 @@ async def handle_watches_command(session: aiohttp.ClientSession, token: str, cha
         keyboard.append([site_button("⚙️ Все наблюдения на сайте", APP_URL)])
 
     reply_markup = {"inline_keyboard": keyboard}
-    await send_tg_message(session, token, chat_id, text, reply_markup)
+    await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
 
 
 async def _set_bot_blocked(user_id: int, blocked: bool) -> None:
@@ -782,10 +861,13 @@ def build_price_comparison_markdown(query: str, items: List[Dict[str, Any]]) -> 
     return "\n".join(lines)
 
 
-async def handle_search_command(session: aiohttp.ClientSession, token: str, chat_id: int, query: str):
+async def handle_search_command(session: aiohttp.ClientSession, token: str, chat_id: int, query: str, message_thread_id: Optional[int] = None):
+    if message_thread_id is None:
+        message_thread_id = await get_or_create_tg_topic(session, token, chat_id, "search")
+
     q = query.strip()
     if not q:
-        await send_tg_message(session, token, chat_id, "ℹ️ Пожалуйста, укажите название товара: <code>/search iPhone 15</code> или <code>/search RTX 4060</code>")
+        await send_tg_message(session, token, chat_id, "ℹ️ Пожалуйста, укажите название товара: <code>/search iPhone 15</code> или <code>/search RTX 4060</code>", message_thread_id=message_thread_id)
         return
 
     await send_tg_chat_action(session, token, chat_id, "typing")
@@ -799,7 +881,7 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
         from search_engine import _record_search
         _record_search("telegram", q, started, outcome, len(items))
     if not items:
-        await send_tg_message(session, token, chat_id, f"😕 По запросу «<b>{html.escape(q)}</b>» ничего не найдено в локальной базе. Попробуйте сократить запрос.")
+        await send_tg_message(session, token, chat_id, f"😕 По запросу «<b>{html.escape(q)}</b>» ничего не найдено в локальной базе. Попробуйте сократить запрос.", message_thread_id=message_thread_id)
         return
 
     # Пилот TGW-01: карточка-виджет; при любом отказе — прежнее текстовое сообщение ниже
@@ -828,8 +910,8 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
 
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
     rich_table = build_price_comparison_markdown(q, top)
-    if not await send_tg_rich_message(session, token, chat_id, rich_table, reply_markup):
-        await send_tg_message(session, token, chat_id, "\n".join(lines), reply_markup)
+    if not await send_tg_rich_message(session, token, chat_id, rich_table, reply_markup, message_thread_id=message_thread_id):
+        await send_tg_message(session, token, chat_id, "\n".join(lines), reply_markup, message_thread_id=message_thread_id)
 
 
 # Память диалога консультанта в Telegram: chat_id -> (время последней реплики, реплики)
@@ -856,18 +938,27 @@ def reset_chat_history(chat_id: int) -> None:
     _chat_histories.pop(chat_id, None)
 
 
-async def handle_ai_consultant_message(session: aiohttp.ClientSession, token: str, chat_id: int, query: str):
+async def handle_ai_consultant_message(
+    session: aiohttp.ClientSession,
+    token: str,
+    chat_id: int,
+    query: str,
+    message_thread_id: Optional[int] = None,
+):
     """Обработка вопроса AI-консультанту с подбором товаров."""
+    if message_thread_id is None:
+        message_thread_id = await get_or_create_tg_topic(session, token, chat_id, "ai")
+
     q = query.strip()
     if not q:
-        await send_tg_message(session, token, chat_id, "ℹ️ Напишите ваш вопрос, например: <code>/ai посоветуй планшет до 150 тыс тенге</code>")
+        await send_tg_message(session, token, chat_id, "ℹ️ Напишите ваш вопрос, например: <code>/ai посоветуй планшет до 150 тыс тенге</code>", message_thread_id=message_thread_id)
         return
 
     try:
-        result = await _consult(session, token, chat_id, q)
+        result = await _consult(session, token, chat_id, q, message_thread_id=message_thread_id)
     except Exception as e:
         print(f"[Telegram Bot] Ошибка AI-консультанта: {type(e).__name__}")
-        await send_tg_message(session, token, chat_id, "⚠️ Не удалось получить ответ от AI. Пожалуйста, попробуйте еще раз.")
+        await send_tg_message(session, token, chat_id, "⚠️ Не удалось получить ответ от AI. Пожалуйста, попробуйте еще раз.", message_thread_id=message_thread_id)
         return
     if result is None:
         return
@@ -894,8 +985,8 @@ async def handle_ai_consultant_message(session: aiohttp.ClientSession, token: st
 
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
     rich_md = f"✨ **AI-Консультант:**\n\n{answer_raw}"
-    if not await send_tg_rich_message(session, token, chat_id, rich_md, reply_markup):
-        await send_tg_message(session, token, chat_id, f"✨ <b>AI-Консультант:</b>\n\n{answer_html}", reply_markup)
+    if not await send_tg_rich_message(session, token, chat_id, rich_md, reply_markup, message_thread_id=message_thread_id):
+        await send_tg_message(session, token, chat_id, f"✨ <b>AI-Консультант:</b>\n\n{answer_html}", reply_markup, message_thread_id=message_thread_id)
 
 
 _cached_bot_username: Optional[str] = None
@@ -1107,6 +1198,7 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
     text = str(msg.get("text") or "").strip()
     chat = msg.get("chat", {})
     chat_id = chat.get("id")
+    thread_id = msg.get("message_thread_id")
     from_user = msg.get("from", {})
     first_name = from_user.get("first_name", "")
 
@@ -1127,6 +1219,7 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
 
     # Команды
     cmd = text.split()[0].lower() if text.startswith("/") else ""
+    kwargs = {"message_thread_id": thread_id} if thread_id is not None else {}
 
     if cmd in ("/start", "/help", "/new"):
         reset_chat_history(chat_id)
@@ -1134,20 +1227,20 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
         if cmd == "/start":
             parts = text.split(maxsplit=1)
             payload = parts[1].strip() if len(parts) > 1 else ""
-        await handle_start_command(session, token, chat_id, first_name, payload=payload, from_user=from_user)
+        await handle_start_command(session, token, chat_id, first_name, payload=payload, from_user=from_user, **kwargs)
     elif cmd in ("/status", "/info"):
-        await handle_status_command(session, token, chat_id)
+        await handle_status_command(session, token, chat_id, **kwargs)
     elif cmd in ("/watches", "/my_watches", "/subs", "/tracking"):
-        await handle_watches_command(session, token, chat_id)
+        await handle_watches_command(session, token, chat_id, **kwargs)
     elif cmd in ("/search", "/find", "/price"):
         query = text[len(cmd):].strip()
-        await handle_search_command(session, token, chat_id, query)
+        await handle_search_command(session, token, chat_id, query, **kwargs)
     elif cmd in ("/ai", "/ask"):
         query = text[len(cmd):].strip()
-        await handle_ai_consultant_message(session, token, chat_id, query)
+        await handle_ai_consultant_message(session, token, chat_id, query, **kwargs)
     else:
         # Любое обычное сообщение без слеша считается вопросом к AI-консультанту
-        await handle_ai_consultant_message(session, token, chat_id, text)
+        await handle_ai_consultant_message(session, token, chat_id, text, **kwargs)
 
 
 # TG-05: меню бота. Команды видны по «/», кнопка меню открывает раздел сайта внутри Telegram (Mini App):

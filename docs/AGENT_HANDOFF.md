@@ -2,6 +2,44 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IMPLEMENTED TG-11: Темы (форум-топики) в личном чате пользователя — Antigravity (2026-11-10 23:28)
+
+- **Поручение владельца (чат, 2026-11-10):** «продолжай»; работаем на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Область файлов:** `config.py`, `.env.example`, `database.py`, `notifier.py`, `telegram_bot.py`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`, `tests/notifications/test_topics_mode.py`.
+- **Что сделано:**
+  1. `config.py` & `.env.example`:
+     - Добавлен выключатель `topics_mode_enabled()` (`TELEGRAM_TOPICS=off|on`, по умолчанию `off` для обратной совместимости; при `on` активирует темы).
+  2. `database.py`:
+     - Создана таблица `user_telegram_topics(user_id, topic_type, thread_id, created_at)`.
+     - Реализованы функции `get_user_topic(user_id, topic_type)`, `save_user_topic(user_id, topic_type, thread_id)`, `get_all_user_topics(user_id)`.
+  3. `notifier.py`:
+     - Добавлены метаданные тем `TOPIC_METADATA`:
+       - `alerts`: «⚡️ Горячие скидки» (`icon_color=0x6FB9F0`)
+       - `watches`: «🔔 Мои наблюдения» (`icon_color=0xFFD67E`)
+       - `ai`: «🤖 AI-Консультант» (`icon_color=0xCB86DB`)
+       - `search`: «🔍 Поиск товаров» (`icon_color=0x8EEE98`)
+     - Добавлена функция `get_or_create_forum_topic(chat_id, topic_type)`.
+     - В `send_telegram_alert`, `send_watch_message`, `send_watch_digest` поддержан параметр `message_thread_id` с прозрачным fallback при выключенных темах.
+  4. `telegram_bot.py`:
+     - Добавлена функция `get_or_create_tg_topic(session, token, chat_id, topic_type)`.
+     - В `send_tg_message` и `send_tg_rich_message` поддержана передача `message_thread_id`.
+     - В `DraftProgress` и `send_tg_draft` поддержана работа в контексте темы.
+     - `handle_start_command`, `handle_status_command`, `handle_watches_command`, `handle_search_command`, `handle_ai_consultant_message` принимают `message_thread_id`.
+     - В `process_telegram_update` извлекается `thread_id = msg.get("message_thread_id")` и аккуратно передается через `**kwargs` во все обработчики.
+     - Обработка ошибок 400/403: если чат не поддерживает темы, chat_id добавляется в `_unsupported_topics_chats`, и все сообщения продолжают доставляться в общий диалог.
+  5. Тесты:
+     - Создан набор тестов `tests/notifications/test_topics_mode.py` (11 тестов: база данных, синхронные и асинхронные методы Bot API, маршрутизация поиска, AI и алертов).
+     - Все 311 тестов в `tests/notifications/` успешно пройдены локально: `Ran 311 tests in 12.004s, OK`.
+- **Следующий точный шаг:**
+  - Закоммитить изменения локально.
+  - Создать git bundle и доставить на тестовый стенд (`192.168.28.25:2222`).
+  - Прогнать тесты внутри Docker-контейнера на стенде.
+  - Обновить handoff до `STAND_DEPLOYED TG-11`.
+
+---
+
 ## STAND_DEPLOYED TG-10: Сайт как полноценный Mini App (Telegram Web App) — Antigravity (2026-11-10 23:07)
 
 - **Поручение владельца (чат, 2026-11-10):** «продолжай»; работаем на стенде, в прод ничего не отправляем.

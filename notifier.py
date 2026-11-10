@@ -292,11 +292,75 @@ def note_delivery_result(user_id: int, result: DeliveryResult) -> None:
         print(f"[Telegram] Не удалось отметить блокировку бота: {type(e).__name__}")
 
 
-def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str, Any]) -> DeliveryResult:
+TOPIC_METADATA: Dict[str, Dict[str, Any]] = {
+    "alerts": {"name": "⚡️ Горячие скидки", "icon_color": 0x6FB9F0},
+    "watches": {"name": "🔔 Мои наблюдения", "icon_color": 0xFFD67E},
+    "ai": {"name": "🤖 AI-Консультант", "icon_color": 0xCB86DB},
+    "search": {"name": "🔍 Поиск товаров", "icon_color": 0x8EEE98},
+}
+
+_unsupported_topics_chats: Set[int] = set()
+
+
+def get_or_create_forum_topic(chat_id: int, topic_type: str) -> Optional[int]:
+    """TG-11: возвращает thread_id темы в личном чате пользователя (Bot API 9.3/9.4).
+    Создает тему при первом обращении через createForumTopic.
+    При отключенных темах или ошибке Telegram возвращает None (сообщение уходит в общий диалог).
+    """
+    if not config.topics_mode_enabled() or chat_id in _unsupported_topics_chats:
+        return None
+    from database import get_user_topic, save_user_topic
+    try:
+        existing = get_user_topic(chat_id, topic_type)
+        if existing:
+            return existing
+    except Exception:
+        pass
+
+    token = get_bot_token()
+    if not token or not chat_id:
+        return None
+
+    meta = TOPIC_METADATA.get(topic_type)
+    if not meta:
+        return None
+
+    try:
+        resp = telegram_api("createForumTopic", {
+            "chat_id": chat_id,
+            "name": meta["name"],
+            "icon_color": meta["icon_color"]
+        })
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("ok"):
+                tid = (data.get("result") or {}).get("message_thread_id")
+                if tid:
+                    try:
+                        save_user_topic(chat_id, topic_type, tid)
+                    except Exception:
+                        pass
+                    return tid
+        if resp.status_code in (400, 403):
+            _unsupported_topics_chats.add(chat_id)
+    except Exception as e:
+        print(f"[Telegram Topics] Ошибка создания темы {topic_type}: {type(e).__name__}")
+    return None
+
+
+def send_telegram_alert(
+    chat_id: int,
+    product: Dict[str, Any],
+    anomaly: Dict[str, Any],
+    message_thread_id: Optional[int] = None
+) -> DeliveryResult:
     """Отправляет карточку аномалии в Telegram через Bot API.
     Фото с fallback на текст — только если фото отклонено (400); при 429 и блокировке бота
     текст не отправляется следом.
     """
+    if message_thread_id is None:
+        message_thread_id = get_or_create_forum_topic(chat_id, "alerts")
+
     shop = product.get("shop", "Магазин")
     url = product.get("url", "")
     image_url = product.get("image_url", "")
@@ -331,20 +395,26 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
 
     try:
         if is_safe_image_url(image_url):
-            result = classify_telegram_response(telegram_api("sendPhoto", {
+            photo_payload: Dict[str, Any] = {
                 "chat_id": chat_id, "photo": image_url, "caption": message_text,
                 "parse_mode": "HTML", "reply_markup": reply_markup
-            }))
+            }
+            if message_thread_id is not None:
+                photo_payload["message_thread_id"] = message_thread_id
+            result = classify_telegram_response(telegram_api("sendPhoto", photo_payload))
             result.has_photo = bool(result)
             # Текстом — только если Telegram не смог взять фото (400); 429/403/5xx возвращаются как есть
             if result or result.error != "Telegram 400":
                 if not result:
                     print(f"[Telegram Error] {result.error}")
                 return result
-        result = classify_telegram_response(telegram_api("sendMessage", {
+        msg_payload: Dict[str, Any] = {
             "chat_id": chat_id, "text": message_text,
             "parse_mode": "HTML", "reply_markup": reply_markup
-        }))
+        }
+        if message_thread_id is not None:
+            msg_payload["message_thread_id"] = message_thread_id
+        result = classify_telegram_response(telegram_api("sendMessage", msg_payload))
         if not result:
             print(f"[Telegram Error] {result.error}")
         return result
@@ -352,8 +422,15 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
         print(f"[Telegram Exception] {type(e).__name__}")
         return DeliveryResult("retry", None, type(e).__name__)
 
-def send_watch_message(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
+def send_watch_message(
+    chat_id: int,
+    payload: Dict[str, Any],
+    message_thread_id: Optional[int] = None
+) -> DeliveryResult:
     """Сообщение по личному наблюдению (P07 / V2): что сработало и почему — в первой же строке."""
+    if message_thread_id is None:
+        message_thread_id = get_or_create_forum_topic(chat_id, "watches")
+
     product = payload.get("product") or {}
     shop = product.get("shop", "Магазин")
     seller_name = product.get("seller_name") or shop
@@ -424,9 +501,13 @@ def send_watch_message(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
     if APP_URL:
         keyboard.append([site_button("🔔 Мои наблюдения", APP_URL)])
     try:
-        return classify_telegram_response(telegram_api("sendMessage", {
+        msg_payload: Dict[str, Any] = {
             "chat_id": chat_id, "text": text, "parse_mode": "HTML",
-            "reply_markup": {"inline_keyboard": keyboard}}))
+            "reply_markup": {"inline_keyboard": keyboard}
+        }
+        if message_thread_id is not None:
+            msg_payload["message_thread_id"] = message_thread_id
+        return classify_telegram_response(telegram_api("sendMessage", msg_payload))
     except Exception as e:
         print(f"[Telegram Exception] {type(e).__name__}")
         return DeliveryResult("retry", None, type(e).__name__)
@@ -435,12 +516,19 @@ def send_watch_message(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
 DIGEST_LINES = 10        # длинное письмо не читают: остальное сворачивается в «и ещё N»
 
 
-def send_watch_digest(chat_id: int, payloads: List[Dict[str, Any]]) -> DeliveryResult:
+def send_watch_digest(
+    chat_id: int,
+    payloads: List[Dict[str, Any]],
+    message_thread_id: Optional[int] = None
+) -> DeliveryResult:
     """Одно сообщение по наблюдению в режиме сводки: сколько сработало и что именно.
 
     Режим «сводка» обещает человеку одно письмо, а не отложенную пачку, поэтому накопленные
     срабатывания собираются в один текст.
     """
+    if message_thread_id is None:
+        message_thread_id = get_or_create_forum_topic(chat_id, "watches")
+
     first = payloads[0]
     lines = [f"🔔 <b>Сводка по наблюдению</b>", html.escape(first.get("description") or ""), ""]
     lines.append(f"Сработало раз: <b>{len(payloads)}</b>")
@@ -459,10 +547,14 @@ def send_watch_digest(chat_id: int, payloads: List[Dict[str, Any]]) -> DeliveryR
         lines.append(f"…и ещё {len(payloads) - DIGEST_LINES}")
     keyboard = [[site_button("🔔 Мои наблюдения", APP_URL)]] if APP_URL else []
     try:
-        return classify_telegram_response(telegram_api("sendMessage", {
+        msg_payload: Dict[str, Any] = {
             "chat_id": chat_id, "text": "\n".join(lines), "parse_mode": "HTML",
             "disable_web_page_preview": True,
-            "reply_markup": {"inline_keyboard": keyboard}}))
+            "reply_markup": {"inline_keyboard": keyboard}
+        }
+        if message_thread_id is not None:
+            msg_payload["message_thread_id"] = message_thread_id
+        return classify_telegram_response(telegram_api("sendMessage", msg_payload))
     except Exception as e:
         print(f"[Telegram Exception] {type(e).__name__}")
         return DeliveryResult("retry", None, type(e).__name__)
