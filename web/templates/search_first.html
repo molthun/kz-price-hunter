@@ -623,6 +623,46 @@
     .btn-scanner-tg:hover {
       background: rgba(255, 255, 255, 0.3);
     }
+    .btn-scanner-action {
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      font-size: 0.88rem;
+      font-weight: 500;
+      padding: 8px 18px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.15s;
+    }
+    .btn-scanner-action:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .scanner-status-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 12;
+      backdrop-filter: blur(6px);
+      padding: 24px;
+      text-align: center;
+    }
+    .scanner-spinner {
+      width: 42px;
+      height: 42px;
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 14px;
+    }
 
     /* Quick Filter Chips */
     .quick-chips-wrapper {
@@ -5128,7 +5168,7 @@
             placeholder="Что хотите найти? Например: iPhone 16, ноутбук, кроссовки..."
             autocomplete="off"
           />
-          <button type="button" class="search-scan-btn" onclick="TelegramApp.scanQrCode()" title="Сканировать штрихкод или QR-код товара" aria-label="Сканировать штрихкод товара">
+          <button type="button" class="search-scan-btn" onclick="openBarcodeScanner('barcode')" title="Сканировать штрихкод или QR-код товара" aria-label="Сканировать штрихкод товара">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
               <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
@@ -5690,7 +5730,7 @@
             <button type="button" class="btn-secondary-action" id="profileAddToHomeBtn" onclick="TelegramApp.addToHomeScreen()" style="display: none;">
               <span>📲</span> <span>Добавить на экран «Домой»</span>
             </button>
-            <button type="button" class="btn-secondary-action" onclick="TelegramApp.scanQrCode()">
+            <button type="button" class="btn-secondary-action" onclick="openBarcodeScanner('barcode')">
               <span>📷</span> <span>Сканер штрихкодов</span>
             </button>
             <button type="button" class="btn-secondary-action" onclick="if(TelegramApp.tg && TelegramApp.tg.requestFullscreen) TelegramApp.tg.requestFullscreen();">
@@ -6220,7 +6260,10 @@
           <button type="button" class="scanner-mode-pill" id="scannerModeQr" onclick="BarcodeScannerManager.setMode('qr')">📷 QR-код</button>
           <button type="button" class="scanner-mode-pill" id="scannerModeAll" onclick="BarcodeScannerManager.setMode('all')">⚡️ Все</button>
         </div>
-        <button type="button" class="scanner-icon-btn" id="scannerTorchBtn" onclick="BarcodeScannerManager.toggleTorch()" title="Включить фонарик" aria-label="Фонарик">🔦</button>
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="scanner-icon-btn" id="scannerZoomBtn" onclick="BarcodeScannerManager.toggleZoom()" title="Переключить масштаб 2x" aria-label="Зум" style="font-size: 0.82rem; font-weight: 700;">1x</button>
+          <button type="button" class="scanner-icon-btn" id="scannerTorchBtn" onclick="BarcodeScannerManager.toggleTorch()" title="Включить фонарик" aria-label="Фонарик">🔦</button>
+        </div>
       </div>
 
       <!-- Viewfinder Stage -->
@@ -6228,8 +6271,28 @@
         <video id="scannerVideo" class="scanner-video" playsinline autoplay muted></video>
         <canvas id="scannerCanvas" style="display: none;"></canvas>
 
+        <!-- Loading Overlay -->
+        <div id="scannerLoadingOverlay" class="scanner-status-overlay" style="display: flex;">
+          <div class="scanner-spinner"></div>
+          <div style="color: #fff; font-size: 0.95rem; font-weight: 500;">Подключение камеры...</div>
+        </div>
+
+        <!-- Error / Permission Denied Overlay -->
+        <div id="scannerErrorOverlay" class="scanner-status-overlay" style="display: none; background: rgba(15, 23, 42, 0.96); z-index: 15;">
+          <div style="font-size: 2.8rem; margin-bottom: 10px;">📷</div>
+          <div id="scannerErrorTitle" style="color: #fff; font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">Камера недоступна</div>
+          <div id="scannerErrorMessage" style="color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; line-height: 1.45; margin-bottom: 22px; max-width: 310px;">
+            Для сканирования штрихкодов разрешите приложению доступ к камере в настройках браузера или телефона.
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 260px;">
+            <button type="button" class="btn-primary" onclick="BarcodeScannerManager.retry()" style="justify-content: center; padding: 10px 16px;">🔄 Повторить попытку</button>
+            <button type="button" class="btn-secondary" onclick="BarcodeScannerManager.enterManually()" style="justify-content: center; padding: 10px 16px; background: rgba(255,255,255,0.15); color: #fff; border-color: rgba(255,255,255,0.25);">⌨️ Ввести штрихкод вручную</button>
+            <button type="button" class="btn-scanner-tg" id="scannerErrorTgBtn" style="display: none; justify-content: center;" onclick="BarcodeScannerManager.openTelegramScanner()">📱 Сканер Telegram</button>
+          </div>
+        </div>
+
         <!-- Shading mask with cutout -->
-        <div class="scanner-overlay-mask">
+        <div class="scanner-overlay-mask" id="scannerOverlayMask">
           <div class="scanner-reticle" id="scannerReticle">
             <div class="reticle-corner reticle-tl"></div>
             <div class="reticle-corner reticle-tr"></div>
@@ -6243,8 +6306,11 @@
       </div>
 
       <!-- Bottom Controls -->
-      <div class="scanner-bottom-bar">
-        <button type="button" class="btn-scanner-tg" id="scannerTgFallbackBtn" onclick="BarcodeScannerManager.openTelegramScanner()">
+      <div class="scanner-bottom-bar" style="gap: 10px; flex-wrap: wrap;">
+        <button type="button" class="btn-scanner-action" onclick="BarcodeScannerManager.enterManually()">
+          <span>⌨️</span> <span>Ввести вручную</span>
+        </button>
+        <button type="button" class="btn-scanner-tg" id="scannerTgFallbackBtn" style="display: none;" onclick="BarcodeScannerManager.openTelegramScanner()">
           <span>📱</span> <span>Сканер Telegram</span>
         </button>
       </div>
@@ -6777,39 +6843,66 @@
         const w = canvas.width, h = canvas.height;
         if (w < 95 || h < 10) return null;
 
-        const scanLines = [Math.floor(h * 0.5), Math.floor(h * 0.4), Math.floor(h * 0.6)];
-        for (const y of scanLines) {
+        // Сканируем равномерно распределенные горизонтальные срезы по высоте видоискателя
+        const scanY = [];
+        const step = Math.max(1, Math.floor(h / 14));
+        for (let y = step * 2; y <= h - step * 2; y += step) {
+          scanY.push(y);
+        }
+
+        for (const y of scanY) {
           const imgData = ctx.getImageData(0, y, w, 1);
           const d = imgData.data;
 
-          let minL = 255, maxL = 0;
           const lums = new Uint8Array(w);
           for (let x = 0; x < w; x++) {
             const idx = x * 4;
-            const lum = (d[idx] * 299 + d[idx + 1] * 587 + d[idx + 2] * 114) / 1000;
-            lums[x] = lum;
-            if (lum < minL) minL = lum;
-            if (lum > maxL) maxL = lum;
+            lums[x] = (d[idx] * 299 + d[idx + 1] * 587 + d[idx + 2] * 114) / 1000;
           }
-          if (maxL - minL < 40) continue;
-          const th = (minL + maxL) / 2;
 
+          // Адаптивная локальная бинаризация со скользящим окном (Adaptive Moving Window)
+          // Устойчива к градиентам освещения, теням от рук и глянцевым бликам на упаковке
+          const win = Math.max(8, Math.floor(w / 16));
+          const bits = new Uint8Array(w);
+          for (let x = 0; x < w; x++) {
+            const left = Math.max(0, x - Math.floor(win / 2));
+            const right = Math.min(w - 1, x + Math.floor(win / 2));
+            let localSum = 0;
+            for (let k = left; k <= right; k++) localSum += lums[k];
+            const localMean = localSum / (right - left + 1);
+            // Черный штрих, если яркость ниже локального среднего
+            bits[x] = lums[x] < (localMean * 0.96) ? 1 : 0;
+          }
+
+          // Преобразуем биты в серии одинаковых элементов (runs)
           const runs = [];
-          let curV = lums[0] < th ? 1 : 0, curL = 1;
+          let curV = bits[0], curL = 1;
           for (let x = 1; x < w; x++) {
-            const v = lums[x] < th ? 1 : 0;
+            const v = bits[x];
             if (v === curV) curL++;
-            else { runs.push({ v: curV, len: curL }); curV = v; curL = 1; }
+            else {
+              runs.push({ v: curV, len: curL });
+              curV = v;
+              curL = 1;
+            }
           }
           runs.push({ v: curV, len: curL });
 
+          // 1. Прямой проход (слева направо)
           for (let r = 0; r < runs.length - 56; r++) {
-            if (runs[r].v !== 1 || runs[r+1].v !== 0 || runs[r+2].v !== 1) continue;
-            const m = (runs[r].len + runs[r+1].len + runs[r+2].len) / 3;
-            if (m < 0.8) continue;
+            if (runs[r].v === 1 && runs[r+1].v === 0 && runs[r+2].v === 1) {
+              const res = parseEanFromRuns(runs, r);
+              if (res) return res;
+            }
+          }
 
-            const res = parseEanFromRuns(runs, r, m);
-            if (res) return res;
+          // 2. Реверсный проход (справа налево, если товар перевернут)
+          const revRuns = runs.slice().reverse();
+          for (let r = 0; r < revRuns.length - 56; r++) {
+            if (revRuns[r].v === 1 && revRuns[r+1].v === 0 && revRuns[r+2].v === 1) {
+              const res = parseEanFromRuns(revRuns, r);
+              if (res) return res;
+            }
           }
         }
       } catch (e) {}
@@ -6823,6 +6916,7 @@
       animId: null,
       detector: null,
       torchEnabled: false,
+      zoomLevel: 1, // 1 | 2
       videoTrack: null,
       lastDetectedCode: null,
       lastDetectedTime: 0,
@@ -6868,37 +6962,153 @@
         const modal = document.getElementById('scannerModalBackdrop');
         if (modal) modal.style.display = 'flex';
         this.isOpen = true;
+
+        const loadingOverlay = document.getElementById('scannerLoadingOverlay');
+        const errorOverlay = document.getElementById('scannerErrorOverlay');
+        const mask = document.getElementById('scannerOverlayMask');
+        if (loadingOverlay) loadingOverlay.style.display = 'flex';
+        if (errorOverlay) errorOverlay.style.display = 'none';
+        if (mask) mask.style.display = 'flex';
+
+        // Отображение кнопки сканера Telegram, если мы внутри Mini App
+        const tgBtn = document.getElementById('scannerTgFallbackBtn');
+        const tgErrBtn = document.getElementById('scannerErrorTgBtn');
+        const hasTgPopup = window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.showScanQrPopup === 'function';
+        if (tgBtn) tgBtn.style.display = hasTgPopup ? 'inline-flex' : 'none';
+        if (tgErrBtn) tgErrBtn.style.display = hasTgPopup ? 'inline-flex' : 'none';
+
         if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
 
         const laser = document.getElementById('scannerLaser');
         if (laser) laser.classList.remove('success');
 
+        // Цепочка fallback-констрейнтов камеры для совместимости с PWA и всеми смартфонами
+        const constraintsList = [
+          { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { facingMode: { ideal: 'environment' } }, audio: false },
+          { video: true, audio: false }
+        ];
+
+        let stream = null;
+        let lastError = null;
+
         if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+          for (const c of constraintsList) {
+            try {
+              stream = await navigator.mediaDevices.getUserMedia(c);
+              if (stream) break;
+            } catch (err) {
+              lastError = err;
+            }
+          }
+        } else {
+          lastError = new Error('navigator.mediaDevices.getUserMedia is not supported');
+        }
+
+        if (stream) {
           try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-              video: {
-                facingMode: { ideal: 'environment' },
-                width: { ideal: 1920, min: 640 },
-                height: { ideal: 1080, min: 480 }
-              },
-              audio: false
-            });
             this.stream = stream;
             const video = document.getElementById('scannerVideo');
             if (video) {
+              video.setAttribute('playsinline', 'true');
+              video.setAttribute('webkit-playsinline', 'true');
+              video.muted = true;
               video.srcObject = stream;
               await video.play();
+
               this.videoTrack = stream.getVideoTracks()[0] || null;
+              this.zoomLevel = 1;
+              const zoomBtn = document.getElementById('scannerZoomBtn');
+              if (zoomBtn) zoomBtn.textContent = '1x';
+              video.style.transform = 'scale(1)';
+
+              // Пытаемся включить непрерывный автофокус камеры, если поддерживается
+              if (this.videoTrack && this.videoTrack.getCapabilities) {
+                try {
+                  const caps = this.videoTrack.getCapabilities();
+                  if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                    await this.videoTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+                  }
+                } catch (e) {}
+              }
+
+              if (loadingOverlay) loadingOverlay.style.display = 'none';
               this.startScanningLoop();
               return true;
             }
-          } catch (err) {
-            console.warn('getUserMedia error, fallback to Telegram popup:', err);
+          } catch (e) {
+            lastError = e;
           }
         }
 
+        // Ошибка подключения камеры: НЕ закрываем модалку! Показываем дружелюбный экран ошибки
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+        if (errorOverlay) {
+          errorOverlay.style.display = 'flex';
+          const titleEl = document.getElementById('scannerErrorTitle');
+          const msgEl = document.getElementById('scannerErrorMessage');
+
+          if (lastError && (lastError.name === 'NotAllowedError' || lastError.name === 'PermissionDeniedError')) {
+            if (titleEl) titleEl.textContent = 'Доступ к камере заблокирован';
+            if (msgEl) msgEl.textContent = 'Разрешите доступ к камере в настройках браузера или телефона, чтобы сканировать штрихкоды товаров.';
+          } else if (lastError && (lastError.name === 'NotFoundError' || lastError.name === 'DevicesNotFoundError')) {
+            if (titleEl) titleEl.textContent = 'Камера не найдена';
+            if (msgEl) msgEl.textContent = 'На этом устройстве не обнаружена камера для оптического сканирования.';
+          } else {
+            if (titleEl) titleEl.textContent = 'Камера недоступна';
+            if (msgEl) msgEl.textContent = 'Не удалось запустить камеру. Вы можете повторить попытку или ввести штрихкод вручную.';
+          }
+        }
+        return false;
+      },
+
+      retry() {
+        if (this.stream) {
+          this.stream.getTracks().forEach(t => t.stop());
+          this.stream = null;
+        }
+        this.open(this.mode);
+      },
+
+      enterManually() {
         this.close();
-        return this.openTelegramScanner();
+        const homeInput = document.getElementById('homeSearchInput');
+        if (homeInput) {
+          homeInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          homeInput.placeholder = 'Введите 13 цифр штрихкода (EAN-13)...';
+          setTimeout(() => homeInput.focus(), 250);
+        }
+      },
+
+      async toggleZoom() {
+        const video = document.getElementById('scannerVideo');
+        const zoomBtn = document.getElementById('scannerZoomBtn');
+        const nextZoom = this.zoomLevel === 1 ? 2 : 1;
+
+        if (this.videoTrack && this.videoTrack.getCapabilities) {
+          try {
+            const caps = this.videoTrack.getCapabilities();
+            if (caps.zoom && caps.zoom.max >= 2) {
+              const targetNative = nextZoom === 2 ? Math.min(2.0, caps.zoom.max) : Math.max(1.0, caps.zoom.min);
+              await this.videoTrack.applyConstraints({ advanced: [{ zoom: targetNative }] });
+              this.zoomLevel = nextZoom;
+              if (zoomBtn) zoomBtn.textContent = this.zoomLevel + 'x';
+              if (video) video.style.transform = 'scale(1)';
+              if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('selection');
+              return;
+            }
+          } catch (e) {}
+        }
+
+        // Цифровой зум для прецизионного сканирования EAN-13 без размытия макрофокуса
+        this.zoomLevel = nextZoom;
+        if (video) {
+          video.style.transformOrigin = 'center center';
+          video.style.transition = 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+          video.style.transform = this.zoomLevel === 2 ? 'scale(1.75)' : 'scale(1)';
+        }
+        if (zoomBtn) zoomBtn.textContent = this.zoomLevel + 'x';
+        if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('selection');
       },
 
       close(e) {
@@ -6916,8 +7126,13 @@
         }
         this.videoTrack = null;
         this.torchEnabled = false;
+        this.zoomLevel = 1;
+
         const video = document.getElementById('scannerVideo');
-        if (video) video.srcObject = null;
+        if (video) {
+          video.srcObject = null;
+          video.style.transform = 'scale(1)';
+        }
 
         const modal = document.getElementById('scannerModalBackdrop');
         if (modal) modal.style.display = 'none';
@@ -7009,8 +7224,8 @@
                   for (const b of barcodes) {
                     const raw = b.rawValue || '';
                     const format = b.format || '';
-                    if (this.mode === 'barcode' && format.includes('qr')) {
-                      // В режиме штрихкода игнорируем любые QR-коды!
+                    if (this.mode === 'barcode' && (format.includes('qr') || format.includes('matrix'))) {
+                      // В режиме штрихкода КАТЕГОРИЧЕСКИ игнорируем любые QR-коды и DataMatrix!
                       continue;
                     }
                     detected = { raw, format };
@@ -7020,7 +7235,7 @@
               } catch (e) {}
             }
 
-            // 2. Резервный Canvas 1D EAN-13 декодер
+            // 2. Резервный Canvas 1D EAN-13 декодер (высокая точность и работа без BarcodeDetector)
             if (!detected && (this.mode === 'barcode' || this.mode === 'all')) {
               const ean = decodeEan13FromCanvas(canvas);
               if (ean) detected = { raw: ean, format: 'ean_13' };
@@ -7134,6 +7349,10 @@
         if (modal) modal.style.display = 'none';
         if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
       }
+    };
+
+    window.openBarcodeScanner = function(preferredMode) {
+      return BarcodeScannerManager.open(preferredMode || 'barcode');
     };
 
     // =============================================================

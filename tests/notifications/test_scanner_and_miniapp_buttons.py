@@ -95,10 +95,16 @@ class MiniAppTemplateContractTests(unittest.TestCase):
 
         # Выделенный сканер BarcodeScannerManager и EAN-13 видоискатель
         self.assertIn("BarcodeScannerManager", content)
+        self.assertIn("openBarcodeScanner", content)
         self.assertIn("extractProductFromScannedText", content)
         self.assertIn("scanner-reticle", content)
         self.assertIn("decodeEan13FromCanvas", content)
         self.assertIn("scannerModalBackdrop", content)
+        self.assertIn("scannerLoadingOverlay", content)
+        self.assertIn("scannerErrorOverlay", content)
+        self.assertIn("scannerZoomBtn", content)
+        self.assertIn("toggleZoom", content)
+        self.assertIn("enterManually", content)
         self.assertIn("scannedUrlModal", content)
 
         # TG-26: MainButton и SecondaryButton
