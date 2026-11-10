@@ -3463,6 +3463,7 @@ async def admin_users_handler(request):
     users = [{
         **_public_user(u),
         "is_blocked": u["is_blocked"],
+        "bot_blocked": bool(u.get("bot_blocked")),   # TG-04: человек сам заблокировал бота
         "created_at": u["created_at"],
         "last_login_at": u["last_login_at"],
         "telegram_notify_enabled": bool(u["settings"].get("telegram_notify_enabled")),

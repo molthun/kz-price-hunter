@@ -19,12 +19,13 @@ import os
 import time
 import asyncio
 import re
+import urllib.parse
 from typing import Dict, Any, List, Optional
 import aiohttp
 
 import config
 from config import get_bot_token, APP_URL
-from notifier import _shop_emoji, format_price
+from notifier import _shop_emoji, format_price, site_button
 import ai_service
 from bounded_cache import BoundedTTLCache
 from auth import RateLimiter
@@ -42,6 +43,11 @@ WIDGET_REFRESH_COOLDOWN_SECONDS = 30
 # (chat_id, message_id) -> запрос и предложения карточки. Только в памяти процесса: после перезапуска
 # карточка честно отвечает «повторите поиск», а текст запроса не попадает в базу.
 _widget_cards = BoundedTTLCache(maxsize=2000, ttl=WIDGET_CARD_TTL_SECONDS)
+
+
+def _site_search_url(query: str) -> str:
+    """Адрес выдачи на сайте; запрос кодируется для URL (пробелы и кириллица ссылку не ломают)."""
+    return f"{APP_URL}?tab=best-price&q={urllib.parse.quote(query, safe='')}"
 
 
 def _markdown_to_telegram_html(text: str) -> str:
@@ -310,7 +316,7 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
     )
     keyboard = []
     if APP_URL:
-        keyboard.append([{"text": "📊 Открыть дашборд цен", "url": APP_URL}])
+        keyboard.append([site_button("📊 Открыть дашборд цен", APP_URL)])
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
     await send_tg_message(session, token, chat_id, text, reply_markup)
 
@@ -340,7 +346,7 @@ async def handle_watches_command(session: aiohttp.ClientSession, token: str, cha
         )
         keyboard = []
         if APP_URL:
-            keyboard.append([{"text": "🔍 Перейти в каталог", "url": APP_URL}])
+            keyboard.append([site_button("🔍 Перейти в каталог", APP_URL)])
         reply_markup = {"inline_keyboard": keyboard} if keyboard else None
         await send_tg_message(session, token, chat_id, text, reply_markup)
         return
@@ -357,10 +363,34 @@ async def handle_watches_command(session: aiohttp.ClientSession, token: str, cha
         text += f"\n<i>(Показаны первые 15 из {len(watches)})</i>\n"
 
     if APP_URL:
-        keyboard.append([{"text": "⚙️ Все наблюдения на сайте", "url": APP_URL}])
+        keyboard.append([site_button("⚙️ Все наблюдения на сайте", APP_URL)])
 
     reply_markup = {"inline_keyboard": keyboard}
     await send_tg_message(session, token, chat_id, text, reply_markup)
+
+
+async def _set_bot_blocked(user_id: int, blocked: bool) -> None:
+    if not config.bot_block_tracking_enabled():
+        return
+    try:
+        from database import set_bot_blocked
+        await asyncio.to_thread(set_bot_blocked, user_id, blocked)
+    except Exception as e:
+        print(f"[Telegram Bot] Не удалось записать блокировку бота: {type(e).__name__}")
+
+
+async def handle_my_chat_member(membership: Dict[str, Any]) -> None:
+    """TG-04: в личном чате это обновление приходит, только когда человек блокирует или разблокирует бота."""
+    chat = membership.get("chat") or {}
+    user_id = (membership.get("from") or {}).get("id")
+    if (chat.get("type") != "private" or not isinstance(user_id, int) or isinstance(user_id, bool)
+            or user_id <= 0 or chat.get("id") != user_id):
+        return
+    status = (membership.get("new_chat_member") or {}).get("status")
+    if status == "kicked":
+        await _set_bot_blocked(user_id, True)
+    elif status == "member":
+        await _set_bot_blocked(user_id, False)
 
 
 async def _send_search_widget(session: aiohttp.ClientSession, token: str, chat_id: int, query: str,
@@ -372,7 +402,7 @@ async def _send_search_widget(session: aiohttp.ClientSession, token: str, chat_i
     widget_html, offers = built
     keyboard = []
     if APP_URL:
-        keyboard.append([{"text": "📊 Все результаты на сайте", "url": f"{APP_URL}?tab=best-price&q={html.escape(query)}"}])
+        keyboard.append([site_button("📊 Все результаты на сайте", _site_search_url(query))])
     message_id = await send_tg_widget(session, token, chat_id, widget_html,
                                       telegram_widgets.build_caption(query, offers),
                                       {"inline_keyboard": keyboard} if keyboard else None)
@@ -485,7 +515,7 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
             keyboard.append([{"text": f"{emoji} {shop}: {price}", "url": it["url"]}])
 
     if APP_URL:
-        keyboard.append([{"text": "📊 Все результаты на сайте", "url": f"{APP_URL}?tab=best-price&q={html.escape(q)}"}])
+        keyboard.append([site_button("📊 Все результаты на сайте", _site_search_url(q))])
 
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
     await send_tg_message(session, token, chat_id, "\n".join(lines), reply_markup)
@@ -549,7 +579,7 @@ async def handle_ai_consultant_message(session: aiohttp.ClientSession, token: st
             keyboard.append([{"text": label, "url": url}])
 
     if APP_URL and result.get("query_used"):
-        keyboard.append([{"text": "📊 Смотреть на сайте", "url": APP_URL}])
+        keyboard.append([site_button("📊 Смотреть на сайте", APP_URL)])
 
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
     await send_tg_message(session, token, chat_id, f"✨ <b>AI-Консультант:</b>\n\n{answer_html}", reply_markup)
@@ -591,6 +621,11 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
         handle_generation_stopped(stopped)
         return
 
+    membership = update.get("my_chat_member")
+    if membership:
+        await handle_my_chat_member(membership)
+        return
+
     wq = update.get("widget_query")
     if wq:
         await handle_widget_query(session, token, wq)
@@ -615,6 +650,9 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
     user = get_user(user_id)
     if user and user.get("is_blocked"):
         return
+    if user and user.get("bot_blocked"):
+        # Человек снова пишет боту — значит, бот разблокирован, даже если обновление об этом не дошло
+        await _set_bot_blocked(user_id, False)
     if len(text) > 4000 or _message_limiter.retry_after(str(user_id)):
         return
 
@@ -718,7 +756,7 @@ class TelegramDispatcher:
             update = await self.queue.get()
             # У widget_query чат лежит в самом запросе: очередь нажатий идёт в общий порядок чата
             msg = (update.get("message") or (update.get("callback_query") or {}).get("message")
-                   or update.get("widget_query"))
+                   or update.get("widget_query") or update.get("my_chat_member"))
             chat_id = (msg or {}).get("chat", {}).get("id")
             lock, count = self.chat_locks.get(chat_id, (asyncio.Lock(), 0))
             self.chat_locks[chat_id] = (lock, count + 1)

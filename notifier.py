@@ -1,10 +1,12 @@
 import html
 import json
+import os
 import asyncio
 import time
 from urllib.parse import urlsplit
 import requests
 from typing import Dict, Any, List, Optional
+import config
 from config import get_bot_token, APP_URL
 
 SHOP_EMOJI = [
@@ -97,6 +99,33 @@ def classify_telegram_response(res) -> DeliveryResult:
     return DeliveryResult("retry", None, f"Telegram {res.status_code}")
 
 
+def site_button(text: str, url: str) -> Dict[str, Any]:
+    """Кнопка на наш сайт. По https открывает его как Mini App: сайт получает initData и входит сам.
+
+    Обычная url-кнопка открывает встроенный браузер Telegram без данных входа — человек видел страницу
+    «Войдите через Telegram». web_app-кнопки работают только в личных чатах; бот других и не обслуживает.
+    TELEGRAM_SITE_BUTTONS=url возвращает прежние ссылки.
+    """
+    if url.startswith("https://") and os.getenv("TELEGRAM_SITE_BUTTONS", "webapp").strip().lower() != "url":
+        return {"text": text, "web_app": {"url": url}}
+    return {"text": text, "url": url}
+
+
+def note_delivery_result(user_id: int, result: DeliveryResult) -> None:
+    """TG-04: 403 на отправку в личный чат — бот заблокирован, чат не начат или аккаунт удалён.
+
+    Отметка снимается, когда человек снова пишет боту или разблокирует его; до тех пор очередь к нему
+    не обращается. Сбой отметки доставке не мешает.
+    """
+    if result.status != "permanent" or result.error != "Telegram 403" or not config.bot_block_tracking_enabled():
+        return
+    try:
+        from database import set_bot_blocked
+        set_bot_blocked(user_id, True)
+    except Exception as e:
+        print(f"[Telegram] Не удалось отметить блокировку бота: {type(e).__name__}")
+
+
 def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str, Any]) -> DeliveryResult:
     """Отправляет карточку аномалии в Telegram через Bot API.
     Фото с fallback на текст — только если фото отклонено (400); при 429 и блокировке бота
@@ -120,7 +149,7 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
     )
     keyboard = [[{"text": f"⚡️ Открыть товар в {shop}", "url": url}]]
     if APP_URL:
-        keyboard.append([{"text": "📊 Дашборд цен", "url": APP_URL}])
+        keyboard.append([site_button("📊 Дашборд цен", APP_URL)])
     reply_markup = {"inline_keyboard": keyboard}
 
     try:
@@ -202,7 +231,7 @@ def send_watch_message(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
     if watch_id:
         second_row.append({"text": "🔕 Не следить", "callback_data": f"unwatch:{watch_id}"})
     if APP_URL:
-        second_row.append({"text": "🔔 Мои наблюдения", "url": APP_URL})
+        second_row.append(site_button("🔔 Мои наблюдения", APP_URL))
     if second_row:
         keyboard.append(second_row)
     try:
@@ -239,7 +268,7 @@ def send_watch_digest(chat_id: int, payloads: List[Dict[str, Any]]) -> DeliveryR
             lines.append(f"   ℹ️ {html.escape(payload['reason'])}")
     if len(payloads) > DIGEST_LINES:
         lines.append(f"…и ещё {len(payloads) - DIGEST_LINES}")
-    keyboard = [[{"text": "🔔 Мои наблюдения", "url": APP_URL}]] if APP_URL else []
+    keyboard = [[site_button("🔔 Мои наблюдения", APP_URL)]] if APP_URL else []
     try:
         return classify_telegram_response(telegram_api("sendMessage", {
             "chat_id": chat_id, "text": "\n".join(lines), "parse_mode": "HTML",
@@ -255,7 +284,7 @@ def _deliver_watch(item, payload, counts) -> tuple:
 
     Возвращает (отправлено ли сообщение, пауза Telegram по 429 или None).
     """
-    from database import finish_notification, get_user, get_connection
+    from database import finish_notification, get_user, get_connection, bot_unreachable
 
     user = get_user(item["user_id"])
     with get_connection() as conn:
@@ -280,7 +309,8 @@ def _deliver_watch(item, payload, counts) -> tuple:
             if row and row[0] is not None:
                 current = (row[0],)
     # Наблюдение удалено или выключено, человек отключил Telegram, цена уже другая — сообщение неактуально
-    if (not user or user["is_blocked"] or not user["settings"].get("telegram_notify_enabled")
+    if (not user or user["is_blocked"] or bot_unreachable(user)
+            or not user["settings"].get("telegram_notify_enabled")
             or not watch or not watch["is_active"]
             or not current or int(current[0] or 0) != int(payload.get("price") or 0)):
         finish_notification(item["id"], "cancelled")
@@ -340,6 +370,7 @@ def _deliver_watch(item, payload, counts) -> tuple:
             conn.commit()
         return True, None
     if result.status == "permanent":
+        note_delivery_result(user["id"], result)
         for delivery in deliveries:
             finish_notification(delivery["id"], "failed", delivery["attempts"], result.error)
         counts["failed"] += 1
@@ -359,7 +390,7 @@ def send_daily_digest(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
     """Суточная сводка администратору (P13). Текст собран заранее из посчитанных цифр."""
     lines = payload.get("lines") or []
     text = "\n".join(str(line) for line in lines)[:4000]
-    keyboard = [[{"text": "🩺 Центр мониторинга", "url": APP_URL.rstrip("/") + "/monitoring"}]] if APP_URL else []
+    keyboard = [[site_button("🩺 Центр мониторинга", APP_URL.rstrip("/") + "/monitoring")]] if APP_URL else []
     try:
         return classify_telegram_response(telegram_api("sendMessage", {
             "chat_id": chat_id, "text": text, "parse_mode": "HTML",
@@ -372,12 +403,12 @@ def send_daily_digest(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
 
 def _deliver_daily_digest(item, payload, counts) -> tuple:
     """Отправка суточной сводки: та же очередь, те же повторы и та же пауза 429."""
-    from database import finish_notification, get_user
-    import config
+    from database import finish_notification, get_user, bot_unreachable
 
     user = get_user(item["user_id"])
     # Сводка — админские цифры: если человек больше не администратор или заблокирован, письмо отменяется
-    if not user or user["is_blocked"] or int(item["user_id"]) not in config.ADMIN_TELEGRAM_IDS:
+    if (not user or user["is_blocked"] or bot_unreachable(user)
+            or int(item["user_id"]) not in config.ADMIN_TELEGRAM_IDS):
         finish_notification(item["id"], "cancelled")
         counts["cancelled"] += 1
         return False, None
@@ -390,6 +421,7 @@ def _deliver_daily_digest(item, payload, counts) -> tuple:
         counts["sent"] += 1
         return True, None
     if result.status == "permanent":
+        note_delivery_result(user["id"], result)
         finish_notification(item["id"], "failed", item["attempts"], result.error)
         counts["failed"] += 1
         return False, None
@@ -509,7 +541,7 @@ def _record_delivery(counts, pause) -> None:
 
 def _deliver_batch(limit, counts):
     from database import (claim_notification, finish_notification, get_user, get_connection, fresh_price_clause,
-                          fresh_benchmark_clause)
+                          fresh_benchmark_clause, bot_unreachable)
     from detector import alert_matches_user, notify_level_allows
     sent = 0
     pause = None
@@ -544,7 +576,8 @@ def _deliver_batch(limit, counts):
                 # (COALESCE(competitor_seen_at, created_at) ≤ 72 ч): старая очередь без поля в payload тоже (P02 C02)
                 alert = conn.execute("SELECT is_dismissed, " + fresh_benchmark_clause("") + " AS benchmark_ok "
                                      "FROM alerts WHERE id=?", (item["alert_id"],)).fetchone()
-            if (not user or user["is_blocked"] or not user["settings"].get("telegram_notify_enabled")
+            if (not user or user["is_blocked"] or bot_unreachable(user)
+                or not user["settings"].get("telegram_notify_enabled")
                 or not alert or alert[0]  # алерт удалён или скрыт администратором
                 or not alert[1]  # цена конкурента-основания арбитража устарела (P02 C02)
                 or not current or current[0] != anomaly["new_price"]
@@ -561,6 +594,7 @@ def _deliver_batch(limit, counts):
                 sent += 1
                 counts["sent"] += 1
             elif result.status == "permanent":
+                note_delivery_result(user["id"], result)
                 finish_notification(item["id"], "failed", item["attempts"], result.error)
                 counts["failed"] += 1
             else:

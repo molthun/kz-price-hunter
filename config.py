@@ -540,6 +540,11 @@ def _merge(defaults, data):
             merged[key] = value
     return merged
 
+def bot_block_tracking_enabled() -> bool:
+    """TG-04: учитывать, что пользователь заблокировал бота. Включено; TELEGRAM_BLOCK_TRACKING=off отключает."""
+    return os.getenv("TELEGRAM_BLOCK_TRACKING", "on").strip().lower() not in ("off", "0", "false", "no")
+
+
 def get_bot_token():
     """Токен Telegram-бота: переменная окружения, для совместимости — старое поле settings.json."""
     return (

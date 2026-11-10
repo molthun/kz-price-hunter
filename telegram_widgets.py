@@ -20,7 +20,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import config
 
-MAX_OFFERS = 8             # выше карточка упирается в предел высоты 600 px: прокрутки внутри виджета нет
+MAX_OFFERS = 8
+# Telegram обрезает карточку выше 600 px, прокрутки внутри нет. Строки предложений убираются с конца,
+# пока карточка не уложится: кнопки «Следить» и «Обновить» внизу должны оставаться видны при любом шрифте.
+FIT_HEIGHT = 560
 MAX_TITLE = 70
 MAX_URL = 256              # предел openLink; длиннее — строка остаётся без ссылки
 HTML_LIMIT = 32768
@@ -110,7 +113,8 @@ button.on{background:var(--tg-theme-button-color,#39f);color:var(--tg-theme-butt
 .r{display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--tg-theme-section-separator-color,#ddd)}
 .n{flex:1;min-width:0}
 .n div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.p{font-weight:600;white-space:nowrap}
+.p{font-weight:600;white-space:nowrap;text-align:right}
+.p .h{font-weight:400}
 .b{color:var(--tg-theme-accent-text-color,#2a8)}
 .x{opacity:.5}
 .a{display:flex;gap:8px;margin-top:8px}
@@ -122,7 +126,7 @@ button.on{background:var(--tg-theme-button-color,#39f);color:var(--tg-theme-butt
 <div class="a"><button id="w">🔔 Следить за ценой</button><button id="u">↻ Обновить</button></div>
 <div class="h" id="s">&nbsp;</div>
 <script>
-var D=__OFFERS__,T=window.TelegramWidget,S="p",P=null,At=__SENT__;
+var D=__OFFERS__,T=window.TelegramWidget,S="p",P=null,At=__SENT__,H=__HEIGHT__;
 function $(i){return document.getElementById(i)}
 function f(n){return n.toLocaleString("ru-RU")+" ₸"}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
@@ -137,12 +141,17 @@ a.forEach(function(x,i){
 var r=el(x.u&&x.p?"a":"div","r"+(x.p?"":" x"));
 if(x.u&&x.p){r.href=x.u;r.style.textDecoration="none";r.style.color="inherit"}
 var n=el("div","n");n.appendChild(el("div","",x.s));n.appendChild(el("div","h",x.t));
-if(x.o&&x.p)n.appendChild(el("div","h",f(x.o)+" → −"+Math.round((x.o-x.p)/x.o*100)+"%"));
-r.appendChild(n);r.appendChild(el("div","p"+(i==0&&x.p?" b":""),x.p?f(x.p):"нет в наличии"));
-l.appendChild(r)});
+var p=el("div","p"),g=x.o&&x.p?Math.round((x.o-x.p)/x.o*100):0;
+p.appendChild(el("div",i==0&&x.p?"b":"",x.p?f(x.p):"нет в наличии"));
+if(g>0)p.appendChild(el("div","h","−"+g+"% от "+f(x.o)));
+r.appendChild(n);r.appendChild(p);l.appendChild(r)});
 if(!a.length)l.appendChild(el("div","r h","Сейчас предложений со скидкой нет"));
 var d=new Date(At*1e3);
-$("m").textContent=D.length+" предл. · обновлено "+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}
+$("m").textContent=D.length+" предл. · обновлено "+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
+fit()}
+function fit(){
+var l=$("l"),n=0;
+while(l.children.length>1&&document.body.offsetHeight>H&&n++<D.length)l.removeChild(l.lastChild)}
 function ask(c,b){
 var s=$("s");if(!T){s.textContent="Доступно только в Telegram";return}
 s.textContent="Отправляю…";
@@ -162,6 +171,7 @@ def _render(offers: List[Dict[str, Any]], sent_at: int) -> str:
     return (_TEMPLATE
             .replace("__OFFERS__", _script_json(rows))
             .replace("__SENT__", str(int(sent_at)))
+            .replace("__HEIGHT__", str(FIT_HEIGHT))
             .replace("__WATCH__", REQUEST_WATCH)
             .replace("__REFRESH__", REQUEST_REFRESH))
 

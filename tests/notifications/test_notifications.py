@@ -76,6 +76,8 @@ class DeliveryTest(unittest.TestCase):
             for table in ("notification_outbox", "alerts", "products"):
                 conn.execute(f"DELETE FROM {table}")
             conn.execute("DELETE FROM schema_metadata WHERE name = ?", (notifier.TELEGRAM_PAUSE_KEY,))
+            # TG-04: тест с ответом 403 помечает получателя «бот заблокирован»; следующим тестам нужен чистый
+            conn.execute("UPDATE users SET bot_blocked_at = NULL")
             conn.commit()
         upsert_telegram_user({"id": 42, "first_name": "Audit"})
         save_user_settings(42, {"telegram_notify_enabled": True, "price_glitch_drop_pct": 30})

@@ -1073,6 +1073,9 @@ def _create_schema(cursor) -> None:
             last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # TG-04: когда пользователь заблокировал бота (NULL — не блокировал). Это не is_blocked: тот ставит
+    # администратор и закрывает вход на сайт, а здесь человек сам отказался от сообщений бота.
+    _add_column(cursor, "users", "bot_blocked_at", "TEXT")
     # Сессии: в базе хранится только SHA-256 токена из cookie
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
@@ -4072,6 +4075,7 @@ def _user_row_to_dict(row) -> Dict[str, Any]:
         raw = {}
     user["settings"] = merge_user_settings(raw)
     user["is_blocked"] = bool(user["is_blocked"])
+    user["bot_blocked"] = bool(user.get("bot_blocked_at"))
     return user
 
 def upsert_telegram_user(tg: Dict[str, Any], initial_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -4126,9 +4130,33 @@ def set_user_blocked(user_id: int, blocked: bool) -> None:
             conn.execute("DELETE FROM sessions WHERE user_id = ?", (int(user_id),))
         conn.commit()
 
+def set_bot_blocked(user_id: int, blocked: bool) -> bool:
+    """Отмечает, что пользователь заблокировал бота, или снимает отметку. True — состояние изменилось.
+
+    Время первой блокировки не перезаписывается повторной отметкой. Пользователь не создаётся:
+    у того, кто не входил на сайт, уведомлений нет и отмечать нечего.
+    """
+    with get_connection() as conn:
+        if blocked:
+            cursor = conn.execute("UPDATE users SET bot_blocked_at = ? WHERE id = ? AND bot_blocked_at IS NULL",
+                                  (datetime.datetime.now(datetime.timezone.utc).isoformat(), int(user_id)))
+        else:
+            cursor = conn.execute("UPDATE users SET bot_blocked_at = NULL WHERE id = ? AND bot_blocked_at IS NOT NULL",
+                                  (int(user_id),))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def bot_unreachable(user: Optional[Dict[str, Any]]) -> bool:
+    """Пользователь заблокировал бота, и учёт блокировок включён: отправлять ему бессмысленно."""
+    from config import bot_block_tracking_enabled
+    return bool(user and user.get("bot_blocked")) and bot_block_tracking_enabled()
+
+
 def get_notification_recipients() -> List[Dict[str, Any]]:
-    """Незаблокированные пользователи с включенными Telegram-уведомлениями."""
-    return [u for u in list_users() if not u["is_blocked"] and u["settings"].get("telegram_notify_enabled")]
+    """Незаблокированные пользователи с включенными Telegram-уведомлениями, до которых бот может дописаться."""
+    return [u for u in list_users() if not u["is_blocked"] and u["settings"].get("telegram_notify_enabled")
+            and not bot_unreachable(u)]
 
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -4192,7 +4220,7 @@ def export_user_data(user_id: int) -> Optional[Dict[str, Any]]:
     return {
         "exported_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "profile": {k: user.get(k) for k in ("id", "username", "first_name", "last_name", "photo_url",
-                                             "is_blocked", "created_at", "last_login_at")},
+                                             "is_blocked", "bot_blocked_at", "created_at", "last_login_at")},
         "settings": user.get("settings") or {},
         "sessions": sessions,
         "notifications": notifications,
