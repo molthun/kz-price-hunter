@@ -6,10 +6,13 @@
 from __future__ import annotations
 import asyncio
 import json
+import logging
 import re
 import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger("kz_price_hunter.showcase_scanners")
 
 from domain.image_quality import upgrade_image_url
 from content_retention import source_free

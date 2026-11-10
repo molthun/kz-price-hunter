@@ -19,6 +19,7 @@ const scoped=id=>({...generic,product:{...generic.product,title:'Товар '+id
  if(u.pathname==='/api/v2/offers/b/details')return J({offer_id:'b',source_signature:'bsig',status:'unavailable',facts:[],images:[BASE+'/b.svg'],description:'',sources:[{url:'https://b.example/product',name:'Магазин b'}]});
  if(u.pathname.startsWith('/api/'))return J({});return r.fulfill({contentType:'text/html',body:html});});
  await p.goto(BASE+'/product/p');
+ await p.waitForFunction(()=>document.getElementById('offersCountBadge')?.textContent==='(2 предложения)');
  assert.equal(await p.locator('#offersSectionLabel').innerText(),'Предложения от продавцов');
  assert.equal(await p.locator('#offersCountBadge').innerText(),'(2 предложения)');
  assert.match(await p.locator('.btn-to-seller').first().innerText(),/Выбрать предложение/);
