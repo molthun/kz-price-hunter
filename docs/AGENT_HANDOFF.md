@@ -2,11 +2,12 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-16 + TG-17 + TG-20: Link Preview Options (7.0/7.8), Mini App 8.0 Fullscreen/HomeScreen/Stories и AI-фидбэк — Antigravity (2026-11-10 23:55)
+## STAND_DEPLOYED TG-16 + TG-17 + TG-20: Link Preview Options (7.0/7.8), Mini App 8.0 Fullscreen/HomeScreen/Stories и AI-фидбэк — Antigravity (2026-11-10 23:58)
 
 - **Поручение владельца (чат, 2026-11-10):** «Дальше»; работаем на стенде, в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
 - **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`, коммит `bb69da483f`. Контейнер пересобран и перезапущен.
 - **Область файлов:** `database.py`, `notifier.py`, `telegram_bot.py`, `web/templates/search_first.html`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`, `tests/notifications/test_link_preview_and_mini_app.py`.
 - **Что сделано:**
   1. **TG-16 (`link_preview_options`, Bot API 7.0/7.8):**
@@ -24,13 +25,12 @@
      - В `handle_ai_consultant_message` под каждым ответом AI-консультанта добавляются inline-кнопки `[ 👍 Полезно | 👎 Не то ]`.
      - В `process_telegram_update` добавлен обработчик `aifb:*` с мгновенным `answerCallbackQuery` и сохранением в БД.
 - **Проверки:**
-  - `venv/bin/python3 -m unittest tests/notifications/test_link_preview_and_mini_app.py`: 10 тестов OK (0.118s).
-  - `venv/bin/python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 328 тестов OK (12.191s).
+  - Локально: `venv/bin/python3 -m unittest tests/notifications/test_link_preview_and_mini_app.py`: 10 тестов OK (0.118s).
+  - Локально: `venv/bin/python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 328 тестов OK (12.191s).
+  - На стенде: `docker exec kzph-stand python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 328 тестов OK (28.289s).
+  - `curl -k -s https://shdev.molthun.ru/api/health`: `{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}`.
 - **Следующий точный шаг:**
-  - Закоммитить локально.
-  - Собрать bundle и отправить на стенд.
-  - Прогнать тесты на стенде внутри Docker-контейнера `kzph-stand`.
-  - Обновить handoff до STAND_DEPLOYED.
+  - Согласовать дальнейшие шаги с владельцем или реализовать следующую Telegram-фичу (например, TG-18: подсказки команд и автодополнение в Mini App, либо TG-19: web_app в inline-кнопках уведомлений).
 
 ---
 
