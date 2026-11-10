@@ -2,12 +2,12 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-22 (нативные реакции) + TG-23 (команды /deals и /favorites) + TG-24 (интерактивный шеринг скидок и поиска chosen chat) — Antigravity (2026-11-11 00:20)
+## STAND_DEPLOYED TG-22 (нативные реакции) + TG-23 (команды /deals и /favorites) + TG-24 (интерактивный шеринг скидок и поиска chosen chat) — Antigravity (2026-11-11 00:22)
 
 - **Поручение владельца (чат, 2026-11-10):** «Делай дальше. нужны самые последние фишки телеграм в боте. самые лучшие.» -> «продолжи по плану» -> «Делаем». Работаем на стенде, в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
 - **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
-- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`. Готовится сборка bundle и деплой на стенд.
+- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`, коммит `4e8f29a`. Контейнер пересобран и перезапущен.
 - **Область файлов:** `config.py`, `notifier.py`, `telegram_bot.py`, `tests/notifications/test_search_widget.py`, `tests/notifications/test_reactions_deals_and_share.py`, `docs/TELEGRAM_BOT.md`, `docs/DEVELOPMENT_PLAN.md`.
 - **Что сделано:**
   1. **TG-22 (Нативные реакции бота на сообщения, Bot API 7.0/7.1):**
@@ -34,8 +34,10 @@
 - **Проверки:**
   - Локально: `venv/bin/python3 -m unittest tests/notifications/test_reactions_deals_and_share.py`: 6 тестов OK (0.003s).
   - Локально: `venv/bin/python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 338 тестов OK (12.083s).
+  - На стенде: `docker exec kzph-stand python3 -m unittest discover -s tests/notifications -p 'test_*.py'`: 338 тестов OK (27.138s).
+  - `curl -k -s https://shdev.molthun.ru/api/health`: `{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}`.
 - **Следующий точный шаг:**
-  - Закоммитить локально, сформировать `git bundle`, скопировать на стенд `192.168.28.25:2222`, сделать `git merge --ff-only`, пересобрать Docker-контейнер стенда, прогнать тесты внутри контейнера, проверить `api/health` и обновить статус до `STAND_DEPLOYED`.
+  - Согласовать дальнейшие шаги с владельцем или реализовать следующую Telegram-фичу.
 
 ---
 
