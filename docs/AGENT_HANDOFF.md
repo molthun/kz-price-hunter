@@ -2,6 +2,20 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## CHECKPOINT TG-06 → Claude / следующий исполнитель: погашение устаревших находок — код готов, не выложено — Claude (2026-11-10)
+
+- **Поручение владельца (чат, 2026-11-10):** «Да, TG-06». Ветка `main` локально, без push. Работа остановлена по лимиту использования исполнителя.
+- **Сделано (в коммите):**
+  1. `database.py`: аддитивные колонки `notification_outbox.tg_message_id`, `tg_has_photo`, `sent_at`, `stale_checked_at`; `record_sent_message`, `stale_alert_candidates` (отбор устаревших делает SQL: товар снят или свежая цена выше обещанной, окно 72 ч), `finish_stale_check`.
+  2. `notifier.py`: `DeliveryResult.message_id/has_photo`; номер сообщения запоминается при доставке находок и одиночных сообщений наблюдений; `stale_verdict`, `stale_message`, `mark_stale_alerts` (раз в 5 минут, до 5 правок за проход, `editMessageCaption` для фото и `editMessageText` для текста, пауза 429 соблюдается); вызов из `notification_worker`.
+  3. `config.stale_alert_marking_enabled()`: `TELEGRAM_STALE_MARK=on`, по умолчанию выключено. `.env.example` обновлён.
+  4. `tests/notifications/test_stale_alerts.py` (новый, 17 проверок).
+- **Проверено:** `pytest tests/notifications tests/monitoring tests/web --ignore-glob="* 2.py"`: 828 passed, 0 failed.
+- **НЕ сделано:** полный прогон `pytest tests`; раздел TG-06 в `docs/TELEGRAM_BOT.md` и строка в `docs/DEVELOPMENT_PLAN.md`; выкладка на стенд и `TELEGRAM_STALE_MARK=on` в `.env` стенда; проверка настоящей правки сообщения в Telegram.
+- **Следующий точный шаг:** полный прогон тестов → документация → bundle `f4a5d14eb0..main` на стенд по протоколу → включить `TELEGRAM_STALE_MARK=on` → убедиться на реальной находке, что сообщение правится.
+
+---
+
 ## STAND_DEPLOYED TGW-01: одно предложение на магазин → Владелец — Claude (2026-11-10)
 
 - **Поручение владельца (чат, 2026-11-10):** «Да, по магазинам» — в карточке `/search` оставлять одно лучшее предложение на магазин.

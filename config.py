@@ -545,6 +545,11 @@ def bot_block_tracking_enabled() -> bool:
     return os.getenv("TELEGRAM_BLOCK_TRACKING", "on").strip().lower() not in ("off", "0", "false", "no")
 
 
+def stale_alert_marking_enabled() -> bool:
+    """TG-06: править отправленную находку, когда цена ушла вверх или товар снят. Выключено; TELEGRAM_STALE_MARK=on."""
+    return os.getenv("TELEGRAM_STALE_MARK", "").strip().lower() in ("on", "1", "true", "yes")
+
+
 def get_bot_token():
     """Токен Telegram-бота: переменная окружения, для совместимости — старое поле settings.json."""
     return (

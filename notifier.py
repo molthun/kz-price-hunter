@@ -65,12 +65,15 @@ class DeliveryResult:
     status: sent — доставлено; retry — временная ошибка (429, 5xx, сеть), повторить позже;
     permanent — повтор бессмысленен (бот заблокирован, чат не найден, неверный запрос).
     """
-    __slots__ = ("status", "retry_after", "error")
+    __slots__ = ("status", "retry_after", "error", "message_id", "has_photo")
 
-    def __init__(self, status: str, retry_after: Optional[float] = None, error: Optional[str] = None):
+    def __init__(self, status: str, retry_after: Optional[float] = None, error: Optional[str] = None,
+                 message_id: Optional[int] = None, has_photo: bool = False):
         self.status = status
         self.retry_after = retry_after
         self.error = error
+        self.message_id = message_id      # номер отправленного сообщения: по нему находку можно поправить (TG-06)
+        self.has_photo = has_photo
 
     def __bool__(self) -> bool:
         return self.status == "sent"
@@ -81,12 +84,16 @@ class DeliveryResult:
 
 def classify_telegram_response(res) -> DeliveryResult:
     """Разбирает ответ Bot API: 429 с паузой retry_after, 400/403/404 — постоянные, остальное — временные."""
-    if res.status_code == 200:
-        return DeliveryResult("sent")
     try:
         data = res.json() or {}
     except Exception:
         data = {}
+    if not isinstance(data, dict):
+        data = {}
+    if res.status_code == 200:
+        sent = data.get("result")
+        message_id = sent.get("message_id") if isinstance(sent, dict) else None
+        return DeliveryResult("sent", message_id=message_id if isinstance(message_id, int) else None)
     if res.status_code == 429:
         retry_after = (data.get("parameters") or {}).get("retry_after") or res.headers.get("Retry-After")
         try:
@@ -158,6 +165,7 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
                 "chat_id": chat_id, "photo": image_url, "caption": message_text,
                 "parse_mode": "HTML", "reply_markup": reply_markup
             }))
+            result.has_photo = bool(result)
             # Текстом — только если Telegram не смог взять фото (400); 429/403/5xx возвращаются как есть
             if result or result.error != "Telegram 400":
                 if not result:
@@ -361,6 +369,8 @@ def _deliver_watch(item, payload, counts) -> tuple:
     if result:
         for delivery in deliveries:
             finish_notification(delivery["id"], "sent", delivery["attempts"])
+        if len(deliveries) == 1:     # сводку из нескольких срабатываний одной правкой не погасить
+            _remember_message(deliveries[0]["id"], result)
         counts["sent"] += 1
         with get_connection() as conn:
             for done in payloads:
@@ -591,6 +601,7 @@ def _deliver_batch(limit, counts):
                 result = DeliveryResult("sent" if result else "retry", None, None if result else "Telegram delivery failed")
             if result:
                 finish_notification(item["id"], "sent", item["attempts"])
+                _remember_message(item["id"], result)
                 sent += 1
                 counts["sent"] += 1
             elif result.status == "permanent":
@@ -608,6 +619,111 @@ def _deliver_batch(limit, counts):
             finish_notification(item["id"], "pending", item["attempts"], type(e).__name__)
             counts["errors"] += 1
     return sent, pause
+
+
+def _remember_message(delivery_id: int, result: DeliveryResult) -> None:
+    """Сбой записи номера сообщения не должен превращать доставленное уведомление в ошибку."""
+    try:
+        from database import record_sent_message
+        record_sent_message(delivery_id, result.message_id, result.has_photo)
+    except Exception as e:
+        print(f"[Telegram] Номер сообщения не записан: {type(e).__name__}")
+
+
+# --- TG-06: погашение устаревших находок -------------------------------------------------------------
+
+STALE_PASS_INTERVAL_SECONDS = 300    # сверка раз в пять минут: цены меняются обходами, а не посекундно
+STALE_EDITS_PER_PASS = 5             # правка считается отправленным сообщением — не забиваем лимит рассылки
+_last_stale_pass = 0.0
+
+
+def stale_verdict(item: Dict[str, Any], payload: Dict[str, Any]) -> Optional[str]:
+    """Почему находка устарела: "gone" — товар снят, "price" — цена выше обещанной; None — ещё в силе
+    или судить рано (цена товара давно не обновлялась — сбой обхода не делает находку ложной)."""
+    kind = payload.get("kind")
+    if kind == "watch":
+        promised = int(payload.get("price") or 0)
+    elif kind is None and isinstance(payload.get("anomaly"), dict):
+        promised = int(payload["anomaly"].get("new_price") or 0)
+    else:
+        return None                      # сводки и служебные письма не гасятся
+    if promised <= 0 or not item.get("product_found"):
+        return None                      # товар из другой модели данных (offers) — фактов нет, не трогаем
+    if not item.get("product_active"):
+        return "gone"
+    if item.get("product_fresh") and int(item.get("current_price") or 0) > promised:
+        return "price"
+    return None
+
+
+def stale_message(payload: Dict[str, Any], verdict: str, current_price: int) -> tuple:
+    """Текст и кнопки погашенной находки. Короткий: подпись к фото ограничена 1024 символами."""
+    product = payload.get("product") or {}
+    shop = product.get("shop") or "Магазин"
+    promised = int(payload.get("price") or (payload.get("anomaly") or {}).get("new_price") or 0)
+    lines = ["⚠️ <b>Находка уже неактуальна</b>", "",
+             f"{_shop_emoji(shop)} <b>{html.escape(shop)}</b>",
+             f"🏷 {html.escape(str(product.get('title') or '')[:300])}", "",
+             f"Была цена: <s>{format_price(promised)}</s>"]
+    lines.append("Сейчас: товара нет в продаже" if verdict == "gone"
+                 else f"Сейчас: <b>{format_price(current_price)}</b>")
+    keyboard = []
+    url = str(product.get("url") or "")
+    if url.startswith(("http://", "https://")):
+        keyboard.append([{"text": "Открыть товар", "url": url}])
+    if APP_URL:
+        keyboard.append([site_button("🔎 Искать другие цены", APP_URL)])
+    return "\n".join(lines), keyboard
+
+
+def mark_stale_alerts(force: bool = False) -> int:
+    """Правит отправленные находки, которые перестали быть правдой. Возвращает число правок.
+
+    Проход редкий и короткий; пауза Telegram по 429 соблюдается так же, как при доставке.
+    """
+    global _last_stale_pass
+    if not config.stale_alert_marking_enabled() or not get_bot_token() or telegram_paused_for() > 0:
+        return 0
+    if not force and time.monotonic() - _last_stale_pass < STALE_PASS_INTERVAL_SECONDS:
+        return 0
+    _last_stale_pass = time.monotonic()
+    from database import stale_alert_candidates, finish_stale_check, get_user, bot_unreachable
+    edited = 0
+    for item in stale_alert_candidates():
+        if edited >= STALE_EDITS_PER_PASS:
+            break
+        try:
+            payload = json.loads(item["payload"])
+        except (TypeError, ValueError):
+            finish_stale_check(item["id"])
+            continue
+        verdict = stale_verdict(item, payload)
+        if not verdict:
+            continue                     # ещё в силе — посмотрим в следующий проход
+        user = get_user(item["user_id"])
+        if not user or user["is_blocked"] or bot_unreachable(user):
+            finish_stale_check(item["id"])
+            continue
+        text, keyboard = stale_message(payload, verdict, item["current_price"])
+        method, field = ("editMessageCaption", "caption") if item["tg_has_photo"] else ("editMessageText", "text")
+        try:
+            result = classify_telegram_response(telegram_api(method, {
+                "chat_id": item["user_id"], "message_id": item["tg_message_id"], field: text,
+                "parse_mode": "HTML", "reply_markup": {"inline_keyboard": keyboard}}))
+        except Exception as e:
+            print(f"[Telegram Exception] {type(e).__name__}")
+            break                        # сеть недоступна — попробуем в следующий проход
+        if result:
+            edited += 1
+            finish_stale_check(item["id"])
+        elif result.status == "permanent":
+            # Сообщение удалено человеком, бот заблокирован или править нельзя — возвращаться незачем
+            note_delivery_result(item["user_id"], result)
+            finish_stale_check(item["id"])
+        elif result.retry_after is not None:
+            pause_telegram(result.retry_after)
+            break
+    return edited
 
 
 def _check_shop_notices() -> None:
@@ -657,6 +773,11 @@ async def notification_worker():
             except Exception as e:
                 print(f"[Notices] Проверка обращений магазинов не выполнена: {type(e).__name__}")
             await asyncio.to_thread(deliver_pending)
+            # TG-06: находки, переставшие быть правдой, правятся на месте; сбой не мешает доставке
+            try:
+                await asyncio.to_thread(mark_stale_alerts)
+            except Exception as e:
+                print(f"[Telegram] Погашение находок не выполнено: {type(e).__name__}")
             # Пульс очереди Telegram (P14): умерший воркер не должен выглядеть работающим
             await asyncio.to_thread(environment.heartbeat, environment.TELEGRAM, "цикл доставки")
         except Exception as e:

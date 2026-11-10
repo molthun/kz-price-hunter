@@ -1110,6 +1110,13 @@ def _create_schema(cursor) -> None:
         created_at REAL NOT NULL, last_error TEXT,
         UNIQUE(alert_id, user_id)
     )""")
+    # TG-06: номер отправленного сообщения в Telegram — по нему устаревшая находка правится на месте.
+    # tg_has_photo: у сообщения с фото правится подпись, у текстового — текст. stale_checked_at — когда
+    # находка окончательно разобрана (помечена или править уже нечего), чтобы не возвращаться к ней.
+    _add_column(cursor, "notification_outbox", "tg_message_id", "INTEGER")
+    _add_column(cursor, "notification_outbox", "tg_has_photo", "INTEGER NOT NULL DEFAULT 0")
+    _add_column(cursor, "notification_outbox", "sent_at", "REAL")
+    _add_column(cursor, "notification_outbox", "stale_checked_at", "REAL")
     # C01, C02, C05: Персистентный журнал очереди задач сохранения товаров в SQLite (Spool / Outbox).
     # Обеспечивает строгую транзакционность, гарантию непотери задач при kill -9/рестартах и fencing поколений.
     cursor.execute("""CREATE TABLE IF NOT EXISTS product_queue_spool (
@@ -4672,6 +4679,54 @@ def finish_notification(delivery_id, status, attempts=0, error=None, retry_after
     with get_connection() as conn:
         conn.execute("""UPDATE notification_outbox SET status=?,next_attempt_at=?,last_error=? WHERE id=?""",
             (status, time.time() + delay, error, delivery_id))
+        conn.commit()
+
+
+STALE_WATCH_HOURS = 72     # дольше за находкой не следим: через трое суток её никто не открывает
+
+
+def record_sent_message(delivery_id: int, message_id: Optional[int], has_photo: bool = False) -> None:
+    """Запоминает, каким сообщением ушло уведомление (TG-06). Без номера править будет нечего."""
+    if not isinstance(message_id, int) or isinstance(message_id, bool) or message_id <= 0:
+        return
+    with get_connection() as conn:
+        conn.execute("UPDATE notification_outbox SET tg_message_id = ?, tg_has_photo = ?, sent_at = ? WHERE id = ?",
+                     (message_id, 1 if has_photo else 0, time.time(), int(delivery_id)))
+        conn.commit()
+
+
+def stale_alert_candidates(limit: int = 20, now: Optional[float] = None) -> List[Dict[str, Any]]:
+    """Отправленные за последние STALE_WATCH_HOURS уведомления, чей товар снят или подорожал.
+
+    Отбор делает база: действующие находки в выборку не попадают и не заслоняют собой устаревшие.
+    Подорожание считается только по свежей цене — сбой обхода не делает находку ложной. Каждая запись
+    дополнена фактами о товаре (product_found, product_active, product_fresh, current_price);
+    окончательное решение принимает notifier.stale_verdict.
+    """
+    now = time.time() if now is None else now
+    fresh = fresh_price_clause("p")
+    promised = "COALESCE(json_extract(o.payload, '$.anomaly.new_price'), json_extract(o.payload, '$.price'))"
+    with get_connection() as conn:
+        rows = conn.execute(f"""SELECT o.*, p.current_price AS current_price, p.is_active AS product_active,
+                   ({fresh}) AS product_fresh
+            FROM notification_outbox o
+            JOIN products p ON p.id = json_extract(o.payload, '$.product.id')
+            WHERE o.status = 'sent' AND o.tg_message_id IS NOT NULL AND o.stale_checked_at IS NULL
+              AND o.sent_at >= ?
+              AND (p.is_active = 0 OR (({fresh}) AND p.current_price > {promised}))
+            ORDER BY o.sent_at LIMIT ?""", (now - STALE_WATCH_HOURS * 3600, int(limit))).fetchall()
+    result = []
+    for row in rows:
+        item = dict(row)
+        item.update(product_found=True, product_active=bool(item["product_active"]),
+                    product_fresh=bool(item["product_fresh"]), current_price=int(item["current_price"] or 0))
+        result.append(item)
+    return result
+
+
+def finish_stale_check(delivery_id: int) -> None:
+    with get_connection() as conn:
+        conn.execute("UPDATE notification_outbox SET stale_checked_at = ? WHERE id = ?", (time.time(), int(delivery_id)))
         conn.commit()
 
 
