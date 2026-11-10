@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IMPLEMENTED TG-12: Inline-режим (@бот <запрос>) и подготовленные сообщения (savePreparedInlineMessage) — Antigravity (2026-11-10 22:37)
+## STAND_DEPLOYED TG-12: Inline-режим (@бот <запрос>) и подготовленные сообщения (savePreparedInlineMessage) — Antigravity (2026-11-10 22:40)
 
 - **Поручение владельца (чат, 2026-11-10):** «Делай дальше. нужны самые последние фишки телеграм в боте. самые лучшие.»; работаем на стенде, в прод ничего не отправляем.
 - **Исполнитель:** Antigravity.
@@ -29,13 +29,14 @@
   7. Документация:
      - Обновлены `docs/TELEGRAM_BOT.md` (раздел 2к, обновлена таблица, инструкция `/setinline` в BotFather) и `docs/DEVELOPMENT_PLAN.md`.
 - **Проверки:**
-  - Локально: `pytest tests/notifications/test_inline_mode.py` — **6 passed** in 0.24s.
-  - Локальный сьют: `pytest tests/notifications` — **297 passed, 0 failed** in 12.32s.
+  - Локально: `pytest tests/notifications/test_inline_mode.py` — **6 passed** in 0.24s; `pytest tests/notifications` — **297 passed, 0 failed** in 12.32s.
+  - Коммит перенесён на стенд через `git bundle` **без push в origin/main**.
+  - Контейнер `kzph-stand` пересобран и перезапущен (`docker compose -f docker-compose.stand.yml up -d --build`) → `healthy`, `/api/health` ok.
+  - Внутри контейнера стенда: `python3 -m unittest discover -s tests/notifications -p 'test_*.py'` — **Ran 295 tests, OK** (27.1s).
+  - Эндпоинт `POST /api/telegram/prepared-message` проверен на стенде через curl (валидация обязательных полей `user_id`, защита CSRF Origin).
 - **Следующий точный шаг:**
-  - Закоммитить изменения локально.
-  - Доставить на стенд через `git bundle` (без push в origin/main).
-  - Пересобрать стенд, прогнать тесты внутри контейнера.
-  - Обновить handoff до `STAND_DEPLOYED TG-12`.
+  - Для активации inline в самом клиенте Telegram владельцу достаточно выполнить команду в BotFather: `/setinline` → выбрать бота → указать подсказку (placeholder).
+  - Следующий кандидат: **TG-10** (Сайт как полноценный Mini App — бесшовная шторка, `Telegram.WebApp.ready()`, навигация без внешнего браузера) или **TG-02б** (потоковый текст AI-консультанта).
 
 ---
 
