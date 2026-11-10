@@ -43,6 +43,7 @@ class WidgetBuildTests(unittest.TestCase):
         items = _items(2, title='</script><img src=x onerror=alert(1)> ')
         html_text, _ = widgets.build_search_widget('</script><b>q', items)
         self.assertEqual(html_text.count('</script>'), 1)
+        self.assertNotIn('<b>q', html_text)   # запрос живёт в подписи, в код карточки не попадает
         self.assertNotIn(' ', html_text)
 
     def test_unsafe_or_long_urls_become_plain_rows(self):
@@ -56,13 +57,13 @@ class WidgetBuildTests(unittest.TestCase):
         self.assertIsNone(widgets.build_search_widget('q', []))
         self.assertIsNone(widgets.build_search_widget('q', [{'id': 'a', 'current_price': 0}]))
 
-    def test_caption_is_escaped_and_within_limit(self):
+    def test_caption_is_one_escaped_line_with_best_price(self):
         _, offers = widgets.build_search_widget('q', _items(8, title='<b>' + 'я' * 200))
-        caption = widgets.build_caption('<i>запрос</i>', offers)
+        caption = widgets.build_caption('<i>запрос</i>' + 'ж' * 300, offers)
         self.assertLessEqual(len(caption), widgets.CAPTION_LIMIT)
+        self.assertNotIn('\n', caption)
         self.assertIn('&lt;i&gt;запрос&lt;/i&gt;', caption)
-        self.assertNotIn('<b>яя', caption)
-        self.assertIn('1 000 ₸', caption)
+        self.assertTrue(caption.endswith('— от 1 000 ₸'))
 
     def test_chat_data_follows_card_indexes_and_marks_missing_offers(self):
         _, offers = widgets.build_search_widget('q', _items(3))

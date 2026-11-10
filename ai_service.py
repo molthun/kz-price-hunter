@@ -16,7 +16,7 @@ import re
 from model_matching import normalize_ai_canonical_key
 import json
 import time
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, Callable
 import aiohttp
 
 import config
@@ -1085,14 +1085,25 @@ def _format_products_for_ui(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]
 async def ask_ai_consultant(
     message: str,
     history: Optional[List[Dict[str, str]]] = None,
-    city: str = "Все"
+    city: str = "Все",
+    on_stage: Optional[Callable[[str, int], Any]] = None
 ) -> Dict[str, Any]:
     """
     Интерактивный AI-консультант по покупкам (RAG) на базе Gemini Flash / OpenAI:
     1. Распознает потребность пользователя и ищет в локальной базе магазинов лучшие товары.
     2. Инжектирует актуальные цены, скидки и магазины в контекст LLM.
     3. Генерирует аргументированный ответ эксперта с подборкой конкретных товаров.
+
+    on_stage(имя, число) — необязательное уведомление о ходе работы: "search" перед выборкой из базы,
+    "generate" с числом найденных предложений перед обращением к модели. Ошибка в нём ответу не мешает.
     """
+    def stage(name: str, count: int = 0) -> None:
+        if on_stage:
+            try:
+                on_stage(name, count)
+            except Exception:
+                pass
+
     clean_msg = message.strip()
     if not clean_msg:
         return {
@@ -1137,6 +1148,7 @@ async def ask_ai_consultant(
     only_disc = parsed.get("only_discount", False) if parsed else False
 
     # 2. Выборка товаров из базы данных
+    stage("search")
     from search_engine import search_in_database
     db_items = search_in_database(
         query=search_query,
@@ -1153,6 +1165,7 @@ async def ask_ai_consultant(
                 "products": [], "suggested_questions": [], "query_used": search_query}
 
     top_items = db_items[:12]
+    stage("generate", len(db_items))
 
     # 3. Подготовка контекста товаров для промпта
     context_lines = []

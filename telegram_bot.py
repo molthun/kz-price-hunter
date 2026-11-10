@@ -14,6 +14,7 @@ telegram_bot.py - Интерактивный Telegram-бот для KZ Price Hun
 """
 
 import html
+import itertools
 import os
 import time
 import asyncio
@@ -95,7 +96,7 @@ async def send_tg_widget(session: aiohttp.ClientSession, token: str, chat_id: in
     """Отправляет HTML-виджет (Bot API 10.4). Возвращает message_id или None — тогда нужен обычный текст."""
     url = f"https://api.telegram.org/bot{token}/sendWidget"
     payload: Dict[str, Any] = {"chat_id": chat_id, "html": widget_html, "caption": caption,
-                               "parse_mode": "HTML", "allow_queries": True}
+                               "parse_mode": "HTML", "show_caption_above_media": True, "allow_queries": True}
     if reply_markup:
         payload["reply_markup"] = reply_markup
     try:
@@ -138,6 +139,124 @@ async def edit_tg_widget_data(session: aiohttp.ClientSession, token: str, chat_i
     except Exception as e:
         print(f"[Telegram Bot] Ошибка editMessageWidgetData: {type(e).__name__}")
         return False
+
+
+async def send_tg_draft(session: aiohttp.ClientSession, token: str, chat_id: int, draft_id: int,
+                        text: str = "", can_stop: bool = True) -> bool:
+    """Черновик ответа (Bot API 9.3+): временный, живёт около 30 секунд. Пустой текст — заглушка «Думаю…»."""
+    payload: Dict[str, Any] = {"chat_id": chat_id, "draft_id": draft_id, "text": text}
+    if can_stop:
+        payload["can_stop"] = True
+    try:
+        async with session.post(f"https://api.telegram.org/bot{token}/sendMessageDraft", json=payload,
+                                timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            return resp.status == 200
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        print(f"[Telegram Bot] Ошибка sendMessageDraft: {type(e).__name__}")
+        return False
+
+
+# TG-02: ход работы консультанта черновиком. Модель отдаёт ответ целиком (строгий JSON через AI-роутер),
+# поэтому в черновике не текст ответа по словам, а честные этапы: «Думаю…» → поиск → сравнение.
+DRAFT_KEEPALIVE_SECONDS = 12      # черновик исчезает через ~30 секунд без обновления
+DRAFT_STAGE_TEXT = {
+    "search": "🔎 Ищу подходящие товары в магазинах…",
+    "generate": "⚖️ Нашёл предложений: {count}. Сравниваю цены и готовлю ответ…",
+}
+_draft_ids = itertools.count(int(time.time()) % 1_000_000_000 + 1)
+# (chat_id, draft_id) -> DraftProgress идущей генерации: по ним кнопка «Стоп» находит, что отменять
+_active_generations: Dict[tuple, "DraftProgress"] = {}
+
+
+class DraftProgress:
+    """Показывает ход генерации одним черновиком и не даёт ему погаснуть, пока ответ готовится."""
+
+    def __init__(self, session, token: str, chat_id: int):
+        self.session, self.token, self.chat_id = session, token, chat_id
+        self.draft_id = next(_draft_ids)
+        self.text = ""
+        self.stopped = False
+        self.generation: Optional[asyncio.Task] = None
+        self._keepalive: Optional[asyncio.Task] = None
+        self._pushes: set = set()
+
+    async def start(self) -> bool:
+        """Первый черновик. False — Telegram черновик не принял: вызывающий код работает как раньше."""
+        if not await send_tg_draft(self.session, self.token, self.chat_id, self.draft_id, self.text):
+            return False
+        _active_generations[(self.chat_id, self.draft_id)] = self
+        self._keepalive = asyncio.create_task(self._keep_alive())
+        return True
+
+    async def _keep_alive(self) -> None:
+        while True:
+            await asyncio.sleep(DRAFT_KEEPALIVE_SECONDS)
+            await send_tg_draft(self.session, self.token, self.chat_id, self.draft_id, self.text)
+
+    def stage(self, name: str, count: int = 0) -> None:
+        """Вызывается консультантом синхронно; отправка черновика уходит в фон и ответ не задерживает."""
+        template = DRAFT_STAGE_TEXT.get(name)
+        if not template or self.stopped:
+            return
+        self.text = template.format(count=count)
+        push = asyncio.create_task(
+            send_tg_draft(self.session, self.token, self.chat_id, self.draft_id, self.text))
+        self._pushes.add(push)
+        push.add_done_callback(self._pushes.discard)
+
+    def stop(self) -> None:
+        """Пользователь нажал «Стоп»: отменяем обращение к модели."""
+        self.stopped = True
+        if self.generation and not self.generation.done():
+            self.generation.cancel()
+
+    async def close(self) -> None:
+        _active_generations.pop((self.chat_id, self.draft_id), None)
+        tasks = [t for t in (self._keepalive, *self._pushes) if t and not t.done()]
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+def handle_generation_stopped(stopped: Dict[str, Any]) -> bool:
+    """Обновление stopped_message_generation. Чужой или уже завершённый черновик ничего не отменяет."""
+    chat = stopped.get("chat") or {}
+    progress = _active_generations.get((chat.get("id"), stopped.get("draft_id")))
+    if chat.get("type") != "private" or not progress:
+        return False
+    progress.stop()
+    return True
+
+
+async def _consult(session, token: str, chat_id: int, query: str) -> Optional[Dict[str, Any]]:
+    """Ответ консультанта; с включённым TG-02 — с черновиком хода работы и кнопкой «Стоп».
+
+    None — пользователь остановил генерацию: отвечать нечем, сообщение об этом уже отправлено.
+    """
+    history = _get_chat_history(chat_id)
+    progress = None
+    if telegram_widgets.feature_enabled("TELEGRAM_AI_DRAFTS", chat_id):
+        progress = DraftProgress(session, token, chat_id)
+        if not await progress.start():
+            progress = None
+    if not progress:
+        await send_tg_chat_action(session, token, chat_id, "typing")
+        return await ai_service.ask_ai_consultant(message=query, history=history, city="Все")
+
+    progress.generation = asyncio.create_task(
+        ai_service.ask_ai_consultant(message=query, history=history, city="Все", on_stage=progress.stage))
+    try:
+        return await progress.generation
+    except asyncio.CancelledError:
+        if not progress.stopped:        # отменяют сам обработчик (остановка бота), а не генерацию
+            progress.generation.cancel()
+            raise
+        await send_tg_message(session, token, chat_id, "⏹ Остановлено. Задайте вопрос заново, когда будете готовы.")
+        return None
+    finally:
+        await progress.close()
 
 
 async def answer_callback_query(session: aiohttp.ClientSession, token: str, callback_query_id: str, text: str = "", show_alert: bool = False):
@@ -403,13 +522,13 @@ async def handle_ai_consultant_message(session: aiohttp.ClientSession, token: st
         await send_tg_message(session, token, chat_id, "ℹ️ Напишите ваш вопрос, например: <code>/ai посоветуй планшет до 150 тыс тенге</code>")
         return
 
-    await send_tg_chat_action(session, token, chat_id, "typing")
-
     try:
-        result = await ai_service.ask_ai_consultant(message=q, history=_get_chat_history(chat_id), city="Все")
+        result = await _consult(session, token, chat_id, q)
     except Exception as e:
         print(f"[Telegram Bot] Ошибка AI-консультанта: {type(e).__name__}")
         await send_tg_message(session, token, chat_id, "⚠️ Не удалось получить ответ от AI. Пожалуйста, попробуйте еще раз.")
+        return
+    if result is None:
         return
 
     answer_raw = result.get("answer", "")
@@ -465,6 +584,11 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
                     await answer_callback_query(session, token, cq_id, text="Наблюдение уже не активно")
             except Exception as e:
                 await answer_callback_query(session, token, cq_id, text="Ошибка при отключении")
+        return
+
+    stopped = update.get("stopped_message_generation")
+    if stopped:
+        handle_generation_stopped(stopped)
         return
 
     wq = update.get("widget_query")
@@ -582,6 +706,11 @@ class TelegramDispatcher:
         self.tasks = [asyncio.create_task(self._worker()) for _ in range(workers)]
 
     async def submit(self, update):
+        # «Стоп» нельзя ставить в очередь чата: там его держит та самая генерация, которую он отменяет
+        stopped = update.get("stopped_message_generation")
+        if stopped:
+            handle_generation_stopped(stopped)
+            return
         await self.queue.put(update)  # backpressure instead of unbounded create_task
 
     async def _worker(self):

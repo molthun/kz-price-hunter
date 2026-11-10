@@ -5,7 +5,8 @@ telegram_widgets.py — карточка результатов /search в ви�
 - HTML — до 32768 байт и до 4096 байт после zlib уровня 9; сети внутри нет, внешние картинки не грузятся;
 - код карточки после отправки не меняется; бот меняет только chat_data (до 1024 байт);
 - запрос виджета боту — до 64 байт, ответ — до 1024 байт, ответить нужно за 15 секунд;
-- приложения без поддержки виджетов показывают только подпись, поэтому подпись всегда содержательна.
+- приложения без поддержки виджетов показывают только подпись: в ней запрос и лучшая цена, а сама подпись
+  стоит над карточкой и служит её заголовком.
 
 Модуль не ходит в сеть и не читает базу: только собирает HTML, подпись и chat_data.
 """
@@ -32,17 +33,25 @@ REQUEST_REFRESH = "r"
 _MODES = ("off", "admins", "all")
 
 
-def search_widget_mode() -> str:
+def feature_mode(env_name: str) -> str:
     """off (по умолчанию) | admins | all. Читается при каждом вызове: выключатель не требует пересборки."""
-    mode = os.getenv("TELEGRAM_SEARCH_WIDGET", "").strip().lower()
+    mode = os.getenv(env_name, "").strip().lower()
     return mode if mode in _MODES else "off"
 
 
-def search_widget_enabled(user_id: int) -> bool:
-    mode = search_widget_mode()
+def feature_enabled(env_name: str, user_id: int) -> bool:
+    mode = feature_mode(env_name)
     if mode == "all":
         return True
     return mode == "admins" and user_id in config.ADMIN_TELEGRAM_IDS
+
+
+def search_widget_mode() -> str:
+    return feature_mode("TELEGRAM_SEARCH_WIDGET")
+
+
+def search_widget_enabled(user_id: int) -> bool:
+    return feature_enabled("TELEGRAM_SEARCH_WIDGET", user_id)
 
 
 def _old_price(item: Dict[str, Any]) -> int:
@@ -93,7 +102,7 @@ def _script_json(value: Any) -> str:
 _TEMPLATE = """<style>
 body{margin:0;padding:10px 12px 8px;font:var(--tg-text-font-size,15px)/1.35 system-ui,sans-serif;color:var(--tg-theme-text-color,#222)}
 .h{color:var(--tg-theme-hint-color,#888);font-size:12px}
-.c{display:flex;gap:6px;margin:8px 0 4px}
+.c{display:flex;gap:6px;margin:6px 0 4px}
 button{font:inherit;border:0;border-radius:8px;padding:6px 10px;background:var(--tg-theme-secondary-bg-color,#eee);color:var(--tg-theme-text-color,#222)}
 button:active{opacity:.6}
 button.on{background:var(--tg-theme-button-color,#39f);color:var(--tg-theme-button-text-color,#fff)}
@@ -107,13 +116,13 @@ button.on{background:var(--tg-theme-button-color,#39f);color:var(--tg-theme-butt
 .a{display:flex;gap:8px;margin-top:8px}
 #w{flex:1}
 </style>
-<b id="q"></b><div class="h" id="m"></div>
+<div class="h" id="m"></div>
 <div class="c" id="c"><button data-s="p" class="on">Дешевле</button><button data-s="d">Скидка больше</button><button data-s="o">Только со скидкой</button></div>
 <div id="l"></div>
 <div class="a"><button id="w">🔔 Следить за ценой</button><button id="u">↻ Обновить</button></div>
 <div class="h" id="s">&nbsp;</div>
 <script>
-var Q=__QUERY__,D=__OFFERS__,T=window.TelegramWidget,S="p",P=null,At=__SENT__;
+var D=__OFFERS__,T=window.TelegramWidget,S="p",P=null,At=__SENT__;
 function $(i){return document.getElementById(i)}
 function f(n){return n.toLocaleString("ru-RU")+" ₸"}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
@@ -139,7 +148,6 @@ var s=$("s");if(!T){s.textContent="Доступно только в Telegram";re
 s.textContent="Отправляю…";
 T.request(c).then(function(r){s.textContent=r.result||"Готово";if(b&&r.result)b.classList.add("on")},
 function(e){s.textContent=e.code=="RATE_LIMITED"||e.code=="BUSY"?"Слишком часто, подождите немного":e.code=="TIMEOUT"?"Бот не ответил, попробуйте позже":"Не получилось, попробуйте позже"})}
-$("q").textContent=Q;
 $("c").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;S=b.dataset.s;
 [].forEach.call(this.children,function(x){x.classList.toggle("on",x==b)});draw()});
 $("w").addEventListener("click",function(){ask("__WATCH__",this)});
@@ -149,10 +157,9 @@ draw();
 </script>"""
 
 
-def _render(query: str, offers: List[Dict[str, Any]], sent_at: int) -> str:
+def _render(offers: List[Dict[str, Any]], sent_at: int) -> str:
     rows = [[o["shop"], o["price"], o["old"], o["url"], o["title"]] for o in offers]
     return (_TEMPLATE
-            .replace("__QUERY__", _script_json(_clean(query, 80)))
             .replace("__OFFERS__", _script_json(rows))
             .replace("__SENT__", str(int(sent_at)))
             .replace("__WATCH__", REQUEST_WATCH)
@@ -173,7 +180,7 @@ def build_search_widget(query: str, items: List[Dict[str, Any]],
     offers = pick_offers(items)
     sent_at = int(now if now is not None else time.time())
     while offers:
-        widget_html = _render(query, offers, sent_at)
+        widget_html = _render(offers, sent_at)
         if len(widget_html.encode("utf-8")) <= HTML_LIMIT and compressed_size(widget_html) <= COMPRESSED_LIMIT:
             return widget_html, offers
         offers = offers[:-1]
@@ -181,16 +188,11 @@ def build_search_widget(query: str, items: List[Dict[str, Any]],
 
 
 def build_caption(query: str, offers: List[Dict[str, Any]]) -> str:
-    """Подпись (HTML Telegram): её видят в уведомлении, в списке чатов и в приложениях без виджетов."""
-    lines = [f"🔍 <b>Лучшие цены по запросу «{html.escape(_clean(query, 80))}»</b>"]
-    for index, offer in enumerate(offers[:3], 1):
-        price = f"{offer['price']:,}".replace(",", " ") + " ₸"
-        lines.append(f"{index}. <b>{price}</b> — {html.escape(offer['title'])} (<i>{html.escape(offer['shop'])}</i>)")
-    caption = "\n".join(lines)
-    while len(caption) > CAPTION_LIMIT and len(lines) > 1:
-        lines.pop()
-        caption = "\n".join(lines)
-    return caption
+    """Одна строка над карточкой (HTML Telegram): заголовок, текст уведомления и замена карточки там,
+    где виджеты не поддерживаются. Списка цен здесь нет — он дублировал бы карточку."""
+    best = min(o["price"] for o in offers)
+    price = f"{best:,}".replace(",", " ") + " ₸"
+    return f"🔍 <b>{html.escape(_clean(query, 80))}</b> — от {price}"
 
 
 def build_chat_data(offers: List[Dict[str, Any]], prices_by_id: Dict[str, int],
