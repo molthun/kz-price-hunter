@@ -2391,8 +2391,20 @@
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       -ms-overflow-style: none;
-      touch-action: pan-x pan-y;
+      touch-action: pan-y pan-x;
       z-index: 2;
+    }
+
+    .deal-single-photo {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      pointer-events: none;
     }
 
     .deal-carousel-track::-webkit-scrollbar {
@@ -2916,18 +2928,17 @@
       }
 
       .deals-reels-container {
-        display: flex;
-        flex-direction: column;
+        display: block !important;
         width: 100%;
         height: min(760px, calc(100dvh - 135px));
         overflow-y: scroll;
         scroll-snap-type: y mandatory;
-        scroll-behavior: smooth;
         -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        overscroll-behavior-y: contain;
         border-radius: 20px;
         scrollbar-width: none;
         -ms-overflow-style: none;
-        transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       .deals-reels-container::-webkit-scrollbar {
@@ -2938,13 +2949,13 @@
 
       /* Unified Card: Full-Card Immersive Photo Stage with Overlaid Content */
       .deal-reel-card {
-        flex: 0 0 100% !important;
+        display: block !important;
         width: 100% !important;
         height: 100% !important;
         min-height: 100% !important;
         max-height: 100% !important;
         scroll-snap-align: start;
-        scroll-snap-stop: always;
+        scroll-snap-stop: normal;
         margin: 0 !important;
         border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -11655,8 +11666,6 @@
       populateDealsCategories();
 
       if (reset) {
-        setDealsFilterCollapsed(false);
-        lastDealsScrollTop = 0;
         // Каждое открытие — новый порядок; внутри одного просмотра он не меняется
         DealsFeedState.seed = Math.floor(Math.random() * 2147483647);
         DealsFeedState.offset = 0;
@@ -11778,25 +11787,47 @@
       const images = rawImages.length > 0 ? rawImages : [getSvgPlaceholder()];
       const hasMultiple = images.length > 1;
 
-      const slidesHtml = images.map((img, imgIdx) => `
-        <div class="deal-carousel-slide">
-          <img
-            src="${escapeHtml(upgradeImageUrl(img) || getSvgPlaceholder())}"
-            alt="${escapeHtml(deal.title)}${hasMultiple ? ` (${imgIdx + 1}/${images.length})` : ''}"
-            class="deal-reel-img"
-            loading="${imgIdx === 0 ? 'eager' : 'lazy'}"
-            onerror="this.onerror=null; this.src=getSvgPlaceholder();"
-          />
-        </div>
-      `).join('');
+      let mediaHtml = '';
+      if (hasMultiple) {
+        const slidesHtml = images.map((img, imgIdx) => `
+          <div class="deal-carousel-slide">
+            <img
+              src="${escapeHtml(upgradeImageUrl(img) || getSvgPlaceholder())}"
+              alt="${escapeHtml(deal.title)} (${imgIdx + 1}/${images.length})"
+              class="deal-reel-img"
+              loading="${imgIdx === 0 ? 'eager' : 'lazy'}"
+              onerror="this.onerror=null; this.src=getSvgPlaceholder();"
+            />
+          </div>
+        `).join('');
 
-      const dotsHtml = hasMultiple ? `
-        <div class="deal-carousel-dots">
-          ${images.map((_, dotIdx) => `
-            <span class="deal-carousel-dot ${dotIdx === 0 ? 'active' : ''}"></span>
-          `).join('')}
-        </div>
-      ` : '';
+        const dotsHtml = `
+          <div class="deal-carousel-dots">
+            ${images.map((_, dotIdx) => `
+              <span class="deal-carousel-dot ${dotIdx === 0 ? 'active' : ''}"></span>
+            `).join('')}
+          </div>
+        `;
+
+        mediaHtml = `
+          <div class="deal-carousel-track" onscroll="onDealCarouselScroll(this)">
+            ${slidesHtml}
+          </div>
+          ${dotsHtml}
+        `;
+      } else {
+        mediaHtml = `
+          <div class="deal-single-photo">
+            <img
+              src="${escapeHtml(upgradeImageUrl(images[0]) || getSvgPlaceholder())}"
+              alt="${escapeHtml(deal.title)}"
+              class="deal-reel-img"
+              loading="lazy"
+              onerror="this.onerror=null; this.src=getSvgPlaceholder();"
+            />
+          </div>
+        `;
+      }
 
       const oldPriceHtml = deal.old_price > deal.new_price
         ? `<span class="deal-price-old">${formatPrice(deal.old_price)}</span>`
@@ -11807,11 +11838,8 @@
 
       return `
         <div class="deal-reel-card" data-index="${idx}" data-deal-id="${escapeHtml(deal.id)}">
-          <div class="deal-reel-media" ondblclick="onMediaDoubleTap(this)" ontouchend="onMediaTouchEnd(this)" ontouchstart="onMediaTouchStart(event)" ontouchmove="onMediaTouchMove(event)">
-            <div class="deal-carousel-track" ${hasMultiple ? 'onscroll="onDealCarouselScroll(this)"' : ''}>
-              ${slidesHtml}
-            </div>
-            ${dotsHtml}
+          <div class="deal-reel-media" ondblclick="onMediaDoubleTap(this)" ontouchend="onMediaTouchEnd(event, this)">
+            ${mediaHtml}
             <div class="deal-reel-badges-top">
               ${discountBadge}
               ${dealTypeBadge}
@@ -12118,40 +12146,22 @@
       return window.matchMedia('(min-width: 600px), (max-height: 500px)').matches;
     }
 
-    let mediaTouchStartX = 0;
-    let mediaTouchStartY = 0;
-    let mediaTouchMoved = false;
-
-    function onMediaTouchStart(e) {
-      if (e.touches && e.touches[0]) {
-        mediaTouchStartX = e.touches[0].clientX;
-        mediaTouchStartY = e.touches[0].clientY;
-        mediaTouchMoved = false;
-      }
-    }
-
-    function onMediaTouchMove(e) {
-      if (e.touches && e.touches[0]) {
-        const dx = Math.abs(e.touches[0].clientX - mediaTouchStartX);
-        const dy = Math.abs(e.touches[0].clientY - mediaTouchStartY);
-        if (dx > 10 || dy > 10) {
-          mediaTouchMoved = true;
-        }
-      }
-    }
-
     let lastMediaTapTime = 0;
-    function onMediaTouchEnd(mediaEl) {
-      if (mediaTouchMoved) {
-        lastMediaTapTime = 0;
+    let lastMediaTapTarget = null;
+
+    function onMediaTouchEnd(e, mediaEl) {
+      if (!mediaEl) return;
+      if (e && e.target && e.target.closest('.deal-side-actions, .deal-actions-row, .btn-deal-buy-full, button, a')) {
         return;
       }
       const now = Date.now();
-      if (now - lastMediaTapTime < 320 && now - lastMediaTapTime > 0) {
+      if (lastMediaTapTarget === mediaEl && (now - lastMediaTapTime) < 320 && (now - lastMediaTapTime) > 40) {
         onMediaDoubleTap(mediaEl);
         lastMediaTapTime = 0;
+        lastMediaTapTarget = null;
       } else {
         lastMediaTapTime = now;
+        lastMediaTapTarget = mediaEl;
       }
     }
 
@@ -12205,14 +12215,10 @@
         box.style.height = '';
         return;
       }
-      if (window.scrollY > 0) {
-        window.scrollTo(0, 0);
-      }
       const nav = document.querySelector('.mobile-bottom-nav');
       const navHeight = (nav && nav.offsetHeight > 0) ? nav.offsetHeight : 60;
       const filterBar = document.getElementById('dealsFilterBar');
-      const isCollapsed = filterBar && filterBar.classList.contains('collapsed');
-      const filterHeight = (filterBar && !isCollapsed) ? Math.min(85, filterBar.offsetHeight || 80) : 0;
+      const filterHeight = filterBar ? Math.min(85, filterBar.offsetHeight || 75) : 75;
       const header = document.querySelector('.site-header');
       const headerHeight = header ? (header.offsetHeight || 52) : 52;
 
@@ -12251,33 +12257,17 @@
       container.scrollBy({ top: dir * cardHeight, behavior: 'smooth' });
     }
 
-    let lastDealsScrollTop = 0;
     let dealsFilterCollapsed = false;
-
     function setDealsFilterCollapsed(collapsed) {
       if (dealsFilterCollapsed === collapsed) return;
       const filterBar = document.getElementById('dealsFilterBar');
       if (!filterBar) return;
-      dealsFilterCollapsed = collapsed;
-      filterBar.classList.toggle('collapsed', collapsed);
-      requestAnimationFrame(() => {
-        fitDealsFeed();
-        setTimeout(fitDealsFeed, 260);
-      });
+      dealsFilterCollapsed = !!collapsed;
+      filterBar.classList.toggle('collapsed', dealsFilterCollapsed);
     }
 
     function onDealsReelScroll(container) {
-      const st = container.scrollTop;
-      if (!isDealsShowcase()) {
-        if (st > 40 && st > lastDealsScrollTop + 8 && !dealsFilterCollapsed) {
-          setDealsFilterCollapsed(true);
-        } else if ((st < lastDealsScrollTop - 12 || st <= 15) && dealsFilterCollapsed) {
-          setDealsFilterCollapsed(false);
-        }
-      }
-      lastDealsScrollTop = Math.max(0, st);
-
-      if (container.scrollTop + container.clientHeight >= container.scrollHeight - 300) {
+      if (container.scrollTop + container.clientHeight >= container.scrollHeight - 350) {
         if (DealsFeedState.hasMore && !DealsFeedState.loading) {
           loadDealsFeed(false);
         }
