@@ -2,6 +2,43 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED TG-25 BARCODE AUTO-ATTACH: автоматическая привязка штрихкода к товарам и бейдж в карточках — Antigravity (2026-11-11 10:01)
+
+- **Поручение владельца (чат, 2026-11-11):** «Делаем делаем. Желательно в каждый товар после сопоставления при сканировании добавлять баккод». Работаем строго на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`, коммит `4ba39f5`. Контейнер пересобран и перезапущен (`healthy`).
+- **Область файлов:** `domain/barcode_resolver.py`, `repositories/search_repo.py`, `web/server.py`, `web/templates/search_first.html`, `tests/domain/test_barcode_resolver.py`, `docs/AGENT_HANDOFF.md`.
+- **Что сделано:**
+  1. В `domain/barcode_resolver.py`:
+     - Создана таблица `product_barcodes (product_id TEXT, barcode TEXT, source TEXT, created_at TIMESTAMP, PRIMARY KEY(product_id, barcode))` с индексами по barcode и product_id;
+     - Добавлена функция `link_barcode_to_products(product_ids, barcode, source)`:
+       - Привязывает штрихкод к сопоставленным товарам в `product_barcodes`;
+       - Обновляет характеристики канонического товара `canonical_products.attributes_json` (добавляет `barcode` и список `barcodes`);
+       - Обновляет `barcode_cache` с точным наименованием и брендом товара;
+     - Добавлена функция `get_product_barcodes(product_id)` для получения всех привязанных штрихкодов;
+     - В `resolve_barcode(barcode)` добавлен быстрый шаг поиска по `product_barcodes`: если штрихкод уже сопоставлен с товаром, он разрешается мгновенно из локальной БД без сетевых запросов;
+     - Защита от всех нулей в `is_valid_barcode` (`not clean.replace("0", "")`).
+  2. В `repositories/search_repo.py`:
+     - В `get_canonical_product_detail` автоматически подтягивается привязанный штрихкод из `product_barcodes`, если он ещё не записан в атрибутах.
+  3. В `web/server.py`:
+     - В `search_v2_handler`: при поиске по штрихкоду сопоставленный штрихкод автоматически привязывается в фоне ко всем найденным каноническим товарам через `link_barcode_to_products`, и возвращается в `item.product.barcode` и `item.barcode`;
+     - Добавлен эндпоинт `POST /api/v2/products/{product_id}/barcode` для явной привязки штрихкода к товару.
+  4. В `web/templates/search_first.html`:
+     - В поисковой выдаче на каждой карточке товара выводится бейдж `🏷️ <штрихкод>` в блоке бейджей;
+     - В детальной карточке товара (`/product/:id`) выводится бейдж `🏷️ <штрихкод>` в заголовке, а также строка в блоке характеристик `Штрихкод (EAN/GTIN)`.
+- **Проверки:**
+  - Локально: `PYTHONPATH=. venv/bin/python3 -m unittest tests/domain/test_barcode_resolver.py`: 9 тестов OK (0.016s).
+  - Локально: `PYTHONPATH=. venv/bin/python3 -m unittest tests/search/test_search_first_stage1.py`: 16 тестов OK (0.302s).
+  - На стенде:
+    - Доставлен бандл `kzph-v6.29.6-barcode-attach.bundle`, смержен в `HEAD` (`4ba39f5`);
+    - Контейнер `kzph-stand` пересобран и перезапущен (`Up (healthy)`);
+    - Проверена привязка штрихкода `4870237159941` к 30 товарам Tompi: `product_barcodes` заполнен, `attributes_json` обновлен (`"barcode": "4870237159941"`), карточка товара `prod_fce9c90b6ac74e8b` отдает `barcode: 4870237159941`.
+- **Следующий точный шаг:**
+  - Проверить в интерфейсе `https://shdev.molthun.ru/` отображение бейджа со штрихкодом на карточках салфеток Tompi и в детальной карточке товара.
+
+---
+
 ## STAND_DEPLOYED TG-25 BARCODE RESOLVER: автоматическое сопоставление EAN-13/UPC штрихкодов с товарами — Antigravity (2026-11-11 09:12)
 
 - **Поручение владельца (чат, 2026-11-11):** «не нашел 4870237159941» -> «Это баркод товара.» Работаем на стенде, в прод ничего не отправляем.
