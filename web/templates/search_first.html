@@ -439,25 +439,51 @@
     }
 
     /* In-App Camera Barcode & QR Scanner */
-    .scanner-modal-backdrop {
-      z-index: 10000;
-      background: rgba(0, 0, 0, 0.94);
+    .scanner-modal-backdrop,
+    div#scannerModalBackdrop.scanner-modal-backdrop {
+      position: fixed !important;
+      inset: 0 !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      z-index: 999999 !important;
+      background: #000000 !important;
       padding: 0 !important;
-      display: flex;
+      margin: 0 !important;
+      display: none;
       align-items: center;
       justify-content: center;
-      position: fixed;
-      inset: 0;
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: auto !important;
+      overflow: hidden !important;
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+    }
+    .scanner-modal-backdrop.open,
+    div#scannerModalBackdrop.open,
+    div#scannerModalBackdrop[style*="display: flex"] {
+      display: flex !important;
+      opacity: 1 !important;
+      visibility: visible !important;
     }
     .scanner-modal-container {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      max-width: 540px;
-      display: flex;
-      flex-direction: column;
-      background: #000;
-      overflow: hidden;
+      position: relative !important;
+      width: 100% !important;
+      height: 100% !important;
+      height: 100dvh !important;
+      max-width: 540px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      background: #000000 !important;
+      overflow: hidden !important;
+      z-index: 1000000 !important;
+      opacity: 1 !important;
+      visibility: visible !important;
     }
     .scanner-top-bar {
       position: absolute;
@@ -514,19 +540,24 @@
       box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
     }
     .scanner-viewfinder-stage {
-      position: relative;
-      flex: 1;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
+      position: relative !important;
+      flex: 1 1 auto !important;
+      width: 100% !important;
+      height: 100% !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      overflow: hidden !important;
+      background: #000000 !important;
     }
     .scanner-video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+      position: absolute !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      background: #000000 !important;
+      z-index: 1 !important;
     }
     .scanner-overlay-mask {
       position: absolute;
@@ -535,6 +566,7 @@
       align-items: center;
       justify-content: center;
       pointer-events: none;
+      z-index: 3 !important;
     }
     /* EAN-13 Reticle: узкая горизонтальная полоска, чтобы игнорировать соседний QR */
     .scanner-reticle {
@@ -6250,7 +6282,7 @@
   <!-- ============================================================= -->
   <!-- MODAL: CAMERA SCANNER (EAN-13 & QR)                           -->
   <!-- ============================================================= -->
-  <div id="scannerModalBackdrop" class="modal-backdrop scanner-modal-backdrop" onclick="BarcodeScannerManager.close(event)" style="display: none;">
+  <div id="scannerModalBackdrop" class="scanner-modal-backdrop" style="display: none;">
     <div class="scanner-modal-container" onclick="event.stopPropagation()">
       <!-- Top Bar -->
       <div class="scanner-top-bar">
@@ -6268,7 +6300,7 @@
 
       <!-- Viewfinder Stage -->
       <div class="scanner-viewfinder-stage" id="scannerStage">
-        <video id="scannerVideo" class="scanner-video" playsinline autoplay muted></video>
+        <video id="scannerVideo" class="scanner-video" playsinline webkit-playsinline autoplay muted></video>
         <canvas id="scannerCanvas" style="display: none;"></canvas>
 
         <!-- Loading Overlay -->
@@ -6960,7 +6992,12 @@
       async open(preferredMode) {
         this.setMode(preferredMode || 'barcode');
         const modal = document.getElementById('scannerModalBackdrop');
-        if (modal) modal.style.display = 'flex';
+        if (modal) {
+          modal.classList.add('open');
+          modal.style.display = 'flex';
+          modal.style.opacity = '1';
+          modal.style.visibility = 'visible';
+        }
         this.isOpen = true;
 
         const loadingOverlay = document.getElementById('scannerLoadingOverlay');
@@ -7010,11 +7047,29 @@
             this.stream = stream;
             const video = document.getElementById('scannerVideo');
             if (video) {
+              video.muted = true;
+              video.defaultMuted = true;
+              video.playsInline = true;
               video.setAttribute('playsinline', 'true');
               video.setAttribute('webkit-playsinline', 'true');
-              video.muted = true;
+              video.setAttribute('autoplay', 'true');
+              video.setAttribute('muted', 'true');
               video.srcObject = stream;
-              await video.play();
+
+              const hideLoading = () => {
+                if (loadingOverlay) loadingOverlay.style.display = 'none';
+              };
+              video.addEventListener('loadedmetadata', hideLoading, { once: true });
+              video.addEventListener('playing', hideLoading, { once: true });
+
+              try {
+                await video.play();
+              } catch (playErr) {
+                console.warn('Initial video.play() error, retrying on metadata:', playErr);
+                video.onloadedmetadata = () => {
+                  video.play().catch(e => console.warn('Retried video.play() error:', e));
+                };
+              }
 
               this.videoTrack = stream.getVideoTracks()[0] || null;
               this.zoomLevel = 1;
@@ -7032,7 +7087,7 @@
                 } catch (e) {}
               }
 
-              if (loadingOverlay) loadingOverlay.style.display = 'none';
+              setTimeout(hideLoading, 350);
               this.startScanningLoop();
               return true;
             }
@@ -7135,7 +7190,12 @@
         }
 
         const modal = document.getElementById('scannerModalBackdrop');
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+          modal.classList.remove('open');
+          modal.style.display = 'none';
+          modal.style.opacity = '';
+          modal.style.visibility = '';
+        }
         if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
       },
 
@@ -7340,13 +7400,17 @@
           executeDirectSearch(item.query);
         };
 
+        modal.classList.add('open');
         modal.style.display = 'flex';
         if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
       },
 
       closeUrlPrompt() {
         const modal = document.getElementById('scannedUrlModal');
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+          modal.classList.remove('open');
+          modal.style.display = 'none';
+        }
         if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
       }
     };
