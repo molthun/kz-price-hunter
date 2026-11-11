@@ -214,6 +214,31 @@ class CompareButtonTest(unittest.TestCase):
         self.assertEqual(self._buttons("/offer/a%40astana"), "https://shdev.example/offer/a%40astana")
         self.assertEqual(self._buttons("/product/p1?city=x"), "https://shdev.example/product/p1?city=x")
 
+    def test_network_error_is_retried_once(self):
+        import requests
+        ok = Mock(status_code=200)
+        ok.json.return_value = {"ok": True, "result": {"id": "prep"}}
+        attempts = []
+
+        def flaky(method, payload):
+            attempts.append(method)
+            if len(attempts) == 1:
+                raise requests.ConnectionError("reset")
+            return ok
+
+        with patch("notifier.get_bot_token", return_value="tok"), \
+                patch.dict("os.environ", {"TELEGRAM_INLINE_MODE": "on"}), \
+                patch.object(notifier.time, "sleep"), \
+                patch.object(notifier, "telegram_api", side_effect=flaky):
+            self.assertEqual(notifier.save_prepared_inline_message(1, "T", 1, "S", "https://shop.kz/x"), "prep")
+        self.assertEqual(len(attempts), 2)
+        bad = Mock(status_code=400, text="Bad Request")
+        with patch("notifier.get_bot_token", return_value="tok"), \
+                patch.dict("os.environ", {"TELEGRAM_INLINE_MODE": "on"}), \
+                patch.object(notifier, "telegram_api", return_value=bad) as api:
+            self.assertIsNone(notifier.save_prepared_inline_message(1, "T", 1, "S", "https://shop.kz/x"))
+        self.assertEqual(api.call_count, 1)
+
     def test_compare_button_rejects_foreign_targets(self):
         for bad in ("", "//evil.example/x", "https://evil.example"):
             self.assertEqual(self._buttons(bad), "https://shdev.example")

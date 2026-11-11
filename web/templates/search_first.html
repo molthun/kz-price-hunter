@@ -7694,8 +7694,17 @@
                 });
                 return true;
               }
-            } else if (res.status === 404 && offerSelected && typeof showToast === 'function') {
-              showToast('Это предложение сейчас недоступно — делимся ссылкой на страницу');
+            } else if (typeof showToast === 'function') {
+              // Пользователь должен понимать, почему вместо карточки уходит ссылка
+              if (res.status === 404 && offerSelected) {
+                showToast('Это предложение сейчас недоступно — делимся ссылкой на страницу');
+              } else if (res.status === 404) {
+                showToast('Нет доступного предложения в вашем городе — делимся ссылкой');
+              } else if (res.status === 429) {
+                showToast('Слишком часто — попробуйте через минуту. Пока делимся ссылкой');
+              } else {
+                showToast('Telegram не ответил — делимся ссылкой. Попробуйте ещё раз позже');
+              }
             }
           } catch (e) {
             console.warn('TelegramApp share error:', e);

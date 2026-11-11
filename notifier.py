@@ -328,15 +328,24 @@ def save_prepared_inline_message(
         "allow_group_chats": True,
         "allow_channel_chats": True,
     }
-    try:
-        res = telegram_api("savePreparedInlineMessage", payload)
-        if res.status_code == 200:
-            data = res.json()
-            return (data.get("result") or {}).get("id")
-        else:
+    # Разовый обрыв связи с Telegram не должен превращать карточку в голую ссылку:
+    # сетевые сбои и 5xx повторяются один раз
+    for attempt in range(2):
+        try:
+            res = telegram_api("savePreparedInlineMessage", payload)
+            if res.status_code == 200:
+                data = res.json()
+                return (data.get("result") or {}).get("id")
             print(f"[Telegram] savePreparedInlineMessage HTTP {res.status_code}: {res.text[:120]}")
-    except Exception as e:
-        print(f"[Telegram] Ошибка savePreparedInlineMessage: {type(e).__name__}")
+            if res.status_code < 500:
+                return None
+        except (requests.ConnectionError, requests.Timeout) as e:
+            print(f"[Telegram] Ошибка savePreparedInlineMessage: {type(e).__name__} (попытка {attempt + 1})")
+        except Exception as e:
+            print(f"[Telegram] Ошибка savePreparedInlineMessage: {type(e).__name__}")
+            return None
+        if attempt == 0:
+            time.sleep(0.5)
     return None
 
 
