@@ -58,7 +58,7 @@ def _seed():
             "VALUES (?, 'b02_target', 'b02_s', 'b02_ch', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
             [
                 ("b02_astana", "a", "https://example.invalid/astana", 120000, "Астана", _now(), None, "in_stock"),
-                ("b02_astana_2", "a2", "https://example.invalid/astana2", 130000, "Астана", _now(), None, "in_stock"),
+                ("b02_astana_2@astana", "a2", "https://example.invalid/astana2", 130000, "Астана", _now(), None, "in_stock"),
                 ("b02_almaty", "b", "https://example.invalid/almaty", 80000, "Алматы", _now(), None, "in_stock"),
                 ("b02_expired", "c", "https://example.invalid/expired", 40000, "Алматы", _now(),
                  "2020-01-01T00:00:00Z", "out_of_stock"),
@@ -105,7 +105,7 @@ class ShareCardTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((price, url, city), (120000, "https://example.invalid/astana", "Астана"))
 
     async def test_b02_shared_offer_is_used_when_available(self):
-        r, send = await self._share(canonical_product_id="b02_target", city="Астана", offer_id="b02_astana_2")
+        r, send = await self._share(canonical_product_id="b02_target", city="Астана", offer_id="b02_astana_2@astana")
         self.assertEqual(r.status, 200)
         self.assertEqual(send.call_args.args[2], 130000)
         # Недоступное или чужое по городу предложение подменить нельзя
@@ -113,6 +113,15 @@ class ShareCardTest(unittest.IsolatedAsyncioTestCase):
             r, send = await self._share(canonical_product_id="b02_target", city="Астана", offer_id=bad)
             self.assertEqual(r.status, 200)
             self.assertEqual(send.call_args.args[4], "https://example.invalid/astana", bad)
+
+    async def test_offer_id_with_at_sign_and_bad_offer_id_do_not_break_share(self):
+        """Владелец на стенде: ID предложений вида off_kaspi_1@astana давали 400 и голую ссылку."""
+        r, send = await self._share(canonical_product_id="b02_target", city="Все", offer_id="b02_astana_2@astana")
+        self.assertEqual(r.status, 200)
+        self.assertEqual(send.call_args.args[2], 130000)
+        r, send = await self._share(canonical_product_id="b02_target", city="Астана", offer_id="bad id/../x")
+        self.assertEqual(r.status, 200)
+        self.assertEqual(send.call_args.args[2], 120000)
 
     async def test_b02_other_city_and_no_available_offer(self):
         r, send = await self._share(canonical_product_id="b02_target", city="Алматы")

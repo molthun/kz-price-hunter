@@ -3473,7 +3473,7 @@ async def telegram_deep_link_handler(request):
     })
 
 
-_SHARE_ID_RE = re.compile(r"^[A-Za-z0-9_:.\-]{1,128}$")
+_SHARE_ID_RE = re.compile(r"^[A-Za-z0-9_:.@+\-]{1,128}$")  # ID предложений вида off_kaspi_1@astana
 prepared_message_limiter = RateLimiter(max_calls=10, period=60)  # на пользователя
 
 
@@ -3570,8 +3570,10 @@ async def telegram_prepared_message_handler(request):
     canonical_id = canonical_id.strip()
     offer_id = str(offer_id).strip()
     req_city = req_city.strip()[:40]
+    if offer_id and not _SHARE_ID_RE.match(offer_id):
+        offer_id = ""  # необязательная подсказка: при странном ID берём самое дешёвое доступное
     if (not product_id and not canonical_id) or any(
-        v and not _SHARE_ID_RE.match(v) for v in (product_id, canonical_id, offer_id)
+        v and not _SHARE_ID_RE.match(v) for v in (product_id, canonical_id)
     ):
         return web.json_response({"status": "error", "message": "Укажите ID товара"}, status=400)
 
