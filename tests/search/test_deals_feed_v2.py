@@ -209,6 +209,35 @@ class TestDealsFeedAndFavorites(AioHTTPTestCase):
         self.assertIn("images", data["deals"][0])
         self.assertEqual(data["deals"][0]["images"], ["https://img.sulpak.kz/p1.jpg"])
 
+    async def test_deals_v2_drops_shop_logo_and_placeholders(self):
+        """Логотип магазина (Askona отдаёт logo.svg) не выдаётся за фото товара в ленте-сторис."""
+        raw = {"deals": [
+            {"id": "p_1", "product_id": 1, "shop": "Askona", "title": "Подушка",
+             "image_url": "https://askona.kz/local/templates/Askona2023/images/global/logo.svg?178",
+             "old_price": 200, "new_price": 100, "discount_pct": 50, "savings_kzt": 100, "alert_type": "SUPER_DISCOUNT"},
+            {"id": "p_2", "product_id": 2, "shop": "Kari", "title": "Шарф",
+             "image_url": "https://cdn.example.kz/upload/no-image.png",
+             "old_price": 200, "new_price": 100, "discount_pct": 50, "savings_kzt": 100, "alert_type": "SUPER_DISCOUNT"},
+            {"id": "p_3", "product_id": 3, "shop": "Sulpak", "title": "Чехол",
+             "image_url": "https://object.pscloud.io/cms/cms/Photo/img_0_81_4039_0_1_J9eFRD_320.webp",
+             "old_price": 200, "new_price": 100, "discount_pct": 50, "savings_kzt": 100, "alert_type": "SUPER_DISCOUNT"},
+        ], "total": 3, "shops_summary": [], "type_totals": {}}
+        with unittest.mock.patch("database.get_store_deals", return_value=raw):
+            deals = (await (await self.client.get("/api/v2/deals")).json())["deals"]
+        self.assertEqual([d["image_url"] for d in deals[:2]], ["", ""])
+        self.assertEqual([d["images"] for d in deals[:2]], [[], []])
+        self.assertEqual(deals[2]["images"], ["https://object.pscloud.io/cms/cms/Photo/img_0_81_4039_0_1_J9eFRD_320.webp"])
+
+    def test_is_deal_photo_keeps_product_words(self):
+        from web.server import _is_deal_photo
+        self.assertTrue(_is_deal_photo("https://cdn.example.kz/catalog/logitech-mouse.jpg"))
+        self.assertTrue(_is_deal_photo("https://cdn.example.kz/p/biologo-cream.jpg"))
+        self.assertFalse(_is_deal_photo("https://cdn.example.kz/img/logo.png"))
+        self.assertFalse(_is_deal_photo("https://cdn.example.kz/img/shop_logo_main.webp"))
+        self.assertFalse(_is_deal_photo("https://cdn.example.kz/img/item.svg"))
+        self.assertFalse(_is_deal_photo(""))
+        self.assertFalse(_is_deal_photo(None))
+
 
 class TestSearchFirstTemplateIntegrity(unittest.TestCase):
     def setUp(self):

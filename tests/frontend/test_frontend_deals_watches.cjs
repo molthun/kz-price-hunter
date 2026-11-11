@@ -442,11 +442,78 @@ async function modalReach(browser,width,height,colorScheme){
  await context.close();
 }
 
+// 6.34.0: лента-сторис на телефоне. Карточка целиком между фильтрами и нижним меню,
+// страница под лентой не прокручивается, логотип магазина не выдаётся за фото, кнопки не на фото
+async function phoneStory(browser,scheme){
+ const label=`сторис ${scheme}`;
+ const context=await browser.newContext({viewport:{width:390,height:664},isMobile:true,hasTouch:true,deviceScaleFactor:2,locale:'en-US',colorScheme:scheme});
+ const page=await context.newPage();const errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ const deal=(i,extra)=>({id:'p_'+i,product_id:'l'+i,canonical_product_id:'prod_000000000000000'+i,title:'Товар '+i+' '+'с длинным названием '.repeat(4),
+  shop:'Магазин '+i,city:'Алматы / Казахстан',new_price:499989,old_price:651990,discount_pct:23,savings_kzt:152001,deal_type:'SUPER_DISCOUNT',
+  is_super:true,price_basis:'store_claim',provenance:'Скидка по данным магазина',url:'https://example.invalid/'+i,...extra});
+ await page.route('**/*',r=>{
+  const u=new URL(r.request().url());
+  if(u.origin==='https://img.invalid')return r.fulfill({contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64')});
+  if(u.origin!=='http://127.0.0.1:18095')return r.abort();
+  const json=o=>r.fulfill({contentType:'application/json',body:JSON.stringify(o)});
+  if(u.pathname==='/api/v2/deals'){
+   if(Number(u.searchParams.get('offset')))return json({deals:[],has_more:false,total:3});
+   return json({deals:[
+    deal(1,{image_url:'https://askona.invalid/images/global/logo.svg?1',images:['https://askona.invalid/images/global/logo.svg?1']}),
+    deal(2,{image_url:'https://img.invalid/a.png',images:['https://img.invalid/a.png','https://img.invalid/b.png']}),
+    deal(3,{image_url:'https://img.invalid/c.png',images:['https://img.invalid/c.png']})],has_more:false,total:3});
+  }
+  if(u.pathname.startsWith('/api/'))return json({});
+  return r.fulfill({contentType:'text/html',body:html});
+ });
+ await page.goto('http://127.0.0.1:18095/deals');
+ await page.locator('.deal-reel-card').first().waitFor();
+ await page.waitForTimeout(300);
+ const box=s=>page.locator(s).first().evaluate(el=>{const b=el.getBoundingClientRect();return {top:b.top,bottom:b.bottom,left:b.left,right:b.right,height:b.height};});
+ const nav=await box('.mobile-bottom-nav');const feed=await box('#dealsReelsContainer');const card=await box('.deal-reel-card');
+ assert.ok(feed.bottom<=nav.top,`${label}: лента не заходит под нижнее меню (${feed.bottom} > ${nav.top})`);
+ assert.ok(Math.abs(card.height-feed.height)<=1,`${label}: одна карточка на экран`);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),`${label}: страница под лентой не прокручивается`);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${label}: нет горизонтального переполнения`);
+ const buy=await box('.deal-reel-card .btn-deal-buy-full');
+ assert.ok(buy.bottom<=card.bottom&&buy.top>=card.top,`${label}: кнопка покупки целиком в карточке`);
+ // Логотип магазина не показывается ни фото, ни фоном
+ const first=page.locator('.deal-reel-card').first();
+ assert.equal(await first.locator('img[src*="logo"]').count(),0,`${label}: логотип не выдан за фото`);
+ assert.equal(await first.locator('.deal-no-photo').count(),1,`${label}: вместо логотипа — заглушка`);
+ assert.match(await first.locator('.deal-story-sub').innerText(),/^Алматы · /,`${label}: город без «/ Казахстан»`);
+ // Кнопки справа не перекрывают фото
+ await page.evaluate(()=>{const c=document.getElementById('dealsReelsContainer');c.scrollTop=c.querySelectorAll('.deal-reel-card')[2].offsetTop;});
+ await page.waitForTimeout(300);
+ const third=page.locator('.deal-reel-card').nth(2);
+ await third.locator('.deal-reel-img').evaluate(img=>img.complete||new Promise(r=>img.onload=r));
+ const img=await third.locator('.deal-reel-img').evaluate(el=>{const b=el.getBoundingClientRect();return {right:b.right,bottom:b.bottom};});
+ const side=await third.locator('.deal-side-actions').evaluate(el=>{const b=el.getBoundingClientRect();return {left:b.left,top:b.top};});
+ assert.ok(img.right<=side.left,`${label}: кнопки справа не на фото (${img.right} > ${side.left})`);
+ assert.ok(await third.locator('.deal-reel-backdrop').count()===1,`${label}: размытый фон из фото`);
+ // Две фотографии — полоски прогресса сверху, как в сторис
+ const second=page.locator('.deal-reel-card').nth(1);
+ assert.equal(await second.locator('.deal-carousel-dot').count(),2);
+ const dots=await second.locator('.deal-carousel-dots').evaluate(el=>el.getBoundingClientRect().top-el.closest('.deal-reel-card').getBoundingClientRect().top);
+ assert.ok(dots<20,`${label}: полоски фото у верхнего края`);
+ // Избранное с боковой кнопки: состояние и подпись
+ const fav=third.locator('[aria-label="В избранное"]');
+ await fav.click();
+ assert.ok(await fav.evaluate(el=>el.classList.contains('fav-active')),`${label}: избранное отмечено`);
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('kzph_favorites_v1')).length),1);
+ await fav.click();
+ assert.ok(!(await fav.evaluate(el=>el.classList.contains('fav-active'))),`${label}: избранное снято`);
+ assert.deepEqual(errors,[],label);
+ await context.close();
+}
+
 (async()=>{
  const browser=await chromium.launch({channel:'chrome',headless:true});
  try{
   await offline(browser);
   await realServer(browser);
+  for(const scheme of ['light','dark'])await phoneStory(browser,scheme);
   for(const [w,h] of [[844,390],[640,320],[360,640],[390,844],[768,1024],[1366,900]]){
    for(const scheme of ['light','dark'])await modalReach(browser,w,h,scheme);
   }

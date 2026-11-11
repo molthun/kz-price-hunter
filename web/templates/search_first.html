@@ -2832,389 +2832,732 @@
       margin-top: 16px;
     }
 
-    /* Mobile Reels mode (<600px): immersive Instagram/TikTok social shopping feed */
+    /* ============================================================= */
+    /* Лента скидок в стиле сторис (6.34.0)                           */
+    /* Телефон: одна карточка на экран, размытое фото фоном,          */
+    /* магазин сверху как автор сторис, цена и кнопка снизу.          */
+    /* Карточка тёмная в обеих темах — как сторис в соцсетях.         */
+    /* ============================================================= */
+
+    /* Общие для всех ширин: кнопка покупки, кнопки действий, служебные слои */
+    .deal-reel-backdrop,
+    .deal-story-head {
+      display: none;
+    }
+
+    .btn-deal-buy-full {
+      width: 100%;
+      min-height: 40px;
+      padding: 0 12px;
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 0.86rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+
+    .btn-deal-buy-full > span:first-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn-deal-buy-full:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-deal-buy-full:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .deal-no-photo {
+      width: min(100%, 160px);
+      aspect-ratio: 1;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(145deg, hsl(var(--deal-hue, 220) 65% 55%), hsl(calc(var(--deal-hue, 220) + 50) 65% 40%));
+      color: #ffffff;
+      font-size: 3rem;
+      text-align: center;
+    }
+
+    .deal-no-photo span {
+      font-size: 0.72rem;
+      font-weight: 600;
+      opacity: 0.9;
+      padding: 0 10px;
+    }
+
+    .deal-reel-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .deal-reel-meta-row .deal-provenance-text {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .deal-side-actions {
+      display: flex;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 4;
+    }
+
+    .deal-side-btn {
+      padding: 0;
+      border: none;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .deal-side-ico {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(15, 23, 42, 0.6);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+
+    .deal-side-ico svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+
+    .deal-side-btn:active .deal-side-ico {
+      transform: scale(0.88);
+    }
+
+    .deal-side-btn.fav-active .deal-side-ico {
+      color: #ff3d6e;
+      background: rgba(255, 255, 255, 0.95);
+      border-color: rgba(255, 61, 110, 0.4);
+    }
+
+    .deal-side-btn.fav-active .deal-side-ico svg path {
+      fill: currentColor;
+    }
+
+    .deal-side-cap {
+      display: none;
+    }
+
+    @media (hover: hover) {
+      .deal-side-btn:hover .deal-side-ico {
+        background: rgba(15, 23, 42, 0.85);
+      }
+    }
+
+    @media (hover: none) {
+      .deal-reel-card:hover {
+        transform: none;
+      }
+      .deal-reel-card:hover .deal-reel-img {
+        transform: none;
+      }
+    }
+
+    @keyframes dealFavPop {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.28); }
+      100% { transform: scale(1); }
+    }
+
+    .deal-side-btn.fav-pop .deal-side-ico {
+      animation: dealFavPop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Телефон в портрете */
     @media (max-width: 599px) and (min-height: 501px) {
-      .deals-page-layout {
+      body.deals-immersive .site-footer {
+        display: none !important;
+      }
+
+      body.deals-immersive .app-main {
+        padding-top: 8px;
+      }
+
+      body.deals-immersive {
+        overscroll-behavior-y: none;
+      }
+
+      #viewDeals .deals-page-layout {
         padding: 0 8px;
         gap: 0;
         max-width: 100%;
         display: flex;
         flex-direction: column;
-        height: calc(100vh - 116px);
-        height: calc(100dvh - 116px);
-        max-height: 840px;
+        /* Точная высота считается в fitDealsFeed(); запасной вариант — без шапки и нижнего меню */
+        height: var(--deals-feed-h, calc(100dvh - 150px - env(safe-area-inset-bottom, 0px)));
         box-sizing: border-box;
       }
 
-      /* Clean 2-Row Collapsible Filter Bar */
-      .deals-filter-bar {
+      /* Фильтры: одна строка с прокруткой, при листании ленты прячутся */
+      #viewDeals .deals-filter-bar {
         background: transparent;
         border: none;
         box-shadow: none;
-        padding: 0 0 6px 0;
+        border-radius: 0;
+        padding: 0 0 8px;
         margin: 0;
         width: 100%;
         display: flex;
-        flex-direction: column;
-        align-items: stretch;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: flex-start;
         gap: 6px;
-        max-height: 85px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        max-height: 48px;
         opacity: 1;
         transform: translateY(0);
         transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-                    opacity 0.22s ease,
+                    opacity 0.2s ease,
                     transform 0.28s ease,
-                    padding 0.28s ease,
-                    margin 0.28s ease;
-      }
-
-      .deals-filter-bar.collapsed {
-        max-height: 0 !important;
-        opacity: 0 !important;
-        transform: translateY(-100%) !important;
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-        margin-top: 0 !important;
-        margin-bottom: 0 !important;
-        border-width: 0 !important;
-        pointer-events: none !important;
-        overflow: hidden !important;
-      }
-
-      .deals-selectors-group {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        width: 100%;
-      }
-
-      .deals-selectors-group .deals-select {
-        flex: 1 1 0;
-        min-width: 0;
-        height: 32px;
-        padding: 4px 10px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        border-radius: var(--radius-full);
-      }
-
-      .deals-type-pills {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        overflow-x: auto;
-        width: 100%;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-        -webkit-overflow-scrolling: touch;
-        white-space: nowrap;
-        padding: 1px 0;
-      }
-
-      .deals-type-pills::-webkit-scrollbar,
-      .deals-filter-bar::-webkit-scrollbar {
-        display: none !important;
-        width: 0 !important;
-        height: 0 !important;
-      }
-
-      .deal-type-pill {
-        padding: 5px 12px;
-        font-size: 0.78rem;
+                    padding 0.28s ease;
         flex-shrink: 0;
-        height: 30px;
+      }
+
+      #viewDeals .deals-filter-bar.collapsed {
+        max-height: 0;
+        opacity: 0;
+        transform: translateY(-100%);
+        padding-bottom: 0;
+        pointer-events: none;
+      }
+
+      #viewDeals .deals-selectors-group {
+        display: flex;
+        flex: none;
+        gap: 6px;
+        width: auto;
+      }
+
+      #viewDeals .deals-selectors-group .deals-select {
+        flex: none;
+        width: auto;
+        max-width: 150px;
+        height: 34px;
+        padding: 0 26px 0 12px;
+        font-size: 0.8rem;
+        border-radius: var(--radius-full);
+        text-overflow: ellipsis;
+      }
+
+      #viewDeals .deals-type-pills {
+        display: flex;
+        flex: none;
+        gap: 6px;
+        overflow: visible;
+        width: auto;
+        padding: 0;
+      }
+
+      #viewDeals .deal-type-pill {
+        height: 34px;
+        padding: 0 13px;
+        font-size: 0.8rem;
+        flex-shrink: 0;
         box-sizing: border-box;
       }
 
-      .deals-reels-wrapper {
+      #viewDeals .deals-reels-wrapper {
         width: 100%;
-        max-width: 440px;
+        max-width: 480px;
+        margin: 0 auto;
         display: flex;
-        justify-content: center;
         flex: 1 1 0;
         min-height: 0;
-        height: 100%;
       }
 
-      .deals-reels-container {
-        display: block !important;
+      #viewDeals .deals-reels-container {
+        display: block;
         width: 100%;
-        height: 100% !important;
+        height: 100%;
         flex: 1 1 0;
         min-height: 0;
-        overflow-y: scroll;
+        overflow-y: auto;
+        overflow-x: hidden;
         scroll-snap-type: y mandatory;
         -webkit-overflow-scrolling: touch;
-        touch-action: pan-y;
         overscroll-behavior-y: contain;
-        border-radius: 20px;
+        border-radius: 22px;
         scrollbar-width: none;
-        -ms-overflow-style: none;
+        background: #05070d;
       }
 
-      .deals-reels-container::-webkit-scrollbar {
-        display: none !important;
-        width: 0 !important;
-        height: 0 !important;
+      #viewDeals .deals-reels-container::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
       }
 
-      /* Unified Card: Full-Card Immersive Photo Stage with Overlaid Content */
-      .deal-reel-card {
-        display: block !important;
-        width: 100% !important;
-        height: 100% !important;
-        min-height: 100% !important;
-        max-height: 100% !important;
-        scroll-snap-align: start;
-        scroll-snap-stop: normal;
+      #viewDeals .deals-reels-container > .state-box {
         margin: 0 !important;
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: #0b1120 !important;
-        position: relative !important;
-        overflow: hidden !important;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+        max-width: none !important;
+        height: 100%;
+        border-radius: 22px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         box-sizing: border-box;
       }
 
-      /* Hero Media Stage takes 100% OF THE CARD */
-      .deal-reel-media {
-        position: absolute !important;
-        inset: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        min-height: 100% !important;
-        max-height: 100% !important;
-        margin: 0 !important;
-        border-radius: 20px !important;
-        background: radial-gradient(circle at 50% 36%, #ffffff 50%, #f1f5f9 90%) !important;
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        padding: 0 !important;
+      /* Карточка-сторис */
+      #viewDeals .deal-reel-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        border: none;
+        border-radius: 22px;
+        background: #05070d;
+        box-shadow: none;
+        overflow: hidden;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+        isolation: isolate;
+        color: #ffffff;
+        transform: none;
+        content-visibility: auto;
+        contain-intrinsic-size: auto 600px;
+      }
+
+      #viewDeals .deal-reel-backdrop {
+        display: block;
+        position: absolute;
+        top: -40px;
+        left: -40px;
+        width: calc(100% + 80px);
+        height: calc(100% + 80px);
+        object-fit: cover;
+        filter: blur(34px) saturate(1.5) brightness(0.62);
+        z-index: -2;
+        pointer-events: none;
+        user-select: none;
+      }
+
+      /* Затемнение сверху и снизу: подписи читаются на любом фото */
+      #viewDeals .deal-reel-card::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background:
+          linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 20%),
+          linear-gradient(0deg, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.45) 30%, rgba(0, 0, 0, 0) 52%);
+      }
+
+      #viewDeals .deal-reel-media {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: auto;
+        margin: 0;
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        /* Тень фото не обрезается краем области: обрезает сама карточка */
+        overflow: visible;
         cursor: pointer;
         -webkit-user-select: none;
         user-select: none;
-        overflow: hidden;
-        box-sizing: border-box;
-        z-index: 1;
       }
 
-      [data-theme="dark"] .deal-reel-media {
-        background: radial-gradient(circle at 50% 35%, #1e293b 40%, #0b1120 100%) !important;
-      }
-
-      .deal-carousel-slide {
-        padding: 0 !important;
-      }
-
-      .deal-reel-img {
-        max-width: 90% !important;
-        max-height: 65% !important;
-        width: auto !important;
-        height: auto !important;
-        object-fit: contain !important;
-        transform: translateY(-26px);
-        filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.22));
-      }
-
-      .deal-reel-badges-top {
+      #viewDeals .deal-single-photo,
+      #viewDeals .deal-carousel-track {
         position: absolute;
-        top: 12px;
-        left: 12px;
-        z-index: 12;
+        top: 64px;
+        left: 14px;
+        /* Справа колонка кнопок: фото её не перекрывает */
+        right: 66px;
+        bottom: 10px;
+        width: auto;
+        height: auto;
       }
 
-      /* Vertical Action Stack on the right side over the photo */
-      .deal-side-actions {
-        display: flex !important;
+      #viewDeals .deal-no-photo {
+        width: min(100%, 260px);
+        aspect-ratio: 1;
+        border-radius: 24px;
+        background: linear-gradient(145deg, hsl(var(--deal-hue, 220) 70% 52%), hsl(calc(var(--deal-hue, 220) + 50) 70% 38%));
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+      }
+
+      #viewDeals .deal-reel-card.no-photo {
+        background: radial-gradient(circle at 50% 30%, hsl(var(--deal-hue, 220) 45% 22%), #05070d 75%);
+      }
+
+      #viewDeals .deal-carousel-slide {
+        padding: 0;
+      }
+
+      #viewDeals .deal-reel-img {
+        max-width: 100%;
+        max-height: 100%;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        border-radius: 18px;
+        background: #ffffff;
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+        transform: none;
+        filter: none;
+      }
+
+      /* Прокручиваемая карусель обрезала бы тень прямоугольником */
+      #viewDeals .deal-carousel-track .deal-reel-img {
+        box-shadow: none;
+      }
+
+      /* Несколько фото — полоски прогресса как в сторис */
+      #viewDeals .deal-carousel-dots {
         position: absolute;
-        right: 12px;
-        bottom: 172px;
-        flex-direction: column;
-        gap: 9px;
-        z-index: 15;
-        pointer-events: auto;
+        top: 8px;
+        left: 14px;
+        right: 14px;
+        bottom: auto;
+        transform: none;
+        display: flex;
+        gap: 4px;
+        padding: 0;
+        background: none;
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border-radius: 0;
+        z-index: 6;
       }
 
-      .deal-side-btn {
-        width: 42px;
-        height: 42px;
+      #viewDeals .deal-carousel-dot {
+        flex: 1 1 0;
+        width: auto;
+        height: 3px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.35);
+        box-shadow: none;
+      }
+
+      #viewDeals .deal-carousel-dot.active {
+        width: auto;
+        background: #ffffff;
+        box-shadow: none;
+      }
+
+      /* Шапка сторис: магазин как автор, город, бейдж скидки */
+      #viewDeals .deal-reel-badges-top,
+      #viewDeals .deal-reel-shop-row {
+        display: none;
+      }
+
+      #viewDeals .deal-story-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        position: absolute;
+        top: 18px;
+        left: 14px;
+        right: 14px;
+        z-index: 6;
+        pointer-events: none;
+      }
+
+      #viewDeals .deal-story-ring {
+        flex: none;
+        width: 38px;
+        height: 38px;
+        padding: 2px;
         border-radius: 50%;
-        background: rgba(15, 23, 42, 0.78);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: linear-gradient(45deg, #fbbf24, #f43f5e 55%, #a855f7);
+        box-sizing: border-box;
+      }
+
+      #viewDeals .deal-story-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 2px solid #05070d;
+        box-sizing: border-box;
+        display: grid;
+        place-items: center;
+        background: hsl(var(--deal-hue, 220) 70% 45%);
         color: #ffffff;
-        font-size: 1.15rem;
+        font-size: 0.9rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      #viewDeals .deal-story-meta {
         display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-        cursor: pointer;
-        transition: transform 0.15s ease, background 0.15s ease;
-      }
-
-      .deal-side-btn:active {
-        transform: scale(0.92);
-      }
-
-      .deal-side-btn.fav-active {
-        color: #ef4444;
-        border-color: rgba(239, 68, 68, 0.5);
-        background: rgba(30, 41, 59, 0.95);
-      }
-
-      .deal-carousel-dots {
-        bottom: 172px !important;
-        z-index: 12 !important;
-      }
-
-      .btn-deal-fav-floating {
-        display: none !important;
-      }
-
-      /* Overlay Content at bottom: Shop, Title, Price, Buy button */
-      .deal-reel-content {
-        position: absolute !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        z-index: 10 !important;
-        background: linear-gradient(to top, rgba(11, 17, 32, 0.98) 0%, rgba(11, 17, 32, 0.90) 65%, rgba(11, 17, 32, 0.4) 88%, transparent 100%) !important;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        padding: 32px 14px 12px 14px !important;
-        border-top: none !important;
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 4px !important;
-        box-sizing: border-box !important;
-        pointer-events: auto !important;
-      }
-
-      [data-theme="light"] .deal-reel-content {
-        background: linear-gradient(to top, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.90) 65%, rgba(255, 255, 255, 0.4) 88%, transparent 100%) !important;
-      }
-
-      [data-theme="light"] .deal-side-btn {
-        background: rgba(255, 255, 255, 0.88);
-        color: #1e293b;
-        border-color: rgba(0, 0, 0, 0.12);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-      }
-
-      .deal-evidence {
-        display: none !important;
-      }
-
-      .deal-reel-shop-row {
-        font-size: 0.76rem;
+        flex-direction: column;
+        min-width: 0;
         line-height: 1.2;
-        color: var(--text-muted);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
       }
 
-      .deal-reel-title {
-        font-size: 0.92rem;
+      #viewDeals .deal-story-shop {
+        font-size: 0.9rem;
         font-weight: 700;
-        line-height: 1.25;
-        min-height: auto;
-        max-height: 2.5em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      #viewDeals .deal-story-sub {
+        font-size: 0.72rem;
+        font-weight: 500;
+        opacity: 0.85;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      #viewDeals .deal-story-discount {
+        margin-left: auto;
+        flex: none;
+        padding: 6px 12px;
+        border-radius: var(--radius-full);
+        background: linear-gradient(135deg, #ff3d6e 0%, #ff7a18 100%);
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 900;
+        letter-spacing: -0.01em;
+        box-shadow: 0 6px 18px rgba(255, 61, 110, 0.45);
+      }
+
+      /* Кнопки справа, как в коротких видео */
+      #viewDeals .deal-side-actions {
+        top: auto;
+        right: 8px;
+        bottom: 12px;
+        gap: 12px;
+        z-index: 7;
+      }
+
+      #viewDeals .deal-side-ico {
+        width: 44px;
+        height: 44px;
+        background: rgba(0, 0, 0, 0.38);
+        border-color: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+      }
+
+      #viewDeals .deal-side-ico svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      #viewDeals .deal-side-cap {
+        display: block;
+        font-size: 0.62rem;
+        font-weight: 600;
+        color: #ffffff;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+      }
+
+      /* Подпись снизу: название, цена, основание скидки, покупка */
+      #viewDeals .deal-reel-content {
+        position: relative;
+        flex: 0 0 auto;
+        z-index: 2;
+        padding: 2px 16px 14px;
+        gap: 6px;
+        background: transparent;
+        border: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        color: #ffffff;
+      }
+
+      #viewDeals .deal-reel-title {
         margin: 0;
+        min-height: 0;
+        max-height: none;
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.28;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
       }
 
-      .deal-evidence {
-        font-size: 0.72rem;
-        line-height: 1.18;
-        min-height: auto;
-        display: -webkit-box;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        margin: 0;
-      }
-
-      .deal-reel-price-row {
-        gap: 8px;
+      #viewDeals .deal-reel-price-row {
+        display: flex;
         align-items: baseline;
-        margin-top: 1px;
+        gap: 10px;
         flex-wrap: nowrap;
-        overflow: hidden;
-        display: flex;
+        margin: 0;
+        min-width: 0;
       }
 
-      .deal-price-current {
-        font-size: 1.42rem;
-        font-weight: 900;
-        line-height: 1.1;
-      }
-
-      .deal-price-old {
-        font-size: 0.88rem;
-      }
-
-      .deal-savings-badge {
-        font-size: 0.72rem;
-        padding: 2px 7px;
-      }
-
-      .deal-provenance-text {
-        font-size: 0.72rem;
-        min-height: auto;
-        display: -webkit-box;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-
-      .deal-actions-row {
-        margin-top: 4px;
-        padding-top: 2px;
-        width: 100%;
-        display: flex;
-      }
-
-      /* Full-width High-conversion Buy Button */
-      .btn-deal-buy-full {
-        width: 100%;
-        height: 44px;
-        min-height: 44px;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      #viewDeals .deal-price-current {
         color: #ffffff;
-        font-size: 0.92rem;
-        font-weight: 800;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        text-decoration: none;
-        box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
-        border: none;
-        cursor: pointer;
-        transition: transform 0.15s ease;
+        font-size: 1.75rem;
+        font-weight: 900;
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
       }
 
-      .btn-deal-buy-full:active {
+      #viewDeals .deal-price-old {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.95rem;
+        white-space: nowrap;
+      }
+
+      #viewDeals .deal-reel-meta-row {
+        flex-wrap: nowrap;
+      }
+
+      #viewDeals .deal-savings-badge {
+        flex: none;
+        background: rgba(34, 197, 94, 0.2);
+        color: #4ade80;
+        border: 1px solid rgba(74, 222, 128, 0.35);
+        font-size: 0.72rem;
+        padding: 2px 8px;
+      }
+
+      #viewDeals .deal-provenance-text {
+        display: block;
+        min-height: 0;
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 0.72rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      #viewDeals .deal-provenance-text > span + span {
+        margin-left: 4px;
+      }
+
+      #viewDeals .deal-evidence.is-empty {
+        display: none;
+      }
+
+      /* Краткое описание — одна строка подписи, как текст к сторис */
+      #viewDeals .deal-evidence {
+        display: block;
+        margin: 0;
+        min-height: 0;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 0.78rem;
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      #viewDeals .deal-actions-row {
+        margin: 4px 0 0;
+        padding: 0;
+        width: 100%;
+        display: flex;
+      }
+
+      #viewDeals .btn-deal-buy-full {
+        height: 48px;
+        min-height: 48px;
+        border-radius: 14px;
+        background: #ffffff;
+        color: #0b1120;
+        font-size: 0.95rem;
+        font-weight: 800;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      }
+
+      #viewDeals .btn-deal-buy-full:active {
         transform: scale(0.98);
       }
 
-      .deals-bottom-controls,
-      #dealsSentinel {
+      #viewDeals .deals-bottom-controls,
+      #viewDeals #dealsSentinel {
         display: none !important;
+      }
+
+      #viewDeals .heart-burst-pop {
+        z-index: 8;
+        font-size: 5rem;
       }
     }
 
-    /* Дефолтное скрытие элементов v2/v3 в базовом режиме v1 */
-    .deal-side-actions,
+    /* Низкий телефон: фото важнее, подпись компактнее */
+    @media (max-width: 599px) and (min-height: 501px) and (max-height: 700px) {
+      #viewDeals .deal-reel-title {
+        font-size: 0.94rem;
+      }
+      #viewDeals .deal-price-current {
+        font-size: 1.55rem;
+      }
+      #viewDeals .btn-deal-buy-full {
+        height: 44px;
+        min-height: 44px;
+      }
+      #viewDeals .deal-side-actions {
+        gap: 8px;
+      }
+      #viewDeals .deal-side-ico {
+        width: 40px;
+        height: 40px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .deal-side-btn.fav-pop .deal-side-ico {
+        animation: none;
+      }
+    }
+
+    /* Элементы старых вариантов v2/v3 не показываются */
     .deal-banner-action-wrap,
     .deal-proof-badge,
     .deal-split-actions {
@@ -4866,8 +5209,9 @@
       column-gap: 32px;
     }
 
-    /* Лента скидок на телефоне: картинка уступает место цене и кнопкам */
-    @media (max-width: 899px) and (min-height: 501px) {
+    /* Лента скидок на телефоне: картинка уступает место цене и кнопкам.
+       С 6.34.0 только до 600 px (там правила сторис с #viewDeals важнее): на планшете фото 195 px */
+    @media (max-width: 599px) and (min-height: 501px) {
       .deal-reel-media {
         flex: 1 1 0;
         min-height: 110px;
@@ -8535,6 +8879,14 @@
         u = u.replace(/^https?:\/\/(?:market\.forte\.kz|forte\.kz)\/darbiz\//i, 'https://object.pscloud.io/darbiz/');
         u = u.replace(/(\/darbiz\/catalogs\/[^\/]+\/)(?:s|m)\//i, '$1');
       }
+      // 6a. Sulpak и другие витрины на pscloud: миниатюра _320 → исходное фото
+      else if (u.includes('object.pscloud.io/cms/')) {
+        u = u.replace(/_\d{2,4}(\.(?:webp|jpg|jpeg|png))(\?|$)/i, '$1$2');
+      }
+      // 6b. Intertop: small → medium (big весит сотни килобайт)
+      else if (u.includes('media.intertop.com')) {
+        u = u.replace(/\/small\//i, '/medium/');
+      }
       // 7. Wildberries: переключаем c246x328 / tm / c516x688 на big
       else if (u.includes('wbcontent.net') || u.includes('wildberries.ru')) {
         u = u.replace(/\/images\/(?:c246x328|c516x688|tm)\//i, '/images/big/');
@@ -8762,6 +9114,7 @@
       const activeEl = document.getElementById(viewId);
       if (activeEl) activeEl.classList.add('active');
       window.scrollTo(0, 0);
+      document.body.classList.toggle('deals-immersive', viewId === 'viewDeals');
       if (viewId === 'viewDeals' && typeof fitDealsFeed === 'function') {
         requestAnimationFrame(() => fitDealsFeed());
         setTimeout(() => fitDealsFeed(), 50);
@@ -11786,18 +12139,70 @@
       });
     }
 
+    // Лента скидок в стиле сторис (6.34.0). Логотип магазина или заглушка — не фото товара
+    function isDealPhoto(url) {
+      if (typeof url !== 'string' || !url.trim()) return false;
+      const path = url.split('?')[0].toLowerCase();
+      return !/\.svg$/.test(path) && !/(^|[\/_.-])(logo|placeholder|no[-_]?image|no[-_]?photo|nophoto|noimage)([\/_.-]|$)/.test(path);
+    }
+
+    // «Алматы / Казахстан» из названия региона магазина — в подписи достаточно города
+    function dealCityLabel(city) {
+      const c = String(city || '').split('/')[0].trim();
+      return c && c !== 'Все города' ? c : 'Казахстан';
+    }
+
+    function dealShopHue(name) {
+      let h = 0;
+      for (const ch of String(name || '')) h = (h * 31 + ch.codePointAt(0)) % 360;
+      return h;
+    }
+
+    const DEAL_ICONS = {
+      heart: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.4-7.5-10.1A4.4 4.4 0 0 1 12 7.6a4.4 4.4 0 0 1 7.5 2.8c0 5.7-7.5 10.1-7.5 10.1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+      bell: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+      compare: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11M4 7l3-3M4 7l3 3M20 17H9m11 0-3-3m3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      share: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4 10 14M21 4l-6.5 17-3.5-7-7-3.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    };
+
+    function dealSideBtnHtml(action, label, title, icon, caption, extraClass = '') {
+      return `
+              <button type="button" class="deal-side-btn ${extraClass}" onclick="dealAction(this, '${action}')" aria-label="${label}" title="${title}">
+                <span class="deal-side-ico">${DEAL_ICONS[icon]}</span>
+                <span class="deal-side-cap">${caption}</span>
+              </button>`;
+    }
+
+    // Состояние «в избранном» на кнопке ленты; иконка одна, меняется заливка
+    function setDealFavButton(btn, added, animate) {
+      if (!btn) return;
+      btn.classList.toggle('fav-active', added);
+      btn.title = added ? 'Удалить из избранного' : 'Добавить в избранное';
+      if (animate) {
+        btn.classList.remove('fav-pop');
+        void btn.offsetWidth;
+        btn.classList.add('fav-pop');
+      }
+    }
+
     function buildDealCardHtml(deal, idx) {
       const isFav = Favorites.has(deal.id);
       const safeUrl = safeHttpUrl(deal.url);
-      const discountBadge = deal.discount_pct > 0 ? `<div class="deal-discount-badge-large">🔥 -${Number(deal.discount_pct)}%</div>` : '';
-      const dealTypeBadge = deal.deal_type === 'MARKET_ARBITRAGE' || deal.deal_type === 'ARBITRAGE'
+      const discount = Number(deal.discount_pct) > 0 ? Number(deal.discount_pct) : 0;
+      const discountBadge = discount ? `<div class="deal-discount-badge-large">🔥 -${discount}%</div>` : '';
+      const isArbitrage = deal.deal_type === 'MARKET_ARBITRAGE' || deal.deal_type === 'ARBITRAGE';
+      const kindLabel = isArbitrage ? 'Дешевле, чем у других' : (deal.is_super ? 'Супер-скидка' : 'Скидка');
+      const dealTypeBadge = isArbitrage
         ? `<div class="deal-badge-secondary">⚖️ Арбитраж цен</div>`
         : (deal.is_super ? `<div class="deal-badge-secondary">⚡ Супер-скидка</div>` : '');
-      
-      const rawImages = (Array.isArray(deal.images) && deal.images.length > 0)
-        ? deal.images.filter(img => typeof img === 'string' && img.trim().length > 0)
-        : (deal.image_url ? [deal.image_url] : []);
-      const images = rawImages.length > 0 ? rawImages : [getSvgPlaceholder()];
+      const shopName = String(deal.shop || 'Магазин');
+      const shopInitial = (shopName.trim()[0] || '•').toUpperCase();
+      const cityLabel = dealCityLabel(deal.city);
+
+      const candidates = (Array.isArray(deal.images) && deal.images.length > 0) ? deal.images : [deal.image_url];
+      const rawImages = candidates.filter(isDealPhoto);
+      const images = rawImages.length > 0 ? rawImages.map(img => upgradeImageUrl(img) || img) : [getSvgPlaceholder(shopName)];
+      const hasPhoto = rawImages.length > 0;
       const hasMultiple = images.length > 1;
 
       let mediaHtml = '';
@@ -11805,17 +12210,18 @@
         const slidesHtml = images.map((img, imgIdx) => `
           <div class="deal-carousel-slide">
             <img
-              src="${escapeHtml(upgradeImageUrl(img) || getSvgPlaceholder())}"
+              src="${escapeHtml(img)}"
               alt="${escapeHtml(deal.title)} (${imgIdx + 1}/${images.length})"
               class="deal-reel-img"
-              loading="${imgIdx === 0 ? 'eager' : 'lazy'}"
+              loading="${idx < 2 && imgIdx === 0 ? 'eager' : 'lazy'}"
+              decoding="async"
               onerror="this.onerror=null; this.src=getSvgPlaceholder();"
             />
           </div>
         `).join('');
 
         const dotsHtml = `
-          <div class="deal-carousel-dots">
+          <div class="deal-carousel-dots" aria-hidden="true">
             ${images.map((_, dotIdx) => `
               <span class="deal-carousel-dot ${dotIdx === 0 ? 'active' : ''}"></span>
             `).join('')}
@@ -11828,20 +12234,30 @@
           </div>
           ${dotsHtml}
         `;
+      } else if (!hasPhoto) {
+        mediaHtml = `
+          <div class="deal-single-photo">
+            <div class="deal-no-photo" role="img" aria-label="${escapeHtml(deal.title)}">🛍️<span>Магазин не дал фото</span></div>
+          </div>
+        `;
       } else {
         mediaHtml = `
           <div class="deal-single-photo">
             <img
-              src="${escapeHtml(upgradeImageUrl(images[0]) || getSvgPlaceholder())}"
+              src="${escapeHtml(images[0])}"
               alt="${escapeHtml(deal.title)}"
               class="deal-reel-img"
-              loading="lazy"
+              loading="${idx < 2 ? 'eager' : 'lazy'}"
+              decoding="async"
               onerror="this.onerror=null; this.src=getSvgPlaceholder();"
             />
           </div>
         `;
       }
 
+      const backdropHtml = hasPhoto
+        ? `<img class="deal-reel-backdrop" src="${escapeHtml(images[0])}" alt="" aria-hidden="true" loading="lazy" decoding="async" onerror="this.remove()" />`
+        : '';
       const oldPriceHtml = deal.old_price > deal.new_price
         ? `<span class="deal-price-old">${formatPrice(deal.old_price)}</span>`
         : '';
@@ -11850,85 +12266,68 @@
         : '';
 
       return `
-        <div class="deal-reel-card" data-index="${idx}" data-deal-id="${escapeHtml(deal.id)}">
+        <article class="deal-reel-card${hasPhoto ? '' : ' no-photo'}" data-index="${idx}" data-deal-id="${escapeHtml(deal.id)}" style="--deal-hue: ${dealShopHue(shopName)}">
+          ${backdropHtml}
           <div class="deal-reel-media" ondblclick="onMediaDoubleTap(this)" ontouchend="onMediaTouchEnd(event, this)">
             ${mediaHtml}
+            <div class="deal-story-head">
+              <span class="deal-story-ring"><span class="deal-story-avatar">${escapeHtml(shopInitial)}</span></span>
+              <span class="deal-story-meta">
+                <span class="deal-story-shop">${escapeHtml(shopName)}</span>
+                <span class="deal-story-sub">${escapeHtml(cityLabel)} · ${kindLabel}</span>
+              </span>
+              ${discount ? `<span class="deal-story-discount">−${discount}%</span>` : ''}
+            </div>
             <div class="deal-reel-badges-top">
               ${discountBadge}
               ${dealTypeBadge}
             </div>
 
-            <!-- Боковой вертикальный стек действий -->
             <div class="deal-side-actions">
-              <button
-                class="deal-side-btn ${isFav ? 'fav-active' : ''}"
-                onclick="dealAction(this, 'favorite')"
-                aria-label="В избранное"
-                title="${isFav ? 'В избранном' : 'Добавить в избранное'}"
-              >
-                ${isFav ? '❤️' : '♡'}
-              </button>
-              <button
-                class="deal-side-btn"
-                onclick="dealAction(this, 'watch')"
-                aria-label="Следить за ценой"
-                title="Уведомить о снижении цены"
-              >
-                🔔
-              </button>
-              <button
-                class="deal-side-btn"
-                onclick="dealAction(this, 'open')"
-                aria-label="Аналоги и предложения"
-                title="${deal.canonical_product_id ? 'Открыть предложения всех магазинов' : 'Найти в каталоге'}"
-              >
-                🔍
-              </button>
-              <button
-                class="deal-side-btn"
-                onclick="dealAction(this, 'share')"
-                aria-label="Поделиться"
-                title="Поделиться скидкой"
-              >
-                ↗
-              </button>
+              ${dealSideBtnHtml('favorite', 'В избранное', isFav ? 'Удалить из избранного' : 'Добавить в избранное', 'heart', 'Нравится', isFav ? 'fav-active' : '')}
+              ${dealSideBtnHtml('watch', 'Следить за ценой', 'Уведомить о снижении цены', 'bell', 'Следить')}
+              ${dealSideBtnHtml('open', 'О товаре', deal.canonical_product_id ? 'Цены во всех магазинах' : 'Найти в каталоге', 'compare', 'Цены')}
+              ${dealSideBtnHtml('share', 'Поделиться', 'Поделиться скидкой', 'share', 'Отправить')}
             </div>
           </div>
 
           <div class="deal-reel-content">
             <div class="deal-reel-shop-row">
-              <span class="deal-reel-shop-name">🏪 ${escapeHtml(deal.shop)}</span>
-              <span>📍 ${escapeHtml(deal.city || 'Казахстан')}</span>
+              <span class="deal-reel-shop-name">🏪 ${escapeHtml(shopName)}</span>
+              <span>📍 ${escapeHtml(cityLabel)}</span>
             </div>
 
             <h2 class="deal-reel-title" onclick="dealAction(this, 'open')">
               ${escapeHtml(deal.title)}
             </h2>
 
+            <p class="deal-evidence is-empty" data-evidence-id="${escapeHtml(deal.canonical_product_id || '')}">Загружаем описание…</p>
+
             <div class="deal-reel-price-row">
               <span class="deal-price-current">${formatPrice(deal.new_price)}</span>
               ${oldPriceHtml}
+            </div>
+
+            <div class="deal-reel-meta-row">
               ${savingsHtml}
+              <div class="deal-provenance-text">
+                <span>${deal.price_basis === 'observed' ? '✓ ' : ''}${escapeHtml(deal.provenance || 'Основание скидки не подтверждено')}</span>
+                ${deal.competitor_shop ? `<span>(дешевле, чем в ${escapeHtml(deal.competitor_shop)})</span>` : ''}
+              </div>
             </div>
 
-            <div class="deal-provenance-text">
-              <span>${deal.price_basis === 'observed' ? '✓ ' : ''}${escapeHtml(deal.provenance || 'Основание скидки не подтверждено')}</span>
-              ${deal.competitor_shop ? `<span>(дешевле чем в ${escapeHtml(deal.competitor_shop)})</span>` : ''}
-            </div>
-
-            <!-- Широкая акцентная кнопка покупки -->
             <div class="deal-actions-row">
               ${safeUrl ? `
-                <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy-full" title="${deal.shop ? 'Купить в ' + escapeHtml(deal.shop) : 'Купить'}">
-                  <span>Купить в ${escapeHtml(deal.shop || 'магазине')} за ${formatPrice(deal.new_price)}</span>
-                  <span style="font-size: 0.85rem;">↗</span>
+                <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy btn-deal-buy-full" title="Купить в ${escapeHtml(shopName)} за ${formatPrice(deal.new_price)}">
+                  <span>Купить в ${escapeHtml(shopName)}</span>
+                  <span aria-hidden="true">↗</span>
                 </a>
               ` : `
-                <button class="btn-deal-buy-full" disabled style="opacity: 0.5;">Купить</button>
+                <button type="button" class="btn-deal-buy-full" disabled>Ссылка на магазин недоступна</button>
               `}
             </div>
           </div>
-        </div>
+        </article>
       `;
     }
 
@@ -11964,16 +12363,22 @@
       if(dealEvidenceObserver)dealEvidenceObserver.disconnect();
       dealEvidenceObserver=new IntersectionObserver(entries=>{
         entries.forEach(async entry=>{
-          if(!entry.isIntersecting)return;const el=entry.target;dealEvidenceObserver.unobserve(el);
+          if(!entry.isIntersecting)return;dealEvidenceObserver.unobserve(entry.target);
+          // Наблюдаем карточку: скрытая пустая строка (display:none на телефоне) сама в кадр не попадает
+          const el=entry.target.classList.contains('deal-evidence')?entry.target:entry.target.querySelector('.deal-evidence');
+          if(!el)return;
           const id=el.dataset.evidenceId;
           if(!id){el.textContent='Подробнее о товаре — на странице продавца.';return;}
           try{const res=await fetch('/api/v2/products/'+encodeURIComponent(id)+'/details',{headers:{'X-KZPH-Request':'1'}});
             if(!res.ok)throw Error('details');const evidence=await res.json();
-            el.textContent=(evidence.summary||evidence.description||'Описание пока не получено от магазина.').slice(0,300);
+            const text=evidence.summary||evidence.description;
+            el.textContent=(text||'Описание пока не получено от магазина.').slice(0,300);
+            // На телефоне строка подписи видна только с настоящим описанием
+            el.classList.toggle('is-empty',!text);
           }catch(e){el.textContent='Подробнее о товаре — на странице продавца.';}
         });
       },{rootMargin:'0px',threshold:0.1});
-      document.querySelectorAll('.deal-evidence').forEach(el=>dealEvidenceObserver.observe(el));
+      document.querySelectorAll('.deal-evidence').forEach(el=>dealEvidenceObserver.observe(el.closest('.deal-reel-card')||el));
     }
 
     function updateDealsControls() {
@@ -12060,11 +12465,7 @@
 
     function toggleDealFavorite(btn, deal) {
       const added = Favorites.toggle(deal);
-      if (btn) {
-        btn.classList.toggle('fav-active', added);
-        btn.innerHTML = added ? '❤️' : '♡';
-        btn.title = added ? 'Удалить из избранного' : 'Добавить в избранное';
-      }
+      setDealFavButton(btn, added, added);
     }
 
     // Канонического товара может не быть: тогда не выдумываем адрес, а ищем по названию
@@ -12184,11 +12585,7 @@
       const deal = DealsFeedState.items[Number(card.dataset.index)];
       if (!deal) return;
       const added = Favorites.toggle(deal);
-      const sideFavBtn = card.querySelector('.deal-side-btn[aria-label="В избранное"]');
-      if (sideFavBtn) {
-        sideFavBtn.classList.toggle('fav-active', added);
-        sideFavBtn.innerHTML = added ? '❤️' : '♡';
-      }
+      setDealFavButton(card.querySelector('.deal-side-btn[aria-label="В избранное"]'), added, added);
       const favBtn = card.querySelector('.btn-deal-fav-floating');
       if (favBtn) {
         favBtn.classList.toggle('fav-active', added);
@@ -12219,12 +12616,25 @@
       setTimeout(() => heart.remove(), 700);
     }
 
-    // Высота ленты на мобильных управляется CSS flexbox (100dvh) без принудительной мутации в JS
+    // Высота ленты на телефоне: от верха ленты до нижнего меню. Считается только при открытии
+    // и изменении окна (не во время прокрутки), внутри ленту делит CSS flexbox
     function fitDealsFeed() {
-      const box = document.getElementById('dealsReelsContainer');
       const vDeals = document.getElementById('viewDeals');
-      if (!box || !vDeals || !vDeals.classList.contains('active')) return;
-      box.style.height = '';
+      const layout = vDeals && vDeals.querySelector('.deals-page-layout');
+      if (!layout) return;
+      if (!vDeals.classList.contains('active') || isDealsShowcase()) {
+        layout.style.removeProperty('--deals-feed-h');
+        return;
+      }
+      const viewport = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      const nav = document.querySelector('.mobile-bottom-nav');
+      const navTop = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().top : viewport;
+      // Нижний отступ body резервирует место под меню: лента в него не заходит, страница не прокручивается
+      const reserved = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
+      const bottom = Math.min(navTop - 8, viewport - reserved);
+      const top = layout.getBoundingClientRect().top;
+      const h = Math.max(320, Math.floor(bottom - top));
+      layout.style.setProperty('--deals-feed-h', h + 'px');
     }
     window.addEventListener('resize', fitDealsFeed);
     window.addEventListener('orientationchange', () => setTimeout(fitDealsFeed, 100));

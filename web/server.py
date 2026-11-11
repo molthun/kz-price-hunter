@@ -1762,6 +1762,16 @@ async def product_add_barcode_handler(request):
 
 DEALS_MAX_OFFSET = 10000
 
+_DEAL_NON_PHOTO_RE = re.compile(r"(^|[/_.-])(logo|placeholder|no[-_]?image|no[-_]?photo|nophoto|noimage)([/_.-]|$)")
+
+
+def _is_deal_photo(url) -> bool:
+    """Адрес похож на фото товара, а не на логотип магазина или заглушку."""
+    if not isinstance(url, str) or len(url.strip()) <= 10:
+        return False
+    path = url.split("?", 1)[0].lower()
+    return not path.endswith(".svg") and not _DEAL_NON_PHOTO_RE.search(path)
+
 
 @routes.get("/api/v2/deals")
 async def deals_v2_handler(request):
@@ -1825,13 +1835,14 @@ async def deals_v2_handler(request):
     deals = []
     for d in raw_deals_list:
         alert_type = d.get("alert_type")
-        main_img = d.get("image_url") or ""
         ckey = d.get("canonical_key")
         extra_imgs = extra_images_by_key.get(ckey, []) if ckey else []
-        all_imgs = [main_img] if main_img else []
-        for img in extra_imgs:
-            if img and img not in all_imgs and len(all_imgs) < 6:
+        # Логотип магазина и заглушки — не фото товара: в ленте-сторис они на весь экран
+        all_imgs = []
+        for img in [d.get("image_url") or "", *extra_imgs]:
+            if _is_deal_photo(img) and img not in all_imgs and len(all_imgs) < 6:
                 all_imgs.append(img)
+        main_img = all_imgs[0] if all_imgs else ""
 
         deals.append({
             "id": d.get("id"),
