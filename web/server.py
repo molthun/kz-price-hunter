@@ -1321,6 +1321,16 @@ async def search_v2_handler(request):
             categories = await asyncio.to_thread(_context)
             understanding = await local_search.understand(search_query, categories)
             data = await asyncio.to_thread(local_search.search_sync, arguments, understanding, attributes)
+            # Если по штрихкоду с исходной категорией ничего не найдено - снимаем категорийный фильтр
+            if resolved_barcode_info and (not data.get("items") or len(data.get("items")) == 0):
+                fallback_u = dict(understanding)
+                fallback_u["plan"] = dict(understanding.get("plan", {}))
+                fallback_u["plan"]["category_id"] = None
+                fallback_u["plan"]["category_name"] = None
+                fallback_data = await asyncio.to_thread(local_search.search_sync, arguments, fallback_u, attributes)
+                if fallback_data.get("items") and len(fallback_data.get("items")) > 0:
+                    data = fallback_data
+
             if resolved_barcode_info:
                 data["resolved_from_barcode"] = query
                 data["resolved_product_title"] = resolved_barcode_info["title"]
