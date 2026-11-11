@@ -1,0 +1,58 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "check": "/api/version",
+      "expected": [
+        200
+      ],
+      "status": 200,
+      "ok": true
+    },
+    {
+      "check": "/api/stats",
+      "expected": [
+        200,
+        403
+      ],
+      "status": 200,
+      "ok": true
+    },
+    {
+      "check": "/",
+      "expected": [
+        200
+      ],
+      "status": 200,
+      "ok": true
+    },
+    {
+      "check": "/api/admin/monitoring",
+      "expected": [
+        401,
+        403
+      ],
+      "status": 401,
+      "ok": true
+    },
+    {
+      "check": "/api/admin/assistant",
+      "expected": [
+        401,
+        403
+      ],
+      "status": 403,
+      "ok": true
+    },
+    {
+      "check": "/api/admin/monitoring/daily",
+      "expected": [
+        401,
+        403
+      ],
+      "status": 401,
+      "ok": true
+    }
+  ],
+  "note": "Отвечающий контейнер — ещё не работающий сервис: проверяются и закрытые разделы"
+}

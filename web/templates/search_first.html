@@ -7664,6 +7664,8 @@
             const productId = dealOrProduct ? (dealOrProduct.product_id || '') : '';
             const canonicalId = dealOrProduct ? (dealOrProduct.canonical_product_id || '') : '';
             const offerId = dealOrProduct ? (dealOrProduct.offer_id || '') : '';
+            // C02: на странице предложения делимся именно им, а не лучшим по общему городу
+            const offerSelected = !!(dealOrProduct && dealOrProduct.offer_selected && offerId);
             if (!productId && !canonicalId) return false;
             const city = (typeof AppState !== 'undefined' && AppState.city) ? AppState.city : '';
 
@@ -7675,6 +7677,7 @@
                 product_id: String(productId),
                 canonical_product_id: String(canonicalId),
                 offer_id: String(offerId),
+                offer_selected: offerSelected,
                 city: city,
                 init_data: this.tg.initData || ''
               })
@@ -7691,6 +7694,8 @@
                 });
                 return true;
               }
+            } else if (res.status === 404 && offerSelected && typeof showToast === 'function') {
+              showToast('Это предложение сейчас недоступно — делимся ссылкой на страницу');
             }
           } catch (e) {
             console.warn('TelegramApp share error:', e);
@@ -11690,11 +11695,13 @@
       const p = AppState.currentProduct;
       const prod = p.product || {};
       const title = prod.title || p.title || 'Товар в KZ Price Hunter';
-      const best = (p.offers && p.offers[0]) ? p.offers[0] : (p.selected_offer || {});
+      // C02: открытое предложение (/offer/<id>) важнее лучшего по городу интерфейса
+      const best = p.selected_offer || ((p.offers && p.offers[0]) ? p.offers[0] : {});
       const url = window.location.href;
       const dealLike = {
         canonical_product_id: prod.id || p.id || '',
         offer_id: best.id || '',
+        offer_selected: !!p.selected_offer,
         title: title,
         current_price: p.best_price || best.price || 0,
         shop: best.seller_name || best.shop || '',

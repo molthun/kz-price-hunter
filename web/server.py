@@ -1241,10 +1241,11 @@ async def _apply_barcode_matches(data: dict, query: str, resolved: dict) -> None
     by_id = {it["product"]["id"]: it for it in items_list}
 
     linked_ids = set(await asyncio.to_thread(barcode_resolver.get_barcode_product_ids, code))
-    exact = await asyncio.to_thread(barcode_resolver.find_exact_catalog_matches, title)
+    exact, complete = await asyncio.to_thread(barcode_resolver.find_exact_catalog_matches, title, 20, True)
 
     match = "linked" if linked_ids else "none"
-    if not linked_ids and len(exact) == 1:
+    # C01: запись только если просмотрена вся выборка каталога и вариант в ней один
+    if not linked_ids and complete and len(exact) == 1:
         try:
             ok = await asyncio.to_thread(barcode_resolver.link_barcode_to_products, exact[0]["id"], code,
                                          "search_match", None, True)
@@ -3477,38 +3478,66 @@ _SHARE_ID_RE = re.compile(r"^[A-Za-z0-9_:.@+\-]{1,128}$")  # ID предложе
 prepared_message_limiter = RateLimiter(max_calls=10, period=60)  # на пользователя
 
 
-def _trusted_share_card_sync(product_id: str, canonical_id: str, city: str = "", offer_id: str = "") -> dict:
-    """A03/B02: карточка шеринга строится только из данных каталога, не из тела запроса.
+def _share_city(value) -> str:
+    value = (value or "").strip()
+    return value if value and value != "Все" else ""
 
-    Для канонического товара берутся те же предложения, что показывает его карточка
-    (`get_canonical_product_detail` с фильтром города), и из них — только доступные к покупке
-    по `offer_purchasable` (цена, наличие, срок действия, свежесть). Если клиент указал
-    предложение, которым делится, и оно доступно — берётся оно, иначе самое дешёвое доступное.
-    Просроченное, отсутствующее в продаже или чужое по городу предложение в карточку не попадёт.
+
+def _trusted_share_card_sync(product_id: str, canonical_id: str, city: str = "", offer_id: str = "",
+                             offer_selected: bool = False) -> dict:
+    """A03/B02/C02: карточка шеринга строится только из данных каталога, не из тела запроса.
+
+    - Страница конкретного предложения (`offer_selected`): в карточку идёт именно это
+      предложение — его цена, регион и ссылка, независимо от общего города интерфейса.
+      Если оно больше не доступно к покупке, карточки нет (404), а приложение делится
+      ссылкой на открытую страницу.
+    - Карточка товара: предложения, которые показывает карточка (`get_canonical_product_detail`
+      с фильтром города), только доступные по `offer_purchasable`; подсказка `offer_id`
+      используется, если она среди них, иначе берётся самое дешёвое.
+    - Старый каталог (`products`): только свежая цена; регион — город самой записи.
+    `compare_path` — страница сайта для кнопки «Сравнить цены».
     """
+    from urllib.parse import quote, urlencode
     from database import get_connection, fresh_price_clause
     from domain.purchasability import offer_purchasable
     from repositories.search_repo import SearchRepository
+
+    def offer_card(title, od, path):
+        return {
+            "title": title,
+            "price": int(float(od.get("price") or 0)),
+            "shop": od.get("seller_name") or "Магазин",
+            "url": od.get("url") or "",
+            "image_url": od.get("image_url") or "",
+            "city": _share_city(od.get("city")),
+            "compare_path": path,
+        }
+
     with get_connection() as conn:
         if canonical_id:
-            detail = SearchRepository(conn).get_canonical_product_detail(canonical_id, city=city or None)
+            repo = SearchRepository(conn)
+            if offer_selected and offer_id:
+                detail = repo.get_canonical_product_detail(canonical_id, city=None)
+                if not detail or not detail.get("product"):
+                    return {}
+                od = next((o for o in detail.get("offers") or [] if str(o.get("id")) == offer_id), None)
+                if not od or not offer_purchasable(od):
+                    return {}
+                return offer_card(detail["product"].title, od, "/offer/" + quote(offer_id, safe=""))
+            detail = repo.get_canonical_product_detail(canonical_id, city=city or None)
             if detail and detail.get("product"):
                 offers = [od for od in detail.get("offers") or [] if offer_purchasable(od)]
                 chosen = next((od for od in offers if offer_id and str(od.get("id")) == offer_id), None)
                 chosen = chosen or (offers[0] if offers else None)
-                if chosen:
-                    return {
-                        "title": detail["product"].title,
-                        "price": int(float(chosen.get("price") or 0)),
-                        "shop": chosen.get("seller_name") or "Магазин",
-                        "url": chosen.get("url") or "",
-                        "image_url": chosen.get("image_url") or "",
-                        "city": chosen.get("city") or "",
-                    }
-                return {}
+                if not chosen:
+                    return {}
+                path = "/product/" + quote(str(detail["product"].id), safe="")
+                if _share_city(city):
+                    path += "?" + urlencode({"city": city})
+                return offer_card(detail["product"].title, chosen, path)
         if product_id:
             row = conn.execute(
-                "SELECT title, current_price, shop, url, image_url FROM products WHERE id = ? AND "
+                "SELECT title, current_price, shop, url, image_url, city FROM products WHERE id = ? AND "
                 + fresh_price_clause() + " AND current_price > 0",
                 (product_id,),
             ).fetchone()
@@ -3519,7 +3548,8 @@ def _trusted_share_card_sync(product_id: str, canonical_id: str, city: str = "",
                     "shop": row["shop"] or "Магазин",
                     "url": row["url"] or "",
                     "image_url": row["image_url"] or "",
-                    "city": "",
+                    "city": _share_city(row["city"]),
+                    "compare_path": "/search?" + urlencode({"q": row["title"]}),
                 }
     return {}
 
@@ -3563,6 +3593,7 @@ async def telegram_prepared_message_handler(request):
     canonical_id = data.get("canonical_product_id") or ""
     offer_id = data.get("offer_id") or ""
     req_city = data.get("city") or ""
+    offer_selected = data.get("offer_selected") is True
     if not isinstance(product_id, (str, int)) or not isinstance(canonical_id, str) \
             or not isinstance(offer_id, (str, int)) or not isinstance(req_city, str):
         return web.json_response({"status": "error", "message": "Некорректный ID товара"}, status=400)
@@ -3577,7 +3608,8 @@ async def telegram_prepared_message_handler(request):
     ):
         return web.json_response({"status": "error", "message": "Укажите ID товара"}, status=400)
 
-    card = await asyncio.to_thread(_trusted_share_card_sync, product_id, canonical_id, req_city, offer_id)
+    card = await asyncio.to_thread(_trusted_share_card_sync, product_id, canonical_id, req_city, offer_id,
+                                   offer_selected)
     if not card or not card.get("title"):
         return web.json_response({"status": "error", "message": "Товар не найден"}, status=404)
     url = card.get("url") or ""
@@ -3586,7 +3618,8 @@ async def telegram_prepared_message_handler(request):
     image_url = card.get("image_url") or ""
     if not image_url.startswith("https://"):
         image_url = ""
-    city = card.get("city") or (req_city if req_city and req_city != "Все" else "Казахстан")
+    # C02: регион — город выбранного предложения или записи, а не общий город интерфейса
+    city = card.get("city") or "Казахстан"
 
     from notifier import save_prepared_inline_message
     prep_id = await asyncio.to_thread(
@@ -3598,6 +3631,7 @@ async def telegram_prepared_message_handler(request):
         url,
         city,
         image_url,
+        str(card.get("compare_path") or ""),
     )
     if not prep_id:
         return web.json_response({"status": "error", "message": "Не удалось подготовить сообщение"}, status=502)

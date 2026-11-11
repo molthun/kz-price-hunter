@@ -1,0 +1,164 @@
+{
+  "offers": [
+    [
+      181940,
+      171428,
+      0,
+      15272
+    ]
+  ],
+  "offer_links_missing": [
+    [
+      0
+    ]
+  ],
+  "active_stale_by_channel": [
+    [
+      "forte",
+      6627
+    ],
+    [
+      "halyk",
+      192
+    ],
+    [
+      "kaspi",
+      1982
+    ],
+    [
+      "marketplace",
+      1
+    ],
+    [
+      "website",
+      6470
+    ]
+  ],
+  "scan_quality_24h": [
+    [
+      "degraded",
+      34,
+      4,
+      0
+    ],
+    [
+      "failed",
+      555,
+      12,
+      0
+    ],
+    [
+      "ok",
+      1133,
+      34,
+      1133
+    ],
+    [
+      "unknown",
+      184,
+      15,
+      184
+    ],
+    [
+      "warning",
+      26,
+      5,
+      0
+    ]
+  ],
+  "scans_24h": [
+    [
+      38,
+      525496,
+      0
+    ]
+  ],
+  "sources_without_accepted_24h": [
+    [
+      "flip",
+      24
+    ],
+    [
+      "fourmobile",
+      9
+    ],
+    [
+      "marwin",
+      23
+    ],
+    [
+      "twelve_months",
+      184
+    ]
+  ],
+  "queue_24h": [],
+  "open_queue": [],
+  "outbox_24h": [
+    [
+      "pending",
+      3
+    ],
+    [
+      "sent",
+      347
+    ]
+  ],
+  "outbox_pending": [
+    [
+      "pending",
+      3,
+      0.02
+    ]
+  ],
+  "sources_retention": [
+    [
+      0,
+      0,
+      0
+    ]
+  ],
+  "barcode_health": [
+    [
+      1,
+      1,
+      1
+    ]
+  ],
+  "barcode_duplicates": [
+    [
+      0
+    ]
+  ],
+  "tompi": [
+    [
+      "Влажные салфетки Tompi с ароматом 100 шт",
+      "verified_photo"
+    ]
+  ],
+  "http_error_types_1h": [
+    [
+      "http",
+      "http_request",
+      6
+    ]
+  ],
+  "diag": {
+    "problems": [],
+    "http_sample_statuses": {
+      "unknown": 6
+    },
+    "by_component": {
+      "http": 6
+    },
+    "queue": {
+      "size": 0,
+      "failures": 0,
+      "worker_running": true
+    },
+    "db": {
+      "journal_mode": "wal",
+      "size_mb": 1933.9,
+      "wal_mb": 0.1
+    }
+  }
+}

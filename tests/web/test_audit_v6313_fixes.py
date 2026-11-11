@@ -101,7 +101,7 @@ class ShareCardTest(unittest.IsolatedAsyncioTestCase):
     async def test_b02_city_available_offer_not_expired_from_other_city(self):
         r, send = await self._share(canonical_product_id="b02_target", city="Астана")
         self.assertEqual(r.status, 200)
-        _, title, price, shop, url, city, _ = send.call_args.args
+        _, title, price, shop, url, city, _, _ = send.call_args.args
         self.assertEqual((price, url, city), (120000, "https://example.invalid/astana", "Астана"))
 
     async def test_b02_shared_offer_is_used_when_available(self):

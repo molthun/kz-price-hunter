@@ -341,7 +341,7 @@ _TOKEN_RE = re.compile(r"[a-zа-яё]+|\d+(?:[.,]\d+)?", re.I)
 # «без» меняет вариант («без аромата»), поэтому остаётся значимым.
 _STOPWORDS = frozenset({
     "шт", "штук", "уп", "упак", "упаковка", "в", "на", "и", "the", "of", "pcs", "pc",
-    "купить", "цена", "товар", "новинка", "арт", "артикул",
+    "купить", "цена", "товар", "новинка", "арт", "артикул", "x",
 })
 
 
@@ -378,7 +378,8 @@ def variant_signature(title: str) -> tuple[frozenset, tuple]:
             nxt = tokens[i + 1] if i + 1 < len(tokens) else ""
             unit = _unit(nxt) if nxt and not nxt[0].isdigit() else ""
             quantities.append((tok.replace(",", "."), unit))
-        elif tok not in _STOPWORDS and (len(tok) >= 2 or tok == "с"):
+        elif tok not in _STOPWORDS and (len(tok) >= 2 or tok == "с" or tok.isascii()):
+            # C01: одиночные латинские буквы — размеры (S/M/L) и литеры моделей, они различают варианты
             words.add(_stem(tok))
     return frozenset(words), tuple(sorted(quantities))
 
@@ -397,39 +398,60 @@ def is_exact_variant_match(resolved_title: str, product_title: str) -> bool:
     return rw == pw and rq == pq
 
 
-def find_exact_catalog_matches(resolved_title: str, limit: int = 20) -> list[Dict[str, str]]:
-    """B01: все карточки каталога, точно совпадающие с распознанным названием как вариант.
+# Сколько кандидатов полнотекстового поиска проверяется до отказа от вывода об уникальности
+EXACT_MATCH_SCAN_CAP = 20000
+
+
+def find_exact_catalog_matches(resolved_title: str, limit: int = 20, with_completeness: bool = False):
+    """B01/C01: все карточки каталога, точно совпадающие с распознанным названием как вариант.
 
     Не зависит от страницы, города, сортировки и фильтров выдачи: кандидаты отбираются
     полнотекстовым индексом по всем значимым словам, затем проверяются `is_exact_variant_match`.
+    C01 (аудит 6.31.5): кандидаты не обрезаются до проверки — просматривается вся выборка
+    индекса (до `EXACT_MATCH_SCAN_CAP` строк). Если предел достигнут, ответ неполный, и при
+    `with_completeness=True` возвращается `(найденные, False)`: вывод «вариант один» делать нельзя.
     """
     words, quantities = variant_signature(resolved_title)
     if len(words) < 2:
-        return []
+        return ([], True) if with_completeness else []
     terms = sorted({w for w in words if len(w) >= 3} | {q[0] for q in quantities if "." not in q[0]})
-    rows = []
+    found: list = []
+    complete = True
     with database.get_connection() as conn:
         try:
             if not terms:
                 raise sqlite3.OperationalError("нет слов для индекса")
             match = " AND ".join('"' + t.replace('"', "") + '"*' for t in terms)
-            rows = conn.execute(
+            cursor = conn.execute(
                 """
                 SELECT p.id, p.title FROM canonical_products_fts f
                 JOIN canonical_products p ON p.rowid = f.rowid
                 WHERE canonical_products_fts MATCH ?
-                LIMIT 500
                 """,
                 (match,),
-            ).fetchall()
+            )
         except sqlite3.OperationalError:
             # Нет индекса (тестовые базы) — полный перебор с той же проверкой
             try:
-                rows = conn.execute("SELECT id, title FROM canonical_products").fetchall()
+                cursor = conn.execute("SELECT id, title FROM canonical_products")
             except sqlite3.OperationalError:
-                rows = []
-    found = [{"id": r[0], "title": r[1]} for r in rows if is_exact_variant_match(resolved_title, r[1] or "")]
-    return found[:limit]
+                cursor = None
+        scanned = 0
+        for row in cursor or ():
+            scanned += 1
+            if scanned > EXACT_MATCH_SCAN_CAP:
+                complete = False
+                break
+            if is_exact_variant_match(resolved_title, row[1] or ""):
+                found.append({"id": row[0], "title": row[1]})
+    found = found[:limit]
+    return (found, complete) if with_completeness else found
+
+
+def is_catalog_unique_match(resolved_title: str, product_id: str) -> bool:
+    """C01: карточка — единственный точный вариант во всём каталоге, и выборка полная."""
+    found, complete = find_exact_catalog_matches(resolved_title, limit=2, with_completeness=True)
+    return complete and len(found) == 1 and found[0]["id"] == product_id
 
 
 def is_loose_candidate(resolved_title: str, product_title: str) -> bool:
@@ -474,15 +496,20 @@ def repair_unverified_auto_links() -> int:
             by_code.setdefault(code, []).append((pid, p_title, c_title))
         verified_codes = {r[0] for r in conn.execute(
             f"SELECT DISTINCT barcode FROM product_barcodes WHERE source IN ({placeholders})", VERIFIED_SOURCES)}
+        to_remove = []  # сначала только чтение: проверка уникальности открывает своё соединение
+        for code, links in by_code.items():
+            if len(links) > 1 or code in verified_codes:
+                bad = [pid for pid, _, _ in links]
+            else:
+                # C01: точное совпадение недостаточно — вариант должен быть единственным в каталоге
+                bad = [pid for pid, p_title, c_title in links
+                       if not p_title or not c_title or not is_exact_variant_match(c_title, p_title)
+                       or not is_catalog_unique_match(c_title, pid)]
+            if bad:
+                to_remove.append((code, bad))
         try:
-            for code, links in by_code.items():
-                if len(links) > 1 or code in verified_codes:
-                    bad = [pid for pid, _, _ in links]
-                else:
-                    bad = [pid for pid, p_title, c_title in links
-                           if not p_title or not c_title or not is_exact_variant_match(c_title, p_title)]
-                if bad:
-                    removed += _unlink_in_conn(conn, code, bad)
+            for code, bad in to_remove:
+                removed += _unlink_in_conn(conn, code, bad)
         except Exception:
             conn.rollback()
             raise
