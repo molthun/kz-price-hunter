@@ -1,4 +1,5 @@
 """Тесты inline-режима бота (@бот <запрос>, Bot API 8.0, TG-12) и подготовленных сообщений savePreparedInlineMessage."""
+from tests import test_support  # noqa: F401
 import unittest
 from unittest.mock import patch, Mock, AsyncMock
 import aiohttp
@@ -128,21 +129,32 @@ class PreparedInlineMessageTests(unittest.IsolatedAsyncioTestCase):
     async def test_prepared_message_endpoint_validation_and_response(self):
         from web.server import telegram_prepared_message_handler
 
-        # Missing title -> 400
+        # A03: без сессии и подписанного initData — 401, user_id из тела игнорируется
+        req_guest = make_mocked_request("POST", "/api/telegram/prepared-message")
+        req_guest._read_bytes = b'{"user_id": 100, "title": "iPhone", "price": 500000}'
+        with patch("notifier.save_prepared_inline_message", return_value="prep_mock_id") as send:
+            res_401 = await telegram_prepared_message_handler(req_guest)
+        self.assertEqual(res_401.status, 401)
+        send.assert_not_called()
+
+        # Сессия без ID товара -> 400
         req_missing = make_mocked_request("POST", "/api/telegram/prepared-message")
-        req_missing._read_bytes = b'{"user_id": 100}'
+        req_missing["user"] = {"id": 100}
+        req_missing._read_bytes = b'{"title": "iPhone"}'
         res_400 = await telegram_prepared_message_handler(req_missing)
         self.assertEqual(res_400.status, 400)
 
-        # Valid payload -> calls save_prepared_inline_message and returns 200
+        # Карточка из каталога -> 200, получатель — пользователь сессии
         req_ok = make_mocked_request("POST", "/api/telegram/prepared-message")
-        req_ok._read_bytes = b'{"user_id": 100, "title": "iPhone", "price": 500000, "shop": "DNS"}'
-
-        with patch("notifier.save_prepared_inline_message", return_value="prep_mock_id"):
+        req_ok["user"] = {"id": 100}
+        req_ok._read_bytes = b'{"user_id": 555, "product_id": "p1"}'
+        card = {"title": "iPhone", "price": 500000, "shop": "DNS", "url": "https://dns.kz/p1", "image_url": "", "city": ""}
+        with patch("web.server._trusted_share_card_sync", return_value=card), \
+             patch("notifier.save_prepared_inline_message", return_value="prep_mock_id") as send:
             res_ok = await telegram_prepared_message_handler(req_ok)
             self.assertEqual(res_ok.status, 200)
-            data = res_ok.body.decode("utf-8")
-            self.assertIn("prep_mock_id", data)
+            self.assertIn("prep_mock_id", res_ok.body.decode("utf-8"))
+            self.assertEqual(send.call_args.args[0], 100)
 
 
 if __name__ == "__main__":

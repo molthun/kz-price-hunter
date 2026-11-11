@@ -1,12 +1,13 @@
 // Frontend test: Telegram Mini App integration (TG-10)
 // Tests: tg.ready, tg.expand, closing confirmation, BackButton lifecycle,
 // HapticFeedback calls, theme synchronization, and shareMessage workflow.
-import { chromium } from "npm:playwright";
-import fs from "node:fs";
-import path from "node:path";
-import assert from "node:assert/strict";
+// Запускается шлюзом CI под Node вместе с остальными test_frontend*.cjs (A06, аудит 6.31.0).
+const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
+const assert = require('node:assert/strict');
 
-const ROOT = path.resolve(import.meta.dirname, '..', '..');
+const ROOT = path.resolve(__dirname, '..', '..');
 const html = fs.readFileSync(path.join(ROOT, 'web/templates/search_first.html'), 'utf8');
 const BASE = 'http://127.0.0.1:18099';
 
@@ -19,6 +20,7 @@ const BASE = 'http://127.0.0.1:18099';
 
   const page = await context.newPage();
   const errors = [];
+  const preparedBodies = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => {
     if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) {
@@ -130,6 +132,7 @@ const BASE = 'http://127.0.0.1:18099';
       });
     }
     if (url.pathname === '/api/telegram/prepared-message') {
+      preparedBodies.push(JSON.parse(route.request().postData() || '{}'));
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -203,12 +206,20 @@ const BASE = 'http://127.0.0.1:18099';
   // 5. Verify Telegram shareMessage integration via prepared-message endpoint
   await page.evaluate(async () => {
     await shareDeal('Супер скидка', 'https://shdev.molthun.ru/product/prod_test', {
+      product_id: 'legacy_p1',
+      canonical_product_id: 'prod_test',
       title: 'Супер скидка',
       current_price: 350000,
       shop: 'Белый Ветер'
     });
   });
   const sharedIds = await page.evaluate(() => window.__tgMock.sharedIds);
+  // A03: клиент передаёт только ID товара и подписанный initData, без user_id и полей карточки
+  assert.equal(preparedBodies.length, 1, 'prepared-message must be requested once');
+  assert.ok(!('user_id' in preparedBodies[0]), 'client must not send user_id');
+  assert.ok(!('title' in preparedBodies[0]) && !('url' in preparedBodies[0]) && !('price' in preparedBodies[0]), 'client must not send card fields');
+  assert.equal(preparedBodies[0].canonical_product_id, 'prod_test');
+  assert.ok(preparedBodies[0].init_data.includes('user='), 'signed initData must be forwarded');
   assert.equal(sharedIds.length, 1, 'shareDeal in WebApp should call tg.shareMessage');
   assert.equal(sharedIds[0], 'prep_mock_test_123', 'tg.shareMessage should receive prepared_message_id');
 

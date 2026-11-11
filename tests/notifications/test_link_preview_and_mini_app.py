@@ -1,4 +1,5 @@
 """Тесты LinkPreviewOptions (TG-16), Mini App 8.0 (TG-17) и AI-фидбэка (TG-20)."""
+from tests import test_support  # noqa: F401
 import unittest
 from unittest.mock import patch, Mock, AsyncMock
 

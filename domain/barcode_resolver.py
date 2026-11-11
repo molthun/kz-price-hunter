@@ -28,7 +28,8 @@ def is_valid_barcode(code: str) -> bool:
     if not code or not isinstance(code, str):
         return False
     clean = code.strip()
-    if not clean.isdigit() or not clean.replace("0", ""):
+    # A08: только ASCII-цифры — `"²".isdigit()` истинно, но int("²") падает
+    if not clean.isascii() or not clean.isdigit() or not clean.replace("0", ""):
         return False
 
     length = len(clean)
@@ -52,6 +53,25 @@ def is_valid_barcode(code: str) -> bool:
         return check == int(clean[-1])
 
     return False
+
+
+def normalize_barcode(code: Any) -> Optional[str]:
+    """A08: каноническое представление для хранения и поиска.
+
+    UPC-A (12 цифр) хранится как GTIN-13 с ведущим нулём, чтобы один и тот же
+    товар, отсканированный как UPC-A или как EAN-13, давал одну запись.
+    """
+    if not isinstance(code, str) or not is_valid_barcode(code):
+        return None
+    clean = code.strip()
+    if len(clean) == 12:
+        return "0" + clean
+    return clean
+
+
+# Источники связей, подтверждённые человеком: им доверяем раньше внешнего кэша (A02)
+# `verified_photo` — связь, сверенная по фото упаковки (выставлялась на стенде вручную).
+VERIFIED_SOURCES = ("manual_api", "verified_photo")
 
 
 def _init_barcode_cache_table(conn) -> None:
@@ -98,92 +118,276 @@ def get_product_barcodes(product_id: str) -> list[str]:
         return []
 
 
-def link_barcode_to_products(product_ids: list[str] | str, barcode: str, source: str = "scan") -> bool:
+def get_barcode_product_ids(barcode: str) -> list[str]:
+    """ID карточек, к которым уже привязан штрихкод (в каноническом виде)."""
+    code = normalize_barcode(barcode)
+    if not code:
+        return []
+    try:
+        with database.get_connection() as conn:
+            _init_product_barcodes_table(conn)
+            rows = conn.execute(
+                "SELECT product_id FROM product_barcodes WHERE barcode = ? ORDER BY created_at DESC",
+                (code,),
+            ).fetchall()
+            return [r[0] for r in rows]
+    except Exception as e:
+        logger.warning(f"Error reading product_barcodes for {code}: {e}")
+        return []
+
+
+def _unlink_in_conn(conn, code: str, product_ids: list[str]) -> int:
+    """Снимает связь кода с карточками внутри уже открытой транзакции."""
+    removed = 0
+    for pid in product_ids:
+        cur = conn.execute("DELETE FROM product_barcodes WHERE product_id = ? AND barcode = ?", (pid, code))
+        removed += cur.rowcount or 0
+        row = conn.execute("SELECT attributes_json FROM canonical_products WHERE id = ?", (pid,)).fetchone()
+        if not row:
+            continue
+        try:
+            attrs = json.loads(row[0]) if row[0] else {}
+        except Exception:
+            continue
+        if not isinstance(attrs, dict):
+            continue
+        changed = False
+        b_list = attrs.get("barcodes")
+        if isinstance(b_list, list) and code in b_list:
+            b_list = [b for b in b_list if b != code]
+            changed = True
+            if b_list:
+                attrs["barcodes"] = b_list
+            else:
+                attrs.pop("barcodes", None)
+        if attrs.get("barcode") == code:
+            changed = True
+            remaining = attrs.get("barcodes") or []
+            if remaining:
+                attrs["barcode"] = remaining[-1]
+            else:
+                attrs.pop("barcode", None)
+        if changed:
+            conn.execute(
+                "UPDATE canonical_products SET attributes_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (json.dumps(attrs, ensure_ascii=False), pid),
+            )
+    return removed
+
+
+def unlink_barcode(barcode: str, product_ids: list[str]) -> int:
+    """Снимает связь кода с указанными карточками. Возвращает число удалённых связей."""
+    code = normalize_barcode(barcode)
+    if not code or not product_ids:
+        return 0
+    with database.get_connection() as conn:
+        _init_product_barcodes_table(conn)
+        try:
+            removed = _unlink_in_conn(conn, code, list(product_ids))
+        except Exception:
+            conn.rollback()
+            raise
+        conn.commit()
+        return removed
+
+
+def link_barcode_to_products(product_ids: list[str] | str, barcode: str, source: str = "scan",
+                             replace_product_ids: Optional[list[str]] = None) -> bool:
     """
-    Привязывает штрихкод к товару (или нескольким найденным товарам):
-    1. Проверяет валидность штрихкода.
-    2. Сохраняет связь в таблицу product_barcodes.
-    3. Добавляет barcode в canonical_products.attributes_json.
-    4. Обновляет barcode_cache с наименованием товара для последующего мгновенного поиска.
+    Привязывает штрихкод к существующим карточкам каталога одной транзакцией:
+    1. Проверяет валидность и приводит штрихкод к каноническому виду.
+    2. Пропускает ID, которых нет в canonical_products (A01: без осиротевших связей).
+    3. Сохраняет связь в product_barcodes и добавляет код в attributes_json.
+    4. Для подтверждённой человеком связи перезаписывает barcode_cache её названием
+       (A02: проверенная связь приоритетнее внешнего результата), иначе заполняет кэш
+       только при его отсутствии.
+    Возвращает True, если записана хотя бы одна связь.
     """
-    if not is_valid_barcode(barcode):
+    clean_barcode = normalize_barcode(barcode)
+    if not clean_barcode:
         return False
 
     if isinstance(product_ids, str):
         product_ids = [product_ids]
-
-    clean_barcode = barcode.strip()
+    product_ids = [pid for pid in dict.fromkeys(product_ids or []) if pid]
     if not product_ids:
         return False
 
+    verified = source in VERIFIED_SOURCES
     try:
         with database.get_connection() as conn:
             _init_product_barcodes_table(conn)
             _init_barcode_cache_table(conn)
-
-            for pid in product_ids:
-                if not pid:
-                    continue
-                # 1. Вставляем в product_barcodes
-                conn.execute(
-                    """
-                    INSERT OR IGNORE INTO product_barcodes (product_id, barcode, source, created_at)
-                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                    """,
-                    (pid, clean_barcode, source)
-                )
-
-                # 2. Обновляем attributes_json в canonical_products
-                try:
+            linked = 0
+            try:
+                if replace_product_ids:
+                    _unlink_in_conn(conn, clean_barcode, [p for p in replace_product_ids if p not in product_ids])
+                for pid in product_ids:
                     row = conn.execute(
                         "SELECT title, brand, attributes_json FROM canonical_products WHERE id = ?",
-                        (pid,)
+                        (pid,),
                     ).fetchone()
-
-                    if row:
-                        title, brand, attrs_raw = row[0], row[1], row[2]
-                        try:
-                            attrs = json.loads(attrs_raw) if attrs_raw else {}
-                        except Exception:
-                            attrs = {}
-
-                        attrs["barcode"] = clean_barcode
-                        b_list = attrs.get("barcodes", [])
-                        if isinstance(b_list, list):
-                            if clean_barcode not in b_list:
-                                b_list.append(clean_barcode)
-                        else:
-                            b_list = [clean_barcode]
-                        attrs["barcodes"] = b_list
-
+                    if not row:
+                        continue
+                    title, brand, attrs_raw = row[0], row[1], row[2]
+                    conn.execute(
+                        """
+                        INSERT OR IGNORE INTO product_barcodes (product_id, barcode, source, created_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                        """,
+                        (pid, clean_barcode, source),
+                    )
+                    if verified:
                         conn.execute(
-                            """
-                            UPDATE canonical_products
-                            SET attributes_json = ?, updated_at = CURRENT_TIMESTAMP
-                            WHERE id = ?
-                            """,
-                            (json.dumps(attrs, ensure_ascii=False), pid)
+                            "UPDATE product_barcodes SET source = ? WHERE product_id = ? AND barcode = ?",
+                            (source, pid, clean_barcode),
                         )
-
-                        # 3. Сохраняем в кэш с точным названием товара только если кэш пуст
-                        row_curr = conn.execute("SELECT barcode FROM barcode_cache WHERE barcode = ?", (clean_barcode,)).fetchone()
-                        if not row_curr and title:
+                    try:
+                        attrs = json.loads(attrs_raw) if attrs_raw else {}
+                    except Exception:
+                        attrs = {}
+                    if not isinstance(attrs, dict):
+                        attrs = {}
+                    attrs["barcode"] = clean_barcode
+                    b_list = attrs.get("barcodes", [])
+                    if not isinstance(b_list, list):
+                        b_list = []
+                    if clean_barcode not in b_list:
+                        b_list.append(clean_barcode)
+                    attrs["barcodes"] = b_list
+                    conn.execute(
+                        "UPDATE canonical_products SET attributes_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                        (json.dumps(attrs, ensure_ascii=False), pid),
+                    )
+                    if title:
+                        if verified:
                             conn.execute(
                                 """
                                 INSERT INTO barcode_cache (barcode, title, brand, resolved_at)
                                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                                ON CONFLICT(barcode) DO UPDATE SET
+                                    title = excluded.title, brand = excluded.brand,
+                                    resolved_at = CURRENT_TIMESTAMP
                                 """,
-                                (clean_barcode, title, brand)
+                                (clean_barcode, title, brand),
                             )
-                except Exception as e_cp:
-                    if "no such table: canonical_products" not in str(e_cp).lower():
-                        logger.warning(f"Error updating canonical_product attributes for {pid}: {e_cp}")
-
+                        else:
+                            conn.execute(
+                                "INSERT OR IGNORE INTO barcode_cache (barcode, title, brand, resolved_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+                                (clean_barcode, title, brand),
+                            )
+                    linked += 1
+            except Exception:
+                conn.rollback()
+                raise
+            if not linked:
+                conn.rollback()
+                return False
             conn.commit()
             return True
     except Exception as e:
         logger.warning(f"Error linking barcode {clean_barcode} to products {product_ids}: {e}")
         return False
+
+
+# --- A02: строгое сопоставление варианта товара ---
+
+_TOKEN_RE = re.compile(r"[a-zа-яё]+|\d+(?:[.,]\d+)?", re.I)
+# Слова без различительной силы. «без», «с», «и», «для» не входят сюда намеренно не все:
+# «без» меняет вариант («без аромата»), поэтому остаётся значимым.
+_STOPWORDS = frozenset({
+    "шт", "штук", "уп", "упак", "упаковка", "в", "на", "и", "the", "of", "pcs", "pc",
+    "купить", "цена", "товар", "новинка", "арт", "артикул",
+})
+
+
+def _stem(word: str) -> str:
+    return word[:5] if len(word) > 5 else word
+
+
+def variant_signature(title: str) -> tuple[frozenset, frozenset]:
+    """(слова, числа) названия после нормализации: регистр, ё→е, простое усечение основы."""
+    text = (title or "").lower().replace("ё", "е")
+    words, numbers = set(), set()
+    for tok in _TOKEN_RE.findall(text):
+        if tok[0].isdigit():
+            numbers.add(tok.replace(",", "."))
+        elif tok not in _STOPWORDS and (len(tok) >= 2 or tok == "с"):
+            words.add(_stem(tok))
+    return frozenset(words), frozenset(numbers)
+
+
+def is_exact_variant_match(resolved_title: str, product_title: str) -> bool:
+    """Тот же вариант: совпадают все значимые слова и все числа (объём, количество, память).
+
+    «Tompi с ароматом 100 шт» и «Tompi Без аромата 100 шт» различаются словами «с»/«без»,
+    «100 шт» и «10 шт» — числами, поэтому автоматическая привязка между ними невозможна.
+    """
+    rw, rn = variant_signature(resolved_title)
+    pw, pn = variant_signature(product_title)
+    if len(rw) < 2 or not pw:
+        return False
+    return rw == pw and rn == pn
+
+
+def is_loose_candidate(resolved_title: str, product_title: str) -> bool:
+    """Похожая карточка для показа кандидатов (не для записи)."""
+    rw, _ = variant_signature(resolved_title)
+    pw, _ = variant_signature(product_title)
+    common = rw & pw
+    return len(common) >= 2 or (len(rw) <= 2 and len(common) >= 1)
+
+
+def repair_unverified_auto_links() -> int:
+    """Починка при старте (A02, аудит 6.31.0). Идемпотентна.
+
+    Снимает автоматические (не подтверждённые человеком) связи, которые не прошли бы
+    текущую строгую проверку: код автоматически привязан к нескольким карточкам, у кода
+    уже есть подтверждённая связь либо название карточки не совпадает с распознанным
+    названием как вариант. Связи
+    `manual_api` не трогаются. Возвращает число снятых связей.
+    """
+    removed = 0
+    with database.get_connection() as conn:
+        _init_product_barcodes_table(conn)
+        _init_barcode_cache_table(conn)
+        try:
+            placeholders = ",".join("?" for _ in VERIFIED_SOURCES)
+            rows = conn.execute(
+                f"""
+                SELECT pb.barcode, pb.product_id, cp.title, bc.title
+                FROM product_barcodes pb
+                LEFT JOIN canonical_products cp ON cp.id = pb.product_id
+                LEFT JOIN barcode_cache bc ON bc.barcode = pb.barcode
+                WHERE pb.source NOT IN ({placeholders})
+                """,
+                VERIFIED_SOURCES,
+            ).fetchall()
+        except Exception as e:
+            if "no such table" in str(e).lower():
+                return 0
+            raise
+        by_code: Dict[str, list] = {}
+        for code, pid, p_title, c_title in rows:
+            by_code.setdefault(code, []).append((pid, p_title, c_title))
+        verified_codes = {r[0] for r in conn.execute(
+            f"SELECT DISTINCT barcode FROM product_barcodes WHERE source IN ({placeholders})", VERIFIED_SOURCES)}
+        try:
+            for code, links in by_code.items():
+                if len(links) > 1 or code in verified_codes:
+                    bad = [pid for pid, _, _ in links]
+                else:
+                    bad = [pid for pid, p_title, c_title in links
+                           if not p_title or not c_title or not is_exact_variant_match(c_title, p_title)]
+                if bad:
+                    removed += _unlink_in_conn(conn, code, bad)
+        except Exception:
+            conn.rollback()
+            raise
+        conn.commit()
+    if removed:
+        logger.warning(f"Сняты неподтверждённые автопривязки штрихкодов: {removed}")
+    return removed
 
 
 def get_cached_barcode(barcode: str) -> Optional[Dict[str, Any]]:
@@ -284,29 +488,25 @@ async def resolve_barcode(barcode: str, timeout: float = 3.5) -> Optional[Dict[s
     2. Проверяет наличие в базе существующих товаров.
     3. Опрашивает локальный SearXNG / открытые реестры штрихкодов.
     """
-    if not is_valid_barcode(barcode):
+    clean_code = normalize_barcode(barcode)
+    if not clean_code:
         return None
+    raw_code = barcode.strip()
 
-    clean_code = barcode.strip()
-
-    # 1. Проверяем кэш
-    cached = get_cached_barcode(clean_code)
-    if cached:
-        return cached
-
-    # 1.1 Проверяем таблицу привязок товаров product_barcodes
+    # 1. Связь, подтверждённая человеком, приоритетнее любого кэша (A02)
     try:
         def _check_product_barcodes():
             with database.get_connection() as conn:
                 _init_product_barcodes_table(conn)
+                placeholders = ",".join("?" for _ in VERIFIED_SOURCES)
                 row = conn.execute(
-                    """
+                    f"""
                     SELECT cp.id, cp.title, cp.brand FROM product_barcodes pb
                     JOIN canonical_products cp ON pb.product_id = cp.id
-                    WHERE pb.barcode = ?
+                    WHERE pb.barcode = ? AND pb.source IN ({placeholders})
                     ORDER BY pb.created_at DESC LIMIT 1
                     """,
-                    (clean_code,)
+                    (clean_code, *VERIFIED_SOURCES)
                 ).fetchone()
                 if row:
                     return {"product_id": row[0], "title": row[1], "brand": row[2]}
@@ -314,7 +514,6 @@ async def resolve_barcode(barcode: str, timeout: float = 3.5) -> Optional[Dict[s
 
         pb_match = await asyncio.to_thread(_check_product_barcodes)
         if pb_match:
-            save_cached_barcode(clean_code, pb_match["title"], pb_match.get("brand"))
             return {
                 "barcode": clean_code,
                 "title": pb_match["title"],
@@ -326,6 +525,12 @@ async def resolve_barcode(barcode: str, timeout: float = 3.5) -> Optional[Dict[s
         if "no such table" not in str(e).lower():
             logger.debug(f"Error checking product_barcodes for {clean_code}: {e}")
 
+    # 1.1 Кэш распознавания
+    cached = get_cached_barcode(clean_code)
+    if cached:
+        cached["barcode"] = clean_code
+        return cached
+
     # 2. Проверяем, есть ли штрихкод в названиях или внешних артикулах существующих товаров
     try:
         def _check_db():
@@ -333,7 +538,7 @@ async def resolve_barcode(barcode: str, timeout: float = 3.5) -> Optional[Dict[s
                 # В products title
                 row = conn.execute(
                     "SELECT title FROM products WHERE title LIKE ? LIMIT 1",
-                    (f"%{clean_code}%",)
+                    (f"%{raw_code}%",)
                 ).fetchone()
                 if row:
                     return row[0]
@@ -342,9 +547,9 @@ async def resolve_barcode(barcode: str, timeout: float = 3.5) -> Optional[Dict[s
                     """
                     SELECT p.title FROM offers o
                     JOIN products p ON o.product_id = p.id
-                    WHERE o.external_sku = ? LIMIT 1
+                    WHERE o.external_sku IN (?, ?) LIMIT 1
                     """,
-                    (clean_code,)
+                    (clean_code, raw_code)
                 ).fetchone()
                 if row_sku:
                     return row_sku[0]
@@ -359,7 +564,7 @@ async def resolve_barcode(barcode: str, timeout: float = 3.5) -> Optional[Dict[s
             logger.warning(f"Error checking db for barcode {clean_code}: {e}")
 
     # 3. Внешний резолвинг через SearXNG
-    resolved_title = await asyncio.to_thread(_fetch_from_searxng_sync, clean_code, timeout)
+    resolved_title = await asyncio.to_thread(_fetch_from_searxng_sync, raw_code, timeout)
     if resolved_title:
         # Улучшение названия, если это известный паттерн (например 'Влаж салф 100 шт' -> салфетки 100 шт)
         save_cached_barcode(clean_code, resolved_title)

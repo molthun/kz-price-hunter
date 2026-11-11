@@ -6,6 +6,7 @@ import concurrent.futures
 import gzip
 import weakref
 import json
+import re
 import os
 import socket
 import uuid
@@ -1219,6 +1220,60 @@ async def best_price_handler(request):
         return web.json_response({"error": "Ошибка поиска, попробуйте позже"}, status=500)
 
 
+async def _apply_barcode_matches(data: dict, query: str, resolved: dict) -> None:
+    """A02: бейдж и автопривязка штрихкода только для однозначного варианта.
+
+    - Уже привязанные карточки получают бейдж.
+    - Новая связь пишется, только если у кода ещё нет привязок и в выдаче ровно одна
+      карточка совпадает с распознанным названием по всем значимым словам и числам.
+    - Иначе ничего не записывается, а похожие карточки возвращаются кандидатами.
+    """
+    from domain import barcode_resolver
+    code = barcode_resolver.normalize_barcode(query) or query
+    title = resolved.get("title") or ""
+    data["resolved_from_barcode"] = code
+    data["resolved_product_title"] = title
+    items_list = data.get("items") or []
+
+    linked_ids = set(await asyncio.to_thread(barcode_resolver.get_barcode_product_ids, code))
+    exact, loose = [], []
+    for it in items_list:
+        prod = it.get("product") if isinstance(it, dict) else None
+        if not isinstance(prod, dict) or not prod.get("id"):
+            continue
+        p_title = prod.get("title") or ""
+        if barcode_resolver.is_exact_variant_match(title, p_title):
+            exact.append(it)
+        elif barcode_resolver.is_loose_candidate(title, p_title):
+            loose.append(it)
+
+    badged = [it for it in items_list if isinstance(it, dict)
+              and isinstance(it.get("product"), dict) and it["product"].get("id") in linked_ids]
+    match = "linked" if badged else "none"
+    if not linked_ids and len(exact) == 1:
+        pid = exact[0]["product"]["id"]
+        ok = await asyncio.to_thread(barcode_resolver.link_barcode_to_products, [pid], code, "search_match")
+        if ok:
+            badged.append(exact[0])
+            match = "auto_linked"
+    for it in badged:
+        prod = it["product"]
+        prod["barcode"] = code
+        attrs = prod.setdefault("attributes", {})
+        if isinstance(attrs, dict):
+            attrs["barcode"] = code
+        it["barcode"] = code
+    if match == "none":
+        badged_ids = {it["product"]["id"] for it in badged}
+        cands = [it for it in exact + loose if it["product"]["id"] not in badged_ids][:5]
+        if cands:
+            match = "ambiguous"
+            data["barcode_candidates"] = [
+                {"id": it["product"]["id"], "title": it["product"].get("title") or ""} for it in cands
+            ]
+    data["barcode_match"] = match
+
+
 @routes.get("/api/v2/search")
 async def search_v2_handler(request):
     """Единый поиск Search Core 2.0 с агрегацией по продавцам, каналам, пагинацией и фасетами (S2-E11, KZPH-G1-01)."""
@@ -1332,62 +1387,12 @@ async def search_v2_handler(request):
                     data = fallback_data
 
             if resolved_barcode_info:
-                barcode_val = query
-                data["resolved_from_barcode"] = barcode_val
-                data["resolved_product_title"] = resolved_barcode_info["title"]
-                items_list = data.get("items") or []
-                import re as _re_match
-                target_words = set(_re_match.findall(r'[a-zA-Zа-яА-Я0-9]{3,}', resolved_barcode_info.get("title", "").lower()))
-                pids = []
-                for it in items_list:
-                    prod = it.get("product")
-                    if isinstance(prod, dict):
-                        pid = prod.get("id")
-                        p_title = (prod.get("title") or "").lower()
-                        p_words = set(_re_match.findall(r'[a-zA-Zа-яА-Я0-9]{3,}', p_title))
-                        common = target_words & p_words
-                        is_match = len(common) >= 2 or (len(target_words) <= 2 and len(common) >= 1)
-                        if pid and is_match:
-                            pids.append(pid)
-                            prod["barcode"] = barcode_val
-                            attrs = prod.setdefault("attributes", {})
-                            if isinstance(attrs, dict):
-                                attrs["barcode"] = barcode_val
-                            it["barcode"] = barcode_val
-                if pids:
-                    asyncio.create_task(
-                        asyncio.to_thread(barcode_resolver.link_barcode_to_products, pids, barcode_val, "search_match")
-                    )
+                await _apply_barcode_matches(data, query, resolved_barcode_info)
             return web.json_response(data, status=500 if data.get('outcome') == 'ERROR' else 200)
         resp = await asyncio.to_thread(_run_search_v2_sync, **arguments)
         data = resp.to_dict()
         if resolved_barcode_info:
-            barcode_val = query
-            data["resolved_from_barcode"] = barcode_val
-            data["resolved_product_title"] = resolved_barcode_info["title"]
-            items_list = data.get("items") or []
-            import re as _re_match
-            target_words = set(_re_match.findall(r'[a-zA-Zа-яА-Я0-9]{3,}', resolved_barcode_info.get("title", "").lower()))
-            pids = []
-            for it in items_list:
-                prod = it.get("product")
-                if isinstance(prod, dict):
-                    pid = prod.get("id")
-                    p_title = (prod.get("title") or "").lower()
-                    p_words = set(_re_match.findall(r'[a-zA-Zа-яА-Я0-9]{3,}', p_title))
-                    common = target_words & p_words
-                    is_match = len(common) >= 2 or (len(target_words) <= 2 and len(common) >= 1)
-                    if pid and is_match:
-                        pids.append(pid)
-                        prod["barcode"] = barcode_val
-                        attrs = prod.setdefault("attributes", {})
-                        if isinstance(attrs, dict):
-                            attrs["barcode"] = barcode_val
-                        it["barcode"] = barcode_val
-            if pids:
-                asyncio.create_task(
-                    asyncio.to_thread(barcode_resolver.link_barcode_to_products, pids, barcode_val, "search_match")
-                )
+            await _apply_barcode_matches(data, query, resolved_barcode_info)
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200
         return web.json_response(data, status=status_code)
     except Exception as e:
@@ -1685,23 +1690,51 @@ async def product_detail_v2_handler(request):
         return web.json_response({"ok": False, "error": "Ошибка загрузки карточки товара"}, status=500)
 
 
+def _canonical_product_exists_sync(product_id: str) -> bool:
+    from database import get_connection
+    with get_connection() as conn:
+        try:
+            return conn.execute("SELECT 1 FROM canonical_products WHERE id = ?", (product_id,)).fetchone() is not None
+        except Exception:
+            return False
+
+
 @routes.post("/api/v2/products/{product_id}/barcode")
+@require_admin
 async def product_add_barcode_handler(request):
-    """Привязывает штрихкод к товару (KZPH-Barcode)."""
+    """Ручная привязка штрихкода к карточке общего каталога (KZPH-Barcode).
+
+    A01 (аудит 6.31.0): правка общего каталога доступна только администратору,
+    неизвестный товар — 404, код, уже привязанный к другой карточке, — 409.
+    Отклонённый запрос ничего не записывает.
+    """
     product_id = request.match_info.get("product_id", "").strip()
-    if not product_id:
+    if not product_id or len(product_id) > 128:
         return web.json_response({"ok": False, "error": "product_id обязателен"}, status=400)
     try:
         body = await request.json()
     except Exception:
         return web.json_response({"ok": False, "error": "Некорректный JSON"}, status=400)
-    barcode = str(body.get("barcode", "")).strip()
+    if not isinstance(body, dict):
+        return web.json_response({"ok": False, "error": "Некорректный JSON"}, status=400)
     from domain import barcode_resolver
-    if not barcode_resolver.is_valid_barcode(barcode):
+    raw = body.get("barcode")
+    barcode = barcode_resolver.normalize_barcode(raw.strip() if isinstance(raw, str) else "")
+    if not barcode:
         return web.json_response({"ok": False, "error": "Невалидный штрихкод (ожидается EAN-13, EAN-8, UPC-A или GTIN-14)"}, status=400)
-    success = await asyncio.to_thread(barcode_resolver.link_barcode_to_products, product_id, barcode, "manual_api")
+    if not await asyncio.to_thread(_canonical_product_exists_sync, product_id):
+        return web.json_response({"ok": False, "error": "Товар не найден"}, status=404)
+    others = [pid for pid in await asyncio.to_thread(barcode_resolver.get_barcode_product_ids, barcode) if pid != product_id]
+    if others and body.get("replace") is not True:
+        return web.json_response({
+            "ok": False,
+            "error": "Штрихкод уже привязан к другой карточке",
+            "conflict_product_ids": others[:10],
+        }, status=409)
+    success = await asyncio.to_thread(
+        barcode_resolver.link_barcode_to_products, product_id, barcode, "manual_api", others)
     if success:
-        return web.json_response({"ok": True, "product_id": product_id, "barcode": barcode})
+        return web.json_response({"ok": True, "product_id": product_id, "barcode": barcode, "replaced": others[:10]})
     return web.json_response({"ok": False, "error": "Не удалось привязать штрихкод"}, status=500)
 
 
@@ -3382,6 +3415,10 @@ async def delete_watch_handler(request):
 
 # --- TG-09: Глубокие ссылки Telegram-бота ---
 
+DEEP_LINK_MAX_TARGET = 300
+DEEP_LINK_MAX_TITLE = 200
+deep_link_limiter = RateLimiter(max_calls=30, period=60)  # на IP
+
 @routes.get("/api/telegram/deep-link")
 async def telegram_deep_link_handler(request):
     """TG-09: Генерация глубокой ссылки в Telegram-бот (t.me/<bot>?start=<param>)."""
@@ -3394,6 +3431,12 @@ async def telegram_deep_link_handler(request):
     title = request.query.get("title", "").strip()
     if not action or not target:
         return web.json_response({"status": "error", "message": "Не указаны action или target"}, status=400)
+    # A07: ограничение размера полей и частоты; одинаковые ссылки переиспользуются в БД
+    if len(target) > DEEP_LINK_MAX_TARGET or len(title) > DEEP_LINK_MAX_TITLE:
+        return web.json_response({"status": "error", "message": "Слишком длинный запрос"}, status=400)
+    wait = deep_link_limiter.retry_after(f"ip:{client_ip(request)}")
+    if wait:
+        return web.json_response({"status": "error", "message": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
 
     payload = {"title": title} if title else {}
     if action == "watch_product":
@@ -3416,59 +3459,118 @@ async def telegram_deep_link_handler(request):
     })
 
 
+_SHARE_ID_RE = re.compile(r"^[A-Za-z0-9_:.\-]{1,128}$")
+prepared_message_limiter = RateLimiter(max_calls=10, period=60)  # на пользователя
+
+
+def _trusted_share_card_sync(product_id: str, canonical_id: str) -> dict:
+    """A03: карточка шеринга строится только из данных каталога, не из тела запроса."""
+    from database import get_connection
+    with get_connection() as conn:
+        if canonical_id:
+            cp = conn.execute("SELECT id, title FROM canonical_products WHERE id = ?", (canonical_id,)).fetchone()
+            if cp:
+                offer = conn.execute(
+                    """
+                    SELECT o.price, o.url, o.image_url, o.city, s.name AS seller_name
+                    FROM offers o LEFT JOIN sellers s ON s.id = o.seller_id
+                    WHERE o.product_id = ? AND COALESCE(o.is_active, 1) = 1 AND o.price > 0
+                    ORDER BY o.price ASC LIMIT 1
+                    """,
+                    (canonical_id,),
+                ).fetchone()
+                if offer:
+                    return {
+                        "title": cp["title"],
+                        "price": int(offer["price"] or 0),
+                        "shop": offer["seller_name"] or "Магазин",
+                        "url": offer["url"] or "",
+                        "image_url": offer["image_url"] or "",
+                        "city": offer["city"] or "",
+                    }
+        if product_id:
+            row = conn.execute(
+                "SELECT title, current_price, shop, url, image_url FROM products WHERE id = ?",
+                (product_id,),
+            ).fetchone()
+            if row:
+                return {
+                    "title": row["title"],
+                    "price": int(row["current_price"] or 0),
+                    "shop": row["shop"] or "Магазин",
+                    "url": row["url"] or "",
+                    "image_url": row["image_url"] or "",
+                    "city": "",
+                }
+    return {}
+
+
 @routes.post("/api/telegram/prepared-message")
 async def telegram_prepared_message_handler(request):
-    """TG-12: генерация prepared_message_id (Bot API 8.0) для шеринга из Mini App через WebApp.shareMessage."""
-    user = request.get("user")
-    user_id = user["id"] if user and isinstance(user.get("id"), int) else None
-    data = {}
+    """TG-12: prepared_message_id (Bot API 8.0) для WebApp.shareMessage.
+
+    A03 (аудит 6.31.0): получатель — только пользователь проверенной сессии или
+    подписанного initData Mini App; `user_id` из тела игнорируется. Название, цена,
+    магазин и ссылка берутся из каталога по ID товара, а не из запроса.
+    """
     try:
         data = await request.json()
     except Exception:
-        pass
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
 
-    target_user_id = data.get("user_id") or user_id
+    user = request.get("user")
+    target_user_id = user["id"] if user and isinstance(user.get("id"), int) else None
+    if target_user_id is None:
+        init_data = data.get("init_data") or data.get("initData") or ""
+        if isinstance(init_data, str) and init_data and len(init_data) <= 4096:
+            try:
+                tg = verify_telegram_webapp_data(init_data, get_bot_token())
+                target_user_id = int(tg["id"])
+            except (ValueError, TypeError, KeyError):
+                target_user_id = None
     if not target_user_id:
-        return web.json_response({"status": "error", "message": "user_id required"}, status=400)
+        return web.json_response({"status": "error", "message": "Войдите через Telegram"}, status=401)
 
-    product_id = str(data.get("product_id") or "").strip()
-    title = str(data.get("title") or "")
-    price = int(data.get("price") or 0)
-    shop = str(data.get("shop") or "Магазин")
-    url = str(data.get("url") or "")
-    image_url = str(data.get("image_url") or "")
-    city = str(data.get("city") or "Астана")
+    if prepared_message_limiter.retry_after(f"user:{target_user_id}"):
+        return web.json_response({"status": "error", "message": "Слишком много запросов, попробуйте позже"}, status=429)
 
-    if product_id and (not title or price <= 0):
-        from database import get_connection
-        def _fetch_prod():
-            with get_connection() as conn:
-                row = conn.execute("SELECT id, title, current_price, shop, url, image_url, city FROM products WHERE id = ?", (product_id,)).fetchone()
-                if not row:
-                    row = conn.execute("SELECT id, title, current_price, shop, url, image_url, city FROM offers WHERE id = ?", (product_id,)).fetchone()
-                return dict(row) if row else {}
-        row_dict = await asyncio.to_thread(_fetch_prod)
-        if row_dict:
-            title = title or row_dict.get("title") or product_id
-            price = price or int(row_dict.get("current_price") or 0)
-            shop = row_dict.get("shop") or shop
-            url = row_dict.get("url") or url
-            image_url = row_dict.get("image_url") or image_url
-            city = row_dict.get("city") or city
+    product_id = data.get("product_id") or ""
+    canonical_id = data.get("canonical_product_id") or ""
+    if not isinstance(product_id, (str, int)) or not isinstance(canonical_id, str):
+        return web.json_response({"status": "error", "message": "Некорректный ID товара"}, status=400)
+    product_id = str(product_id).strip()
+    canonical_id = canonical_id.strip()
+    if (not product_id and not canonical_id) or any(
+        v and not _SHARE_ID_RE.match(v) for v in (product_id, canonical_id)
+    ):
+        return web.json_response({"status": "error", "message": "Укажите ID товара"}, status=400)
 
-    if not title:
-        return web.json_response({"status": "error", "message": "title required"}, status=400)
+    card = await asyncio.to_thread(_trusted_share_card_sync, product_id, canonical_id)
+    if not card or not card.get("title"):
+        return web.json_response({"status": "error", "message": "Товар не найден"}, status=404)
+    url = card.get("url") or ""
+    if not url.startswith(("https://", "http://")):
+        url = ""
+    image_url = card.get("image_url") or ""
+    if not image_url.startswith("https://"):
+        image_url = ""
+    city = card.get("city") or ""
+    if not city:
+        req_city = data.get("city")
+        city = req_city.strip()[:40] if isinstance(req_city, str) and req_city.strip() else "Астана"
 
     from notifier import save_prepared_inline_message
     prep_id = await asyncio.to_thread(
         save_prepared_inline_message,
         int(target_user_id),
-        title,
-        price,
-        shop,
+        str(card["title"])[:300],
+        int(card.get("price") or 0),
+        str(card.get("shop") or "Магазин")[:80],
         url,
         city,
-        image_url
+        image_url,
     )
     if not prep_id:
         return web.json_response({"status": "error", "message": "Не удалось подготовить сообщение"}, status=502)

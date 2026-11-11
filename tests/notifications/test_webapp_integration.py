@@ -1,4 +1,5 @@
 """Тесты серверной интеграции сайта как Telegram Mini App (TG-10)."""
+from tests import test_support  # noqa: F401
 import unittest
 from pathlib import Path
 

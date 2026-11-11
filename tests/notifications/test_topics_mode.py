@@ -1,4 +1,5 @@
 """Тесты тем (форум-топиков) в личном чате пользователя (TG-11, Bot API 9.3/9.4/10.4)."""
+from tests import test_support  # noqa: F401
 from pathlib import Path
 import os
 import sqlite3

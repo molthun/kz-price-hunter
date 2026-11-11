@@ -1,4 +1,5 @@
 """Тесты форматированных Rich Messages (Bot API 10.1+, TG-03) и нативного времени <tg-time> (Bot API 9.5, TG-13)."""
+from tests import test_support  # noqa: F401
 import unittest
 from unittest.mock import patch, Mock, AsyncMock
 import aiohttp

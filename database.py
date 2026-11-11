@@ -2027,6 +2027,9 @@ def init_db():
     sync_retired_offers()
     cleanup_expired_sessions()
     reset_stale_running_scans()
+    # A02 (аудит 6.31.0): снять автопривязки штрихкодов, не прошедшие строгую проверку варианта
+    from domain.barcode_resolver import repair_unverified_auto_links
+    repair_unverified_auto_links()
 
 def acquire_scheduler_lease(owner: str, ttl_seconds: float, name: str = "scan") -> bool:
     """Берёт или продлевает аренду; False — действующая аренда у другого процесса."""
@@ -4313,6 +4316,12 @@ def export_user_data(user_id: int) -> Optional[Dict[str, Any]]:
                 "created_at": datetime.datetime.fromtimestamp(row["created_at"], datetime.timezone.utc).isoformat(),
                 "product": {k: product.get(k) for k in ("title", "shop", "city", "url", "price")},
             })
+        # A05 (аудит 6.31.0): темы личного чата Telegram и оценки ответов AI тоже принадлежат человеку
+        telegram_topics = [dict(r) for r in conn.execute(
+            "SELECT topic_type, thread_id, created_at FROM user_telegram_topics WHERE user_id = ? ORDER BY topic_type",
+            (int(user_id),))]
+        ai_feedback = [dict(r) for r in conn.execute(
+            "SELECT rating, created_at FROM ai_feedback WHERE user_id = ? ORDER BY id", (int(user_id),))]
     return {
         "exported_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "profile": {k: user.get(k) for k in ("id", "username", "first_name", "last_name", "photo_url",
@@ -4325,12 +4334,15 @@ def export_user_data(user_id: int) -> Optional[Dict[str, Any]]:
         "watch_events": events,
         # Избранное пользователя (KZPH-G5-04)
         "favorites": list_user_favorites(user_id),
+        "telegram_topics": telegram_topics,
+        "ai_feedback": ai_feedback,
     }
 
 
 def delete_user_account(user_id: int) -> Dict[str, int]:
     """Удаляет пользователя, его сессии и адресованные ему уведомления одной транзакцией (M12).
-    Общие алерты и каталог не удаляются: они не принадлежат пользователю."""
+    Общие алерты и каталог не удаляются: они не принадлежат пользователю. Оценки ответов AI
+    обезличиваются (user_id = 0) и остаются только в агрегированной статистике (A05)."""
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
         # Наблюдения принадлежат человеку, поэтому уходят вместе с ним (P07)
@@ -4343,6 +4355,9 @@ def delete_user_account(user_id: int) -> Dict[str, int]:
             "notifications": conn.execute("DELETE FROM notification_outbox WHERE user_id = ?", (int(user_id),)).rowcount,
             "watches": conn.execute("DELETE FROM watches WHERE user_id = ?", (int(user_id),)).rowcount,
             "favorites": conn.execute("DELETE FROM user_favorites WHERE user_id = ?", (int(user_id),)).rowcount,
+            # A05: темы Telegram удаляются; оценки AI остаются только в обезличенной статистике
+            "telegram_topics": conn.execute("DELETE FROM user_telegram_topics WHERE user_id = ?", (int(user_id),)).rowcount,
+            "ai_feedback_anonymized": conn.execute("UPDATE ai_feedback SET user_id = 0 WHERE user_id = ?", (int(user_id),)).rowcount,
             "users": conn.execute("DELETE FROM users WHERE id = ?", (int(user_id),)).rowcount,
         }
         conn.commit()
@@ -6801,16 +6816,28 @@ def _ensure_bot_deep_links_table(conn):
 
 
 def create_bot_deep_link(action: str, payload: Dict[str, Any], ttl_seconds: int = 30 * 86400) -> str:
-    """Создаёт токен для глубокой ссылки Telegram-бота."""
-    token = secrets.token_urlsafe(9)
+    """Создаёт токен для глубокой ссылки Telegram-бота.
+
+    A07 (аудит 6.31.0): одинаковая ссылка переиспользуется, пока ей осталось жить не меньше
+    суток, а истёкшие строки удаляются при каждой записи — повторные GET не множат таблицу.
+    """
     now = time.time()
     expires = now + ttl_seconds
+    payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True)
     with get_connection() as conn:
         _ensure_bot_deep_links_table(conn)
+        conn.execute("DELETE FROM bot_deep_links WHERE expires_at < ?", (now,))
+        row = conn.execute(
+            "SELECT token FROM bot_deep_links WHERE action = ? AND payload_json = ? AND expires_at > ? LIMIT 1",
+            (action, payload_json, now + 86400)).fetchone()
+        if row:
+            conn.commit()
+            return row["token"]
+        token = secrets.token_urlsafe(9)
         conn.execute("""
             INSERT OR REPLACE INTO bot_deep_links (token, action, payload_json, created_at, expires_at)
             VALUES (?, ?, ?, ?, ?)
-        """, (token, action, json.dumps(payload, ensure_ascii=False), now, expires))
+        """, (token, action, payload_json, now, expires))
         conn.commit()
     return token
 

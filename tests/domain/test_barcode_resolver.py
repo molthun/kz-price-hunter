@@ -92,8 +92,18 @@ class BarcodeResolverAsyncTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn("Tompi", res["title"])
 
     async def test_link_barcode_to_product(self):
+        import database
         pid = "test_prod_link_1"
         barcode = "4870237159941"
+        # A01: связь пишется только для существующей карточки каталога
+        self.assertFalse(link_barcode_to_products("test_prod_missing", barcode, source="test"))
+        database.init_db()
+        with database.get_connection() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO canonical_products (id, canonical_key, title, category, brand, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, '', '')",
+                (pid, "key_link_1", "Влажные салфетки Tompi 100 шт", "grocery", "Tompi"))
+            conn.commit()
         success = link_barcode_to_products(pid, barcode, source="test")
         self.assertTrue(success)
 
@@ -131,7 +141,8 @@ class BarcodeResolverAsyncTests(unittest.IsolatedAsyncioTestCase):
         except Exception:
             pass
 
-        link_barcode_to_products(pid, barcode, source="test")
+        # Связь, подтверждённая человеком, находится раньше кэша и внешнего поиска (A02)
+        link_barcode_to_products(pid, barcode, source="manual_api")
 
         # Очищаем кэш чтобы проверить именно product_barcodes
         with database.get_connection() as conn:

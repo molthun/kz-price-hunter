@@ -1,4 +1,5 @@
 """Тесты нативных реакций бота (TG-22), команд /deals и /favorites (TG-23) и шеринга (TG-24)."""
+from tests import test_support  # noqa: F401
 import unittest
 from unittest.mock import patch, Mock, AsyncMock
 

@@ -50,9 +50,19 @@ const assert=require('node:assert/strict');
    await page.waitForFunction(()=>typeof watchButton==='function');
 
    if(role==='guest'){
-    // Гостю кнопка не предлагается: наблюдение принадлежит вошедшему человеку
-    assert.equal(await page.evaluate(()=>watchButton({id:'p-1',title:'x'})),'');
-    assert.equal(await page.evaluate(()=>watchIconButton({id:'p-1',title:'x'})),'');
+    // Гостю локальное наблюдение не предлагается: оно принадлежит вошедшему человеку.
+    // Вместо него (6.31.0) — ссылка «Следить в Telegram» через бота, без записи на сайте.
+    const guest=await page.evaluate(()=>{
+      const box=document.createElement('div');
+      box.innerHTML=watchButton({id:'p-1',title:'x'})+watchIconButton({id:'p-1',title:'x'});
+      return {local:box.querySelectorAll('[data-watch-product]').length,
+              telegram:box.querySelectorAll('button').length,
+              text:box.innerText, icon:box.querySelectorAll('[data-watch-icon] .fa-telegram').length};
+    });
+    assert.equal(guest.local,0,'гостю не показывается кнопка локального наблюдения');
+    assert.equal(guest.telegram,2,'гость видит ссылку на наблюдение через Telegram');
+    assert.match(guest.text,/Следить в Telegram/);
+    assert.equal(guest.icon,1);
     await page.close();
     continue;
    }

@@ -6952,6 +6952,14 @@
       videoTrack: null,
       lastDetectedCode: null,
       lastDetectedTime: 0,
+      // A04: номер попытки открытия. close() и новый open() его увеличивают, поэтому поток,
+      // пришедший от getUserMedia после закрытия или смены попытки, сразу останавливается.
+      openSeq: 0,
+
+      stopStream(stream) {
+        if (!stream) return;
+        try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      },
 
       initDetector() {
         if ('BarcodeDetector' in window) {
@@ -6986,10 +6994,32 @@
         }
 
         this.initDetector();
+        // A08: без системного BarcodeDetector работает только встроенный декодер EAN-13,
+        // а QR распознаёт лишь сканер Telegram — говорим об этом прямо на этом устройстве
+        if (hint && !this.detector) {
+          const hasTgScan = window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.showScanQrPopup === 'function';
+          if (newMode === 'barcode') hint.textContent = 'Наведите полоску на штрихкод. На этом устройстве распознаётся только EAN-13';
+          else if (newMode === 'qr') hint.textContent = hasTgScan
+            ? 'QR-коды на этом устройстве распознаёт только сканер Telegram'
+            : 'Распознавание QR-кодов на этом устройстве недоступно';
+          else hint.textContent = 'На этом устройстве распознаётся только штрихкод EAN-13';
+        }
         if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('selection');
       },
 
       async open(preferredMode) {
+        const seq = ++this.openSeq;
+        // Повторное открытие: прежний поток освобождается, активна только одна камера
+        if (this.animId) {
+          cancelAnimationFrame(this.animId);
+          this.animId = null;
+        }
+        if (this.stream) {
+          this.stopStream(this.stream);
+          this.stream = null;
+        }
+        this.videoTrack = null;
+        const isCurrent = () => this.isOpen && seq === this.openSeq;
         this.setMode(preferredMode || 'barcode');
         const modal = document.getElementById('scannerModalBackdrop');
         if (modal) {
@@ -7033,13 +7063,22 @@
           for (const c of constraintsList) {
             try {
               stream = await navigator.mediaDevices.getUserMedia(c);
-              if (stream) break;
             } catch (err) {
               lastError = err;
             }
+            if (!isCurrent()) {
+              // Сканер закрыт или открыт заново, пока ждали разрешение: поток не нужен
+              this.stopStream(stream);
+              return false;
+            }
+            if (stream) break;
           }
         } else {
           lastError = new Error('navigator.mediaDevices.getUserMedia is not supported');
+        }
+        if (!isCurrent()) {
+          this.stopStream(stream);
+          return false;
         }
 
         if (stream) {
@@ -7067,8 +7106,15 @@
               } catch (playErr) {
                 console.warn('Initial video.play() error, retrying on metadata:', playErr);
                 video.onloadedmetadata = () => {
+                  if (!isCurrent()) return;
                   video.play().catch(e => console.warn('Retried video.play() error:', e));
                 };
+              }
+              if (!isCurrent()) {
+                // close() уже остановил this.stream; на случай новой попытки — останавливаем свой
+                this.stopStream(stream);
+                if (this.stream === stream) this.stream = null;
+                return false;
               }
 
               this.videoTrack = stream.getVideoTracks()[0] || null;
@@ -7087,6 +7133,11 @@
                 } catch (e) {}
               }
 
+              if (!isCurrent()) {
+                this.stopStream(stream);
+                if (this.stream === stream) this.stream = null;
+                return false;
+              }
               setTimeout(hideLoading, 350);
               this.startScanningLoop();
               return true;
@@ -7118,10 +7169,6 @@
       },
 
       retry() {
-        if (this.stream) {
-          this.stream.getTracks().forEach(t => t.stop());
-          this.stream = null;
-        }
         this.open(this.mode);
       },
 
@@ -7171,12 +7218,13 @@
           return;
         }
         this.isOpen = false;
+        this.openSeq++;
         if (this.animId) {
           cancelAnimationFrame(this.animId);
           this.animId = null;
         }
         if (this.stream) {
-          this.stream.getTracks().forEach(t => t.stop());
+          this.stopStream(this.stream);
           this.stream = null;
         }
         this.videoTrack = null;
@@ -7604,23 +7652,22 @@
       async shareProduct(title, url, dealOrProduct) {
         if (this.tg && typeof this.tg.shareMessage === 'function' && this.tg.initDataUnsafe && this.tg.initDataUnsafe.user) {
           try {
-            const userId = this.tg.initDataUnsafe.user.id;
-            const price = dealOrProduct ? (dealOrProduct.current_price || dealOrProduct.price || 0) : 0;
-            const shop = dealOrProduct ? (dealOrProduct.shop || '') : '';
-            const img = dealOrProduct ? (dealOrProduct.image_url || '') : '';
+            // A03: сервер сам определяет получателя (сессия или подписанный initData)
+            // и берёт название, цену и ссылку из каталога по ID товара
+            const productId = dealOrProduct ? (dealOrProduct.product_id || '') : '';
+            const canonicalId = dealOrProduct ? (dealOrProduct.canonical_product_id || '') : '';
+            if (!productId && !canonicalId) return false;
             const city = (typeof AppState !== 'undefined' && AppState.city) ? AppState.city : '';
 
             const res = await fetch('/api/telegram/prepared-message', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
               body: JSON.stringify({
-                user_id: userId,
-                title: title,
-                price: price,
-                shop: shop,
-                url: url,
+                product_id: String(productId),
+                canonical_product_id: String(canonicalId),
                 city: city,
-                image_url: img
+                init_data: this.tg.initData || ''
               })
             });
             if (res.ok) {
@@ -9517,6 +9564,7 @@
               <div>
                 <div style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Штрихкод ${escapeHtml(data.resolved_from_barcode)}</div>
                 <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-main);">${escapeHtml(data.resolved_product_title)}</div>
+                ${data.barcode_match === 'ambiguous' ? `<div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">Найдено несколько похожих вариантов — код к ним не привязан. Сверьте упаковку и выберите нужный товар.</div>` : ''}
               </div>
             </div>
             <button type="button" class="btn-secondary" style="padding: 5px 12px; font-size: 0.82rem;" onclick="openBarcodeScanner('barcode')">📷 Сканировать другой товар</button>
@@ -11636,6 +11684,7 @@
       const best = (p.offers && p.offers[0]) ? p.offers[0] : (p.selected_offer || {});
       const url = window.location.href;
       const dealLike = {
+        canonical_product_id: prod.id || p.id || '',
         title: title,
         current_price: p.best_price || best.price || 0,
         shop: best.seller_name || best.shop || '',

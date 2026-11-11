@@ -1,4 +1,5 @@
 """Тесты кнопок Telegram: стили (Bot API 9.4) и быстрое копирование (Bot API 7.11, TG-08)."""
+from tests import test_support  # noqa: F401
 import unittest
 from unittest.mock import patch, Mock, AsyncMock
 import aiohttp

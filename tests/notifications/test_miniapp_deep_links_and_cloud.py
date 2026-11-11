@@ -1,4 +1,5 @@
 """Тесты подсказки о блокировке бота (TG-04), перехода в Mini App из алертов (TG-19) и CloudStorage (TG-21)."""
+from tests import test_support  # noqa: F401
 import unittest
 from unittest.mock import patch, Mock
 from pathlib import Path
