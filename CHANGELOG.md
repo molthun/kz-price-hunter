@@ -3,6 +3,16 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.31.2] - 2026-11-11
+
+### Для пользователей
+- 📤 «Поделиться» в Telegram снова отправляет карточку товара в выбранный чат: раньше Telegram отклонял её из-за кнопки «Сравнить цены».
+- 📱 Кнопки «В избранное», «Следить за ценой» и «Поделиться» в карточке товара больше не обрезаются на узком экране — переносятся на новую строку.
+
+### Для разработчиков
+- `notifier.save_prepared_inline_message`: кнопка «📊 Сравнить цены» — обычная `url`, а не `site_button` (`web_app` в пересылаемых сообщениях Telegram отвергает с `BUTTON_TYPE_INVALID`; подтверждено вызовом `savePreparedInlineMessage` на стенде). Тест `test_prepared_message_has_no_web_app_buttons`.
+- `search_first.html`: `.detail-actions-row` с `flex-wrap`, кнопки ряда `flex: 1 1 auto; min-width: 0`.
+
 ## [6.31.1] - 2026-11-11
 
 ### Для пользователей

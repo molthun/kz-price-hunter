@@ -295,7 +295,9 @@ def save_prepared_inline_message(
             row.append(c_btn)
         keyboard.append(row)
     if APP_URL:
-        keyboard.append([site_button("📊 Сравнить цены", APP_URL)])
+        # Карточка уходит в чужие чаты и группы: web_app-кнопки там запрещены
+        # (Telegram отвечает BUTTON_TYPE_INVALID), поэтому только обычная ссылка
+        keyboard.append([url_button("📊 Сравнить цены", APP_URL)])
 
     article: Dict[str, Any] = {
         "type": "article",

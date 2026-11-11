@@ -1726,8 +1726,15 @@
 
     .detail-actions-row {
       display: flex;
+      flex-wrap: wrap;
       gap: 12px;
       width: 100%;
+    }
+
+    /* На узком экране кнопки переносятся на новую строку, а не уезжают за край карточки */
+    .detail-actions-row .btn-secondary-action {
+      flex: 1 1 auto;
+      min-width: 0;
     }
 
     .btn-secondary-action {

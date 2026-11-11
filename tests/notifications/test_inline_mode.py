@@ -126,6 +126,20 @@ class PreparedInlineMessageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(article["type"], "article")
         self.assertIn("85 000 ₸", article["title"])
 
+    def test_prepared_message_has_no_web_app_buttons(self):
+        """В пересылаемых сообщениях web_app-кнопки запрещены: Telegram отвечает BUTTON_TYPE_INVALID."""
+        calls = []
+        mock_resp = Mock(status_code=200)
+        mock_resp.json.return_value = {"ok": True, "result": {"id": "prep_1"}}
+        with patch("notifier.get_bot_token", return_value="tok"), \
+             patch.object(notifier, "APP_URL", "https://shdev.example"), \
+             patch.dict("os.environ", {"TELEGRAM_INLINE_MODE": "on", "TELEGRAM_SITE_BUTTONS": "webapp"}), \
+             patch.object(notifier, "telegram_api", side_effect=lambda m, p: calls.append((m, p)) or mock_resp):
+            save_prepared_inline_message(777, "Монитор", 85000, "Белый Ветер", "https://shop.kz/mon", "Астана")
+        buttons = [b for row in calls[0][1]["result"]["reply_markup"]["inline_keyboard"] for b in row]
+        self.assertTrue(any(b.get("url") == "https://shdev.example" for b in buttons))
+        self.assertFalse(any("web_app" in b for b in buttons))
+
     async def test_prepared_message_endpoint_validation_and_response(self):
         from web.server import telegram_prepared_message_handler
 
