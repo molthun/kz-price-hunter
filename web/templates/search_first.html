@@ -5855,6 +5855,17 @@
     <section id="viewDeals" class="view-section">
       <div class="deals-page-layout">
         <div class="deals-filter-bar">
+          <div class="deals-design-tabs" style="display: flex; gap: 6px; width: 100%; margin-bottom: 4px;">
+            <a href="/deals-v1" class="deal-design-tab" data-design-target="v1" onclick="navigateTo(event, '/deals-v1')" style="flex: 1; text-align: center; padding: 7px 4px; font-size: 0.78rem; font-weight: 700; border-radius: var(--radius-md); text-decoration: none; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); transition: all 0.15s ease;">
+              🎨 1. Витрина
+            </a>
+            <a href="/deals-v2" class="deal-design-tab" data-design-target="v2" onclick="navigateTo(event, '/deals-v2')" style="flex: 1; text-align: center; padding: 7px 4px; font-size: 0.78rem; font-weight: 700; border-radius: var(--radius-md); text-decoration: none; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); transition: all 0.15s ease;">
+              📱 2. TikTok
+            </a>
+            <a href="/deals-v3" class="deal-design-tab" data-design-target="v3" onclick="navigateTo(event, '/deals-v3')" style="flex: 1; text-align: center; padding: 7px 4px; font-size: 0.78rem; font-weight: 700; border-radius: var(--radius-md); text-decoration: none; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); transition: all 0.15s ease;">
+              ⚖️ 3. Выгода
+            </a>
+          </div>
           <div class="deals-type-pills" id="dealsTypePills">
             <button class="deal-type-pill active" data-type="all" data-min-discount="0" onclick="setDealsType(this, 'all', 0)">🔥 Все</button>
             <button class="deal-type-pill" data-type="all" data-min-discount="20" onclick="setDealsType(this, 'all', 20)">⚡ 20%+</button>
@@ -8637,7 +8648,7 @@
 
       const isOffer = pathname.startsWith('/offer/');
       const isProduct = pathname.startsWith('/product/');
-      const isDeals = pathname === '/deals' || pathname.startsWith('/deals');
+      const isDeals = pathname === '/deals' || pathname.startsWith('/deals') || pathname.startsWith('/deals-');
       const isFavorites = pathname === '/favorites' || pathname.startsWith('/favorites');
       const isProfile = pathname === '/profile' || pathname.startsWith('/profile');
       const isCatalog = pathname === '/catalog' || (pathname === '/search' && (params.get('cat') === 'all' || params.get('category') === 'all'));
@@ -8660,6 +8671,7 @@
       } else if (isDeals) {
         showView('viewDeals');
         updateNavState('deals');
+        applyDealsDesign();
         loadDealsFeed(true);
       } else if (isFavorites) {
         showView('viewFavorites');
@@ -11705,12 +11717,26 @@
     }
 
     function getDealsDesign() {
+      const p = window.location.pathname;
+      if (p === '/deals-v1' || p === '/deals/v1') return 'v1';
+      if (p === '/deals-v2' || p === '/deals/v2') return 'v2';
+      if (p === '/deals-v3' || p === '/deals/v3') return 'v3';
+      try {
+        const q = new URLSearchParams(window.location.search).get('design');
+        if (q === 'v1' || q === 'v2' || q === 'v3') return q;
+      } catch (e) {}
       return localStorage.getItem('kzph_deals_design') || 'v1';
     }
 
-    function setDealsDesign(val) {
+    function setDealsDesign(val, updateUrl = true) {
       localStorage.setItem('kzph_deals_design', val);
       applyDealsDesign();
+      if (updateUrl) {
+        const newPath = val === 'v1' ? '/deals-v1' : (val === 'v2' ? '/deals-v2' : '/deals-v3');
+        if (window.location.pathname !== newPath) {
+          window.history.pushState({}, '', newPath + window.location.search);
+        }
+      }
       if (typeof TelegramApp !== 'undefined') TelegramApp.haptic('selection');
     }
 
@@ -11722,6 +11748,14 @@
       }
       const sel = document.getElementById('dealsDesignSelect');
       if (sel) sel.value = design;
+
+      document.querySelectorAll('.deal-design-tab').forEach(tab => {
+        const isCur = tab.getAttribute('data-design-target') === design;
+        tab.style.background = isCur ? 'var(--primary)' : 'var(--bg-card)';
+        tab.style.color = isCur ? '#ffffff' : 'var(--text-main)';
+        tab.style.borderColor = isCur ? 'var(--primary)' : 'var(--border-color)';
+        tab.style.boxShadow = isCur ? '0 2px 8px rgba(37,99,235,0.35)' : 'none';
+      });
     }
 
     function renderDealsFeed() {

@@ -2,6 +2,19 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED v6.31.12: 3 отдельные страницы вариантов (/deals-v1, /deals-v2, /deals-v3) — Antigravity (2026-11-11)
+
+- **Задача (владелец):** «В живую разработай 3 варианта на стенде в отдельных страницах посмотрю и решу какую оставить».
+- **Реализация:**
+  - В `web/server.py` зарегистрированы отдельные маршруты `/deals-v1`, `/deals-v2`, `/deals-v3`.
+  - В `web/templates/search_first.html` встроены навигационные табы `deals-design-tabs` и синхронизация URL (`window.history.pushState`).
+  - Прямые адреса для тестирования на стенде:
+    - `https://shdev.molthun.ru/deals-v1` — Вариант 1 (Витрина / Antigravity).
+    - `https://shdev.molthun.ru/deals-v2` — Вариант 2 (TikTok / Claude).
+    - `https://shdev.molthun.ru/deals-v3` — Вариант 3 (Выгода / Codex).
+- **Стенд:** доставлен через `git bundle`, контейнер здоров (`healthy`), версия `6.31.12`.
+- **Следующий шаг:** выбор владельцем окончательного варианта после осмотра на телефоне.
+
 ## STAND_DEPLOYED v6.31.11: 3 интерактивных варианта дизайна Reels на выбор — Antigravity, Claude, Codex (2026-11-11)
 
 - **Задача (владелец):** «Хочу увидеть все варианты и выбрать».

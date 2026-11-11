@@ -277,6 +277,12 @@ async def product_page_handler(request):
     return web.FileResponse(TEMPLATES_DIR / "search_first.html")
 
 @routes.get("/deals")
+@routes.get("/deals-v1")
+@routes.get("/deals-v2")
+@routes.get("/deals-v3")
+@routes.get("/deals/v1")
+@routes.get("/deals/v2")
+@routes.get("/deals/v3")
 async def deals_page_handler(request):
     """Полноэкранная вертикальная лента скидок в стиле Reels (KZPH-G4-01)."""
     return web.FileResponse(TEMPLATES_DIR / "search_first.html")
