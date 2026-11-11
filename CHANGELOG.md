@@ -3,6 +3,14 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.31.3] - 2026-11-11
+
+### Для пользователей
+- 🔥 Команда бота `/deals` и подсказки `@бот` без запроса снова показывают настоящие цены скидок вместо «0 ₸».
+
+### Для разработчиков
+- `telegram_bot._item_price`: цена берётся из `new_price` (находки `alerts` и `get_store_deals`), затем `current_price`, затем `price`. Используется в `handle_deals_command` и в inline-выдаче. Прежний тест подставлял несуществующее у находок поле `current_price`; новый `test_handle_deals_command_shows_real_prices` использует настоящую форму записей.
+
 ## [6.31.2] - 2026-11-11
 
 ### Для пользователей

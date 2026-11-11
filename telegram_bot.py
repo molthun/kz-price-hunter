@@ -971,6 +971,19 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
         await send_tg_message(session, token, chat_id, "\n".join(lines), reply_markup, message_thread_id=message_thread_id)
 
 
+def _item_price(it: Dict[str, Any]) -> int:
+    """Цена из записи любого источника: находки (`alerts`) и витрина скидок (`get_store_deals`)
+    хранят её в `new_price`, товары каталога — в `current_price`, результаты поиска — в `price`."""
+    for key in ("new_price", "current_price", "price"):
+        try:
+            value = int(it.get(key) or 0)
+        except (TypeError, ValueError):
+            value = 0
+        if value > 0:
+            return value
+    return 0
+
+
 async def handle_deals_command(
     session: aiohttp.ClientSession,
     token: str,
@@ -992,7 +1005,7 @@ async def handle_deals_command(
         lines = ["🔥 <b>Топ горячих скидок прямо сейчас:</b>\n"]
         keyboard = []
         for idx, it in enumerate(alerts[:5], 1):
-            p = format_price(int(it.get("price") or it.get("current_price") or 0))
+            p = format_price(_item_price(it))
             drop = int(it.get("drop_pct") or it.get("discount_pct") or 0)
             shop = it.get("shop") or "Магазин"
             title = html.escape(str(it.get("title") or "Товар")[:50])
@@ -1249,7 +1262,7 @@ async def handle_inline_query(session: aiohttp.ClientSession, token: str, iq: Di
     for idx, it in enumerate(raw_items, 1):
         item_id = str(it.get("id") or idx)
         title = str(it.get("title") or "Товар")
-        price = int(it.get("current_price") or it.get("price") or 0)
+        price = _item_price(it)
         shop = str(it.get("shop") or "Магазин")
         emoji = _shop_emoji(shop)
         url = str(it.get("url") or "")

@@ -67,6 +67,34 @@ class BotReactionsAndCommandsTests(unittest.IsolatedAsyncioTestCase):
             all_buttons = [b for row in reply_markup.get("inline_keyboard", []) for b in row]
             self.assertTrue(any("switch_inline_query_chosen_chat" in b for b in all_buttons))
 
+    async def test_handle_deals_command_shows_real_prices(self):
+        """Находки (`alerts`) и витрина скидок хранят цену в new_price — в сообщении не должно быть «0 ₸»."""
+        alert_row = {"id": 1, "shop": "Kaspi Магазин", "city": "Астана", "product_id": "p1", "alert_type": "SUPER_DISCOUNT",
+                     "old_price": 49990, "new_price": 30490, "discount_pct": 39, "savings_kzt": 19500,
+                     "title": "Наушники Shokz OpenFit 2 черный", "url": "https://kaspi.kz/p1"}
+        store_deal = {"id": "d1", "title": "EA7 Ботинки", "shop": "Интертоп", "url": "https://intertop.kz/d1",
+                      "new_price": 25990, "old_price": 86630, "discount_pct": 70}
+        for alerts, deals in (([alert_row], []), ([], [store_deal])):
+            session = AsyncMock()
+            with patch("database.get_alerts", return_value=alerts), \
+                 patch("database.get_store_deals", return_value={"deals": deals}), \
+                 patch("telegram_bot.send_tg_message", new_callable=AsyncMock) as mock_send:
+                await handle_deals_command(session, "token", 12345, message_thread_id=1)
+            args, kwargs = mock_send.call_args
+            text = args[3] if len(args) > 3 else kwargs.get("text")
+            buttons = [b["text"] for row in kwargs["reply_markup"]["inline_keyboard"] for b in row]
+            self.assertNotIn("| 0 ₸", text)
+            expected = "30 490 ₸" if alerts else "25 990 ₸"
+            self.assertIn(expected, text)
+            self.assertTrue(any(expected in b for b in buttons))
+
+    def test_item_price_prefers_new_price_and_skips_zero(self):
+        from telegram_bot import _item_price
+        self.assertEqual(_item_price({"new_price": 100, "current_price": 0}), 100)
+        self.assertEqual(_item_price({"current_price": 200}), 200)
+        self.assertEqual(_item_price({"price": 300}), 300)
+        self.assertEqual(_item_price({"new_price": None, "price": "x"}), 0)
+
     async def test_handle_favorites_command_empty_and_filled(self):
         session = AsyncMock()
 
