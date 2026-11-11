@@ -1332,14 +1332,50 @@ async def search_v2_handler(request):
                     data = fallback_data
 
             if resolved_barcode_info:
-                data["resolved_from_barcode"] = query
+                barcode_val = query
+                data["resolved_from_barcode"] = barcode_val
                 data["resolved_product_title"] = resolved_barcode_info["title"]
+                items_list = data.get("items") or []
+                pids = []
+                for it in items_list:
+                    prod = it.get("product")
+                    if isinstance(prod, dict):
+                        pid = prod.get("id")
+                        if pid:
+                            pids.append(pid)
+                            prod["barcode"] = barcode_val
+                            attrs = prod.setdefault("attributes", {})
+                            if isinstance(attrs, dict):
+                                attrs["barcode"] = barcode_val
+                        it["barcode"] = barcode_val
+                if pids:
+                    asyncio.create_task(
+                        asyncio.to_thread(barcode_resolver.link_barcode_to_products, pids, barcode_val, "search_match")
+                    )
             return web.json_response(data, status=500 if data.get('outcome') == 'ERROR' else 200)
         resp = await asyncio.to_thread(_run_search_v2_sync, **arguments)
         data = resp.to_dict()
         if resolved_barcode_info:
-            data["resolved_from_barcode"] = query
+            barcode_val = query
+            data["resolved_from_barcode"] = barcode_val
             data["resolved_product_title"] = resolved_barcode_info["title"]
+            items_list = data.get("items") or []
+            pids = []
+            for it in items_list:
+                prod = it.get("product")
+                if isinstance(prod, dict):
+                    pid = prod.get("id")
+                    if pid:
+                        pids.append(pid)
+                        prod["barcode"] = barcode_val
+                        attrs = prod.setdefault("attributes", {})
+                        if isinstance(attrs, dict):
+                            attrs["barcode"] = barcode_val
+                    it["barcode"] = barcode_val
+            if pids:
+                asyncio.create_task(
+                    asyncio.to_thread(barcode_resolver.link_barcode_to_products, pids, barcode_val, "search_match")
+                )
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200
         return web.json_response(data, status=status_code)
     except Exception as e:
@@ -1635,6 +1671,26 @@ async def product_detail_v2_handler(request):
     except Exception as e:
         print(f"[API product detail v2] Ошибка: {e}")
         return web.json_response({"ok": False, "error": "Ошибка загрузки карточки товара"}, status=500)
+
+
+@routes.post("/api/v2/products/{product_id}/barcode")
+async def product_add_barcode_handler(request):
+    """Привязывает штрихкод к товару (KZPH-Barcode)."""
+    product_id = request.match_info.get("product_id", "").strip()
+    if not product_id:
+        return web.json_response({"ok": False, "error": "product_id обязателен"}, status=400)
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "Некорректный JSON"}, status=400)
+    barcode = str(body.get("barcode", "")).strip()
+    from domain import barcode_resolver
+    if not barcode_resolver.is_valid_barcode(barcode):
+        return web.json_response({"ok": False, "error": "Невалидный штрихкод (ожидается EAN-13, EAN-8, UPC-A или GTIN-14)"}, status=400)
+    success = await asyncio.to_thread(barcode_resolver.link_barcode_to_products, product_id, barcode, "manual_api")
+    if success:
+        return web.json_response({"ok": True, "product_id": product_id, "barcode": barcode})
+    return web.json_response({"ok": False, "error": "Не удалось привязать штрихкод"}, status=500)
 
 
 DEALS_MAX_OFFSET = 10000

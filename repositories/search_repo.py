@@ -1355,6 +1355,18 @@ class SearchRepository(BaseRepository):
 
         self._attach_offer_titles(offers)
 
+        # Прикрепляем штрихкод из product_barcodes, если есть
+        try:
+            if not product.attributes.get("barcode"):
+                bc_row = self.fetchone(
+                    "SELECT barcode FROM product_barcodes WHERE product_id = ? ORDER BY created_at DESC LIMIT 1",
+                    (product.id,)
+                )
+                if bc_row and bc_row["barcode"]:
+                    product.attributes["barcode"] = bc_row["barcode"]
+        except Exception:
+            pass
+
         return {
             "product": product,
             "offers": offers,

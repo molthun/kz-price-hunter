@@ -9542,6 +9542,8 @@
         }
 
         const isFav = Favorites.has(pId);
+        const bCode = prod.barcode || (prod.attributes && prod.attributes.barcode) || item.barcode;
+        const bCodeHtml = bCode ? `<span class="badge badge-barcode" style="background:rgba(59,130,246,0.12); color:#2563eb; border:1px solid rgba(59,130,246,0.3); font-weight:600;" title="Штрихкод товара: ${escapeHtml(bCode)}">🏷️ ${escapeHtml(bCode)}</span>` : '';
 
         return `
           <div class="product-card" data-id="${escapeHtml(pId)}" onclick="openProduct(event, this.dataset.id)">
@@ -9553,6 +9555,7 @@
                 ${cond === 'NEW' ? '<span class="badge badge-condition-new">✨ Новый</span>' : ''}
                 ${cond === 'USED' ? '<span class="badge badge-condition-used">🔄 ' + nonNewLabel(item.conditions_available) + '</span>' : ''}
                 <span class="badge badge-sellers">🏬 от ${sellersCount} ${pluralizeSellers(sellersCount)}</span>
+                ${bCodeHtml}
               </div>
               <h3 class="card-title">${escapeHtml(title)}</h3>
               ${item.has_gift ? '<div class="card-gift-hint" title="У части магазинов с подарком">🎁 Есть с подарком</div>' : ''}
@@ -10260,6 +10263,8 @@
       if (data.best_new_price) badgesHtml += '<span class="badge badge-condition-new">✨ Новые от ' + formatPrice(data.best_new_price) + '</span>';
       if (data.best_used_price) badgesHtml += '<span class="badge badge-condition-used">🔄 ' + nonNewLabel(offers.filter(o => o.is_purchasable).map(o => o.condition)) + ' от ' + formatPrice(data.best_used_price) + '</span>';
       if (prod.brand) badgesHtml += '<span class="badge badge-sellers">Бренд: ' + escapeHtml(prod.brand) + '</span>';
+      const detailBarcode = prod.barcode || (prod.attributes && prod.attributes.barcode) || (data.barcodes && data.barcodes[0]);
+      if (detailBarcode) badgesHtml += '<span class="badge badge-barcode" style="background:rgba(59,130,246,0.12); color:#2563eb; border:1px solid rgba(59,130,246,0.3); font-weight:600;" title="Штрихкод (EAN/GTIN)">🏷️ ' + escapeHtml(detailBarcode) + '</span>';
       document.getElementById('detailBadges').innerHTML = badgesHtml;
 
       // Attributes

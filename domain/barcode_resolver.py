@@ -28,7 +28,7 @@ def is_valid_barcode(code: str) -> bool:
     if not code or not isinstance(code, str):
         return False
     clean = code.strip()
-    if not clean.isdigit():
+    if not clean.isdigit() or not clean.replace("0", ""):
         return False
 
     length = len(clean)
@@ -64,6 +64,129 @@ def _init_barcode_cache_table(conn) -> None:
         )
     """)
     conn.commit()
+
+
+def _init_product_barcodes_table(conn) -> None:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS product_barcodes (
+            product_id TEXT NOT NULL,
+            barcode TEXT NOT NULL,
+            source TEXT DEFAULT 'scan',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (product_id, barcode)
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_product_barcodes_barcode ON product_barcodes(barcode)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_product_barcodes_product_id ON product_barcodes(product_id)")
+    conn.commit()
+
+
+def get_product_barcodes(product_id: str) -> list[str]:
+    """Возвращает список всех привязанных штрихкодов к данному товару."""
+    if not product_id:
+        return []
+    try:
+        with database.get_connection() as conn:
+            _init_product_barcodes_table(conn)
+            rows = conn.execute(
+                "SELECT barcode FROM product_barcodes WHERE product_id = ? ORDER BY created_at DESC",
+                (product_id,)
+            ).fetchall()
+            return [r[0] for r in rows]
+    except Exception as e:
+        logger.warning(f"Error getting product barcodes for {product_id}: {e}")
+        return []
+
+
+def link_barcode_to_products(product_ids: list[str] | str, barcode: str, source: str = "scan") -> bool:
+    """
+    Привязывает штрихкод к товару (или нескольким найденным товарам):
+    1. Проверяет валидность штрихкода.
+    2. Сохраняет связь в таблицу product_barcodes.
+    3. Добавляет barcode в canonical_products.attributes_json.
+    4. Обновляет barcode_cache с наименованием товара для последующего мгновенного поиска.
+    """
+    if not is_valid_barcode(barcode):
+        return False
+
+    if isinstance(product_ids, str):
+        product_ids = [product_ids]
+
+    clean_barcode = barcode.strip()
+    if not product_ids:
+        return False
+
+    try:
+        with database.get_connection() as conn:
+            _init_product_barcodes_table(conn)
+            _init_barcode_cache_table(conn)
+
+            for pid in product_ids:
+                if not pid:
+                    continue
+                # 1. Вставляем в product_barcodes
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO product_barcodes (product_id, barcode, source, created_at)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    (pid, clean_barcode, source)
+                )
+
+                # 2. Обновляем attributes_json в canonical_products
+                try:
+                    row = conn.execute(
+                        "SELECT title, brand, attributes_json FROM canonical_products WHERE id = ?",
+                        (pid,)
+                    ).fetchone()
+
+                    if row:
+                        title, brand, attrs_raw = row[0], row[1], row[2]
+                        try:
+                            attrs = json.loads(attrs_raw) if attrs_raw else {}
+                        except Exception:
+                            attrs = {}
+
+                        attrs["barcode"] = clean_barcode
+                        b_list = attrs.get("barcodes", [])
+                        if isinstance(b_list, list):
+                            if clean_barcode not in b_list:
+                                b_list.append(clean_barcode)
+                        else:
+                            b_list = [clean_barcode]
+                        attrs["barcodes"] = b_list
+
+                        conn.execute(
+                            """
+                            UPDATE canonical_products
+                            SET attributes_json = ?, updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                            """,
+                            (json.dumps(attrs, ensure_ascii=False), pid)
+                        )
+
+                        # 3. Сохраняем в кэш с точным названием товара
+                        if title:
+                            conn.execute(
+                                """
+                                INSERT INTO barcode_cache (barcode, title, brand, resolved_at)
+                                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                                ON CONFLICT(barcode) DO UPDATE SET
+                                    title = excluded.title,
+                                    brand = coalesce(excluded.brand, barcode_cache.brand),
+                                    resolved_at = CURRENT_TIMESTAMP
+                                """,
+                                (clean_barcode, title, brand)
+                            )
+                except Exception as e_cp:
+                    if "no such table: canonical_products" not in str(e_cp).lower():
+                        logger.warning(f"Error updating canonical_product attributes for {pid}: {e_cp}")
+
+            conn.commit()
+            return True
+    except Exception as e:
+        logger.warning(f"Error linking barcode {clean_barcode} to products {product_ids}: {e}")
+        return False
 
 
 def get_cached_barcode(barcode: str) -> Optional[Dict[str, Any]]:
@@ -168,6 +291,38 @@ async def resolve_barcode(barcode: str, timeout: float = 3.5) -> Optional[Dict[s
     cached = get_cached_barcode(clean_code)
     if cached:
         return cached
+
+    # 1.1 Проверяем таблицу привязок товаров product_barcodes
+    try:
+        def _check_product_barcodes():
+            with database.get_connection() as conn:
+                _init_product_barcodes_table(conn)
+                row = conn.execute(
+                    """
+                    SELECT cp.id, cp.title, cp.brand FROM product_barcodes pb
+                    JOIN canonical_products cp ON pb.product_id = cp.id
+                    WHERE pb.barcode = ?
+                    ORDER BY pb.created_at DESC LIMIT 1
+                    """,
+                    (clean_code,)
+                ).fetchone()
+                if row:
+                    return {"product_id": row[0], "title": row[1], "brand": row[2]}
+                return None
+
+        pb_match = await asyncio.to_thread(_check_product_barcodes)
+        if pb_match:
+            save_cached_barcode(clean_code, pb_match["title"], pb_match.get("brand"))
+            return {
+                "barcode": clean_code,
+                "title": pb_match["title"],
+                "brand": pb_match.get("brand"),
+                "product_id": pb_match.get("product_id"),
+                "source": "product_barcodes"
+            }
+    except Exception as e:
+        if "no such table" not in str(e).lower():
+            logger.debug(f"Error checking product_barcodes for {clean_code}: {e}")
 
     # 2. Проверяем, есть ли штрихкод в названиях или внешних артикулах существующих товаров
     try:
