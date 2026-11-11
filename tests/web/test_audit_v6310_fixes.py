@@ -46,6 +46,14 @@ def _seed_catalog():
         conn.commit()
 
 
+def _raw_links(rows):
+    """Связи в обход проверок записи: моделирует данные, оставшиеся от прежних версий."""
+    with database.get_connection() as conn:
+        conn.execute("DROP INDEX IF EXISTS ux_product_barcodes_barcode")
+        conn.executemany("INSERT OR IGNORE INTO product_barcodes(product_id, barcode, source) VALUES (?, ?, ?)", rows)
+        conn.commit()
+
+
 class _Resp:
     outcome = "FOUND"
 
@@ -135,12 +143,91 @@ class AuditFixesHttpTest(unittest.IsolatedAsyncioTestCase):
             return await r.json()
 
     async def test_a02_ambiguous_variants_are_candidates_not_links(self):
+        # Нет точного совпадения в каталоге — похожие карточки выдачи только кандидаты
         data = await self._search(["audit_tompi_aroma", "audit_tompi_plain", "audit_other_10"],
-                                  "Влажные салфетки Tompi 100 шт")
+                                  "Влажные салфетки Tompi 200 шт")
         self.assertEqual(data["barcode_match"], "ambiguous")
         self.assertTrue(all("barcode" not in it for it in data["items"]))
         self.assertEqual({c["id"] for c in data["barcode_candidates"]}, {"audit_tompi_aroma", "audit_tompi_plain", "audit_other_10"})
         self.assertEqual(barcode_resolver.get_barcode_product_ids(BARCODE), [])
+
+    async def test_b01_two_exact_cards_in_catalog_are_ambiguous(self):
+        with database.get_connection() as conn:
+            conn.execute("INSERT INTO canonical_products(id, canonical_key, title, brand, category, created_at, updated_at) "
+                         "VALUES ('audit_tompi_100_dup', 'k_e', 'Tompi влажные салфетки 100 шт', 'Tompi', 'grocery', "
+                         "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
+            conn.commit()
+        try:
+            # Вторая точная карточка не попала на страницу, но однозначности всё равно нет
+            data = await self._search(["audit_tompi_100"], "Влажные салфетки Tompi 100 шт")
+            self.assertEqual(data["barcode_match"], "ambiguous")
+            self.assertEqual({c["id"] for c in data["barcode_candidates"]}, {"audit_tompi_100", "audit_tompi_100_dup"})
+            self.assertEqual(barcode_resolver.get_barcode_product_ids(BARCODE), [])
+        finally:
+            with database.get_connection() as conn:
+                conn.execute("DELETE FROM canonical_products WHERE id = 'audit_tompi_100_dup'")
+                conn.commit()
+
+    async def test_b01_swapped_quantities_never_link_whatever_page(self):
+        title = "Tompi салфетки 2 упаковки по 100 шт"
+        wrong = "Tompi салфетки 100 упаковок по 2 шт"
+        self.assertFalse(barcode_resolver.is_exact_variant_match(title, wrong))
+        with database.get_connection() as conn:
+            conn.executemany("INSERT INTO canonical_products(id, canonical_key, title, category, created_at, updated_at) "
+                             "VALUES (?, ?, ?, 'test', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                             [("audit_right", "k_r", title), ("audit_wrong", "k_w", wrong)])
+            conn.commit()
+        titles = {"audit_right": title, "audit_wrong": wrong}
+
+        class Page:
+            outcome = "FOUND"
+
+            def __init__(self, ids):
+                self.ids = ids
+
+            def to_dict(self):
+                return {"items": [{"product": {"id": i, "title": titles[i]}} for i in self.ids]}
+
+        async def resolver(code):
+            return {"title": title, "source": "searxng"}
+        try:
+            results = []
+            for page_ids in (["audit_wrong"], ["audit_right", "audit_wrong"], ["audit_wrong", "audit_right"]):
+                with patch("local_search.enabled", return_value=False), \
+                     patch.object(barcode_resolver, "resolve_barcode", side_effect=resolver), \
+                     patch.object(server, "_run_search_v2_sync", return_value=Page(page_ids)):
+                    r = await self.client.get("/api/v2/search", params={"q": BARCODE, "limit": len(page_ids)})
+                    results.append(await r.json())
+            # Решение одно при любой странице: код за правильной фасовкой, неправильная без бейджа
+            self.assertEqual(barcode_resolver.get_barcode_product_ids(BARCODE), ["audit_right"])
+            self.assertEqual(results[0]["barcode_match"], "auto_linked")
+            self.assertTrue(all("barcode" not in it for it in results[0]["items"]))
+            for data in results[1:]:
+                self.assertEqual(data["barcode_match"], "linked")
+                badged = [it["product"]["id"] for it in data["items"] if it.get("barcode")]
+                self.assertEqual(badged, ["audit_right"])
+        finally:
+            with database.get_connection() as conn:
+                conn.execute("DELETE FROM product_barcodes WHERE product_id IN ('audit_right', 'audit_wrong')")
+                conn.execute("DELETE FROM canonical_products WHERE id IN ('audit_right', 'audit_wrong')")
+                conn.commit()
+
+    async def test_b01_parallel_admin_requests_link_one_card(self):
+        from threading import Barrier
+        barrier = Barrier(2, timeout=3)
+        read_links = barcode_resolver.get_barcode_product_ids
+
+        def read_before_either_write(code):
+            ids = read_links(code)
+            barrier.wait()
+            return ids
+        with patch.object(auth, "ADMIN_TELEGRAM_IDS", {ADMIN}), self._as(ADMIN), \
+             patch.object(barcode_resolver, "get_barcode_product_ids", side_effect=read_before_either_write):
+            replies = await asyncio.gather(
+                self._post("/api/v2/products/audit_tompi_aroma/barcode", {"barcode": BARCODE}, ADMIN),
+                self._post("/api/v2/products/audit_tompi_plain/barcode", {"barcode": BARCODE}, ADMIN))
+        self.assertEqual(sorted(r.status for r in replies), [200, 409])
+        self.assertEqual(len(read_links(BARCODE)), 1)
 
     async def test_a02_single_exact_variant_is_linked(self):
         data = await self._search(["audit_tompi_100", "audit_other_10", "audit_tompi_aroma"],
@@ -165,8 +252,9 @@ class AuditFixesHttpTest(unittest.IsolatedAsyncioTestCase):
 
     def test_a02_repair_removes_ambiguous_auto_links_keeps_manual(self):
         barcode_resolver.save_cached_barcode(BARCODE, "Влажные салфетки Tompi 100 шт")
-        barcode_resolver.link_barcode_to_products(
-            ["audit_tompi_aroma", "audit_tompi_plain", "audit_tompi_100", "audit_other_10"], BARCODE, "search_match")
+        # Данные до 6.31.1: один код автоматически записан за четырьмя карточками
+        _raw_links([(pid, BARCODE, "search_match") for pid in
+                    ("audit_tompi_aroma", "audit_tompi_plain", "audit_tompi_100", "audit_other_10")])
         barcode_resolver.link_barcode_to_products("audit_tompi_100", "4006381333931", "search_match")
         barcode_resolver.save_cached_barcode("4006381333931", "Влажные салфетки Tompi 100 шт")
         barcode_resolver.link_barcode_to_products("audit_other_10", "96385074", "manual_api")
@@ -180,14 +268,21 @@ class AuditFixesHttpTest(unittest.IsolatedAsyncioTestCase):
     def test_a02_repair_keeps_verified_photo_and_drops_other_auto_links(self):
         # Снимок стенда: одна связь сверена по фото, ещё три записаны автопоиском
         barcode_resolver.save_cached_barcode(BARCODE, "Влажные салфетки Tompi с ароматом 100 шт")
-        barcode_resolver.link_barcode_to_products("audit_tompi_aroma", BARCODE, "verified_photo")
-        barcode_resolver.link_barcode_to_products(["audit_tompi_plain", "audit_tompi_100"], BARCODE, "search_match")
+        _raw_links([("audit_tompi_aroma", BARCODE, "verified_photo"), ("audit_tompi_plain", BARCODE, "search_match"),
+                    ("audit_tompi_100", BARCODE, "search_match")])
         self.assertEqual(barcode_resolver.repair_unverified_auto_links(), 2)
         self.assertEqual(barcode_resolver.get_barcode_product_ids(BARCODE), ["audit_tompi_aroma"])
+        # После починки индекс «один код — одна карточка» восстановлен
+        with database.get_connection() as conn:
+            self.assertIsNotNone(conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE name = 'ux_product_barcodes_barcode'").fetchone())
 
     def test_a02_variant_match_rules(self):
         m = barcode_resolver.is_exact_variant_match
         self.assertTrue(m("Влажные салфетки Tompi 100 шт", "Tompi салфетки влажные, 100 шт."))
+        self.assertTrue(m("Tompi салфетки 100шт", "Tompi салфетки 100 штук"))
+        self.assertFalse(m("Tompi салфетки 2 упаковки по 100 шт", "Tompi салфетки 100 упаковок по 2 шт"))
+        self.assertFalse(m("Смартфон X 8/256 GB", "Смартфон X 8/128 GB"))
         self.assertFalse(m("Влажные салфетки Tompi 100 шт", "Влажные салфетки Tompi 10 шт"))
         self.assertFalse(m("Tompi с ароматом 100 шт", "Tompi Без аромата 100 шт"))
         self.assertFalse(m("Влажные салфетки Tompi 100 шт", "Влажные салфетки Другой бренд 100 шт"))

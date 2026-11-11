@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import re
+import sqlite3
 from typing import Any, Dict, Optional
 import urllib.parse
 import urllib.request
@@ -136,6 +137,26 @@ def get_barcode_product_ids(barcode: str) -> list[str]:
         return []
 
 
+class BarcodeConflict(Exception):
+    """Код уже привязан к другой карточке (B01: один код — одна карточка)."""
+
+    def __init__(self, product_ids: list[str]):
+        super().__init__("barcode already linked")
+        self.product_ids = product_ids
+
+
+def ensure_unique_barcode_index(conn) -> bool:
+    """Уникальный индекс «один код — одна карточка». Не создаётся, пока в данных есть дубли."""
+    try:
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_product_barcodes_barcode ON product_barcodes(barcode)")
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        logger.warning("product_barcodes: у одного кода несколько карточек, уникальный индекс не создан")
+        return False
+
+
 def _unlink_in_conn(conn, code: str, product_ids: list[str]) -> int:
     """Снимает связь кода с карточками внутри уже открытой транзакции."""
     removed = 0
@@ -192,7 +213,8 @@ def unlink_barcode(barcode: str, product_ids: list[str]) -> int:
 
 
 def link_barcode_to_products(product_ids: list[str] | str, barcode: str, source: str = "scan",
-                             replace_product_ids: Optional[list[str]] = None) -> bool:
+                             replace_product_ids: Optional[list[str]] = None,
+                             require_unlinked: bool = False) -> bool:
     """
     Привязывает штрихкод к существующим карточкам каталога одной транзакцией:
     1. Проверяет валидность и приводит штрихкод к каноническому виду.
@@ -201,7 +223,11 @@ def link_barcode_to_products(product_ids: list[str] | str, barcode: str, source:
     4. Для подтверждённой человеком связи перезаписывает barcode_cache её названием
        (A02: проверенная связь приоритетнее внешнего результата), иначе заполняет кэш
        только при его отсутствии.
-    Возвращает True, если записана хотя бы одна связь.
+    5. B01 (аудит 6.31.3): конфликт проверяется в той же транзакции записи (`BEGIN IMMEDIATE`),
+       поэтому параллельные запросы не привяжут один код к двум карточкам. Код у другой
+       карточки, не перечисленной в `replace_product_ids`, — `BarcodeConflict`.
+       `require_unlinked=True` (автопривязка): при любой существующей связи ничего не пишется.
+    Код привязывается ровно к одной карточке. Возвращает True, если связь записана.
     """
     clean_barcode = normalize_barcode(barcode)
     if not clean_barcode:
@@ -212,6 +238,8 @@ def link_barcode_to_products(product_ids: list[str] | str, barcode: str, source:
     product_ids = [pid for pid in dict.fromkeys(product_ids or []) if pid]
     if not product_ids:
         return False
+    if len(product_ids) > 1:
+        raise ValueError("один штрихкод привязывается к одной карточке")
 
     verified = source in VERIFIED_SOURCES
     try:
@@ -219,9 +247,21 @@ def link_barcode_to_products(product_ids: list[str] | str, barcode: str, source:
             _init_product_barcodes_table(conn)
             _init_barcode_cache_table(conn)
             linked = 0
+            conn.execute("BEGIN IMMEDIATE")
             try:
-                if replace_product_ids:
-                    _unlink_in_conn(conn, clean_barcode, [p for p in replace_product_ids if p not in product_ids])
+                existing = [r[0] for r in conn.execute(
+                    "SELECT product_id FROM product_barcodes WHERE barcode = ?", (clean_barcode,))]
+                if require_unlinked and existing:
+                    conn.rollback()
+                    return False
+                replace = set(replace_product_ids or [])
+                others = [pid for pid in existing if pid not in product_ids]
+                blocking = [pid for pid in others if pid not in replace]
+                if blocking:
+                    conn.rollback()
+                    raise BarcodeConflict(blocking)
+                if others:
+                    _unlink_in_conn(conn, clean_barcode, others)
                 for pid in product_ids:
                     row = conn.execute(
                         "SELECT title, brand, attributes_json FROM canonical_products WHERE id = ?",
@@ -277,6 +317,8 @@ def link_barcode_to_products(product_ids: list[str] | str, barcode: str, source:
                                 (clean_barcode, title, brand),
                             )
                     linked += 1
+            except BarcodeConflict:
+                raise
             except Exception:
                 conn.rollback()
                 raise
@@ -285,6 +327,8 @@ def link_barcode_to_products(product_ids: list[str] | str, barcode: str, source:
                 return False
             conn.commit()
             return True
+    except BarcodeConflict:
+        raise
     except Exception as e:
         logger.warning(f"Error linking barcode {clean_barcode} to products {product_ids}: {e}")
         return False
@@ -305,29 +349,87 @@ def _stem(word: str) -> str:
     return word[:5] if len(word) > 5 else word
 
 
-def variant_signature(title: str) -> tuple[frozenset, frozenset]:
-    """(слова, числа) названия после нормализации: регистр, ё→е, простое усечение основы."""
+# Единицы, записанные по-разному, но означающие одно и то же
+_UNIT_ALIASES = {
+    "шт": "шт", "штук": "шт", "штуки": "шт", "штука": "шт", "pcs": "шт", "pc": "шт",
+    "уп": "упак", "упак": "упак", "упаковка": "упак", "упаковки": "упак", "упаковок": "упак",
+    "пачка": "упак", "пачки": "упак", "пачек": "упак", "pack": "упак", "packs": "упак",
+    "гб": "gb", "gb": "gb", "тб": "tb", "tb": "tb", "мл": "ml", "ml": "ml", "л": "l", "l": "l",
+    "г": "g", "гр": "g", "g": "g", "кг": "kg", "kg": "kg",
+}
+
+
+def _unit(word: str) -> str:
+    return _UNIT_ALIASES.get(word, _stem(word))
+
+
+def variant_signature(title: str) -> tuple[frozenset, tuple]:
+    """(слова, количества) названия после нормализации: регистр, ё→е, усечение основы.
+
+    B01 (аудит 6.31.3): число хранится вместе со своей единицей — словом сразу после него.
+    «2 упаковки по 100 шт» → {(2, упак), (100, шт)}, «100 упаковок по 2 шт» →
+    {(100, упак), (2, шт)}: одинаковые числа с разным назначением больше не совпадают.
+    """
     text = (title or "").lower().replace("ё", "е")
-    words, numbers = set(), set()
-    for tok in _TOKEN_RE.findall(text):
+    tokens = _TOKEN_RE.findall(text)
+    words, quantities = set(), []
+    for i, tok in enumerate(tokens):
         if tok[0].isdigit():
-            numbers.add(tok.replace(",", "."))
+            nxt = tokens[i + 1] if i + 1 < len(tokens) else ""
+            unit = _unit(nxt) if nxt and not nxt[0].isdigit() else ""
+            quantities.append((tok.replace(",", "."), unit))
         elif tok not in _STOPWORDS and (len(tok) >= 2 or tok == "с"):
             words.add(_stem(tok))
-    return frozenset(words), frozenset(numbers)
+    return frozenset(words), tuple(sorted(quantities))
 
 
 def is_exact_variant_match(resolved_title: str, product_title: str) -> bool:
-    """Тот же вариант: совпадают все значимые слова и все числа (объём, количество, память).
+    """Тот же вариант: совпадают все значимые слова и все количества вместе с единицами.
 
     «Tompi с ароматом 100 шт» и «Tompi Без аромата 100 шт» различаются словами «с»/«без»,
-    «100 шт» и «10 шт» — числами, поэтому автоматическая привязка между ними невозможна.
+    «100 шт» и «10 шт» — числами, «2 упаковки по 100 шт» и «100 упаковок по 2 шт» —
+    назначением чисел, поэтому автоматическая привязка между ними невозможна.
     """
-    rw, rn = variant_signature(resolved_title)
-    pw, pn = variant_signature(product_title)
+    rw, rq = variant_signature(resolved_title)
+    pw, pq = variant_signature(product_title)
     if len(rw) < 2 or not pw:
         return False
-    return rw == pw and rn == pn
+    return rw == pw and rq == pq
+
+
+def find_exact_catalog_matches(resolved_title: str, limit: int = 20) -> list[Dict[str, str]]:
+    """B01: все карточки каталога, точно совпадающие с распознанным названием как вариант.
+
+    Не зависит от страницы, города, сортировки и фильтров выдачи: кандидаты отбираются
+    полнотекстовым индексом по всем значимым словам, затем проверяются `is_exact_variant_match`.
+    """
+    words, quantities = variant_signature(resolved_title)
+    if len(words) < 2:
+        return []
+    terms = sorted({w for w in words if len(w) >= 3} | {q[0] for q in quantities if "." not in q[0]})
+    rows = []
+    with database.get_connection() as conn:
+        try:
+            if not terms:
+                raise sqlite3.OperationalError("нет слов для индекса")
+            match = " AND ".join('"' + t.replace('"', "") + '"*' for t in terms)
+            rows = conn.execute(
+                """
+                SELECT p.id, p.title FROM canonical_products_fts f
+                JOIN canonical_products p ON p.rowid = f.rowid
+                WHERE canonical_products_fts MATCH ?
+                LIMIT 500
+                """,
+                (match,),
+            ).fetchall()
+        except sqlite3.OperationalError:
+            # Нет индекса (тестовые базы) — полный перебор с той же проверкой
+            try:
+                rows = conn.execute("SELECT id, title FROM canonical_products").fetchall()
+            except sqlite3.OperationalError:
+                rows = []
+    found = [{"id": r[0], "title": r[1]} for r in rows if is_exact_variant_match(resolved_title, r[1] or "")]
+    return found[:limit]
 
 
 def is_loose_candidate(resolved_title: str, product_title: str) -> bool:
@@ -385,6 +487,7 @@ def repair_unverified_auto_links() -> int:
             conn.rollback()
             raise
         conn.commit()
+        ensure_unique_barcode_index(conn)
     if removed:
         logger.warning(f"Сняты неподтверждённые автопривязки штрихкодов: {removed}")
     return removed

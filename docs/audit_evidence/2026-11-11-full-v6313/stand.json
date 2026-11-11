@@ -1,0 +1,168 @@
+{
+  "offers": [
+    [
+      181817,
+      171327,
+      0,
+      15275
+    ]
+  ],
+  "offer_links_missing": [
+    [
+      0
+    ]
+  ],
+  "active_stale_by_channel": [
+    [
+      "forte",
+      6627
+    ],
+    [
+      "halyk",
+      192
+    ],
+    [
+      "kaspi",
+      1984
+    ],
+    [
+      "marketplace",
+      1
+    ],
+    [
+      "website",
+      6471
+    ]
+  ],
+  "scan_quality_24h": [
+    [
+      "degraded",
+      39,
+      4,
+      0
+    ],
+    [
+      "failed",
+      543,
+      12,
+      0
+    ],
+    [
+      "ok",
+      1172,
+      33,
+      1172
+    ],
+    [
+      "unknown",
+      185,
+      14,
+      185
+    ],
+    [
+      "warning",
+      27,
+      5,
+      0
+    ]
+  ],
+  "scans_24h": [
+    [
+      38,
+      540137,
+      0
+    ]
+  ],
+  "sources_without_accepted_24h": [
+    [
+      "flip",
+      24
+    ],
+    [
+      "fourmobile",
+      9
+    ],
+    [
+      "marwin",
+      23
+    ],
+    [
+      "twelve_months",
+      184
+    ]
+  ],
+  "queue_24h": [],
+  "open_queue": [],
+  "outbox_24h": [
+    [
+      "sent",
+      418
+    ]
+  ],
+  "outbox_pending": [],
+  "sources_retention": [
+    [
+      0,
+      0,
+      0
+    ]
+  ],
+  "barcode_health": [
+    [
+      1,
+      1,
+      1
+    ]
+  ],
+  "barcode_duplicates": [
+    [
+      0
+    ]
+  ],
+  "tompi": [
+    [
+      "Влажные салфетки Tompi с ароматом 100 шт",
+      "verified_photo"
+    ]
+  ],
+  "http_error_types_1h": [
+    [
+      "http",
+      "http_request",
+      86
+    ],
+    [
+      "scraper",
+      "degradation",
+      1
+    ]
+  ],
+  "diag": {
+    "problems": [
+      {
+        "severity": "warning",
+        "code": "error_rate",
+        "problem": "87 ошибок за час, больше всего в «http»",
+        "meaning": "Смотрите errors.last: там последние сообщения с временем и компонентом."
+      }
+    ],
+    "http_sample_statuses": {
+      "unknown": 1,
+      "503": 19
+    },
+    "by_component": {
+      "http": 86,
+      "scraper": 1
+    },
+    "queue": {
+      "size": 0,
+      "failures": 0,
+      "worker_running": true
+    },
+    "db": {
+      "journal_mode": "wal",
+      "size_mb": 1920.4,
+      "wal_mb": 0.2
+    }
+  }
+}

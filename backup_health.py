@@ -38,7 +38,10 @@ VERIFY_TIMEOUT_SECONDS = 120
 # Минимальный контракт пригодной копии (P15 L02): файл SQLite с одним товаром — ещё не рабочая база.
 # Без этих таблиц приложение не поднимется, поэтому такая копия не считается пригодной к восстановлению.
 REQUIRED_TABLES = ("products", "alerts", "users", "watches", "schema_metadata", "sessions",
-                   "notification_outbox")
+                   "notification_outbox",
+                   # Каталог V2 и очередь записи: на них работают поиск, карточка товара и сбор цен
+                   # (B04, аудит 6.31.3 — копия без них проходила проверку как пригодная)
+                   "canonical_products", "offers", "sellers", "channels", "product_queue_spool")
 
 # Обязательные колонки критичных таблиц. Наличия таблицы мало: база с `watches(id)` откроется, но
 # «Мои наблюдения» на ней упадут (P15 L02), поэтому проверяются поля, которыми пользуется приложение.
@@ -49,6 +52,12 @@ REQUIRED_COLUMNS = {
     "alerts": ("id", "product_id", "alert_type", "new_price", "created_at"),
     "sessions": ("token_hash", "user_id", "expires_at"),
     "notification_outbox": ("id", "alert_id", "user_id", "payload", "status"),
+    "canonical_products": ("id", "canonical_key", "title", "category", "attributes_json"),
+    "offers": ("id", "product_id", "seller_id", "channel_id", "url", "price", "city",
+               "availability", "observed_at", "expires_at", "is_active"),
+    "sellers": ("id", "slug", "name", "is_active"),
+    "channels": ("id", "seller_id", "channel_type", "is_active"),
+    "product_queue_spool": ("id", "task_id", "payload", "status", "attempts"),
 }
 REQUIRED_PRODUCT_COLUMNS = REQUIRED_COLUMNS["products"]      # совместимость с прежним именем
 
@@ -63,6 +72,12 @@ SMOKE_QUERIES = (
     ("наблюдения человека", "SELECT id, user_id, kind, target, condition, is_active FROM watches LIMIT 1"),
     ("очередь уведомлений", "SELECT id, alert_id, user_id, payload, status FROM notification_outbox LIMIT 1"),
     ("лента алертов", "SELECT id, product_id, alert_type, new_price, created_at FROM alerts LIMIT 1"),
+    ("поиск V2", "SELECT cp.id, cp.title, o.price, o.city, s.name, c.channel_type FROM offers o "
+                 "JOIN canonical_products cp ON cp.id = o.product_id JOIN sellers s ON s.id = o.seller_id "
+                 "JOIN channels c ON c.id = o.channel_id WHERE o.is_active = 1 AND o.price > 0 LIMIT 1"),
+    ("карточка товара V2", "SELECT cp.id, cp.attributes_json, o.url, o.availability, o.observed_at, o.expires_at "
+                           "FROM canonical_products cp LEFT JOIN offers o ON o.product_id = cp.id LIMIT 1"),
+    ("очередь записи", "SELECT id, task_id, payload, status, attempts FROM product_queue_spool LIMIT 1"),
 )
 
 

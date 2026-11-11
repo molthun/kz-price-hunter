@@ -1,0 +1,169 @@
+{
+  "offers": [
+    [
+      215927,
+      177690,
+      0,
+      16686
+    ]
+  ],
+  "offer_links_missing": [
+    [
+      0
+    ]
+  ],
+  "active_stale_by_channel": [
+    [
+      "forte",
+      2975
+    ],
+    [
+      "halyk",
+      426
+    ],
+    [
+      "kaspi",
+      3167
+    ],
+    [
+      "website",
+      10118
+    ]
+  ],
+  "scan_quality_24h": [
+    [
+      "degraded",
+      222,
+      8,
+      0
+    ],
+    [
+      "failed",
+      630,
+      19,
+      0
+    ],
+    [
+      "ok",
+      3568,
+      35,
+      3568
+    ],
+    [
+      "unknown",
+      475,
+      17,
+      475
+    ],
+    [
+      "warning",
+      200,
+      12,
+      0
+    ]
+  ],
+  "scans_24h": [
+    [
+      40,
+      2249905,
+      0
+    ]
+  ],
+  "sources_without_accepted_24h": [
+    [
+      "fourmobile",
+      21
+    ],
+    [
+      "marwin",
+      20
+    ],
+    [
+      "ozon",
+      4
+    ],
+    [
+      "twelve_months",
+      160
+    ],
+    [
+      "wildberries",
+      4
+    ]
+  ],
+  "queue_24h": [
+    [
+      "processing",
+      1
+    ]
+  ],
+  "open_queue": [
+    [
+      "processing",
+      1
+    ]
+  ],
+  "outbox_24h": [
+    [
+      "sent",
+      9
+    ]
+  ],
+  "outbox_pending": [],
+  "sources_retention": [
+    [
+      0,
+      0,
+      0
+    ]
+  ],
+  "barcode_health": {
+    "error": "OperationalError"
+  },
+  "barcode_duplicates": {
+    "error": "OperationalError"
+  },
+  "tompi": {
+    "error": "OperationalError"
+  },
+  "http_error_types_1h": [
+    [
+      "http",
+      "http_request",
+      82
+    ],
+    [
+      "scraper",
+      "degradation",
+      1
+    ]
+  ],
+  "diag": {
+    "problems": [
+      {
+        "severity": "warning",
+        "code": "error_rate",
+        "problem": "83 ошибок за час, больше всего в «http»",
+        "meaning": "Смотрите errors.last: там последние сообщения с временем и компонентом."
+      }
+    ],
+    "http_sample_statuses": {
+      "503": 17,
+      "unknown": 3
+    },
+    "by_component": {
+      "http": 82,
+      "scraper": 1
+    },
+    "queue": {
+      "size": 1,
+      "failures": 0,
+      "worker_running": true
+    },
+    "db": {
+      "journal_mode": "wal",
+      "size_mb": 2338.1,
+      "wal_mb": 1.9
+    }
+  }
+}

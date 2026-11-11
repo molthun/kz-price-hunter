@@ -7663,6 +7663,7 @@
             // и берёт название, цену и ссылку из каталога по ID товара
             const productId = dealOrProduct ? (dealOrProduct.product_id || '') : '';
             const canonicalId = dealOrProduct ? (dealOrProduct.canonical_product_id || '') : '';
+            const offerId = dealOrProduct ? (dealOrProduct.offer_id || '') : '';
             if (!productId && !canonicalId) return false;
             const city = (typeof AppState !== 'undefined' && AppState.city) ? AppState.city : '';
 
@@ -7673,6 +7674,7 @@
               body: JSON.stringify({
                 product_id: String(productId),
                 canonical_product_id: String(canonicalId),
+                offer_id: String(offerId),
                 city: city,
                 init_data: this.tg.initData || ''
               })
@@ -11692,6 +11694,7 @@
       const url = window.location.href;
       const dealLike = {
         canonical_product_id: prod.id || p.id || '',
+        offer_id: best.id || '',
         title: title,
         current_price: p.best_price || best.price || 0,
         shop: best.seller_name || best.shop || '',
