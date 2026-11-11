@@ -2916,6 +2916,8 @@
       }
 
       .deals-reels-container {
+        display: flex;
+        flex-direction: column;
         width: 100%;
         height: min(760px, calc(100dvh - 135px));
         overflow-y: scroll;
@@ -2934,8 +2936,10 @@
         height: 0 !important;
       }
 
-      /* Unified Card: TikTok Reels Immersive Media + Informative Details */
+      /* Unified Card: Full-Card Immersive Photo Stage with Overlaid Content */
       .deal-reel-card {
+        flex: 0 0 100% !important;
+        width: 100% !important;
         height: 100% !important;
         min-height: 100% !important;
         max-height: 100% !important;
@@ -2944,52 +2948,69 @@
         margin: 0 !important;
         border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        background: #0f172a !important;
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: space-between !important;
-        overflow: hidden;
+        background: #0b1120 !important;
+        position: relative !important;
+        overflow: hidden !important;
         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
         box-sizing: border-box;
-        position: relative;
       }
 
-      /* Hero Media Stage (67% of card height) */
+      /* Hero Media Stage takes 100% OF THE CARD */
       .deal-reel-media {
-        flex: 1 1 67% !important;
-        min-height: 250px;
-        max-height: 69%;
-        margin: 6px 6px 0 6px;
-        border-radius: 16px;
-        background: radial-gradient(circle at center, #ffffff 75%, #f1f5f9 100%);
-        display: flex;
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 100% !important;
+        max-height: 100% !important;
+        margin: 0 !important;
+        border-radius: 20px !important;
+        background: radial-gradient(circle at 50% 36%, #ffffff 50%, #f1f5f9 90%) !important;
+        display: flex !important;
         align-items: center;
         justify-content: center;
-        padding: 8px;
-        position: relative;
+        padding: 0 !important;
         cursor: pointer;
         -webkit-user-select: none;
         user-select: none;
         overflow: hidden;
         box-sizing: border-box;
+        z-index: 1;
+      }
+
+      [data-theme="dark"] .deal-reel-media {
+        background: radial-gradient(circle at 50% 35%, #1e293b 40%, #0b1120 100%) !important;
+      }
+
+      .deal-carousel-slide {
+        padding: 0 !important;
       }
 
       .deal-reel-img {
-        width: 100%;
-        height: 100%;
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
+        max-width: 90% !important;
+        max-height: 65% !important;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain !important;
+        transform: translateY(-26px);
+        filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.22));
+      }
+
+      .deal-reel-badges-top {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: 12;
       }
 
       /* Vertical Action Stack on the right side over the photo */
       .deal-side-actions {
         display: flex !important;
         position: absolute;
-        right: 10px;
-        bottom: 12px;
+        right: 12px;
+        bottom: 172px;
         flex-direction: column;
-        gap: 8px;
+        gap: 9px;
         z-index: 15;
         pointer-events: auto;
       }
@@ -3022,22 +3043,48 @@
         background: rgba(30, 41, 59, 0.95);
       }
 
+      .deal-carousel-dots {
+        bottom: 172px !important;
+        z-index: 12 !important;
+      }
+
       .btn-deal-fav-floating {
         display: none !important;
       }
 
-      /* Informative Body: Shop, Title, Verified Prices & Fast Buy */
+      /* Overlay Content at bottom: Shop, Title, Price, Buy button */
       .deal-reel-content {
-        flex: 0 0 auto;
-        padding: 6px 12px 10px 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        background: rgba(15, 23, 42, 0.96);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-        box-sizing: border-box;
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        z-index: 10 !important;
+        background: linear-gradient(to top, rgba(11, 17, 32, 0.98) 0%, rgba(11, 17, 32, 0.90) 65%, rgba(11, 17, 32, 0.4) 88%, transparent 100%) !important;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        padding: 32px 14px 12px 14px !important;
+        border-top: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+        box-sizing: border-box !important;
+        pointer-events: auto !important;
+      }
+
+      [data-theme="light"] .deal-reel-content {
+        background: linear-gradient(to top, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.90) 65%, rgba(255, 255, 255, 0.4) 88%, transparent 100%) !important;
+      }
+
+      [data-theme="light"] .deal-side-btn {
+        background: rgba(255, 255, 255, 0.88);
+        color: #1e293b;
+        border-color: rgba(0, 0, 0, 0.12);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+      }
+
+      .deal-evidence {
+        display: none !important;
       }
 
       .deal-reel-shop-row {
@@ -11648,10 +11695,12 @@
         const data = await resp.json();
         if (!isCurrent()) return;
 
-        DealsFeedState.items = DealsFeedState.items.concat(data.deals || []);
+        const newDeals = data.deals || [];
+        const startIndex = DealsFeedState.items.length;
+        DealsFeedState.items = DealsFeedState.items.concat(newDeals);
         DealsFeedState.hasMore = !!data.has_more;
-        DealsFeedState.offset += (data.deals || []).length;
-        renderDealsFeed();
+        DealsFeedState.offset += newDeals.length;
+        renderDealsFeed(reset, newDeals, startIndex);
       } catch (err) {
         if (err.name === 'AbortError' || !isCurrent()) return;
         console.error('Ошибка загрузки ленты скидок:', err);
@@ -11715,154 +11764,159 @@
       });
     }
 
-    function renderDealsFeed() {
-      fitDealsFeed();
+    function buildDealCardHtml(deal, idx) {
+      const isFav = Favorites.has(deal.id);
+      const safeUrl = safeHttpUrl(deal.url);
+      const discountBadge = deal.discount_pct > 0 ? `<div class="deal-discount-badge-large">🔥 -${Number(deal.discount_pct)}%</div>` : '';
+      const dealTypeBadge = deal.deal_type === 'MARKET_ARBITRAGE' || deal.deal_type === 'ARBITRAGE'
+        ? `<div class="deal-badge-secondary">⚖️ Арбитраж цен</div>`
+        : (deal.is_super ? `<div class="deal-badge-secondary">⚡ Супер-скидка</div>` : '');
+      
+      const rawImages = (Array.isArray(deal.images) && deal.images.length > 0)
+        ? deal.images.filter(img => typeof img === 'string' && img.trim().length > 0)
+        : (deal.image_url ? [deal.image_url] : []);
+      const images = rawImages.length > 0 ? rawImages : [getSvgPlaceholder()];
+      const hasMultiple = images.length > 1;
+
+      const slidesHtml = images.map((img, imgIdx) => `
+        <div class="deal-carousel-slide">
+          <img
+            src="${escapeHtml(upgradeImageUrl(img) || getSvgPlaceholder())}"
+            alt="${escapeHtml(deal.title)}${hasMultiple ? ` (${imgIdx + 1}/${images.length})` : ''}"
+            class="deal-reel-img"
+            loading="${imgIdx === 0 ? 'eager' : 'lazy'}"
+            onerror="this.onerror=null; this.src=getSvgPlaceholder();"
+          />
+        </div>
+      `).join('');
+
+      const dotsHtml = hasMultiple ? `
+        <div class="deal-carousel-dots">
+          ${images.map((_, dotIdx) => `
+            <span class="deal-carousel-dot ${dotIdx === 0 ? 'active' : ''}"></span>
+          `).join('')}
+        </div>
+      ` : '';
+
+      const oldPriceHtml = deal.old_price > deal.new_price
+        ? `<span class="deal-price-old">${formatPrice(deal.old_price)}</span>`
+        : '';
+      const savingsHtml = deal.savings_kzt > 0
+        ? `<span class="deal-savings-badge">Экономия ${formatPrice(deal.savings_kzt)}</span>`
+        : '';
+
+      return `
+        <div class="deal-reel-card" data-index="${idx}" data-deal-id="${escapeHtml(deal.id)}">
+          <div class="deal-reel-media" ondblclick="onMediaDoubleTap(this)" ontouchend="onMediaTouchEnd(this)" ontouchstart="onMediaTouchStart(event)" ontouchmove="onMediaTouchMove(event)">
+            <div class="deal-carousel-track" ${hasMultiple ? 'onscroll="onDealCarouselScroll(this)"' : ''}>
+              ${slidesHtml}
+            </div>
+            ${dotsHtml}
+            <div class="deal-reel-badges-top">
+              ${discountBadge}
+              ${dealTypeBadge}
+            </div>
+
+            <!-- Боковой вертикальный стек действий -->
+            <div class="deal-side-actions">
+              <button
+                class="deal-side-btn ${isFav ? 'fav-active' : ''}"
+                onclick="dealAction(this, 'favorite')"
+                aria-label="В избранное"
+                title="${isFav ? 'В избранном' : 'Добавить в избранное'}"
+              >
+                ${isFav ? '❤️' : '♡'}
+              </button>
+              <button
+                class="deal-side-btn"
+                onclick="dealAction(this, 'watch')"
+                aria-label="Следить за ценой"
+                title="Уведомить о снижении цены"
+              >
+                🔔
+              </button>
+              <button
+                class="deal-side-btn"
+                onclick="dealAction(this, 'open')"
+                aria-label="Аналоги и предложения"
+                title="${deal.canonical_product_id ? 'Открыть предложения всех магазинов' : 'Найти в каталоге'}"
+              >
+                🔍
+              </button>
+              <button
+                class="deal-side-btn"
+                onclick="dealAction(this, 'share')"
+                aria-label="Поделиться"
+                title="Поделиться скидкой"
+              >
+                ↗
+              </button>
+            </div>
+          </div>
+
+          <div class="deal-reel-content">
+            <div class="deal-reel-shop-row">
+              <span class="deal-reel-shop-name">🏪 ${escapeHtml(deal.shop)}</span>
+              <span>📍 ${escapeHtml(deal.city || 'Казахстан')}</span>
+            </div>
+
+            <h2 class="deal-reel-title" onclick="dealAction(this, 'open')">
+              ${escapeHtml(deal.title)}
+            </h2>
+
+            <div class="deal-reel-price-row">
+              <span class="deal-price-current">${formatPrice(deal.new_price)}</span>
+              ${oldPriceHtml}
+              ${savingsHtml}
+            </div>
+
+            <div class="deal-provenance-text">
+              <span>${deal.price_basis === 'observed' ? '✓ ' : ''}${escapeHtml(deal.provenance || 'Основание скидки не подтверждено')}</span>
+              ${deal.competitor_shop ? `<span>(дешевле чем в ${escapeHtml(deal.competitor_shop)})</span>` : ''}
+            </div>
+
+            <!-- Широкая акцентная кнопка покупки -->
+            <div class="deal-actions-row">
+              ${safeUrl ? `
+                <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy-full" title="${deal.shop ? 'Купить в ' + escapeHtml(deal.shop) : 'Купить'}">
+                  <span>Купить в ${escapeHtml(deal.shop || 'магазине')} за ${formatPrice(deal.new_price)}</span>
+                  <span style="font-size: 0.85rem;">↗</span>
+                </a>
+              ` : `
+                <button class="btn-deal-buy-full" disabled style="opacity: 0.5;">Купить</button>
+              `}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDealsFeed(reset = true, newItems = null, startIndex = 0) {
       const container = document.getElementById('dealsReelsContainer');
       if (!container) return;
 
-      if (!DealsFeedState.items.length) {
-        container.innerHTML = `
-          <div class="state-box" style="margin: 40px auto; max-width: 400px;">
-            <div class="state-icon">🏷️</div>
-            <div class="state-title">Скидок пока нет</div>
-            <div class="state-desc">Попробуйте выбрать другой город или сбросить фильтры</div>
-            <button class="btn-primary" onclick="resetDealsFilters()">Сбросить фильтры</button>
-          </div>`;
-        return;
+      if (reset) {
+        fitDealsFeed();
+        if (!DealsFeedState.items.length) {
+          container.innerHTML = `
+            <div class="state-box" style="margin: 40px auto; max-width: 400px;">
+              <div class="state-icon">🏷️</div>
+              <div class="state-title">Скидок пока нет</div>
+              <div class="state-desc">Попробуйте выбрать другой город или сбросить фильтры</div>
+              <button class="btn-primary" onclick="resetDealsFilters()">Сбросить фильтры</button>
+            </div>`;
+          return;
+        }
+        container.innerHTML = DealsFeedState.items.map((deal, idx) => buildDealCardHtml(deal, idx)).join('');
+      } else if (newItems && newItems.length) {
+        const newHtml = newItems.map((deal, i) => buildDealCardHtml(deal, startIndex + i)).join('');
+        container.insertAdjacentHTML('beforeend', newHtml);
       }
 
-      container.innerHTML = DealsFeedState.items.map((deal, idx) => {
-        const isFav = Favorites.has(deal.id);
-        const safeUrl = safeHttpUrl(deal.url);
-        const discountBadge = deal.discount_pct > 0 ? `<div class="deal-discount-badge-large">🔥 -${Number(deal.discount_pct)}%</div>` : '';
-        const dealTypeBadge = deal.deal_type === 'MARKET_ARBITRAGE' || deal.deal_type === 'ARBITRAGE'
-          ? `<div class="deal-badge-secondary">⚖️ Арбитраж цен</div>`
-          : (deal.is_super ? `<div class="deal-badge-secondary">⚡ Супер-скидка</div>` : '');
-        
-        const rawImages = (Array.isArray(deal.images) && deal.images.length > 0)
-          ? deal.images.filter(img => typeof img === 'string' && img.trim().length > 0)
-          : (deal.image_url ? [deal.image_url] : []);
-        const images = rawImages.length > 0 ? rawImages : [getSvgPlaceholder()];
-        const hasMultiple = images.length > 1;
-
-        const slidesHtml = images.map((img, imgIdx) => `
-          <div class="deal-carousel-slide">
-            <img
-              src="${escapeHtml(upgradeImageUrl(img) || getSvgPlaceholder())}"
-              alt="${escapeHtml(deal.title)}${hasMultiple ? ` (${imgIdx + 1}/${images.length})` : ''}"
-              class="deal-reel-img"
-              loading="${imgIdx === 0 ? 'eager' : 'lazy'}"
-              onerror="this.onerror=null; this.src=getSvgPlaceholder();"
-            />
-          </div>
-        `).join('');
-
-        const dotsHtml = hasMultiple ? `
-          <div class="deal-carousel-dots">
-            ${images.map((_, dotIdx) => `
-              <span class="deal-carousel-dot ${dotIdx === 0 ? 'active' : ''}"></span>
-            `).join('')}
-          </div>
-        ` : '';
-
-        const oldPriceHtml = deal.old_price > deal.new_price
-          ? `<span class="deal-price-old">${formatPrice(deal.old_price)}</span>`
-          : '';
-        const savingsHtml = deal.savings_kzt > 0
-          ? `<span class="deal-savings-badge">Экономия ${formatPrice(deal.savings_kzt)}</span>`
-          : '';
-
-        return `
-          <div class="deal-reel-card" data-index="${idx}" data-deal-id="${escapeHtml(deal.id)}">
-            <div class="deal-reel-media" ondblclick="onMediaDoubleTap(this)" ontouchend="onMediaTouchEnd(this)" ontouchstart="onMediaTouchStart(event)" ontouchmove="onMediaTouchMove(event)">
-              <div class="deal-carousel-track" ${hasMultiple ? 'onscroll="onDealCarouselScroll(this)"' : ''}>
-                ${slidesHtml}
-              </div>
-              ${dotsHtml}
-              <div class="deal-reel-badges-top">
-                ${discountBadge}
-                ${dealTypeBadge}
-              </div>
-
-              <!-- Боковой вертикальный стек действий (из Варианта 2) -->
-              <div class="deal-side-actions">
-                <button
-                  class="deal-side-btn ${isFav ? 'fav-active' : ''}"
-                  onclick="dealAction(this, 'favorite')"
-                  aria-label="В избранное"
-                  title="${isFav ? 'В избранном' : 'Добавить в избранное'}"
-                >
-                  ${isFav ? '❤️' : '♡'}
-                </button>
-                <button
-                  class="deal-side-btn"
-                  onclick="dealAction(this, 'watch')"
-                  aria-label="Следить за ценой"
-                  title="Уведомить о снижении цены"
-                >
-                  🔔
-                </button>
-                <button
-                  class="deal-side-btn"
-                  onclick="dealAction(this, 'open')"
-                  aria-label="Аналоги и предложения"
-                  title="${deal.canonical_product_id ? 'Открыть предложения всех магазинов' : 'Найти в каталоге'}"
-                >
-                  🔍
-                </button>
-                <button
-                  class="deal-side-btn"
-                  onclick="dealAction(this, 'share')"
-                  aria-label="Поделиться"
-                  title="Поделиться скидкой"
-                >
-                  ↗
-                </button>
-              </div>
-            </div>
-
-            <div class="deal-reel-content">
-              <div class="deal-reel-shop-row">
-                <span class="deal-reel-shop-name">🏪 ${escapeHtml(deal.shop)}</span>
-                <span>📍 ${escapeHtml(deal.city || 'Казахстан')}</span>
-              </div>
-
-              <h2 class="deal-reel-title" onclick="dealAction(this, 'open')">
-                ${escapeHtml(deal.title)}
-              </h2>
-
-              <p class="deal-evidence" data-evidence-id="${escapeHtml(deal.canonical_product_id||'')}">Загружаем сведения о товаре…</p>
-              
-              <div class="deal-reel-price-row">
-                <span class="deal-price-current">${formatPrice(deal.new_price)}</span>
-                ${oldPriceHtml}
-                ${savingsHtml}
-              </div>
-
-              <div class="deal-provenance-text">
-                <span>${deal.price_basis === 'observed' ? '✓ ' : ''}${escapeHtml(deal.provenance || 'Основание скидки не подтверждено')}</span>
-                ${deal.competitor_shop ? `<span>(дешевле чем в ${escapeHtml(deal.competitor_shop)})</span>` : ''}
-              </div>
-
-              <!-- Широкая акцентная кнопка покупки (развитие Варианта 2) -->
-              <div class="deal-actions-row">
-                ${safeUrl ? `
-                  <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy-full" title="${deal.shop ? 'Купить в ' + escapeHtml(deal.shop) : 'Купить'}">
-                    <span>Купить в ${escapeHtml(deal.shop || 'магазине')} за ${formatPrice(deal.new_price)}</span>
-                    <span style="font-size: 0.85rem;">↗</span>
-                  </a>
-                ` : `
-                  <button class="btn-deal-buy-full" disabled style="opacity: 0.5;">Купить</button>
-                `}
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
       observeDealEvidence();
       updateDealsControls();
       setupDealsSentinelObserver();
-      checkAndFillDealsViewport();
+      if (reset) checkAndFillDealsViewport();
     }
     let dealEvidenceObserver;
     function observeDealEvidence(){
@@ -12145,16 +12199,27 @@
     // Лента занимает ровно место между фильтрами и нижним меню, иначе кнопку покупки закрывает меню
     function fitDealsFeed() {
       const box = document.getElementById('dealsReelsContainer');
-      if (!box || !document.getElementById('viewDeals').classList.contains('active')) return;
+      const vDeals = document.getElementById('viewDeals');
+      if (!box || !vDeals || !vDeals.classList.contains('active')) return;
       if (isDealsShowcase()) {
         box.style.height = '';
         return;
       }
+      if (window.scrollY > 0) {
+        window.scrollTo(0, 0);
+      }
       const nav = document.querySelector('.mobile-bottom-nav');
-      const navTop = nav ? nav.getBoundingClientRect().top : window.innerHeight;
-      const boxRect = box.getBoundingClientRect();
-      const free = navTop - boxRect.top - 8;
-      box.style.height = Math.max(340, Math.round(free)) + 'px';
+      const navHeight = (nav && nav.offsetHeight > 0) ? nav.offsetHeight : 60;
+      const filterBar = document.getElementById('dealsFilterBar');
+      const isCollapsed = filterBar && filterBar.classList.contains('collapsed');
+      const filterHeight = (filterBar && !isCollapsed) ? Math.min(85, filterBar.offsetHeight || 80) : 0;
+      const header = document.querySelector('.site-header');
+      const headerHeight = header ? (header.offsetHeight || 52) : 52;
+
+      const vh = window.innerHeight;
+      const free = vh - headerHeight - filterHeight - navHeight - 10;
+      const finalHeight = Math.max(360, Math.min(vh - navHeight - 8, Math.round(free)));
+      box.style.height = finalHeight + 'px';
     }
     window.addEventListener('resize', fitDealsFeed);
     window.addEventListener('orientationchange', () => setTimeout(fitDealsFeed, 100));
