@@ -2828,24 +2828,19 @@
         max-width: 100%;
       }
 
-      /* Ultra-compact single-row filter bar (saves ~75px vertical space for product photo) */
+      /* Clean 2-Row Collapsible Filter Bar */
       .deals-filter-bar {
         background: transparent;
         border: none;
         box-shadow: none;
-        padding: 0 0 4px 0;
+        padding: 0 0 6px 0;
         margin: 0;
         width: 100%;
         display: flex;
-        flex-direction: row;
-        align-items: center;
+        flex-direction: column;
+        align-items: stretch;
         gap: 6px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-        white-space: nowrap;
-        max-height: 48px;
+        max-height: 85px;
         opacity: 1;
         transform: translateY(0);
         transition: max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1),
@@ -2868,25 +2863,46 @@
         overflow: hidden !important;
       }
 
+      .deals-selectors-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .deals-selectors-group .deals-select {
+        flex: 1 1 0;
+        min-width: 0;
+        height: 32px;
+        padding: 4px 10px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: var(--radius-full);
+      }
+
+      .deals-type-pills {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        overflow-x: auto;
+        width: 100%;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+        padding: 1px 0;
+      }
+
+      .deals-type-pills::-webkit-scrollbar,
       .deals-filter-bar::-webkit-scrollbar {
         display: none !important;
         width: 0 !important;
         height: 0 !important;
       }
 
-      .deals-select {
-        flex: 0 0 auto;
-        min-width: 0;
-        height: 30px;
-        padding: 3px 8px;
-        font-size: 0.76rem;
-        font-weight: 600;
-        border-radius: var(--radius-full);
-      }
-
       .deal-type-pill {
         padding: 5px 12px;
-        font-size: 0.76rem;
+        font-size: 0.78rem;
         flex-shrink: 0;
         height: 30px;
         box-sizing: border-box;
@@ -2909,6 +2925,7 @@
         border-radius: 20px;
         scrollbar-width: none;
         -ms-overflow-style: none;
+        transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       .deals-reels-container::-webkit-scrollbar {
@@ -5809,25 +5826,27 @@
     <section id="viewDeals" class="view-section">
       <div class="deals-page-layout">
         <div class="deals-filter-bar" id="dealsFilterBar">
-          <select id="dealsCategorySelect" class="deals-select deals-filter-chip" onchange="onDealsCategoryChanged(this.value)" aria-label="Категория скидок" style="flex: 0 0 auto; max-width: 140px;">
-            <option value="Все">🏷️ Все категории</option>
-            <option value="Смартфоны">📱 Смартфоны</option>
-            <option value="Ноутбуки">💻 Ноутбуки</option>
-            <option value="Комплектующие для ПК">🖥️ Комплектующие</option>
-            <option value="Видеокарты">🎮 Видеокарты</option>
-            <option value="Наушники">🎧 Наушники</option>
-            <option value="Телевизоры">📺 Телевизоры</option>
-            <option value="Бытовая техника">🍳 Бытовая техника</option>
-            <option value="Детские товары">👶 Детские товары</option>
-            <option value="Автотовары">🛞 Автотовары</option>
-          </select>
-          <select id="dealsSortSelect" class="deals-select deals-filter-chip" onchange="onDealsSortChanged(this.value)" aria-label="Сортировка скидок" style="flex: 0 0 auto; max-width: 130px;">
-            <option value="random">🎲 Случайно</option>
-            <option value="discount_desc">📉 По скидке %</option>
-            <option value="savings_desc">💰 По выгоде ₸</option>
-            <option value="price_asc">🏷️ Сначала дешевле</option>
-          </select>
-          <div class="deals-type-pills" id="dealsTypePills" style="display: contents;">
+          <div class="deals-selectors-group" id="dealsSelectorsGroup">
+            <select id="dealsCategorySelect" class="deals-select deals-filter-chip" onchange="onDealsCategoryChanged(this.value)" aria-label="Категория скидок">
+              <option value="Все">🏷️ Все категории</option>
+              <option value="Смартфоны">📱 Смартфоны</option>
+              <option value="Ноутбуки">💻 Ноутбуки</option>
+              <option value="Комплектующие для ПК">🖥️ Комплектующие</option>
+              <option value="Видеокарты">🎮 Видеокарты</option>
+              <option value="Наушники">🎧 Наушники</option>
+              <option value="Телевизоры">📺 Телевизоры</option>
+              <option value="Бытовая техника">🍳 Бытовая техника</option>
+              <option value="Детские товары">👶 Детские товары</option>
+              <option value="Автотовары">🛞 Автотовары</option>
+            </select>
+            <select id="dealsSortSelect" class="deals-select deals-filter-chip" onchange="onDealsSortChanged(this.value)" aria-label="Сортировка скидок">
+              <option value="random">🎲 Случайно</option>
+              <option value="discount_desc">📉 По скидке %</option>
+              <option value="savings_desc">💰 По выгоде ₸</option>
+              <option value="price_asc">🏷️ Сначала дешевле</option>
+            </select>
+          </div>
+          <div class="deals-type-pills" id="dealsTypePills">
             <button class="deal-type-pill active" data-type="all" data-min-discount="0" onclick="setDealsType(this, 'all', 0)">🔥 Все</button>
             <button class="deal-type-pill" data-type="all" data-min-discount="20" onclick="setDealsType(this, 'all', 20)">⚡ 20%+</button>
             <button class="deal-type-pill" data-type="super" data-min-discount="30" onclick="setDealsType(this, 'super', 30)">⚡ 30%+</button>
