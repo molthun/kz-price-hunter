@@ -2836,8 +2836,14 @@
     @media (max-width: 599px) and (min-height: 501px) {
       .deals-page-layout {
         padding: 0 8px;
-        gap: 2px;
+        gap: 0;
         max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 116px);
+        height: calc(100dvh - 116px);
+        max-height: 840px;
+        box-sizing: border-box;
       }
 
       /* Clean 2-Row Collapsible Filter Bar */
@@ -2855,11 +2861,11 @@
         max-height: 85px;
         opacity: 1;
         transform: translateY(0);
-        transition: max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-                    opacity 0.2s ease,
-                    transform 0.25s ease,
-                    padding 0.25s ease,
-                    margin 0.25s ease;
+        transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                    opacity 0.22s ease,
+                    transform 0.28s ease,
+                    padding 0.28s ease,
+                    margin 0.28s ease;
       }
 
       .deals-filter-bar.collapsed {
@@ -2925,12 +2931,17 @@
         max-width: 440px;
         display: flex;
         justify-content: center;
+        flex: 1 1 0;
+        min-height: 0;
+        height: 100%;
       }
 
       .deals-reels-container {
         display: block !important;
         width: 100%;
-        height: min(760px, calc(100dvh - 135px));
+        height: 100% !important;
+        flex: 1 1 0;
+        min-height: 0;
         overflow-y: scroll;
         scroll-snap-type: y mandatory;
         -webkit-overflow-scrolling: touch;
@@ -11666,6 +11677,8 @@
       populateDealsCategories();
 
       if (reset) {
+        setDealsFilterCollapsed(false);
+        lastDealsScrollTop = 0;
         // Каждое открытие — новый порядок; внутри одного просмотра он не меняется
         DealsFeedState.seed = Math.floor(Math.random() * 2147483647);
         DealsFeedState.offset = 0;
@@ -12206,26 +12219,12 @@
       setTimeout(() => heart.remove(), 700);
     }
 
-    // Лента занимает ровно место между фильтрами и нижним меню, иначе кнопку покупки закрывает меню
+    // Высота ленты на мобильных управляется CSS flexbox (100dvh) без принудительной мутации в JS
     function fitDealsFeed() {
       const box = document.getElementById('dealsReelsContainer');
       const vDeals = document.getElementById('viewDeals');
       if (!box || !vDeals || !vDeals.classList.contains('active')) return;
-      if (isDealsShowcase()) {
-        box.style.height = '';
-        return;
-      }
-      const nav = document.querySelector('.mobile-bottom-nav');
-      const navHeight = (nav && nav.offsetHeight > 0) ? nav.offsetHeight : 60;
-      const filterBar = document.getElementById('dealsFilterBar');
-      const filterHeight = filterBar ? Math.min(85, filterBar.offsetHeight || 75) : 75;
-      const header = document.querySelector('.site-header');
-      const headerHeight = header ? (header.offsetHeight || 52) : 52;
-
-      const vh = window.innerHeight;
-      const free = vh - headerHeight - filterHeight - navHeight - 10;
-      const finalHeight = Math.max(360, Math.min(vh - navHeight - 8, Math.round(free)));
-      box.style.height = finalHeight + 'px';
+      box.style.height = '';
     }
     window.addEventListener('resize', fitDealsFeed);
     window.addEventListener('orientationchange', () => setTimeout(fitDealsFeed, 100));
@@ -12258,6 +12257,8 @@
     }
 
     let dealsFilterCollapsed = false;
+    let lastDealsScrollTop = 0;
+
     function setDealsFilterCollapsed(collapsed) {
       if (dealsFilterCollapsed === collapsed) return;
       const filterBar = document.getElementById('dealsFilterBar');
@@ -12267,6 +12268,20 @@
     }
 
     function onDealsReelScroll(container) {
+      const st = container.scrollTop;
+      if (!isDealsShowcase()) {
+        if (st > 40 && !dealsFilterCollapsed) {
+          setDealsFilterCollapsed(true);
+        } else if (st <= 20 && dealsFilterCollapsed) {
+          setDealsFilterCollapsed(false);
+        } else if (lastDealsScrollTop - st > 160 && dealsFilterCollapsed) {
+          setDealsFilterCollapsed(false);
+        } else if (st - lastDealsScrollTop > 40 && !dealsFilterCollapsed && st > 40) {
+          setDealsFilterCollapsed(true);
+        }
+      }
+      lastDealsScrollTop = Math.max(0, st);
+
       if (container.scrollTop + container.clientHeight >= container.scrollHeight - 350) {
         if (DealsFeedState.hasMore && !DealsFeedState.loading) {
           loadDealsFeed(false);
