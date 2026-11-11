@@ -1797,9 +1797,41 @@ async def deals_v2_handler(request):
         "observed": "Снижение по нашим наблюдениям",
         "store_claim": "Скидка по данным магазина",
     }
+    raw_deals_list = raw_data.get("deals", [])
+    canonical_keys = list({d.get("canonical_key") for d in raw_deals_list if d.get("canonical_key")})
+    extra_images_by_key = {}
+    if canonical_keys:
+        def _fetch_extra_images():
+            from database import get_connection
+            with get_connection() as conn:
+                placeholders = ",".join("?" for _ in canonical_keys)
+                rows = conn.execute(f"""
+                    SELECT canonical_key, image_url
+                    FROM products
+                    WHERE canonical_key IN ({placeholders})
+                      AND image_url IS NOT NULL
+                      AND length(image_url) > 10
+                    GROUP BY canonical_key, image_url
+                """, canonical_keys).fetchall()
+                res = {}
+                for r in rows:
+                    res.setdefault(r["canonical_key"], []).append(r["image_url"])
+                return res
+        try:
+            extra_images_by_key = await asyncio.to_thread(_fetch_extra_images)
+        except Exception:
+            extra_images_by_key = {}
+
     deals = []
-    for d in raw_data.get("deals", []):
+    for d in raw_deals_list:
         alert_type = d.get("alert_type")
+        main_img = d.get("image_url") or ""
+        ckey = d.get("canonical_key")
+        extra_imgs = extra_images_by_key.get(ckey, []) if ckey else []
+        all_imgs = [main_img] if main_img else []
+        for img in extra_imgs:
+            if img and img not in all_imgs and len(all_imgs) < 6:
+                all_imgs.append(img)
 
         deals.append({
             "id": d.get("id"),
@@ -1810,7 +1842,8 @@ async def deals_v2_handler(request):
             "shop": d.get("shop", ""),
             "city": d.get("city") or "Все города",
             "url": d.get("url", ""),
-            "image_url": d.get("image_url", ""),
+            "image_url": main_img,
+            "images": all_imgs,
             "new_price": d.get("new_price", 0),
             "old_price": d.get("old_price", 0),
             "discount_pct": d.get("discount_pct", 0),

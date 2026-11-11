@@ -2377,6 +2377,79 @@
       transform: scale(1.04);
     }
 
+    /* Multi-Photo Carousel in Deal Card (Swipe Left / Right) */
+    .deal-carousel-track {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      touch-action: pan-x pan-y;
+      z-index: 2;
+    }
+
+    .deal-carousel-track::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+
+    .deal-carousel-slide {
+      flex: 0 0 100%;
+      width: 100%;
+      min-width: 100%;
+      max-width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      scroll-snap-align: center;
+      scroll-snap-stop: always;
+      padding: 6px;
+      box-sizing: border-box;
+      position: relative;
+    }
+
+    .deal-carousel-dots {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      z-index: 12;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      padding: 3px 8px;
+      border-radius: 9999px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    }
+
+    .deal-carousel-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.45);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .deal-carousel-dot.active {
+      width: 16px;
+      border-radius: 4px;
+      background: #ffffff;
+      box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+    }
+
     /* Heart Burst Animation (Social Media double-tap like) */
     @keyframes heartBurstAnim {
       0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
@@ -2772,6 +2845,27 @@
         scrollbar-width: none;
         -ms-overflow-style: none;
         white-space: nowrap;
+        max-height: 48px;
+        opacity: 1;
+        transform: translateY(0);
+        transition: max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    opacity 0.2s ease,
+                    transform 0.25s ease,
+                    padding 0.25s ease,
+                    margin 0.25s ease;
+      }
+
+      .deals-filter-bar.collapsed {
+        max-height: 0 !important;
+        opacity: 0 !important;
+        transform: translateY(-100%) !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        border-width: 0 !important;
+        pointer-events: none !important;
+        overflow: hidden !important;
       }
 
       .deals-filter-bar::-webkit-scrollbar {
@@ -2879,7 +2973,7 @@
         bottom: 12px;
         flex-direction: column;
         gap: 8px;
-        z-index: 10;
+        z-index: 15;
         pointer-events: auto;
       }
 
@@ -11495,6 +11589,8 @@
       populateDealsCategories();
 
       if (reset) {
+        setDealsFilterCollapsed(false);
+        lastDealsScrollTop = 0;
         // Каждое открытие — новый порядок; внутри одного просмотра он не меняется
         DealsFeedState.seed = Math.floor(Math.random() * 2147483647);
         DealsFeedState.offset = 0;
@@ -11624,7 +11720,31 @@
           ? `<div class="deal-badge-secondary">⚖️ Арбитраж цен</div>`
           : (deal.is_super ? `<div class="deal-badge-secondary">⚡ Супер-скидка</div>` : '');
         
-        const imgSrc = escapeHtml(upgradeImageUrl(deal.image_url) || getSvgPlaceholder());
+        const rawImages = (Array.isArray(deal.images) && deal.images.length > 0)
+          ? deal.images.filter(img => typeof img === 'string' && img.trim().length > 0)
+          : (deal.image_url ? [deal.image_url] : []);
+        const images = rawImages.length > 0 ? rawImages : [getSvgPlaceholder()];
+        const hasMultiple = images.length > 1;
+
+        const slidesHtml = images.map((img, imgIdx) => `
+          <div class="deal-carousel-slide">
+            <img
+              src="${escapeHtml(upgradeImageUrl(img) || getSvgPlaceholder())}"
+              alt="${escapeHtml(deal.title)}${hasMultiple ? ` (${imgIdx + 1}/${images.length})` : ''}"
+              class="deal-reel-img"
+              loading="${imgIdx === 0 ? 'eager' : 'lazy'}"
+              onerror="this.onerror=null; this.src=getSvgPlaceholder();"
+            />
+          </div>
+        `).join('');
+
+        const dotsHtml = hasMultiple ? `
+          <div class="deal-carousel-dots">
+            ${images.map((_, dotIdx) => `
+              <span class="deal-carousel-dot ${dotIdx === 0 ? 'active' : ''}"></span>
+            `).join('')}
+          </div>
+        ` : '';
 
         const oldPriceHtml = deal.old_price > deal.new_price
           ? `<span class="deal-price-old">${formatPrice(deal.old_price)}</span>`
@@ -11635,14 +11755,11 @@
 
         return `
           <div class="deal-reel-card" data-index="${idx}" data-deal-id="${escapeHtml(deal.id)}">
-            <div class="deal-reel-media" ondblclick="onMediaDoubleTap(this)" ontouchend="onMediaTouchEnd(this)">
-              <img
-                src="${imgSrc}"
-                alt="${escapeHtml(deal.title)}"
-                class="deal-reel-img"
-                loading="lazy"
-                onerror="this.onerror=null; this.src=getSvgPlaceholder();"
-              />
+            <div class="deal-reel-media" ondblclick="onMediaDoubleTap(this)" ontouchend="onMediaTouchEnd(this)" ontouchstart="onMediaTouchStart(event)" ontouchmove="onMediaTouchMove(event)">
+              <div class="deal-carousel-track" ${hasMultiple ? 'onscroll="onDealCarouselScroll(this)"' : ''}>
+                ${slidesHtml}
+              </div>
+              ${dotsHtml}
               <div class="deal-reel-badges-top">
                 ${discountBadge}
                 ${dealTypeBadge}
@@ -11928,8 +12045,34 @@
       return window.matchMedia('(min-width: 600px), (max-height: 500px)').matches;
     }
 
+    let mediaTouchStartX = 0;
+    let mediaTouchStartY = 0;
+    let mediaTouchMoved = false;
+
+    function onMediaTouchStart(e) {
+      if (e.touches && e.touches[0]) {
+        mediaTouchStartX = e.touches[0].clientX;
+        mediaTouchStartY = e.touches[0].clientY;
+        mediaTouchMoved = false;
+      }
+    }
+
+    function onMediaTouchMove(e) {
+      if (e.touches && e.touches[0]) {
+        const dx = Math.abs(e.touches[0].clientX - mediaTouchStartX);
+        const dy = Math.abs(e.touches[0].clientY - mediaTouchStartY);
+        if (dx > 10 || dy > 10) {
+          mediaTouchMoved = true;
+        }
+      }
+    }
+
     let lastMediaTapTime = 0;
     function onMediaTouchEnd(mediaEl) {
+      if (mediaTouchMoved) {
+        lastMediaTapTime = 0;
+        return;
+      }
       const now = Date.now();
       if (now - lastMediaTapTime < 320 && now - lastMediaTapTime > 0) {
         onMediaDoubleTap(mediaEl);
@@ -11944,8 +12087,13 @@
       if (!card) return;
       const deal = DealsFeedState.items[Number(card.dataset.index)];
       if (!deal) return;
-      const favBtn = card.querySelector('.btn-deal-fav-floating');
       const added = Favorites.toggle(deal);
+      const sideFavBtn = card.querySelector('.deal-side-btn[aria-label="В избранное"]');
+      if (sideFavBtn) {
+        sideFavBtn.classList.toggle('fav-active', added);
+        sideFavBtn.innerHTML = added ? '❤️' : '♡';
+      }
+      const favBtn = card.querySelector('.btn-deal-fav-floating');
       if (favBtn) {
         favBtn.classList.toggle('fav-active', added);
         favBtn.innerHTML = added ? '❤️' : '♡';
@@ -11953,6 +12101,18 @@
       if (added) {
         showHeartBurst(mediaEl);
       }
+    }
+
+    function onDealCarouselScroll(track) {
+      const card = track.closest('.deal-reel-card');
+      if (!card) return;
+      const dots = card.querySelectorAll('.deal-carousel-dot');
+      if (!dots.length) return;
+      const slideWidth = track.clientWidth || 1;
+      const currentIdx = Math.round(track.scrollLeft / slideWidth);
+      dots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === currentIdx);
+      });
     }
 
     function showHeartBurst(container) {
@@ -12007,7 +12167,32 @@
       container.scrollBy({ top: dir * cardHeight, behavior: 'smooth' });
     }
 
+    let lastDealsScrollTop = 0;
+    let dealsFilterCollapsed = false;
+
+    function setDealsFilterCollapsed(collapsed) {
+      if (dealsFilterCollapsed === collapsed) return;
+      const filterBar = document.getElementById('dealsFilterBar');
+      if (!filterBar) return;
+      dealsFilterCollapsed = collapsed;
+      filterBar.classList.toggle('collapsed', collapsed);
+      requestAnimationFrame(() => {
+        fitDealsFeed();
+        setTimeout(fitDealsFeed, 260);
+      });
+    }
+
     function onDealsReelScroll(container) {
+      const st = container.scrollTop;
+      if (!isDealsShowcase()) {
+        if (st > 40 && st > lastDealsScrollTop + 8 && !dealsFilterCollapsed) {
+          setDealsFilterCollapsed(true);
+        } else if ((st < lastDealsScrollTop - 12 || st <= 15) && dealsFilterCollapsed) {
+          setDealsFilterCollapsed(false);
+        }
+      }
+      lastDealsScrollTop = Math.max(0, st);
+
       if (container.scrollTop + container.clientHeight >= container.scrollHeight - 300) {
         if (DealsFeedState.hasMore && !DealsFeedState.loading) {
           loadDealsFeed(false);

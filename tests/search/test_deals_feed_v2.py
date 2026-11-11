@@ -196,6 +196,19 @@ class TestDealsFeedAndFavorites(AioHTTPTestCase):
         self.assertEqual(data["deals"][0]["price_basis"], "unconfirmed")
         self.assertFalse(data["has_more"])
 
+    @unittest_run_loop
+    async def test_deals_v2_returns_images_array(self):
+        """API /api/v2/deals includes images list for multi-photo carousel."""
+        raw = {"deals": [{"id": "p_101", "product_id": 101, "canonical_key": "canon_101", "shop": "Sulpak",
+                          "title": "TV", "image_url": "https://img.sulpak.kz/p1.jpg", "old_price": 550000,
+                          "new_price": 385000, "discount_pct": 30, "savings_kzt": 165000,
+                          "alert_type": "SUPER_DISCOUNT"}],
+               "total": 1, "shops_summary": [], "type_totals": {}}
+        with unittest.mock.patch("database.get_store_deals", return_value=raw):
+            data = await (await self.client.get("/api/v2/deals")).json()
+        self.assertIn("images", data["deals"][0])
+        self.assertEqual(data["deals"][0]["images"], ["https://img.sulpak.kz/p1.jpg"])
+
 
 class TestSearchFirstTemplateIntegrity(unittest.TestCase):
     def setUp(self):
@@ -249,6 +262,15 @@ class TestSearchFirstTemplateIntegrity(unittest.TestCase):
         self.assertNotIn('BotFather', self.html)
         self.assertNotIn('Официальный бот авторизации', self.html)
         self.assertNotIn('id="closedDevTgHelp"', self.html)
+
+    def test_reels_carousel_and_collapsible_filter_bar(self):
+        """Template contains multi-photo carousel track and collapsible filter bar styles/scripts."""
+        self.assertIn('.deal-carousel-track', self.html)
+        self.assertIn('.deal-carousel-slide', self.html)
+        self.assertIn('.deal-carousel-dots', self.html)
+        self.assertIn('.deals-filter-bar.collapsed', self.html)
+        self.assertIn('onDealCarouselScroll', self.html)
+        self.assertIn('setDealsFilterCollapsed', self.html)
 
         # Dashboard buttons exist with display: none for non-admins
         self.assertIn('id="headerBtnDashboard"', self.html)
