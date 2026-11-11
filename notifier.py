@@ -270,6 +270,7 @@ def save_prepared_inline_message(
     city: str = "Астана",
     image_url: str = "",
     compare_path: str = "",
+    start_param: str = "",
 ) -> Optional[str]:
     """TG-12: подготавливает inline-сообщение (Bot API 8.0) для шеринга из Mini App через WebApp.shareMessage.
     Возвращает prepared_message_id или None при сбое.
@@ -299,8 +300,10 @@ def save_prepared_inline_message(
         # Карточка уходит в чужие чаты и группы: web_app-кнопки там запрещены
         # (Telegram отвечает BUTTON_TYPE_INVALID), поэтому только обычная ссылка
         # «Сравнить цены» ведёт на страницу этого товара или предложения, а не на главную
+        # Внутри Telegram — главная Mini App бота с автоматическим входом; иначе страница сайта
+        from auth import mini_app_start_link
         safe_path = compare_path.startswith("/") and not compare_path.startswith("//")
-        target = APP_URL.rstrip("/") + compare_path if safe_path else APP_URL
+        target = mini_app_start_link(start_param) or (APP_URL.rstrip("/") + compare_path if safe_path else APP_URL)
         keyboard.append([url_button("📊 Сравнить цены", target)])
 
     article: Dict[str, Any] = {

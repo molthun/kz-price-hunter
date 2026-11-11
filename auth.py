@@ -5,6 +5,7 @@ import hmac
 import time
 import hashlib
 import ipaddress
+import re
 from collections import defaultdict, deque
 from functools import wraps
 from pathlib import Path
@@ -365,7 +366,7 @@ class RateLimiter:
         calls.append(now)
         return 0.0
 
-_bot_username_cache: Dict[str, Any] = {"token": None, "username": None}
+_bot_username_cache: Dict[str, Any] = {"token": None, "username": None, "main_web_app": False}
 
 def get_bot_username() -> Optional[str]:
     """Имя бота для виджета входа (getMe), кэшируется до смены токена."""
@@ -378,10 +379,27 @@ def get_bot_username() -> Optional[str]:
     try:
         res = telegram_api("getMe", {})
         if res.status_code == 200:
-            username = res.json().get("result", {}).get("username")
-            _bot_username_cache.update(token=token, username=username)
+            result = res.json().get("result", {})
+            username = result.get("username")
+            _bot_username_cache.update(token=token, username=username,
+                                       main_web_app=bool(result.get("has_main_web_app")))
             return username
         print(f"[Auth] getMe вернул {res.status_code}")
     except Exception as e:
         print(f"[Auth] Не удалось получить имя бота: {type(e).__name__}")
     return None
+
+
+def mini_app_start_link(start_param: str) -> Optional[str]:
+    """Ссылка t.me/<бот>?startapp=… — открывает главную Mini App бота внутри Telegram.
+
+    Там пользователь входит автоматически по initData, а обычная https-ссылка открылась
+    бы во внешнем браузере. None, если у бота нет главной Mini App или параметр недопустим
+    (Telegram: до 64 символов A–Z, a–z, 0–9, «_», «-»).
+    """
+    if not start_param or len(start_param) > 64 or not re.fullmatch(r"[A-Za-z0-9_-]+", start_param):
+        return None
+    username = get_bot_username()
+    if not username or not _bot_username_cache.get("main_web_app"):
+        return None
+    return f"https://t.me/{username}?startapp={start_param}"

@@ -6,6 +6,7 @@ import concurrent.futures
 import gzip
 import weakref
 import json
+import base64
 import re
 import os
 import socket
@@ -3502,7 +3503,7 @@ def _trusted_share_card_sync(product_id: str, canonical_id: str, city: str = "",
     from domain.purchasability import offer_purchasable
     from repositories.search_repo import SearchRepository
 
-    def offer_card(title, od, path):
+    def offer_card(title, od, path, start_param=""):
         return {
             "title": title,
             "price": int(float(od.get("price") or 0)),
@@ -3511,6 +3512,7 @@ def _trusted_share_card_sync(product_id: str, canonical_id: str, city: str = "",
             "image_url": od.get("image_url") or "",
             "city": _share_city(od.get("city")),
             "compare_path": path,
+            "start_param": start_param,
         }
 
     with get_connection() as conn:
@@ -3523,7 +3525,9 @@ def _trusted_share_card_sync(product_id: str, canonical_id: str, city: str = "",
                 od = next((o for o in detail.get("offers") or [] if str(o.get("id")) == offer_id), None)
                 if not od or not offer_purchasable(od):
                     return {}
-                return offer_card(detail["product"].title, od, "/offer/" + quote(offer_id, safe=""))
+                encoded = base64.urlsafe_b64encode(offer_id.encode()).decode().rstrip("=")
+                return offer_card(detail["product"].title, od, "/offer/" + quote(offer_id, safe=""),
+                                  "o_" + encoded)
             detail = repo.get_canonical_product_detail(canonical_id, city=city or None)
             if detail and detail.get("product"):
                 offers = [od for od in detail.get("offers") or [] if offer_purchasable(od)]
@@ -3534,7 +3538,7 @@ def _trusted_share_card_sync(product_id: str, canonical_id: str, city: str = "",
                 path = "/product/" + quote(str(detail["product"].id), safe="")
                 if _share_city(city):
                     path += "?" + urlencode({"city": city})
-                return offer_card(detail["product"].title, chosen, path)
+                return offer_card(detail["product"].title, chosen, path, "p_" + str(detail["product"].id))
         if product_id:
             row = conn.execute(
                 "SELECT title, current_price, shop, url, image_url, city FROM products WHERE id = ? AND "
@@ -3632,6 +3636,7 @@ async def telegram_prepared_message_handler(request):
         city,
         image_url,
         str(card.get("compare_path") or ""),
+        str(card.get("start_param") or ""),
     )
     if not prep_id:
         return web.json_response({"status": "error", "message": "Не удалось подготовить сообщение"}, status=502)

@@ -142,9 +142,12 @@ class OfferShareTest(unittest.IsolatedAsyncioTestCase):
         r, send = await self._share(canonical_product_id="b02_target", city="Алматы",
                                     offer_id="b02_astana_2@astana", offer_selected=True)
         self.assertEqual(r.status, 200)
-        _, _, price, _, url, city, _, path = send.call_args.args
+        _, _, price, _, url, city, _, path, start = send.call_args.args
         self.assertEqual((price, url, city), (130000, "https://example.invalid/astana2", "Астана"))
         self.assertEqual(path, "/offer/b02_astana_2%40astana")
+        import base64
+        self.assertEqual(base64.urlsafe_b64decode(start[2:] + "==").decode(), "b02_astana_2@astana")
+        self.assertRegex(start, r"^o_[A-Za-z0-9_-]{1,62}$")
 
     async def test_unavailable_opened_offer_is_not_replaced(self):
         for bad in ("b02_expired", "b02_astana_gone", "b02_astana_stale", "missing@astana"):
@@ -159,6 +162,7 @@ class OfferShareTest(unittest.IsolatedAsyncioTestCase):
         args = send.call_args.args
         self.assertEqual((args[2], args[5]), (80000, "Алматы"))
         self.assertEqual(args[7], "/product/b02_target?city=%D0%90%D0%BB%D0%BC%D0%B0%D1%82%D1%8B")
+        self.assertEqual(args[8], "p_b02_target")
         r, send = await self._share(canonical_product_id="b02_target", city="Все")
         self.assertEqual(send.call_args.args[7], "/product/b02_target")
 
@@ -171,7 +175,29 @@ class OfferShareTest(unittest.IsolatedAsyncioTestCase):
 
 
 class CompareButtonTest(unittest.TestCase):
-    def _buttons(self, compare_path):
+    def setUp(self):
+        self._cache = dict(auth._bot_username_cache)
+        self._token = patch.object(auth, "get_bot_token", return_value="tok")
+        self._token.start()
+        self.addCleanup(self._token.stop)
+        auth._bot_username_cache.update(token="tok", username="kzph_test_bot", main_web_app=False)
+
+    def tearDown(self):
+        auth._bot_username_cache.clear()
+        auth._bot_username_cache.update(self._cache)
+
+    def test_compare_button_opens_mini_app_inside_telegram(self):
+        """Владелец: https-ссылка открывалась во внешнем браузере и просила войти."""
+        auth._bot_username_cache["main_web_app"] = True
+        with patch.object(auth, "get_bot_token", return_value="tok"):
+            self.assertEqual(self._buttons("/offer/x", "o_eA"), "https://t.me/kzph_test_bot?startapp=o_eA")
+            # Недопустимый параметр — обратно на страницу сайта
+            self.assertEqual(self._buttons("/offer/x", "o_a@b"), "https://shdev.example/offer/x")
+        auth._bot_username_cache["main_web_app"] = False
+        with patch.object(auth, "get_bot_token", return_value="tok"):
+            self.assertEqual(self._buttons("/offer/x", "o_eA"), "https://shdev.example/offer/x")
+
+    def _buttons(self, compare_path, start_param=""):
         calls = []
         resp = Mock(status_code=200)
         resp.json.return_value = {"ok": True, "result": {"id": "prep"}}
@@ -179,7 +205,8 @@ class CompareButtonTest(unittest.TestCase):
                 patch.object(notifier, "APP_URL", "https://shdev.example"), \
                 patch.dict("os.environ", {"TELEGRAM_INLINE_MODE": "on"}), \
                 patch.object(notifier, "telegram_api", side_effect=lambda m, p: calls.append((m, p)) or resp):
-            notifier.save_prepared_inline_message(1, "T", 1, "S", "https://shop.kz/x", "Астана", "", compare_path)
+            notifier.save_prepared_inline_message(1, "T", 1, "S", "https://shop.kz/x", "Астана", "", compare_path,
+                                                  start_param)
         rows = calls[0][1]["result"]["reply_markup"]["inline_keyboard"]
         return [b for row in rows for b in row if b.get("text") == "📊 Сравнить цены"][0]["url"]
 
