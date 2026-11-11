@@ -57,5 +57,5 @@ class ClosedSiteGateTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(auth,'MAINTENANCE_DEV_MODE',True),patch.object(server,'MAINTENANCE_DEV_MODE',True),patch.object(server,'get_bot_username',return_value='fixture_bot'):
             async with TestClient(TestServer(app)) as client:
                 data=await (await client.get('/api/me')).json()
-                self.assertEqual(set(data),{'user','auth','maintenance_mode'})
+                self.assertEqual(set(data),{'user','auth','maintenance_mode','access'})
                 self.assertIsNone(data['user']);self.assertEqual(data['auth']['bot_username'],'fixture_bot')

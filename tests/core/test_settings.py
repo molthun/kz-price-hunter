@@ -51,6 +51,10 @@ class UserSettingsTest(unittest.TestCase):
         for key, default in USER_DEFAULTS.items():
             with self.subTest(key=key):
                 value = changed_value(key, default)
+                if key in config.SERVER_MANAGED_USER_KEYS:
+                    # 6.36.0: подтверждение и пробное время ставит только сервер — из настроек они отбрасываются
+                    self.assertNotIn(key, config.validate_user_settings({key: value}, database.get_user(501)["settings"]))
+                    continue
                 clean = config.validate_user_settings({key: value}, database.get_user(501)["settings"])
                 database.save_user_settings(501, clean)
                 saved = database.get_user(501)["settings"][key]

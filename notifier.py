@@ -777,8 +777,23 @@ def send_daily_digest(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
         return DeliveryResult("retry", None, type(e).__name__)
 
 
+def send_pending_approvals(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
+    """Утреннее напоминание владельцу о пользователях, ждущих подтверждения (6.36.0)."""
+    lines = payload.get("lines") or []
+    text = "\n".join(str(line) for line in lines)[:4000]
+    keyboard = [[site_button("👥 Открыть пользователей", APP_URL.rstrip("/") + "/admin")]] if APP_URL else []
+    try:
+        return classify_telegram_response(telegram_api("sendMessage", {
+            "chat_id": chat_id, "text": text, "parse_mode": "HTML",
+            "link_preview_options": make_link_preview_options(is_disabled=True),
+            "reply_markup": {"inline_keyboard": keyboard}}))
+    except Exception as e:
+        print(f"[Telegram Exception] {type(e).__name__}")
+        return DeliveryResult("retry", None, type(e).__name__)
+
+
 def _deliver_daily_digest(item, payload, counts) -> tuple:
-    """Отправка суточной сводки: та же очередь, те же повторы и та же пауза 429."""
+    """Отправка суточной сводки (и утреннего напоминания о подтверждениях): та же очередь, повторы и пауза 429."""
     from database import finish_notification, get_user, bot_unreachable
 
     user = get_user(item["user_id"])
@@ -789,7 +804,8 @@ def _deliver_daily_digest(item, payload, counts) -> tuple:
         counts["cancelled"] += 1
         return False, None
 
-    result = send_daily_digest(user["id"], payload)
+    sender = send_pending_approvals if payload.get("kind") == "pending_approvals" else send_daily_digest
+    result = sender(user["id"], payload)
     if isinstance(result, bool):  # совместимость с подменами в тестах
         result = DeliveryResult("sent" if result else "retry", None, None if result else "Telegram delivery failed")
     if result:
@@ -927,7 +943,7 @@ def _deliver_batch(limit, counts):
             break
         try:
             payload = json.loads(item["payload"])
-            if payload.get("kind") == "daily_digest":
+            if payload.get("kind") in ("daily_digest", "pending_approvals"):
                 # Суточная сводка администратору (P13): своё правило актуальности, та же очередь
                 delivered, pause = _deliver_daily_digest(item, payload, counts)
                 sent += 1 if delivered else 0
@@ -1132,6 +1148,12 @@ async def notification_worker():
                 await asyncio.to_thread(daily_digest.queue_if_due)
             except Exception as e:
                 print(f"[Daily] Сводка не поставлена в очередь: {type(e).__name__}")
+            # Утром — владельцу список ждущих подтверждения доступа (6.36.0), раз в день и только если они есть
+            try:
+                import access_notify
+                await asyncio.to_thread(access_notify.queue_if_due)
+            except Exception as e:
+                print(f"[Access] Напоминание о подтверждениях не поставлено: {type(e).__name__}")
             # Обращения магазинов к тем, кто их парсит: раз в неделю, см. shop_notices.py.
             # Отказ проверки не должен мешать доставке уведомлений — она здесь главная.
             try:

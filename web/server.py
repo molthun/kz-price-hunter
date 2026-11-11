@@ -161,6 +161,7 @@ from auth import (
     require_admin,
     is_admin,
     is_confirmed_user,
+    access_state,
     user_settings_for,
     verify_telegram_auth,
     verify_telegram_webapp_data,
@@ -3277,9 +3278,17 @@ async def me_handler(request):
     """Текущий пользователь (или гость), его личные настройки и параметры входа."""
     user = request.get("user")
     bot_username = await asyncio.to_thread(get_bot_username)
+    # Сколько осталось гостю или вошедшему без подтверждения (6.36.0); у подтверждённых — без ограничений
+    access = request.get("access") or access_state(user, None)
     if MAINTENANCE_DEV_MODE and not is_confirmed_user(user):
         return web.json_response({
-            "user": _public_user(user), "maintenance_mode": True,
+            "user": _public_user(user), "maintenance_mode": True, "access": access,
+            "auth": {"bot_username": bot_username, "dev_login": dev_login_allowed(request)},
+        })
+    if not access.get("allowed", True):
+        # Время вышло: настройки и магазины не отдаём, только то, что нужно странице входа
+        return web.json_response({
+            "user": _public_user(user), "maintenance_mode": False, "access": access,
             "auth": {"bot_username": bot_username, "dev_login": dev_login_allowed(request)},
         })
     return web.json_response({
@@ -3291,6 +3300,7 @@ async def me_handler(request):
         },
         "shops": SHOP_KEYS,
         "maintenance_mode": MAINTENANCE_DEV_MODE,
+        "access": access,
     })
 
 def _login_response(request, user):

@@ -377,9 +377,15 @@ USER_DEFAULTS = {
     "telegram_notify_enabled": False,
     "telegram_notify_level": "ALL",  # ALL, CRITICAL_ONLY, HIGH_SAVINGS
 
-    # Подтверждение доступа владельцем в режиме закрытой разработки
+    # Подтверждение доступа владельцем (без него — ограниченный по времени доступ)
     "is_approved": False,
+    # Начало пробного доступа вошедшего, но не подтверждённого пользователя (unix-время, 0 — ещё не начат)
+    "trial_started_at": 0.0,
 }
+
+# Поля, которые ставит только сервер: пользователь не может подтвердить себя сам
+# или сбросить пробное время через сохранение своих настроек
+SERVER_MANAGED_USER_KEYS = ("is_approved", "trial_started_at")
 
 ENUM_VALUES = {
     "search_default_sort": ("price_asc", "price_desc", "savings_desc"),
@@ -406,8 +412,33 @@ def _is_test_runner() -> bool:
     import sys
     return "pytest" in sys.modules or any("test" in a for a in sys.argv)
 
-# Режим закрытой разработки: сайт доступен только авторизованным и подтверждённым пользователям
-MAINTENANCE_DEV_MODE = os.getenv("MAINTENANCE_DEV_MODE", "0" if _is_test_runner() else "1").strip().lower() in ("1", "true", "yes")
+# Доступ к сайту (6.36.0, решение владельца 12.11.2026):
+#   timed  — открыт всем: гость работает 10 минут, вошедший без подтверждения — 30, подтверждённый — без ограничений;
+#   closed — прежний закрытый режим: только подтверждённые владельцем;
+#   open   — без ограничений.
+# MAINTENANCE_DEV_MODE больше не закрывает сайт: прод и стенд его не задавали, закрытость давало значение
+# по умолчанию. Закрыть снова — ACCESS_MODE=closed в окружении.
+ACCESS_MODE = os.getenv("ACCESS_MODE", "open" if _is_test_runner() else "timed").strip().lower()
+if ACCESS_MODE not in ("timed", "closed", "open"):
+    ACCESS_MODE = "timed"
+
+
+def _positive_minutes(name: str, default: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+ACCESS_GUEST_MINUTES = _positive_minutes("ACCESS_GUEST_MINUTES", 10)
+ACCESS_TRIAL_MINUTES = _positive_minutes("ACCESS_TRIAL_MINUTES", 30)
+# Утреннее напоминание владельцу о тех, кто ждёт подтверждения: час и пояс
+ACCESS_PENDING_NOTIFY_HOUR = _positive_minutes("ACCESS_PENDING_NOTIFY_HOUR", 9) % 24
+ACCESS_PENDING_NOTIFY_TZ = os.getenv("ACCESS_PENDING_NOTIFY_TZ", "Asia/Almaty").strip() or "Asia/Almaty"
+
+# Прежнее имя: «закрытый режим» — это ACCESS_MODE=closed
+MAINTENANCE_DEV_MODE = ACCESS_MODE == "closed"
 
 # Токен диагностики (/diag и /api/diag). Пока он не задан, обе страницы отвечают 404,
 # как будто их нет: снимок показывает внутренности и не должен быть открыт всем.
@@ -861,6 +892,8 @@ def _validate_model_prices(raw):
 
 def validate_user_settings(new_settings, current=None):
     """Личные настройки: типы, диапазоны и согласованность с уже сохранёнными (мин. цена ≤ макс.)."""
+    if isinstance(new_settings, dict):
+        new_settings = {k: v for k, v in new_settings.items() if k not in SERVER_MANAGED_USER_KEYS}
     clean = _validate(new_settings, USER_DEFAULTS)
     merged = {**merge_user_settings(current or {}), **clean}
     if merged["min_item_price_kzt"] > merged["max_item_price_kzt"]:

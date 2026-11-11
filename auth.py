@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from aiohttp import web
 
 from config import ADMIN_TELEGRAM_IDS, ALLOW_DEV_LOGIN, DEV_ADMIN_ID, get_bot_token, merge_user_settings, TRUSTED_PROXIES, PUBLIC_ORIGIN, MAINTENANCE_DEV_MODE
+from config import ACCESS_MODE, ACCESS_GUEST_MINUTES, ACCESS_TRIAL_MINUTES
 from database import get_session_user, SESSION_TTL_DAYS
 
 SESSION_COOKIE = "kzph_session"
@@ -132,6 +133,86 @@ def is_confirmed_user(user: Optional[Dict[str, Any]]) -> bool:
         return True
     settings = user.get("settings") or {}
     return bool(settings.get("is_approved") or settings.get("is_confirmed"))
+
+# ===== Доступ по времени (6.36.0) =====
+# Гость — 10 минут с первого запроса, вошедший без подтверждения — 30 минут с первого входа,
+# подтверждённый владельцем и администратор — без ограничений. Время гостя хранится в подписанной cookie:
+# подделать начало нельзя, а удаление cookie даёт новые 10 минут — это мягкий лимит, настоящий барьер — вход.
+GUEST_COOKIE = "kzph_guest"
+_guest_key_cache: Dict[str, bytes] = {}
+
+# Всегда доступны: вход, выход, кто я, версия, диагностика
+ACCESS_EXEMPT_API = frozenset(("/api/me", "/api/auth/telegram", "/api/auth/telegram-webapp",
+                               "/api/auth/dev-login", "/api/auth/logout", "/api/diag",
+                               "/api/version", "/api/telegram/deep-link"))
+
+
+def _guest_key() -> bytes:
+    token = get_bot_token() or ""
+    key = _guest_key_cache.get(token)
+    if key is None:
+        # Без токена бота (локальный запуск) — ключ процесса: после перезапуска гостю дадут новое окно
+        import secrets
+        key = hashlib.sha256(b"kzph-guest-trial-v1:" + token.encode()).digest() if token else secrets.token_bytes(32)
+        _guest_key_cache[token] = key
+    return key
+
+
+def sign_guest_start(started: int) -> str:
+    sig = hmac.new(_guest_key(), str(int(started)).encode(), hashlib.sha256).hexdigest()[:32]
+    return f"{int(started)}.{sig}"
+
+
+def parse_guest_start(value: Optional[str], now: Optional[float] = None) -> Optional[int]:
+    """Начало гостевого окна из cookie или None, если cookie нет, подпись неверна или время из будущего."""
+    if not value or "." not in value:
+        return None
+    raw, sig = value.split(".", 1)
+    if not raw.isdigit():
+        return None
+    expected = hmac.new(_guest_key(), raw.encode(), hashlib.sha256).hexdigest()[:32]
+    if not hmac.compare_digest(expected, sig):
+        return None
+    started = int(raw)
+    if started > (now or time.time()) + 60:
+        return None
+    return started
+
+
+def access_limited() -> bool:
+    return not MAINTENANCE_DEV_MODE and ACCESS_MODE == "timed"
+
+
+def access_state(user: Optional[Dict[str, Any]], guest_started: Optional[float], now: Optional[float] = None) -> Dict[str, Any]:
+    """Что разрешено: уровень, открыт ли доступ сейчас и сколько осталось."""
+    now = now or time.time()
+    if is_admin(user):
+        return {"mode": ACCESS_MODE, "level": "admin", "allowed": True, "expires_at": None, "remaining_seconds": None}
+    if is_confirmed_user(user):
+        return {"mode": ACCESS_MODE, "level": "approved", "allowed": True, "expires_at": None, "remaining_seconds": None}
+    if MAINTENANCE_DEV_MODE:
+        return {"mode": "closed", "level": "trial" if user else "guest", "allowed": False,
+                "expires_at": None, "remaining_seconds": 0}
+    if ACCESS_MODE != "timed":
+        return {"mode": ACCESS_MODE, "level": "trial" if user else "guest", "allowed": True,
+                "expires_at": None, "remaining_seconds": None}
+    if user:
+        started = float((user.get("settings") or {}).get("trial_started_at") or 0) or now
+        minutes = ACCESS_TRIAL_MINUTES
+    else:
+        started = float(guest_started or now)
+        minutes = ACCESS_GUEST_MINUTES
+    expires = started + minutes * 60
+    remaining = max(0, int(expires - now))
+    return {"mode": "timed", "level": "trial" if user else "guest", "allowed": remaining > 0,
+            "expires_at": expires, "remaining_seconds": remaining, "limit_minutes": minutes}
+
+
+def _start_user_trial(user: Dict[str, Any], now: float) -> None:
+    """Первое обращение вошедшего без подтверждения: с этого момента идут его 30 минут."""
+    from database import save_user_settings
+    save_user_settings(int(user["id"]), {"trial_started_at": float(now)})
+
 
 def user_settings_for(request: web.Request) -> Dict[str, Any]:
     """Личные настройки текущего пользователя, у гостей — значения по умолчанию."""
@@ -283,6 +364,39 @@ async def auth_middleware(request: web.Request, handler):
     if request["user"] and int(request["user"]["id"]) == DEV_ADMIN_ID and not dev_login_allowed(request):
         request["user"] = None
 
+    # Доступ по времени: гость 10 минут, вошедший без подтверждения 30, дальше — страница входа
+    new_guest_cookie = None
+    if access_limited() and not is_confirmed_user(request["user"]):
+        now = time.time()
+        user = request["user"]
+        guest_started = None
+        if user:
+            if not float((user.get("settings") or {}).get("trial_started_at") or 0):
+                await asyncio.get_running_loop().run_in_executor(_session_executor, _start_user_trial, user, now)
+                user.setdefault("settings", {})["trial_started_at"] = float(now)
+        else:
+            guest_started = parse_guest_start(request.cookies.get(GUEST_COOKIE), now)
+            if guest_started is None:
+                guest_started = int(now)
+                new_guest_cookie = sign_guest_start(guest_started)
+        state = access_state(user, guest_started, now)
+        request["access"] = state
+        if not state["allowed"]:
+            if request.path.startswith("/api/"):
+                if request.path not in ACCESS_EXEMPT_API:
+                    return web.json_response({
+                        "status": "error",
+                        "message": ("Пробные 30 минут закончились. Доступ без ограничений откроется после подтверждения владельцем."
+                                    if user else "Гостевые 10 минут закончились. Войдите через Telegram, чтобы продолжить."),
+                        "access_expired": True, "access": state, "authenticated": bool(user), "confirmed": False,
+                    }, status=403, headers={"Cache-Control": "no-store"})
+            elif request.method not in ("GET", "HEAD"):
+                return web.Response(status=403, headers={"Cache-Control": "no-store"})
+            else:
+                return web.FileResponse(Path(__file__).parent / "web/templates/closed_login.html", headers={
+                    "Cache-Control": "no-store", "Vary": "Cookie", "X-Content-Type-Options": "nosniff",
+                    "X-Frame-Options": "DENY", "Referrer-Policy": "strict-origin-when-cross-origin"})
+
     # Server-side gate: never deliver the application shell to guests in closed mode.
     restricted = MAINTENANCE_DEV_MODE and not is_confirmed_user(request["user"])
     if restricted and not request.path.startswith("/api/"):
@@ -294,10 +408,7 @@ async def auth_middleware(request: web.Request, handler):
 
     # Закрытый режим разработки: доступ к функциональным API только подтверждённым пользователям
     if MAINTENANCE_DEV_MODE and request.path.startswith("/api/"):
-        _allowed_api = {"/api/me", "/api/auth/telegram", "/api/auth/telegram-webapp",
-                        "/api/auth/dev-login", "/api/auth/logout", "/api/diag",
-                        "/api/version", "/api/telegram/deep-link"}
-        if request.path not in _allowed_api:
+        if request.path not in ACCESS_EXEMPT_API:
             if not is_confirmed_user(request["user"]):
                 return web.json_response({
                     "status": "error",
@@ -307,7 +418,11 @@ async def auth_middleware(request: web.Request, handler):
                     "confirmed": False
                 }, status=403, headers={"Cache-Control": "no-store"})
     response = await handler(request)
-    if MAINTENANCE_DEV_MODE:
+    if new_guest_cookie:
+        response.set_cookie(GUEST_COOKIE, new_guest_cookie, max_age=365 * 24 * 3600, httponly=True,
+                            secure=is_secure_request(request), samesite="Lax", path="/")
+    if MAINTENANCE_DEV_MODE or access_limited():
+        # Ответ зависит от того, кто спрашивает и сколько у него осталось времени: не кэшировать
         response.headers["Cache-Control"] = "no-store"
         response.headers["Vary"] = ", ".join(dict.fromkeys([v.strip() for v in response.headers.get("Vary", "").split(",") if v.strip()] + ["Cookie"]))
     response.headers.setdefault("X-Content-Type-Options", "nosniff")

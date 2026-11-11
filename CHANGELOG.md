@@ -3,6 +3,25 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.36.0] - 2026-11-12
+
+### Для пользователей
+- 🔓 **Сайт открыт для всех, доступ по времени:**
+  - Без входа сайтом можно пользоваться 10 минут.
+  - После входа через Telegram — ещё 30 минут, пока владелец не подтвердит аккаунт.
+  - После подтверждения — без ограничений.
+  - Внизу экрана видно, сколько осталось, у гостя рядом — кнопка «Войти». В ленте скидок на телефоне таймер сверху и прячется во весь экран.
+  - Когда время выходит, открывается страница входа с объяснением, что делать дальше. После подтверждения она сама пускает на сайт.
+- 🔔 **Владельцу — утреннее напоминание:** с 9 до 12 по Алматы, если кто-то вошёл и ждёт подтверждения, бот пришлёт список с кнопкой «Открыть пользователей». Одно сообщение в день; если ждущих нет — сообщения нет.
+- 🔐 **Безопасность:** пользователь больше не может подтвердить себя сам, сохранив `is_approved` в своих настройках, и не может сбросить своё пробное время.
+
+### Для разработчиков
+- `config.py`: `ACCESS_MODE` (`timed` по умолчанию, `closed`, `open`), `ACCESS_GUEST_MINUTES=10`, `ACCESS_TRIAL_MINUTES=30`, `ACCESS_PENDING_NOTIFY_HOUR=9`, `ACCESS_PENDING_NOTIFY_TZ=Asia/Almaty`. `MAINTENANCE_DEV_MODE` из окружения больше не читается — это теперь `ACCESS_MODE == "closed"`. `SERVER_MANAGED_USER_KEYS` не принимаются в `validate_user_settings`; `trial_started_at` в `USER_DEFAULTS`.
+- `auth.py`: подписанная cookie `kzph_guest` (HMAC от токена бота) с началом гостевого окна, `access_state()`, `trial_started_at` ставится при первом запросе вошедшего. После окончания времени HTML — `closed_login.html`, API — 403 `access_expired`; вход и `/api/me` доступны всегда (`ACCESS_EXEMPT_API`).
+- `/api/me` отдаёт `access`. `closed_login.html` различает закрытый режим и режим по времени. `search_first.html` — `#accessTimer`.
+- `access_notify.py`: `queue_if_due()` в `notification_worker`, задание `pending_approvals` в общей очереди (одно в день, `UNIQUE(alert_id, user_id)`), отправка — `notifier.send_pending_approvals`.
+- Тесты: `tests/web/test_timed_access.py`, `tests/frontend/test_frontend_timed_access.cjs`; `test_frontend_closed_gate_auth.cjs` закрывает сайт через `ACCESS_MODE=closed`.
+
 ## [6.35.0] - 2026-11-12
 
 ### Для пользователей

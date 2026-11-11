@@ -2832,6 +2832,89 @@
       margin-top: 16px;
     }
 
+    /* Остаток гостевого и пробного доступа (6.36.0) */
+    .access-timer {
+      position: fixed;
+      left: 50%;
+      bottom: calc(76px + var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+      transform: translateX(-50%);
+      z-index: 55;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: calc(100vw - 24px);
+      padding: 7px 8px 7px 12px;
+      border-radius: var(--radius-full);
+      background: color-mix(in srgb, var(--bg-card) 86%, transparent);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+      color: var(--text-main);
+      font-size: 0.8rem;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: opacity 0.25s ease, transform 0.3s ease;
+    }
+
+    .access-timer[hidden] {
+      display: none;
+    }
+
+    .access-timer-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      flex: none;
+    }
+
+    .access-timer.is-ending .access-timer-dot {
+      background: #ef4444;
+    }
+
+    .access-timer-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .access-timer-action {
+      flex: none;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      background: var(--primary);
+      color: #ffffff;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .access-timer-action[hidden] {
+      display: none;
+    }
+
+    @media (min-width: 900px) {
+      .access-timer {
+        bottom: 20px;
+      }
+    }
+
+    /* Во весь экран ленты таймер не мешает смотреть */
+    body.deals-fullscreen .access-timer {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* В ленте на телефоне внизу кнопка «Купить»: таймер — под фильтрами, шапка карточки ниже на его высоту */
+    @media (max-width: 599px) and (min-height: 501px) {
+      body.deals-immersive .access-timer {
+        bottom: auto;
+        top: calc(var(--deals-chrome-top-px, 110px) + 6px);
+      }
+      body.deals-immersive.access-timed:not(.deals-fullscreen) #viewDeals .deal-reel-card {
+        --deal-top: calc(var(--deals-chrome-top, 110px) + 40px);
+      }
+    }
+
     /* ============================================================= */
     /* Лента скидок в стиле сторис (6.34.0)                           */
     /* Телефон: одна карточка на экран, размытое фото фоном,          */
@@ -5939,6 +6022,11 @@
   </div>
 
   <!-- Main Container -->
+  <div id="accessTimer" class="access-timer" role="status" hidden>
+    <span class="access-timer-dot" aria-hidden="true"></span>
+    <span class="access-timer-text"></span>
+    <a href="/profile" class="access-timer-action" onclick="navigateTo(event, '/profile')">Войти</a>
+  </div>
   <main class="container app-main">
 
     <!-- ============================================================= -->
@@ -7463,9 +7551,44 @@
         currentAuthConfig = data.auth || {};
         isMaintenanceMode = !!data.maintenance_mode;
         updateAuthUI();
+        updateAccessTimer(data.access);
       } catch (e) {
         console.warn('Auth check error:', e);
       }
+    }
+
+    // 6.36.0: гость — 10 минут, вошедший без подтверждения — 30. Показываем остаток и путь дальше;
+    // когда время выйдет, перезагрузка покажет страницу входа (сервер всё равно не отдаст данные)
+    let accessDeadline = 0;
+    let accessTimerId = null;
+    function updateAccessTimer(access) {
+      const box = document.getElementById('accessTimer');
+      if (!box) return;
+      if (!access || access.mode !== 'timed' || access.remaining_seconds == null) {
+        box.hidden = true;
+        document.body.classList.remove('access-timed');
+        if (accessTimerId) { clearInterval(accessTimerId); accessTimerId = null; }
+        return;
+      }
+      accessDeadline = Date.now() + Number(access.remaining_seconds) * 1000;
+      const isGuest = access.level === 'guest';
+      box.querySelector('.access-timer-action').hidden = !isGuest;
+      box.dataset.level = access.level;
+      box.hidden = false;
+      document.body.classList.add('access-timed');
+      const tick = () => {
+        const left = Math.max(0, Math.round((accessDeadline - Date.now()) / 1000));
+        if (left <= 0) { location.reload(); return; }
+        const m = Math.floor(left / 60), sec = left % 60;
+        const clock = m >= 1 ? `${m} мин` : `${sec} с`;
+        box.querySelector('.access-timer-text').textContent = isGuest
+          ? `Гостевой доступ: ${clock}`
+          : `Пробный доступ: ${clock} · ждём подтверждения`;
+        box.classList.toggle('is-ending', left <= 120);
+      };
+      tick();
+      if (accessTimerId) clearInterval(accessTimerId);
+      accessTimerId = setInterval(tick, 1000);
     }
 
     // =============================================================
@@ -12803,6 +12926,7 @@
       const navH = nav && getComputedStyle(nav).display !== 'none' ? nav.offsetHeight : 0;
       vDeals.style.setProperty('--deals-header-h', headerH + 'px');
       vDeals.style.setProperty('--deals-chrome-top', (headerH + filterH) + 'px');
+      document.body.style.setProperty('--deals-chrome-top-px', (headerH + filterH) + 'px');
       vDeals.style.setProperty('--deals-chrome-bottom', navH + 'px');
     }
     window.addEventListener('resize', fitDealsFeed);
