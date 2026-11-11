@@ -1,0 +1,3 @@
+Source backup bytes: 2173210624
+{"phase": "kzph-stand", "version": "6.31.8", "schema": 5, "offers": 215626, "checks": 9, "all_checks": true, "search_total": 10, "search_outcome": "FOUND", "integrity": "ok", "seconds": 15.17}
+{"phase": "kz-price-hunter", "version": "6.30.0", "schema": 5, "offers": 215626, "checks": 6, "all_checks": true, "search_total": 10, "search_outcome": "FOUND", "integrity": null, "seconds": 0.59}

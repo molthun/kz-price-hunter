@@ -1,0 +1,161 @@
+{
+  "offers": [
+    [
+      181961,
+      171404,
+      0,
+      15272
+    ]
+  ],
+  "offer_links_missing": [
+    [
+      0
+    ]
+  ],
+  "active_stale_by_channel": [
+    [
+      "forte",
+      6627
+    ],
+    [
+      "halyk",
+      192
+    ],
+    [
+      "kaspi",
+      1982
+    ],
+    [
+      "marketplace",
+      1
+    ],
+    [
+      "website",
+      6470
+    ]
+  ],
+  "scan_quality_24h": [
+    [
+      "degraded",
+      34,
+      4,
+      0
+    ],
+    [
+      "failed",
+      527,
+      12,
+      0
+    ],
+    [
+      "ok",
+      1103,
+      34,
+      1103
+    ],
+    [
+      "unknown",
+      182,
+      14,
+      182
+    ],
+    [
+      "warning",
+      27,
+      6,
+      0
+    ]
+  ],
+  "scans_24h": [
+    [
+      38,
+      485770,
+      0
+    ]
+  ],
+  "sources_without_accepted_24h": [
+    [
+      "flip",
+      24
+    ],
+    [
+      "fourmobile",
+      9
+    ],
+    [
+      "marwin",
+      23
+    ],
+    [
+      "twelve_months",
+      176
+    ]
+  ],
+  "queue_24h": [],
+  "open_queue": [],
+  "outbox_24h": [
+    [
+      "sent",
+      344
+    ]
+  ],
+  "outbox_pending": [],
+  "sources_retention": [
+    [
+      0,
+      0,
+      0
+    ]
+  ],
+  "barcode_health": [
+    [
+      1,
+      1,
+      1
+    ]
+  ],
+  "barcode_duplicates": [
+    [
+      0
+    ]
+  ],
+  "tompi": [
+    [
+      "Влажные салфетки Tompi с ароматом 100 шт",
+      "verified_photo"
+    ]
+  ],
+  "http_error_types_1h": [
+    [
+      "http",
+      "http_request",
+      27
+    ]
+  ],
+  "diag": {
+    "problems": [
+      {
+        "severity": "warning",
+        "code": "error_rate",
+        "problem": "27 ошибок за час, больше всего в «http»",
+        "meaning": "Смотрите errors.last: там последние сообщения с временем и компонентом."
+      }
+    ],
+    "http_sample_statuses": {
+      "unknown": 20
+    },
+    "by_component": {
+      "http": 27
+    },
+    "queue": {
+      "size": 0,
+      "failures": 0,
+      "worker_running": true
+    },
+    "db": {
+      "journal_mode": "wal",
+      "size_mb": 1936.7,
+      "wal_mb": 0.0
+    }
+  }
+}

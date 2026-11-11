@@ -1,0 +1,137 @@
+{
+  "offers": [
+    [
+      216108,
+      178000,
+      0,
+      18158
+    ]
+  ],
+  "offer_links_missing": [
+    [
+      0
+    ]
+  ],
+  "active_stale_by_channel": [
+    [
+      "forte",
+      2992
+    ],
+    [
+      "halyk",
+      425
+    ],
+    [
+      "kaspi",
+      4513
+    ],
+    [
+      "website",
+      10228
+    ]
+  ],
+  "scan_quality_24h": [
+    [
+      "degraded",
+      230,
+      8,
+      0
+    ],
+    [
+      "failed",
+      640,
+      18,
+      0
+    ],
+    [
+      "ok",
+      3630,
+      35,
+      3630
+    ],
+    [
+      "unknown",
+      468,
+      17,
+      468
+    ],
+    [
+      "warning",
+      203,
+      12,
+      0
+    ]
+  ],
+  "scans_24h": [
+    [
+      38,
+      2257717,
+      0
+    ]
+  ],
+  "sources_without_accepted_24h": [
+    [
+      "fourmobile",
+      21
+    ],
+    [
+      "marwin",
+      21
+    ],
+    [
+      "twelve_months",
+      168
+    ]
+  ],
+  "queue_24h": [],
+  "open_queue": [],
+  "outbox_24h": [
+    [
+      "sent",
+      8
+    ]
+  ],
+  "outbox_pending": [],
+  "sources_retention": [
+    [
+      0,
+      0,
+      0
+    ]
+  ],
+  "barcode_health": {
+    "error": "OperationalError"
+  },
+  "barcode_duplicates": {
+    "error": "OperationalError"
+  },
+  "tompi": {
+    "error": "OperationalError"
+  },
+  "http_error_types_1h": [
+    [
+      "http",
+      "http_request",
+      10
+    ]
+  ],
+  "diag": {
+    "problems": [],
+    "http_sample_statuses": {
+      "unknown": 10
+    },
+    "by_component": {
+      "http": 10
+    },
+    "queue": {
+      "size": 0,
+      "failures": 0,
+      "worker_running": true
+    },
+    "db": {
+      "journal_mode": "wal",
+      "size_mb": 2349.5,
+      "wal_mb": 0.0
+    }
+  }
+}

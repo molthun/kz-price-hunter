@@ -87,6 +87,25 @@ class BarcodeFullCatalogTest(unittest.TestCase):
         # Знак умножения не становится различающим словом
         self.assertTrue(barcode.is_exact_variant_match("Салфетки Tompi 2 x 100 шт", "Салфетки Tompi 2x100 шт"))
 
+    def test_converter_direction_is_not_an_exact_variant(self):
+        """D01 (аудит 6.31.8): переходник обратного направления не получает код."""
+        wanted = "Активный переходник HDMI на DisplayPort"
+        reverse = "Активный переходник DisplayPort на HDMI"
+        self.assertFalse(barcode.is_exact_variant_match(wanted, reverse))
+        self.assertFalse(barcode.is_exact_variant_match("Кабель USB-C to Lightning", "Кабель Lightning to USB-C"))
+        self.assertTrue(barcode.is_exact_variant_match(wanted, "активный ПЕРЕХОДНИК hdmi на displayport"))
+        _products([("c01_reverse", reverse)])
+        data = {"items": [{"product": {"id": "c01_reverse", "title": reverse}}]}
+        asyncio.run(server._apply_barcode_matches(data, CODE, {"title": wanted, "source": "searxng"}))
+        self.assertNotEqual(data["barcode_match"], "auto_linked")
+        self.assertEqual(barcode.get_barcode_product_ids(CODE), [])
+        # Правильное направление — единственный точный вариант, привязывается
+        _products([("c01_right", wanted)])
+        data = {"items": []}
+        asyncio.run(server._apply_barcode_matches(data, CODE, {"title": wanted, "source": "searxng"}))
+        self.assertEqual(data["barcode_match"], "auto_linked")
+        self.assertEqual(barcode.get_barcode_product_ids(CODE), ["c01_right"])
+
     def test_startup_repair_drops_existing_auto_link_when_catalog_is_ambiguous(self):
         _products([("c01_candidate1", TITLE), ("c01_candidate2", TITLE)])
         with database.get_connection() as conn:
@@ -162,9 +181,13 @@ class OfferShareTest(unittest.IsolatedAsyncioTestCase):
         args = send.call_args.args
         self.assertEqual((args[2], args[5]), (80000, "Алматы"))
         self.assertEqual(args[7], "/product/b02_target?city=%D0%90%D0%BB%D0%BC%D0%B0%D1%82%D1%8B")
-        self.assertEqual(args[8], "p_b02_target")
+        # D02 (аудит 6.31.8): параметр Mini App несёт город карточки
+        self.assertEqual(args[8], "pc_almaty_b02_target")
+        r, send = await self._share(canonical_product_id="b02_target", city="Астана")
+        self.assertEqual((send.call_args.args[2], send.call_args.args[8]), (120000, "pc_astana_b02_target"))
         r, send = await self._share(canonical_product_id="b02_target", city="Все")
         self.assertEqual(send.call_args.args[7], "/product/b02_target")
+        self.assertEqual(send.call_args.args[8], "pc_all_b02_target")
 
     async def test_legacy_record_region_is_its_own_city(self):
         r, send = await self._share(product_id="c02_legacy", city="Астана")
@@ -172,6 +195,19 @@ class OfferShareTest(unittest.IsolatedAsyncioTestCase):
         args = send.call_args.args
         self.assertEqual((args[2], args[4], args[5]), (80000, "https://example.invalid/legacy", "Алматы"))
         self.assertEqual(args[7], "/search?q=Synthetic+product")
+
+
+class MiniAppCityMapTest(unittest.TestCase):
+    def test_frontend_city_codes_match_config(self):
+        """D02: коды городов в шаблоне совпадают со справочником CITIES_KZ."""
+        import re
+        from config import CITIES_KZ
+        html = (server.TEMPLATES_DIR / "search_first.html").read_text(encoding="utf-8")
+        block = re.search(r"const MINI_APP_CITY_IDS = \{(.*?)\};", html, re.S).group(1)
+        pairs = dict(re.findall(r"(\w+): '([^']+)'", block))
+        self.assertEqual(pairs.pop("all"), "Все")
+        self.assertEqual(pairs, {cid: c["name"] for cid, c in CITIES_KZ.items()})
+        self.assertTrue(all("_" not in cid for cid in CITIES_KZ))
 
 
 class CompareButtonTest(unittest.TestCase):

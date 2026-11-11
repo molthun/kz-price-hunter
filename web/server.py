@@ -3484,6 +3484,23 @@ def _share_city(value) -> str:
     return value if value and value != "Все" else ""
 
 
+def _product_start_param(product_id: str, city: str) -> str:
+    """D02: параметр Mini App для карточки товара с её городом — pc_<код города>_<ID>.
+
+    Город — тот, по которому собрана карточка («Все» → all). Если город не из справочника,
+    параметра нет, и кнопка ведёт на страницу сайта с `?city=`, тоже сохраняющую регион.
+    """
+    from config import CITIES_KZ
+    name = _share_city(city)
+    if not name:
+        code = "all"
+    else:
+        code = next((cid for cid, c in CITIES_KZ.items() if c.get("name") == name), "")
+    if not code or "_" in code:
+        return ""
+    return f"pc_{code}_{product_id}"
+
+
 def _trusted_share_card_sync(product_id: str, canonical_id: str, city: str = "", offer_id: str = "",
                              offer_selected: bool = False) -> dict:
     """A03/B02/C02: карточка шеринга строится только из данных каталога, не из тела запроса.
@@ -3538,7 +3555,8 @@ def _trusted_share_card_sync(product_id: str, canonical_id: str, city: str = "",
                 path = "/product/" + quote(str(detail["product"].id), safe="")
                 if _share_city(city):
                     path += "?" + urlencode({"city": city})
-                return offer_card(detail["product"].title, chosen, path, "p_" + str(detail["product"].id))
+                return offer_card(detail["product"].title, chosen, path,
+                                  _product_start_param(str(detail["product"].id), city))
         if product_id:
             row = conn.execute(
                 "SELECT title, current_price, shop, url, image_url, city FROM products WHERE id = ? AND "

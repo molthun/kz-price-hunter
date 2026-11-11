@@ -6384,6 +6384,11 @@
   <script>
     // State
     const DEFAULT_CITY = 'Алматы';
+    // Коды городов в параметре Mini App (startapp допускает только латиницу); совпадают с CITIES_KZ
+    const MINI_APP_CITY_IDS = {
+      all: 'Все', astana: 'Астана', almaty: 'Алматы', shymkent: 'Шымкент', karaganda: 'Караганда',
+      aktobe: 'Актобе', pavlodar: 'Павлодар', oskemen: 'Усть-Каменогорск'
+    };
     const AppState = {
       city: DEFAULT_CITY,
       query: '',
@@ -7906,7 +7911,17 @@
             setTimeout(() => this.scanQrCode(), 300);
           }
           if (!param) return;
-          if (param.startsWith('o_')) {
+          if (param.startsWith('pc_')) {
+            // D02: товар с городом карточки — pc_<город>_<ID товара>
+            const rest = param.slice(3);
+            const sep = rest.indexOf('_');
+            const cityName = sep > 0 ? MINI_APP_CITY_IDS[rest.slice(0, sep)] : '';
+            const prodId = sep > 0 ? rest.slice(sep + 1) : '';
+            if (cityName && prodId) {
+              setCity(cityName, false);
+              setTimeout(() => navigateTo(null, '/product/' + encodeURIComponent(prodId) + '?city=' + encodeURIComponent(cityName)), 150);
+            }
+          } else if (param.startsWith('o_')) {
             // Предложение из карточки «Поделиться»: ID в base64url (в нём бывает «@»)
             try {
               const b64 = param.slice(2).replace(/-/g, '+').replace(/_/g, '/');
@@ -11693,7 +11708,9 @@
       }
       if (navigator.share) {
         // Вне Telegram карточку бота отправить нельзя: системное «Поделиться» передаёт текст и ссылку
-        const sharePrice = deal && Number(deal.current_price) > 0 ? ' — ' + formatPrice(deal.current_price) : '';
+        // D03: цена в тексте — только подтверждённо доступная (share_price карточки или new_price скидки)
+        const priceValue = deal ? (deal.share_price !== undefined ? deal.share_price : deal.new_price) : 0;
+        const sharePrice = Number(priceValue) > 0 ? ' — ' + formatPrice(priceValue) : '';
         navigator.share({
           title: title,
           text: 'Смотри, что нашёл в KZ Price Hunter: ' + title + sharePrice,
@@ -11716,12 +11733,14 @@
       // C02: открытое предложение (/offer/<id>) важнее лучшего по городу интерфейса
       const best = p.selected_offer || ((p.offers && p.offers[0]) ? p.offers[0] : {});
       const url = window.location.href;
+      const sharePrice = currentProductSharePrice(p);
       const dealLike = {
         canonical_product_id: prod.id || p.id || '',
         offer_id: best.id || '',
         offer_selected: !!p.selected_offer,
         title: title,
-        current_price: p.best_price || best.price || 0,
+        current_price: sharePrice,
+        share_price: sharePrice,
         shop: best.seller_name || best.shop || '',
         image_url: (p.images && p.images[0]) || p.image_url || '',
         url: url
@@ -11729,15 +11748,26 @@
       shareDeal(title, url, dealLike);
     }
 
+    // D03: цена, которую можно показать при шеринге. Для страницы предложения — его цена,
+    // только если оно доступно к покупке; для карточки товара — показанная лучшая цена
+    // (min_price, null при отсутствии доступных предложений). Иначе 0 — делимся без цены.
+    function currentProductSharePrice(p) {
+      if (!p) return 0;
+      if (p.selected_offer) {
+        const o = p.selected_offer;
+        return o.is_purchasable && Number(o.price) > 0 ? Number(o.price) : 0;
+      }
+      return Number(p.min_price) > 0 ? Number(p.min_price) : 0;
+    }
+
     function shareCurrentProductStory() {
       if (!AppState.currentProduct) return;
       const p = AppState.currentProduct;
       const prod = p.product || {};
       const title = prod.title || p.title || 'Товар в KZ Price Hunter';
-      const best = (p.offers && p.offers[0]) ? p.offers[0] : (p.selected_offer || {});
       const img = (p.images && p.images[0]) || p.image_url || '';
-      const price = p.best_price || best.price || 0;
-      const text = `${title} — ${formatPrice(price)}`;
+      const price = currentProductSharePrice(p);
+      const text = price > 0 ? `${title} — ${formatPrice(price)}` : title;
       if (typeof TelegramApp !== 'undefined' && TelegramApp.isInside && img) {
         TelegramApp.shareToStory(img, text, window.location.href);
       }

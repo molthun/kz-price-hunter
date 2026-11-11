@@ -104,6 +104,14 @@ class BarcodeResolverAsyncTests(unittest.IsolatedAsyncioTestCase):
                 "VALUES (?, ?, ?, ?, ?, '', '')",
                 (pid, "key_link_1", "Влажные салфетки Tompi 100 шт", "grocery", "Tompi"))
             conn.commit()
+
+        def _cleanup():
+            # Иначе карточка становится вторым точным вариантом в тестах автопривязки
+            with database.get_connection() as conn:
+                conn.execute("DELETE FROM product_barcodes WHERE product_id = ?", (pid,))
+                conn.execute("DELETE FROM canonical_products WHERE id = ?", (pid,))
+                conn.commit()
+        self.addCleanup(_cleanup)
         success = link_barcode_to_products(pid, barcode, source="test")
         self.assertTrue(success)
 

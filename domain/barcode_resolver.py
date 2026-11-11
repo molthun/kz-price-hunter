@@ -384,6 +384,33 @@ def variant_signature(title: str) -> tuple[frozenset, tuple]:
     return frozenset(words), tuple(sorted(quantities))
 
 
+# Слова-отношения: «HDMI на DisplayPort» и «DisplayPort на HDMI» — разные товары
+_RELATION_WORDS = frozenset({"на", "в", "во", "из", "от", "до", "to", "from", "into", "for", "для"})
+
+
+def variant_sequence(title: str) -> tuple:
+    """D01: структура названия относительно слов-отношений («на», «из», «для», «to»…).
+
+    Возвращает чередование групп и отношений: «переходник HDMI на DisplayPort» →
+    ({переходник, hdmi}, «на», {displayport}). Внутри группы порядок не важен
+    («влажные салфетки Tompi» = «Tompi салфетки влажные»), но группы по разные стороны
+    отношения различаются, поэтому обратное направление не совпадает.
+    """
+    text = (title or "").lower().replace("ё", "е")
+    parts: list = []
+    group: set = set()
+    for tok in _TOKEN_RE.findall(text):
+        if tok in _RELATION_WORDS:
+            parts.extend([frozenset(group), tok])
+            group = set()
+        elif tok[0].isdigit():
+            group.add(tok.replace(",", "."))
+        elif tok not in _STOPWORDS and (len(tok) >= 2 or tok == "с" or tok.isascii()):
+            group.add(_stem(tok))
+    parts.append(frozenset(group))
+    return tuple(parts)
+
+
 def is_exact_variant_match(resolved_title: str, product_title: str) -> bool:
     """Тот же вариант: совпадают все значимые слова и все количества вместе с единицами.
 
@@ -395,7 +422,8 @@ def is_exact_variant_match(resolved_title: str, product_title: str) -> bool:
     pw, pq = variant_signature(product_title)
     if len(rw) < 2 or not pw:
         return False
-    return rw == pw and rq == pq
+    # D01: и состав, и порядок (с отношениями «на», «из», «для»…) — иначе только кандидат
+    return rw == pw and rq == pq and variant_sequence(resolved_title) == variant_sequence(product_title)
 
 
 # Сколько кандидатов полнотекстового поиска проверяется до отказа от вывода об уникальности

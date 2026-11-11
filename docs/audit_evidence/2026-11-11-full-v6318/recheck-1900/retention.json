@@ -1,0 +1,23 @@
+{
+  "kzph-stand": {
+    "products_with_description": 0,
+    "canonical_products_with_description": 0,
+    "offers_with_prose_keys": 0,
+    "canonical_products_with_prose_keys": 0,
+    "product_queue_spool_with_prose_keys": 0
+  },
+  "kz-price-hunter": {
+    "products_with_description": 15325,
+    "canonical_products_with_description": 5953,
+    "offers_with_prose_keys": 0,
+    "canonical_products_with_prose_keys": 0,
+    "product_queue_spool_with_prose_keys": 0
+  },
+  "backup": {
+    "products_with_description": 0,
+    "canonical_products_with_description": 0,
+    "offers_with_prose_keys": 0,
+    "canonical_products_with_prose_keys": 0,
+    "product_queue_spool_with_prose_keys": 0
+  }
+}

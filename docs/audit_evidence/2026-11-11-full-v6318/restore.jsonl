@@ -1,0 +1,2 @@
+{"backup": "prices-nightly-20261110T233001833817Z-422396.db", "bytes": 2173210624, "config_members": [".env", "compose.yaml", "settings.json"]}
+{"restored": true, "duration_sec": 19.97, "integrity": "ok", "schema": 5, "queries": {"активные товары": true, "товар с ценой": true, "вход пользователя": true, "наблюдения человека": true, "очередь уведомлений": true, "лента алертов": true, "поиск V2": true, "карточка товара V2": true, "очередь записи": true}, "error": null}
