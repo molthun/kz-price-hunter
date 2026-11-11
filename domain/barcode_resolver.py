@@ -165,16 +165,13 @@ def link_barcode_to_products(product_ids: list[str] | str, barcode: str, source:
                             (json.dumps(attrs, ensure_ascii=False), pid)
                         )
 
-                        # 3. Сохраняем в кэш с точным названием товара
-                        if title:
+                        # 3. Сохраняем в кэш с точным названием товара только если кэш пуст
+                        row_curr = conn.execute("SELECT barcode FROM barcode_cache WHERE barcode = ?", (clean_barcode,)).fetchone()
+                        if not row_curr and title:
                             conn.execute(
                                 """
                                 INSERT INTO barcode_cache (barcode, title, brand, resolved_at)
                                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                                ON CONFLICT(barcode) DO UPDATE SET
-                                    title = excluded.title,
-                                    brand = coalesce(excluded.brand, barcode_cache.brand),
-                                    resolved_at = CURRENT_TIMESTAMP
                                 """,
                                 (clean_barcode, title, brand)
                             )
@@ -259,11 +256,16 @@ def _fetch_from_searxng_sync(barcode: str, timeout: float = 3.0) -> Optional[str
                 title = r.get("title", "")
 
                 # Паттерн 1: "Этот штрих-код встречается в следующих товарах: <NAME>"
-                m_match = re.search(r"встречается в следующих товарах:\s*([^;.]+)", content, flags=re.I)
+                m_match = re.search(r"встречается в следующих товарах:\s*([^.]+)", content, flags=re.I)
                 if m_match:
-                    cand = _clean_product_title(m_match.group(1))
-                    if len(cand) >= 3 and not cand.isdigit():
-                        return cand
+                    candidates = [x.strip() for x in m_match.group(1).split(";") if x.strip()]
+                    if candidates:
+                        # Предпочитаем наиболее полное наименование (с брендом, объемом, количеством слов)
+                        sorted_cands = sorted(candidates, key=lambda s: (len(s.split()), len(s)), reverse=True)
+                        for c in sorted_cands:
+                            cand = _clean_product_title(c)
+                            if len(cand) >= 4 and not cand.isdigit():
+                                return cand
 
                 # Паттерн 2: Извлекаем из заголовка карточки штрихкода
                 cand_title = _clean_product_title(title)

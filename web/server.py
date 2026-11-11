@@ -1336,18 +1336,24 @@ async def search_v2_handler(request):
                 data["resolved_from_barcode"] = barcode_val
                 data["resolved_product_title"] = resolved_barcode_info["title"]
                 items_list = data.get("items") or []
+                import re as _re_match
+                target_words = set(_re_match.findall(r'[a-zA-Zа-яА-Я0-9]{3,}', resolved_barcode_info.get("title", "").lower()))
                 pids = []
                 for it in items_list:
                     prod = it.get("product")
                     if isinstance(prod, dict):
                         pid = prod.get("id")
-                        if pid:
+                        p_title = (prod.get("title") or "").lower()
+                        p_words = set(_re_match.findall(r'[a-zA-Zа-яА-Я0-9]{3,}', p_title))
+                        common = target_words & p_words
+                        is_match = len(common) >= 2 or (len(target_words) <= 2 and len(common) >= 1)
+                        if pid and is_match:
                             pids.append(pid)
                             prod["barcode"] = barcode_val
                             attrs = prod.setdefault("attributes", {})
                             if isinstance(attrs, dict):
                                 attrs["barcode"] = barcode_val
-                        it["barcode"] = barcode_val
+                            it["barcode"] = barcode_val
                 if pids:
                     asyncio.create_task(
                         asyncio.to_thread(barcode_resolver.link_barcode_to_products, pids, barcode_val, "search_match")
@@ -1360,18 +1366,24 @@ async def search_v2_handler(request):
             data["resolved_from_barcode"] = barcode_val
             data["resolved_product_title"] = resolved_barcode_info["title"]
             items_list = data.get("items") or []
+            import re as _re_match
+            target_words = set(_re_match.findall(r'[a-zA-Zа-яА-Я0-9]{3,}', resolved_barcode_info.get("title", "").lower()))
             pids = []
             for it in items_list:
                 prod = it.get("product")
                 if isinstance(prod, dict):
                     pid = prod.get("id")
-                    if pid:
+                    p_title = (prod.get("title") or "").lower()
+                    p_words = set(_re_match.findall(r'[a-zA-Zа-яА-Я0-9]{3,}', p_title))
+                    common = target_words & p_words
+                    is_match = len(common) >= 2 or (len(target_words) <= 2 and len(common) >= 1)
+                    if pid and is_match:
                         pids.append(pid)
                         prod["barcode"] = barcode_val
                         attrs = prod.setdefault("attributes", {})
                         if isinstance(attrs, dict):
                             attrs["barcode"] = barcode_val
-                    it["barcode"] = barcode_val
+                        it["barcode"] = barcode_val
             if pids:
                 asyncio.create_task(
                     asyncio.to_thread(barcode_resolver.link_barcode_to_products, pids, barcode_val, "search_match")
