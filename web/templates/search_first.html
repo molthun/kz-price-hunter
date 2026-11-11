@@ -2751,10 +2751,11 @@
     @media (max-width: 599px) and (min-height: 501px) {
       .deals-page-layout {
         padding: 0 8px;
-        gap: 4px;
+        gap: 2px;
         max-width: 100%;
       }
 
+      /* Ultra-compact single-row filter bar (saves ~75px vertical space for product photo) */
       .deals-filter-bar {
         background: transparent;
         border: none;
@@ -2763,44 +2764,38 @@
         margin: 0;
         width: 100%;
         display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 6px;
-      }
-
-      .deals-type-pills {
-        display: flex;
+        flex-direction: row;
+        align-items: center;
         gap: 6px;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         -ms-overflow-style: none;
-        padding-bottom: 2px;
-        width: 100%;
+        white-space: nowrap;
       }
 
-      .deal-type-pill {
-        padding: 5px 12px;
-        font-size: 0.78rem;
-        flex-shrink: 0;
-      }
-
-      .deals-selectors-group {
-        display: flex;
-        gap: 6px;
-        width: 100%;
-        align-items: center;
+      .deals-filter-bar::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
       }
 
       .deals-select {
-        flex: 1 1 50%;
+        flex: 0 0 auto;
         min-width: 0;
         height: 30px;
         padding: 3px 8px;
         font-size: 0.76rem;
         font-weight: 600;
         border-radius: var(--radius-full);
-        text-overflow: ellipsis;
+      }
+
+      .deal-type-pill {
+        padding: 5px 12px;
+        font-size: 0.76rem;
+        flex-shrink: 0;
+        height: 30px;
+        box-sizing: border-box;
       }
 
       .deals-reels-wrapper {
@@ -2812,7 +2807,7 @@
 
       .deals-reels-container {
         width: 100%;
-        height: min(740px, calc(100dvh - 145px));
+        height: min(760px, calc(100dvh - 135px));
         overflow-y: scroll;
         scroll-snap-type: y mandatory;
         scroll-behavior: smooth;
@@ -2828,6 +2823,7 @@
         height: 0 !important;
       }
 
+      /* Unified Card: TikTok Reels Immersive Media + Informative Details */
       .deal-reel-card {
         height: 100% !important;
         min-height: 100% !important;
@@ -2836,27 +2832,29 @@
         scroll-snap-stop: always;
         margin: 0 !important;
         border-radius: 20px;
-        border: 1px solid var(--border-color);
-        background: var(--bg-card);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: #0f172a !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
         overflow: hidden;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
         box-sizing: border-box;
+        position: relative;
       }
 
+      /* Hero Media Stage (67% of card height) */
       .deal-reel-media {
-        flex: 1 1 56% !important;
-        min-height: 220px;
-        max-height: 58%;
-        margin: 8px 8px 0 8px;
+        flex: 1 1 67% !important;
+        min-height: 250px;
+        max-height: 69%;
+        margin: 6px 6px 0 6px;
         border-radius: 16px;
-        background: #ffffff;
+        background: radial-gradient(circle at center, #ffffff 75%, #f1f5f9 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 10px;
+        padding: 8px;
         position: relative;
         cursor: pointer;
         -webkit-user-select: none;
@@ -2873,27 +2871,79 @@
         object-fit: contain;
       }
 
+      /* Vertical Action Stack on the right side over the photo */
+      .deal-side-actions {
+        display: flex !important;
+        position: absolute;
+        right: 10px;
+        bottom: 12px;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 10;
+        pointer-events: auto;
+      }
+
+      .deal-side-btn {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: rgba(15, 23, 42, 0.78);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        font-size: 1.15rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+        cursor: pointer;
+        transition: transform 0.15s ease, background 0.15s ease;
+      }
+
+      .deal-side-btn:active {
+        transform: scale(0.92);
+      }
+
+      .deal-side-btn.fav-active {
+        color: #ef4444;
+        border-color: rgba(239, 68, 68, 0.5);
+        background: rgba(30, 41, 59, 0.95);
+      }
+
+      .btn-deal-fav-floating {
+        display: none !important;
+      }
+
+      /* Informative Body: Shop, Title, Verified Prices & Fast Buy */
       .deal-reel-content {
         flex: 0 0 auto;
-        padding: 8px 12px 10px 12px;
+        padding: 6px 12px 10px 12px;
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        background: var(--bg-card);
+        gap: 3px;
+        background: rgba(15, 23, 42, 0.96);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
         box-sizing: border-box;
       }
 
       .deal-reel-shop-row {
-        font-size: 0.78rem;
+        font-size: 0.76rem;
         line-height: 1.2;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
       }
 
       .deal-reel-title {
-        font-size: 0.94rem;
+        font-size: 0.92rem;
         font-weight: 700;
-        line-height: 1.28;
+        line-height: 1.25;
         min-height: auto;
-        max-height: 2.56em;
+        max-height: 2.5em;
         margin: 0;
         display: -webkit-box;
         -webkit-line-clamp: 2;
@@ -2902,8 +2952,8 @@
       }
 
       .deal-evidence {
-        font-size: 0.74rem;
-        line-height: 1.2;
+        font-size: 0.72rem;
+        line-height: 1.18;
         min-height: auto;
         display: -webkit-box;
         -webkit-line-clamp: 1;
@@ -2918,6 +2968,7 @@
         margin-top: 1px;
         flex-wrap: nowrap;
         overflow: hidden;
+        display: flex;
       }
 
       .deal-price-current {
@@ -2946,142 +2997,20 @@
 
       .deal-actions-row {
         margin-top: 4px;
-        padding-top: 4px;
-        gap: 8px;
-        display: flex;
-        align-items: center;
+        padding-top: 2px;
         width: 100%;
+        display: flex;
       }
 
-      .btn-deal-buy {
-        flex: 1;
-        min-width: 0;
+      /* Full-width High-conversion Buy Button */
+      .btn-deal-buy-full {
+        width: 100%;
         height: 44px;
         min-height: 44px;
-        font-size: 0.92rem;
-        font-weight: 700;
-        border-radius: var(--radius-md);
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-      }
-
-      .btn-deal-action {
-        width: 44px;
-        height: 44px;
-        flex: 0 0 44px;
-        min-height: 44px;
-        font-size: 1rem;
-        border-radius: var(--radius-md);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .deals-bottom-controls,
-      #dealsSentinel {
-        display: none !important;
-      }
-
-      /* ----------------------------------------------------------- */
-      /* VARIANT 2: TikTok / Reels Feed (Claude)                     */
-      /* ----------------------------------------------------------- */
-      [data-deals-design="v2"] .deal-reel-card {
-        background: #0b0f19 !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
-        position: relative !important;
-      }
-
-      [data-deals-design="v2"] .deal-reel-media {
-        flex: 1 1 70% !important;
-        max-height: 70% !important;
-        margin: 6px 6px 0 6px !important;
-        border-radius: 18px !important;
-        background: radial-gradient(circle at center, #ffffff 75%, #f1f5f9 100%) !important;
-        padding: 6px !important;
-        position: relative !important;
-      }
-
-      [data-deals-design="v2"] .deal-reel-media .deal-side-actions {
-        display: flex !important;
-        position: absolute;
-        right: 10px;
-        bottom: 12px;
-        flex-direction: column;
-        gap: 8px;
-        z-index: 10;
-        pointer-events: auto;
-      }
-
-      [data-deals-design="v2"] .deal-side-btn {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: rgba(15, 23, 42, 0.78);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #ffffff;
-        font-size: 1.15rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-        cursor: pointer;
-        transition: transform 0.15s ease;
-      }
-
-      [data-deals-design="v2"] .deal-side-btn:active {
-        transform: scale(0.92);
-      }
-
-      [data-deals-design="v2"] .btn-deal-fav-floating {
-        display: none !important;
-      }
-
-      [data-deals-design="v2"] .deal-reel-content {
-        flex: 0 0 auto !important;
-        padding: 6px 12px 10px 12px !important;
-        gap: 3px !important;
-        background: rgba(15, 23, 42, 0.85) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-      }
-
-      [data-deals-design="v2"] .deal-reel-shop-row {
-        font-size: 0.74rem !important;
-      }
-
-      [data-deals-design="v2"] .deal-reel-title {
-        font-size: 0.9rem !important;
-        line-height: 1.22 !important;
-        max-height: 2.44em !important;
-      }
-
-      [data-deals-design="v2"] .deal-reel-price-row,
-      [data-deals-design="v2"] .deal-provenance-text,
-      [data-deals-design="v2"] .deal-evidence,
-      [data-deals-design="v2"] .deal-actions-row,
-      [data-deals-design="v2"] .deal-proof-badge,
-      [data-deals-design="v2"] .deal-split-actions {
-        display: none !important;
-      }
-
-      [data-deals-design="v2"] .deal-banner-action-wrap {
-        display: block !important;
-        margin-top: 4px;
-      }
-
-      [data-deals-design="v2"] .btn-deal-buy-banner {
-        width: 100%;
-        height: 46px;
         border-radius: 12px;
         background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
         color: #ffffff;
-        font-size: 0.96rem;
+        font-size: 0.92rem;
         font-weight: 800;
         display: flex;
         align-items: center;
@@ -3089,87 +3018,18 @@
         gap: 6px;
         text-decoration: none;
         box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
-      }
-
-      /* ----------------------------------------------------------- */
-      /* VARIANT 3: Price Proof & Smart Comparison (Codex)           */
-      /* ----------------------------------------------------------- */
-      [data-deals-design="v3"] .deal-reel-card {
-        background: #0f172a !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-      }
-
-      [data-deals-design="v3"] .deal-reel-media {
-        flex: 1 1 48% !important;
-        max-height: 50% !important;
-        min-height: 180px !important;
-        margin: 6px 6px 0 6px !important;
-        padding: 8px !important;
-      }
-
-      [data-deals-design="v3"] .deal-reel-content {
-        flex: 1 1 52% !important;
-        padding: 8px 12px 10px 12px !important;
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: space-between !important;
-        gap: 4px !important;
-      }
-
-      [data-deals-design="v3"] .deal-proof-badge {
-        display: flex !important;
-        align-items: center;
-        justify-content: space-between;
-        background: rgba(34, 197, 94, 0.12);
-        border: 1px solid rgba(34, 197, 94, 0.28);
-        border-radius: 8px;
-        padding: 4px 8px;
-        font-size: 0.74rem;
-        color: #4ade80;
-        font-weight: 700;
-      }
-
-      [data-deals-design="v3"] .deal-actions-row,
-      [data-deals-design="v3"] .deal-banner-action-wrap {
-        display: none !important;
-      }
-
-      [data-deals-design="v3"] .deal-split-actions {
-        display: flex !important;
-        gap: 8px;
-        width: 100%;
-        margin-top: 4px;
-      }
-
-      [data-deals-design="v3"] .btn-deal-split-buy {
-        flex: 1 1 64%;
-        height: 44px;
-        background: var(--primary);
-        color: #ffffff;
-        border-radius: var(--radius-md);
-        font-size: 0.88rem;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        text-decoration: none;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-      }
-
-      [data-deals-design="v3"] .btn-deal-split-compare {
-        flex: 1 1 36%;
-        height: 44px;
-        background: var(--bg-subtle);
-        border: 1px solid var(--border-color);
-        color: var(--text-main);
-        border-radius: var(--radius-md);
-        font-size: 0.8rem;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        border: none;
         cursor: pointer;
+        transition: transform 0.15s ease;
+      }
+
+      .btn-deal-buy-full:active {
+        transform: scale(0.98);
+      }
+
+      .deals-bottom-controls,
+      #dealsSentinel {
+        display: none !important;
       }
     }
 
@@ -5854,50 +5714,32 @@
     <!-- ============================================================= -->
     <section id="viewDeals" class="view-section">
       <div class="deals-page-layout">
-        <div class="deals-filter-bar">
-          <div class="deals-design-tabs" style="display: flex; gap: 6px; width: 100%; margin-bottom: 4px;">
-            <a href="/deals-v1" class="deal-design-tab" data-design-target="v1" onclick="navigateTo(event, '/deals-v1')" style="flex: 1; text-align: center; padding: 7px 4px; font-size: 0.78rem; font-weight: 700; border-radius: var(--radius-md); text-decoration: none; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); transition: all 0.15s ease;">
-              🎨 1. Витрина
-            </a>
-            <a href="/deals-v2" class="deal-design-tab" data-design-target="v2" onclick="navigateTo(event, '/deals-v2')" style="flex: 1; text-align: center; padding: 7px 4px; font-size: 0.78rem; font-weight: 700; border-radius: var(--radius-md); text-decoration: none; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); transition: all 0.15s ease;">
-              📱 2. TikTok
-            </a>
-            <a href="/deals-v3" class="deal-design-tab" data-design-target="v3" onclick="navigateTo(event, '/deals-v3')" style="flex: 1; text-align: center; padding: 7px 4px; font-size: 0.78rem; font-weight: 700; border-radius: var(--radius-md); text-decoration: none; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); transition: all 0.15s ease;">
-              ⚖️ 3. Выгода
-            </a>
-          </div>
-          <div class="deals-type-pills" id="dealsTypePills">
+        <div class="deals-filter-bar" id="dealsFilterBar">
+          <select id="dealsCategorySelect" class="deals-select deals-filter-chip" onchange="onDealsCategoryChanged(this.value)" aria-label="Категория скидок" style="flex: 0 0 auto; max-width: 140px;">
+            <option value="Все">🏷️ Все категории</option>
+            <option value="Смартфоны">📱 Смартфоны</option>
+            <option value="Ноутбуки">💻 Ноутбуки</option>
+            <option value="Комплектующие для ПК">🖥️ Комплектующие</option>
+            <option value="Видеокарты">🎮 Видеокарты</option>
+            <option value="Наушники">🎧 Наушники</option>
+            <option value="Телевизоры">📺 Телевизоры</option>
+            <option value="Бытовая техника">🍳 Бытовая техника</option>
+            <option value="Детские товары">👶 Детские товары</option>
+            <option value="Автотовары">🛞 Автотовары</option>
+          </select>
+          <select id="dealsSortSelect" class="deals-select deals-filter-chip" onchange="onDealsSortChanged(this.value)" aria-label="Сортировка скидок" style="flex: 0 0 auto; max-width: 130px;">
+            <option value="random">🎲 Случайно</option>
+            <option value="discount_desc">📉 По скидке %</option>
+            <option value="savings_desc">💰 По выгоде ₸</option>
+            <option value="price_asc">🏷️ Сначала дешевле</option>
+          </select>
+          <div class="deals-type-pills" id="dealsTypePills" style="display: contents;">
             <button class="deal-type-pill active" data-type="all" data-min-discount="0" onclick="setDealsType(this, 'all', 0)">🔥 Все</button>
             <button class="deal-type-pill" data-type="all" data-min-discount="20" onclick="setDealsType(this, 'all', 20)">⚡ 20%+</button>
             <button class="deal-type-pill" data-type="super" data-min-discount="30" onclick="setDealsType(this, 'super', 30)">⚡ 30%+</button>
             <button class="deal-type-pill" data-type="all" data-min-discount="50" onclick="setDealsType(this, 'all', 50)">💥 50%+</button>
             <button class="deal-type-pill" data-type="arbitrage" data-min-discount="0" onclick="setDealsType(this, 'arbitrage', 0)">⚖️ Арбитраж</button>
             <button class="deal-type-pill" data-type="observed" data-min-discount="0" onclick="setDealsType(this, 'observed', 0)">✓ Проверенные</button>
-          </div>
-          <div class="deals-selectors-group">
-            <select id="dealsDesignSelect" class="deals-select" onchange="setDealsDesign(this.value)" aria-label="Вариант дизайна" style="border-color: var(--primary); font-weight: 700;">
-              <option value="v1">🎨 1. Витрина (Antigravity)</option>
-              <option value="v2">📱 2. TikTok (Claude)</option>
-              <option value="v3">⚖️ 3. Выгода (Codex)</option>
-            </select>
-            <select id="dealsSortSelect" class="deals-select" onchange="onDealsSortChanged(this.value)" aria-label="Сортировка скидок">
-              <option value="random">🎲 Случайно</option>
-              <option value="discount_desc">📉 По скидке %</option>
-              <option value="savings_desc">💰 По выгоде ₸</option>
-              <option value="price_asc">🏷️ Сначала дешевле</option>
-            </select>
-            <select id="dealsCategorySelect" class="deals-select" onchange="onDealsCategoryChanged(this.value)" aria-label="Категория скидок">
-              <option value="Все">🏷️ Все категории</option>
-              <option value="Смартфоны">📱 Смартфоны</option>
-              <option value="Ноутбуки">💻 Ноутбуки</option>
-              <option value="Комплектующие для ПК">🖥️ Комплектующие для ПК</option>
-              <option value="Видеокарты">🎮 Видеокарты</option>
-              <option value="Наушники">🎧 Наушники</option>
-              <option value="Телевизоры">📺 Телевизоры</option>
-              <option value="Бытовая техника">🍳 Бытовая техника</option>
-              <option value="Детские товары">👶 Детские товары</option>
-              <option value="Автотовары">🛞 Автотовары</option>
-            </select>
           </div>
         </div>
 
@@ -11760,7 +11602,6 @@
 
     function renderDealsFeed() {
       fitDealsFeed();
-      applyDealsDesign();
       const container = document.getElementById('dealsReelsContainer');
       if (!container) return;
 
@@ -11806,27 +11647,39 @@
                 ${discountBadge}
                 ${dealTypeBadge}
               </div>
-              <button
-                class="btn-deal-fav-floating ${isFav ? 'fav-active' : ''}"
-                onclick="dealAction(this, 'favorite')"
-                aria-label="В избранное"
-                title="${isFav ? 'Удалить из избранного' : 'Добавить в избранное'}"
-              >
-                ${isFav ? '❤️' : '♡'}
-              </button>
 
-              <!-- Боковой стек кнопок для Варианта 2 (TikTok / Claude) -->
+              <!-- Боковой вертикальный стек действий (из Варианта 2) -->
               <div class="deal-side-actions">
-                <button class="deal-side-btn" onclick="dealAction(this, 'favorite')" aria-label="Избранное" title="Избранное">
+                <button
+                  class="deal-side-btn ${isFav ? 'fav-active' : ''}"
+                  onclick="dealAction(this, 'favorite')"
+                  aria-label="В избранное"
+                  title="${isFav ? 'В избранном' : 'Добавить в избранное'}"
+                >
                   ${isFav ? '❤️' : '♡'}
                 </button>
-                <button class="deal-side-btn" onclick="dealAction(this, 'watch')" aria-label="Следить" title="Уведомить о снижении цены">
+                <button
+                  class="deal-side-btn"
+                  onclick="dealAction(this, 'watch')"
+                  aria-label="Следить за ценой"
+                  title="Уведомить о снижении цены"
+                >
                   🔔
                 </button>
-                <button class="deal-side-btn" onclick="dealAction(this, 'open')" aria-label="Аналоги" title="Похожие предложения">
+                <button
+                  class="deal-side-btn"
+                  onclick="dealAction(this, 'open')"
+                  aria-label="Аналоги и предложения"
+                  title="${deal.canonical_product_id ? 'Открыть предложения всех магазинов' : 'Найти в каталоге'}"
+                >
                   🔍
                 </button>
-                <button class="deal-side-btn" onclick="dealAction(this, 'share')" aria-label="Поделиться" title="Поделиться скидкой">
+                <button
+                  class="deal-side-btn"
+                  onclick="dealAction(this, 'share')"
+                  aria-label="Поделиться"
+                  title="Поделиться скидкой"
+                >
                   ↗
                 </button>
               </div>
@@ -11842,12 +11695,6 @@
                 ${escapeHtml(deal.title)}
               </h2>
 
-              <!-- Блок доказательства выгоды для Варианта 3 (Codex) -->
-              <div class="deal-proof-badge">
-                <span>🟢 Исторический минимум за 30 дней</span>
-                <span>${deal.savings_kzt > 0 ? 'Выгода ' + formatPrice(deal.savings_kzt) : (deal.discount_pct > 0 ? '-' + Math.round(deal.discount_pct) + '%' : 'Супер-цена')}</span>
-              </div>
-
               <p class="deal-evidence" data-evidence-id="${escapeHtml(deal.canonical_product_id||'')}">Загружаем сведения о товаре…</p>
               
               <div class="deal-reel-price-row">
@@ -11861,69 +11708,16 @@
                 ${deal.competitor_shop ? `<span>(дешевле чем в ${escapeHtml(deal.competitor_shop)})</span>` : ''}
               </div>
 
-              <!-- Кнопка-баннер во всю ширину для Варианта 2 (TikTok / Claude) -->
-              <div class="deal-banner-action-wrap">
-                ${safeUrl ? `
-                  <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy-banner" title="${deal.shop ? 'Купить в ' + escapeHtml(deal.shop) : 'Купить'}">
-                    <span>🔥 Забрать за ${formatPrice(deal.new_price)} ${deal.discount_pct > 0 ? '(-' + Math.round(deal.discount_pct) + '%)' : ''}</span>
-                    <span style="font-size: 0.8rem;">↗</span>
-                  </a>
-                ` : `
-                  <button class="btn-deal-buy-banner" disabled style="opacity: 0.5;">Купить</button>
-                `}
-              </div>
-
-              <!-- Сплит-кнопки для Варианта 3 (Codex) -->
-              <div class="deal-split-actions">
-                ${safeUrl ? `
-                  <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-deal-split-buy" title="${deal.shop ? 'Купить в ' + escapeHtml(deal.shop) : 'Купить'}">
-                    <span>Купить в ${escapeHtml(deal.shop || 'магазине')} ↗</span>
-                  </a>
-                ` : `
-                  <button class="btn-deal-split-buy" disabled style="opacity: 0.5;">Купить</button>
-                `}
-                <button class="btn-deal-split-compare" onclick="dealAction(this, 'open')" title="Сравнить цены в других магазинах">
-                  Сравнить цены
-                </button>
-              </div>
-
-              <!-- Стандартный ряд действий для Варианта 1 (Antigravity) -->
+              <!-- Широкая акцентная кнопка покупки (развитие Варианта 2) -->
               <div class="deal-actions-row">
                 ${safeUrl ? `
-                  <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy" title="${deal.shop ? 'Купить в ' + escapeHtml(deal.shop) : 'Перейти на страницу товара у продавца'}">
-                    <span>Купить</span>
-                    <span style="font-size: 0.75rem;">↗</span>
+                  <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy-full" title="${deal.shop ? 'Купить в ' + escapeHtml(deal.shop) : 'Купить'}">
+                    <span>Купить в ${escapeHtml(deal.shop || 'магазине')} за ${formatPrice(deal.new_price)}</span>
+                    <span style="font-size: 0.85rem;">↗</span>
                   </a>
                 ` : `
-                  <button class="btn-deal-buy" disabled style="opacity: 0.5;">Купить</button>
+                  <button class="btn-deal-buy-full" disabled style="opacity: 0.5;">Купить</button>
                 `}
-
-                <button
-                  class="btn-deal-action"
-                  onclick="dealAction(this, 'watch')"
-                  aria-label="Следить за ценой"
-                  title="Уведомить о снижении цены"
-                >
-                  🔔
-                </button>
-
-                <button
-                  class="btn-deal-action"
-                  onclick="dealAction(this, 'open')"
-                  aria-label="О товаре"
-                  title="${deal.canonical_product_id ? 'Открыть предложения всех магазинов' : 'Найти товар в поиске'}"
-                >
-                  🔍
-                </button>
-
-                <button
-                  class="btn-deal-action"
-                  onclick="dealAction(this, 'share')"
-                  aria-label="Поделиться"
-                  title="Поделиться скидкой"
-                >
-                  ↗
-                </button>
               </div>
             </div>
           </div>
