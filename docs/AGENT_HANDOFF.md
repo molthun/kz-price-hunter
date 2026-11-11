@@ -2,6 +2,34 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED TG-25 iOS/PWA VISIBILITY FIX: устранена невидимость интерфейса сканера (opacity: 0 / z-index) на iPhone — Antigravity (2026-11-11 09:01)
+
+- **Поручение владельца (чат, 2026-11-11):** «Нифига на iphone 13 камеру использует. но интерфейс сканирования не появляеться не в телеграм веб апп не в рва». Работаем на стенде, в прод ничего не отправляем.
+- **Исполнитель:** Antigravity.
+- **Ветка:** `main` локально, без push в `origin/main`. Прод не трогается.
+- **Стенд:** `192.168.28.25:2222`, `~/kzph-stand`, `https://shdev.molthun.ru`, коммит `06d24bd`. Контейнер пересобран и перезапущен.
+- **Область файлов:** `web/templates/search_first.html`, `docs/AGENT_HANDOFF.md`.
+- **Коренная причина проблемы:**
+  - На теге сканера `#scannerModalBackdrop` присутствовали классы `modal-backdrop scanner-modal-backdrop`.
+  - В общем CSS правило `.modal-backdrop` объявляется ниже (строка 3165) и имеет свойства `opacity: 0;` и `z-index: 200;`.
+  - Из-за каскада CSS и равной специфичности селекторов правило `.modal-backdrop` перебивало класс сканера.
+  - При открытии модалки выполнялось только `modal.style.display = 'flex'`, но класс `.open` не добавлялся. В результате модалка оставалась с `opacity: 0;` и находилась под верхними элементами страницы (`z-index: 200` против `z-index: 1000`).
+  - Камера успешно запускалась WebKit (`getUserMedia` работал, зеленый индикатор камеры на iPhone 13 горел), но весь интерфейс сканера был 100% прозрачным и невидимым!
+- **Что сделано:**
+  1. С тега `#scannerModalBackdrop` снят конфликтующий класс `modal-backdrop`, оставлен чистый выделенный класс `.scanner-modal-backdrop`.
+  2. В CSS задан безусловный приоритет: `position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100dvh !important; z-index: 999999 !important; background: #000 !important; opacity: 1 !important; visibility: visible !important; transform: translateZ(0);`.
+  3. В `BarcodeScannerManager.open()` явно выставляется `modal.classList.add('open')`, `modal.style.opacity = '1'`, `modal.style.visibility = 'visible'`, а при закрытии — удаление класса и сброс стилей.
+  4. Для `<video>` элемента на iOS WebKit добавлены свойства `playsinline`, `webkit-playsinline`, `muted`, `autoplay` и мягкий retry `video.play()` по событию `loadedmetadata`.
+  5. Скрытие экрана загрузки камеры привязано к событиям первого кадра (`loadedmetadata` / `playing`), чтобы черный оверлей не перекрывал видеопоток.
+  6. Убран обработчик `onclick` с бэкдропа контейнера — закрытие теперь происходит строго по кнопке `✕`, системному «Назад» в Telegram или кнопке ручного ввода.
+- **Проверки:**
+  - Локально: `venv/bin/python3 -m unittest tests/notifications/test_scanner_and_miniapp_buttons.py`: 6 тестов OK (0.006s).
+  - На стенде: пересборка контейнера через git bundle и запуск тестов.
+- **Следующий точный шаг:**
+  - Проверить отображение сканера на iPhone 13 владельцем.
+
+---
+
 ## STAND_DEPLOYED TG-25 PWA FIX: открытие сканера в автономном PWA, 2x зум и адаптивный EAN-13 декодер — Antigravity (2026-11-11 01:14)
 
 - **Поручение владельца (чат, 2026-11-10):** «А в PWA приложении даже не открываеться сканер.» Работаем на стенде, в прод ничего не отправляем.
