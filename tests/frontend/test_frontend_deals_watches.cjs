@@ -442,8 +442,9 @@ async function modalReach(browser,width,height,colorScheme){
  await context.close();
 }
 
-// 6.34.0: лента-сторис на телефоне. Карточка целиком между фильтрами и нижним меню,
-// страница под лентой не прокручивается, логотип магазина не выдаётся за фото, кнопки не на фото
+// 6.34.0: лента-сторис на телефоне. Страница под лентой не прокручивается, логотип магазина
+// не выдаётся за фото, кнопки не на фото. 6.35.0: лента на весь экран, шапка, фильтры и меню поверх;
+// подпись и кнопка покупки не заходят под них; вниз — во весь экран, вверх и тап — всё возвращается
 async function phoneStory(browser,scheme){
  const label=`сторис ${scheme}`;
  const context=await browser.newContext({viewport:{width:390,height:664},isMobile:true,hasTouch:true,deviceScaleFactor:2,locale:'en-US',colorScheme:scheme});
@@ -472,20 +473,49 @@ async function phoneStory(browser,scheme){
  await page.waitForTimeout(300);
  const box=s=>page.locator(s).first().evaluate(el=>{const b=el.getBoundingClientRect();return {top:b.top,bottom:b.bottom,left:b.left,right:b.right,height:b.height};});
  const nav=await box('.mobile-bottom-nav');const feed=await box('#dealsReelsContainer');const card=await box('.deal-reel-card');
- assert.ok(feed.bottom<=nav.top,`${label}: лента не заходит под нижнее меню (${feed.bottom} > ${nav.top})`);
+ assert.ok(Math.abs(feed.height-664)<=1&&feed.top===0,`${label}: лента на весь экран`);
  assert.ok(Math.abs(card.height-feed.height)<=1,`${label}: одна карточка на экран`);
+ const filterBar=await box('#dealsFilterBar');const head=await box('.deal-reel-card .deal-story-head');
+ assert.ok(head.top>=filterBar.bottom,`${label}: шапка сторис не под фильтрами (${head.top} < ${filterBar.bottom})`);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),`${label}: страница под лентой не прокручивается`);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${label}: нет горизонтального переполнения`);
  const buy=await box('.deal-reel-card .btn-deal-buy-full');
- assert.ok(buy.bottom<=card.bottom&&buy.top>=card.top,`${label}: кнопка покупки целиком в карточке`);
+ assert.ok(buy.bottom<=nav.top&&buy.top>=card.top,`${label}: кнопка покупки не под нижним меню (${buy.bottom} > ${nav.top})`);
+ assert.equal(await page.locator('.deal-swipe-hint').count(),1,`${label}: подсказка «листайте» на первой карточке`);
  // Логотип магазина не показывается ни фото, ни фоном
  const first=page.locator('.deal-reel-card').first();
  assert.equal(await first.locator('img[src*="logo"]').count(),0,`${label}: логотип не выдан за фото`);
  assert.equal(await first.locator('.deal-no-photo').count(),1,`${label}: вместо логотипа — заглушка`);
  assert.match(await first.locator('.deal-story-sub').innerText(),/^Алматы · /,`${label}: город без «/ Казахстан»`);
+ // Листание вниз — во весь экран: шапка, фильтры и меню уехали, кнопка покупки у нижнего края
+ const goCard=i=>page.evaluate(i=>{const c=document.getElementById('dealsReelsContainer');c.scrollTop=c.querySelectorAll('.deal-reel-card')[i].offsetTop;},i);
+ const chrome=()=>page.evaluate(()=>({fs:document.body.classList.contains('deals-fullscreen'),
+  head:document.querySelector('.site-header').getBoundingClientRect().bottom,nav:document.querySelector('.mobile-bottom-nav').getBoundingClientRect().top}));
+ await goCard(2);
+ await page.waitForTimeout(500);
+ let c=await chrome();
+ assert.ok(c.fs&&c.head<=0&&c.nav>=664,`${label}: вниз — во весь экран ${JSON.stringify(c)}`);
+ assert.equal(await page.locator('.deal-swipe-hint').count(),0,`${label}: подсказка ушла после листания`);
+ assert.equal(await page.evaluate(()=>localStorage.getItem('kzph_deals_swipe_hint_v1')),'1');
+ const fsBuy=await page.locator('.deal-reel-card').nth(2).locator('.btn-deal-buy-full').evaluate(el=>el.getBoundingClientRect().bottom);
+ assert.ok(fsBuy>600&&fsBuy<=664,`${label}: во весь экран подпись опускается к краю (${fsBuy})`);
+ await page.waitForFunction(()=>document.querySelector('.deal-reel-card[data-index="2"]').classList.contains('is-active'));
+ // Вверх — всё возвращается
+ await goCard(1);
+ await page.waitForTimeout(500);
+ c=await chrome();
+ assert.ok(!c.fs&&c.head>0&&c.nav<664,`${label}: вверх — шапка и меню вернулись ${JSON.stringify(c)}`);
+ // Тап по фото переключает, двойной тап — избранное, а не переключение
+ await goCard(2);
+ await page.waitForTimeout(500);
+ const media=await page.locator('.deal-reel-card').nth(2).locator('.deal-reel-media').boundingBox();
+ await page.touchscreen.tap(media.x+40,media.y+media.height/2);
+ await page.waitForTimeout(600);
+ assert.equal((await chrome()).fs,false,`${label}: тап возвращает шапку и меню`);
+ await page.touchscreen.tap(media.x+40,media.y+media.height/2);
+ await page.waitForTimeout(600);
+ assert.equal((await chrome()).fs,true,`${label}: второй тап снова во весь экран`);
  // Кнопки справа не перекрывают фото
- await page.evaluate(()=>{const c=document.getElementById('dealsReelsContainer');c.scrollTop=c.querySelectorAll('.deal-reel-card')[2].offsetTop;});
- await page.waitForTimeout(300);
  const third=page.locator('.deal-reel-card').nth(2);
  await third.locator('.deal-reel-img').evaluate(img=>img.complete||new Promise(r=>img.onload=r));
  const img=await third.locator('.deal-reel-img').evaluate(el=>{const b=el.getBoundingClientRect();return {right:b.right,bottom:b.bottom};});

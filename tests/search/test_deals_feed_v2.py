@@ -293,13 +293,14 @@ class TestSearchFirstTemplateIntegrity(unittest.TestCase):
         self.assertNotIn('id="closedDevTgHelp"', self.html)
 
     def test_reels_carousel_and_collapsible_filter_bar(self):
-        """Template contains multi-photo carousel track and collapsible filter bar styles/scripts."""
+        """Карусель фото и полноэкранный режим ленты (6.35.0 заменил сворачивание одних фильтров)."""
         self.assertIn('.deal-carousel-track', self.html)
         self.assertIn('.deal-carousel-slide', self.html)
         self.assertIn('.deal-carousel-dots', self.html)
-        self.assertIn('.deals-filter-bar.collapsed', self.html)
         self.assertIn('onDealCarouselScroll', self.html)
-        self.assertIn('setDealsFilterCollapsed', self.html)
+        self.assertIn('body.deals-fullscreen #viewDeals .deals-filter-bar', self.html)
+        self.assertIn('function setDealsFullscreen', self.html)
+        self.assertIn('disableVerticalSwipes', self.html)
 
         # Dashboard buttons exist with display: none for non-admins
         self.assertIn('id="headerBtnDashboard"', self.html)

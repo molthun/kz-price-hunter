@@ -3012,30 +3012,60 @@
         padding-top: 8px;
       }
 
-      body.deals-immersive {
-        overscroll-behavior-y: none;
+      /* 6.35.0: лента лежит на весь экран, шапка, фильтры и меню — поверх неё.
+         Листаешь вниз — они уезжают (body.deals-fullscreen), вверх или тап по фото — возвращаются.
+         Высота ленты при этом не меняется: нет пересчёта и скачков прокрутки */
+      body.deals-immersive,
+      html:has(body.deals-immersive) {
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
+
+      body.deals-immersive .site-header,
+      body.deals-immersive .mobile-bottom-nav {
+        background: color-mix(in srgb, var(--bg-card) 70%, transparent);
+        backdrop-filter: blur(16px) saturate(1.4);
+        -webkit-backdrop-filter: blur(16px) saturate(1.4);
+        border-color: transparent;
+        box-shadow: none;
+        transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      body.deals-fullscreen .site-header {
+        transform: translateY(-100%);
+      }
+
+      /* Круглая кнопка «Поиск» выступает над меню: уводим с запасом */
+      body.deals-fullscreen .mobile-bottom-nav {
+        transform: translateY(calc(100% + 48px));
+      }
+
+      #viewDeals {
+        --deals-safe-top: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)));
+        --deals-safe-bottom: var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
       }
 
       #viewDeals .deals-page-layout {
-        padding: 0 8px;
+        padding: 0;
         gap: 0;
         max-width: 100%;
-        display: flex;
-        flex-direction: column;
-        /* Точная высота считается в fitDealsFeed(); запасной вариант — без шапки и нижнего меню */
-        height: var(--deals-feed-h, calc(100dvh - 150px - env(safe-area-inset-bottom, 0px)));
-        box-sizing: border-box;
+        height: auto;
       }
 
-      /* Фильтры: одна строка с прокруткой, при листании ленты прячутся */
+      /* Фильтры: одна строка с прокруткой поверх ленты, сразу под шапкой */
       #viewDeals .deals-filter-bar {
+        position: fixed;
+        top: var(--deals-header-h, 57px);
+        left: 0;
+        right: 0;
+        z-index: 45;
         background: transparent;
         border: none;
         box-shadow: none;
         border-radius: 0;
-        padding: 0 0 8px;
+        padding: 8px 12px;
         margin: 0;
-        width: 100%;
+        width: auto;
         display: flex;
         flex-direction: row;
         flex-wrap: nowrap;
@@ -3046,22 +3076,22 @@
         overflow-y: hidden;
         scrollbar-width: none;
         -webkit-overflow-scrolling: touch;
-        max-height: 48px;
         opacity: 1;
         transform: translateY(0);
-        transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-                    opacity 0.2s ease,
-                    transform 0.28s ease,
-                    padding 0.28s ease;
-        flex-shrink: 0;
+        transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease;
       }
 
-      #viewDeals .deals-filter-bar.collapsed {
-        max-height: 0;
+      body.deals-fullscreen #viewDeals .deals-filter-bar {
+        transform: translateY(calc(-1 * var(--deals-header-h, 57px) - 100%));
         opacity: 0;
-        transform: translateY(-100%);
-        padding-bottom: 0;
         pointer-events: none;
+      }
+
+      #viewDeals .deals-select,
+      #viewDeals .deal-type-pill:not(.active) {
+        background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
       }
 
       #viewDeals .deals-selectors-group {
@@ -3109,17 +3139,18 @@
       }
 
       #viewDeals .deals-reels-container {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
         display: block;
         width: 100%;
         height: 100%;
-        flex: 1 1 0;
-        min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
         scroll-snap-type: y mandatory;
         -webkit-overflow-scrolling: touch;
-        overscroll-behavior-y: contain;
-        border-radius: 22px;
+        overscroll-behavior: contain;
+        border-radius: 0;
         scrollbar-width: none;
         background: #05070d;
       }
@@ -3134,7 +3165,8 @@
         margin: 0 !important;
         max-width: none !important;
         height: 100%;
-        border-radius: 22px;
+        border-radius: 0;
+        padding: calc(var(--deals-chrome-top, 110px) + 16px) 24px calc(var(--deals-chrome-bottom, 64px) + 16px);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -3151,10 +3183,13 @@
         height: 100%;
         margin: 0;
         border: none;
-        border-radius: 22px;
+        border-radius: 0;
         background: #05070d;
         box-shadow: none;
         overflow: hidden;
+        /* Отступы под шапку и меню: в полноэкранном режиме — только системные вырезы */
+        --deal-top: var(--deals-chrome-top, 110px);
+        --deal-bottom: var(--deals-chrome-bottom, 64px);
         scroll-snap-align: start;
         scroll-snap-stop: always;
         isolation: isolate;
@@ -3162,6 +3197,11 @@
         transform: none;
         content-visibility: auto;
         contain-intrinsic-size: auto 600px;
+      }
+
+      body.deals-fullscreen #viewDeals .deal-reel-card {
+        --deal-top: var(--deals-safe-top, 0px);
+        --deal-bottom: var(--deals-safe-bottom, 0px);
       }
 
       #viewDeals .deal-reel-backdrop {
@@ -3210,7 +3250,8 @@
       #viewDeals .deal-single-photo,
       #viewDeals .deal-carousel-track {
         position: absolute;
-        top: 64px;
+        top: calc(var(--deal-top) + 64px);
+        transition: top 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
         left: 14px;
         /* Справа колонка кнопок: фото её не перекрывает */
         right: 66px;
@@ -3256,11 +3297,12 @@
       /* Несколько фото — полоски прогресса как в сторис */
       #viewDeals .deal-carousel-dots {
         position: absolute;
-        top: 8px;
+        top: calc(var(--deal-top) + 8px);
         left: 14px;
         right: 14px;
         bottom: auto;
         transform: none;
+        transition: top 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
         display: flex;
         gap: 4px;
         padding: 0;
@@ -3298,11 +3340,12 @@
         align-items: center;
         gap: 10px;
         position: absolute;
-        top: 18px;
+        top: calc(var(--deal-top) + 18px);
         left: 14px;
         right: 14px;
         z-index: 6;
         pointer-events: none;
+        transition: top 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
       }
 
       #viewDeals .deal-story-ring {
@@ -3405,7 +3448,8 @@
         position: relative;
         flex: 0 0 auto;
         z-index: 2;
-        padding: 2px 16px 14px;
+        padding: 2px 16px calc(var(--deal-bottom) + 14px);
+        transition: padding-bottom 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
         gap: 6px;
         background: transparent;
         border: none;
@@ -3527,6 +3571,86 @@
       #viewDeals .heart-burst-pop {
         z-index: 8;
         font-size: 5rem;
+      }
+
+      /* Фото проявляется после загрузки, а не рисуется построчно */
+      #viewDeals .deal-reel-img {
+        opacity: 0;
+        transition: opacity 0.35s ease;
+      }
+
+      #viewDeals .deal-reel-img.is-loaded {
+        opacity: 1;
+      }
+
+      /* Карточка на экране: медленный наезд камеры и выезд подписи — как в сторис */
+      @keyframes dealKenBurns {
+        from { transform: scale(1); }
+        to { transform: scale(1.05); }
+      }
+
+      @keyframes dealRise {
+        from { opacity: 0; transform: translateY(14px); }
+        to { opacity: 1; transform: none; }
+      }
+
+      #viewDeals .deal-reel-card.is-active .deal-single-photo .deal-reel-img.is-loaded {
+        animation: dealKenBurns 9s ease-out both;
+      }
+
+      #viewDeals .deal-reel-card.is-active .deal-reel-content > *,
+      #viewDeals .deal-reel-card.is-active .deal-story-head {
+        animation: dealRise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      }
+
+      #viewDeals .deal-reel-card.is-active .deal-reel-content > :nth-child(3) { animation-delay: 0.04s; }
+      #viewDeals .deal-reel-card.is-active .deal-reel-content > :nth-child(4) { animation-delay: 0.08s; }
+      #viewDeals .deal-reel-card.is-active .deal-reel-content > :nth-child(5) { animation-delay: 0.12s; }
+      #viewDeals .deal-reel-card.is-active .deal-reel-content > :nth-child(6) { animation-delay: 0.16s; }
+
+      /* Подсказка на первой карточке, пока человек ни разу не листал */
+      @keyframes dealHintBob {
+        0%, 100% { transform: translate(-50%, 0); }
+        50% { transform: translate(-50%, -8px); }
+      }
+
+      #viewDeals .deal-swipe-hint {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        position: absolute;
+        left: 50%;
+        bottom: 14px;
+        z-index: 7;
+        padding: 7px 14px;
+        border-radius: var(--radius-full);
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        color: #ffffff;
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+        pointer-events: none;
+        animation: dealHintBob 1.6s ease-in-out infinite;
+      }
+
+      #viewDeals .deal-swipe-hint svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+    .deal-swipe-hint {
+      display: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #viewDeals .deal-reel-card.is-active .deal-reel-img,
+      #viewDeals .deal-reel-card.is-active .deal-reel-content > *,
+      #viewDeals .deal-reel-card.is-active .deal-story-head,
+      #viewDeals .deal-swipe-hint {
+        animation: none !important;
       }
     }
 
@@ -9115,6 +9239,14 @@
       if (activeEl) activeEl.classList.add('active');
       window.scrollTo(0, 0);
       document.body.classList.toggle('deals-immersive', viewId === 'viewDeals');
+      if (viewId !== 'viewDeals' && typeof setDealsFullscreen === 'function') setDealsFullscreen(false);
+      if (typeof TelegramApp !== 'undefined' && TelegramApp.tg) {
+        // В ленте свайп вниз листает скидки, а не сворачивает Mini App
+        try {
+          if (viewId === 'viewDeals' && typeof TelegramApp.tg.disableVerticalSwipes === 'function') TelegramApp.tg.disableVerticalSwipes();
+          else if (viewId !== 'viewDeals' && typeof TelegramApp.tg.enableVerticalSwipes === 'function') TelegramApp.tg.enableVerticalSwipes();
+        } catch (e) {}
+      }
       if (viewId === 'viewDeals' && typeof fitDealsFeed === 'function') {
         requestAnimationFrame(() => fitDealsFeed());
         setTimeout(() => fitDealsFeed(), 50);
@@ -12030,8 +12162,8 @@
       populateDealsCategories();
 
       if (reset) {
-        setDealsFilterCollapsed(false);
-        lastDealsScrollTop = 0;
+        setDealsFullscreen(false);
+        dealsScrollAnchor = 0;
         // Каждое открытие — новый порядок; внутри одного просмотра он не меняется
         DealsFeedState.seed = Math.floor(Math.random() * 2147483647);
         DealsFeedState.offset = 0;
@@ -12185,6 +12317,27 @@
       }
     }
 
+    // Мелкое фото (миниатюра магазина) не растягиваем больше чем в 1,6 раза: размытое крупно хуже чёткого поменьше
+    function onDealImgLoad(img) {
+      if (!img) return;
+      const w = img.naturalWidth || 0;
+      const h = img.naturalHeight || 0;
+      if (w > 0 && h > 0 && Math.max(w, h) < 480) {
+        img.style.setProperty('max-width', `min(100%, ${Math.round(w * 1.6)}px)`);
+        img.style.setProperty('max-height', `min(100%, ${Math.round(h * 1.6)}px)`);
+      }
+      img.classList.add('is-loaded');
+    }
+
+    function dealsHintSeen() {
+      try { return localStorage.getItem('kzph_deals_swipe_hint_v1') === '1'; } catch (e) { return true; }
+    }
+
+    function markDealsHintSeen() {
+      try { localStorage.setItem('kzph_deals_swipe_hint_v1', '1'); } catch (e) {}
+      document.querySelectorAll('.deal-swipe-hint').forEach(el => el.remove());
+    }
+
     function buildDealCardHtml(deal, idx) {
       const isFav = Favorites.has(deal.id);
       const safeUrl = safeHttpUrl(deal.url);
@@ -12215,6 +12368,7 @@
               class="deal-reel-img"
               loading="${idx < 2 && imgIdx === 0 ? 'eager' : 'lazy'}"
               decoding="async"
+              onload="onDealImgLoad(this)"
               onerror="this.onerror=null; this.src=getSvgPlaceholder();"
             />
           </div>
@@ -12249,6 +12403,7 @@
               class="deal-reel-img"
               loading="${idx < 2 ? 'eager' : 'lazy'}"
               decoding="async"
+              onload="onDealImgLoad(this)"
               onerror="this.onerror=null; this.src=getSvgPlaceholder();"
             />
           </div>
@@ -12289,6 +12444,7 @@
               ${dealSideBtnHtml('open', 'О товаре', deal.canonical_product_id ? 'Цены во всех магазинах' : 'Найти в каталоге', 'compare', 'Цены')}
               ${dealSideBtnHtml('share', 'Поделиться', 'Поделиться скидкой', 'share', 'Отправить')}
             </div>
+            ${idx === 0 && !dealsHintSeen() ? `<div class="deal-swipe-hint" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 19V5m0 0-6 6m6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Листайте вверх</div>` : ''}
           </div>
 
           <div class="deal-reel-content">
@@ -12354,6 +12510,7 @@
       }
 
       observeDealEvidence();
+      observeActiveDealCards();
       updateDealsControls();
       setupDealsSentinelObserver();
       if (reset) checkAndFillDealsViewport();
@@ -12563,19 +12720,32 @@
     let lastMediaTapTime = 0;
     let lastMediaTapTarget = null;
 
+    var dealTouchStart = null;
+    var dealSingleTapTimer = null;
+
     function onMediaTouchEnd(e, mediaEl) {
       if (!mediaEl) return;
       if (e && e.target && e.target.closest('.deal-side-actions, .deal-actions-row, .btn-deal-buy-full, button, a')) {
         return;
       }
+      // Свайп (лента или фото) — не тап
+      const t = e && e.changedTouches && e.changedTouches[0];
+      if (t && dealTouchStart && (Math.abs(t.clientX - dealTouchStart.x) > 10 || Math.abs(t.clientY - dealTouchStart.y) > 10 || Date.now() - dealTouchStart.time > 450)) {
+        return;
+      }
       const now = Date.now();
       if (lastMediaTapTarget === mediaEl && (now - lastMediaTapTime) < 320 && (now - lastMediaTapTime) > 40) {
+        clearTimeout(dealSingleTapTimer);
         onMediaDoubleTap(mediaEl);
         lastMediaTapTime = 0;
         lastMediaTapTarget = null;
       } else {
         lastMediaTapTime = now;
         lastMediaTapTarget = mediaEl;
+        clearTimeout(dealSingleTapTimer);
+        dealSingleTapTimer = setTimeout(() => {
+          if (!isDealsShowcase()) setDealsFullscreen(!dealsFullscreen);
+        }, 320);
       }
     }
 
@@ -12616,25 +12786,24 @@
       setTimeout(() => heart.remove(), 700);
     }
 
-    // Высота ленты на телефоне: от верха ленты до нижнего меню. Считается только при открытии
-    // и изменении окна (не во время прокрутки), внутри ленту делит CSS flexbox
+    // Лента на телефоне на весь экран; здесь меряются шапка, фильтры и меню, которые лежат поверх неё.
+    // Считается при открытии и изменении окна, не во время прокрутки. offsetHeight не зависит от сдвига при скрытии
     function fitDealsFeed() {
       const vDeals = document.getElementById('viewDeals');
-      const layout = vDeals && vDeals.querySelector('.deals-page-layout');
-      if (!layout) return;
+      if (!vDeals) return;
       if (!vDeals.classList.contains('active') || isDealsShowcase()) {
-        layout.style.removeProperty('--deals-feed-h');
+        ['--deals-header-h', '--deals-chrome-top', '--deals-chrome-bottom'].forEach(v => vDeals.style.removeProperty(v));
         return;
       }
-      const viewport = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      const header = document.querySelector('.site-header');
+      const filter = document.getElementById('dealsFilterBar');
       const nav = document.querySelector('.mobile-bottom-nav');
-      const navTop = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().top : viewport;
-      // Нижний отступ body резервирует место под меню: лента в него не заходит, страница не прокручивается
-      const reserved = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
-      const bottom = Math.min(navTop - 8, viewport - reserved);
-      const top = layout.getBoundingClientRect().top;
-      const h = Math.max(320, Math.floor(bottom - top));
-      layout.style.setProperty('--deals-feed-h', h + 'px');
+      const headerH = header ? header.offsetHeight : 0;
+      const filterH = filter ? filter.offsetHeight : 0;
+      const navH = nav && getComputedStyle(nav).display !== 'none' ? nav.offsetHeight : 0;
+      vDeals.style.setProperty('--deals-header-h', headerH + 'px');
+      vDeals.style.setProperty('--deals-chrome-top', (headerH + filterH) + 'px');
+      vDeals.style.setProperty('--deals-chrome-bottom', navH + 'px');
     }
     window.addEventListener('resize', fitDealsFeed);
     window.addEventListener('orientationchange', () => setTimeout(fitDealsFeed, 100));
@@ -12666,31 +12835,37 @@
       container.scrollBy({ top: dir * cardHeight, behavior: 'smooth' });
     }
 
-    let dealsFilterCollapsed = false;
-    let lastDealsScrollTop = 0;
+    // Полноэкранный просмотр ленты на телефоне: шапка, фильтры и меню уезжают при листании вниз
+    var dealsFullscreen = false;
+    var dealsScrollAnchor = 0;
 
-    function setDealsFilterCollapsed(collapsed) {
-      if (dealsFilterCollapsed === collapsed) return;
-      const filterBar = document.getElementById('dealsFilterBar');
-      if (!filterBar) return;
-      dealsFilterCollapsed = !!collapsed;
-      filterBar.classList.toggle('collapsed', dealsFilterCollapsed);
+    function setDealsFullscreen(on) {
+      const vDeals = document.getElementById('viewDeals');
+      const allowed = !!on && !isDealsShowcase() && !!vDeals && vDeals.classList.contains('active');
+      if (dealsFullscreen === allowed) return;
+      dealsFullscreen = allowed;
+      document.body.classList.toggle('deals-fullscreen', allowed);
     }
 
     function onDealsReelScroll(container) {
-      const st = container.scrollTop;
+      const st = Math.max(0, container.scrollTop);
       if (!isDealsShowcase()) {
-        if (st > 40 && !dealsFilterCollapsed) {
-          setDealsFilterCollapsed(true);
-        } else if (st <= 20 && dealsFilterCollapsed) {
-          setDealsFilterCollapsed(false);
-        } else if (lastDealsScrollTop - st > 160 && dealsFilterCollapsed) {
-          setDealsFilterCollapsed(false);
-        } else if (st - lastDealsScrollTop > 40 && !dealsFilterCollapsed && st > 40) {
-          setDealsFilterCollapsed(true);
+        // Вниз на 24 px — во весь экран; вверх на 24 px или первая карточка — всё возвращается
+        if (st <= 8) {
+          setDealsFullscreen(false);
+          dealsScrollAnchor = st;
+        } else {
+          const delta = st - dealsScrollAnchor;
+          if (delta > 24) {
+            setDealsFullscreen(true);
+            dealsScrollAnchor = st;
+            if (!dealsHintSeen()) markDealsHintSeen();
+          } else if (delta < -24) {
+            setDealsFullscreen(false);
+            dealsScrollAnchor = st;
+          }
         }
       }
-      lastDealsScrollTop = Math.max(0, st);
 
       if (container.scrollTop + container.clientHeight >= container.scrollHeight - 350) {
         if (DealsFeedState.hasMore && !DealsFeedState.loading) {
@@ -12698,6 +12873,28 @@
         }
       }
     }
+
+    // Карточка на экране получает is-active: наезд камеры на фото и выезд подписи
+    let activeDealObserver = null;
+    function observeActiveDealCards() {
+      const container = document.getElementById('dealsReelsContainer');
+      if (!container || !('IntersectionObserver' in window)) return;
+      if (activeDealObserver) activeDealObserver.disconnect();
+      activeDealObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => entry.target.classList.toggle('is-active', entry.isIntersecting));
+      }, { root: container, threshold: 0.6 });
+      container.querySelectorAll('.deal-reel-card').forEach(card => activeDealObserver.observe(card));
+    }
+
+    // Начало касания — пассивный слушатель на ленте, чтобы не задерживать прокрутку
+    (function setupDealTouchTracking() {
+      const container = document.getElementById('dealsReelsContainer');
+      if (!container) return;
+      container.addEventListener('touchstart', e => {
+        const t = e.touches && e.touches[0];
+        dealTouchStart = t ? { x: t.clientX, y: t.clientY, time: Date.now() } : null;
+      }, { passive: true });
+    })();
 
     function setDealsType(btn, type, minDiscount = 0) {
       document.querySelectorAll('.deal-type-pill').forEach(el => el.classList.remove('active'));
