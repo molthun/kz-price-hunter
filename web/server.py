@@ -1278,8 +1278,17 @@ async def search_v2_handler(request):
         return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
 
     try:
+        # Автоматический резолвинг штрихкодов товаров (EAN-13, EAN-8, UPC-A, GTIN-14)
+        from domain import barcode_resolver
+        resolved_barcode_info = None
+        search_query = query
+        if query and barcode_resolver.is_valid_barcode(query):
+            resolved_barcode_info = await barcode_resolver.resolve_barcode(query)
+            if resolved_barcode_info and resolved_barcode_info.get("title"):
+                search_query = resolved_barcode_info["title"]
+
         arguments = dict(
-            query=query,
+            query=search_query,
             city=city,
             condition=condition,
             channel_type=channel_type,
@@ -1310,12 +1319,19 @@ async def search_v2_handler(request):
                 finally:
                     conn.close()
             categories = await asyncio.to_thread(_context)
-            understanding = await local_search.understand(query, categories)
+            understanding = await local_search.understand(search_query, categories)
             data = await asyncio.to_thread(local_search.search_sync, arguments, understanding, attributes)
+            if resolved_barcode_info:
+                data["resolved_from_barcode"] = query
+                data["resolved_product_title"] = resolved_barcode_info["title"]
             return web.json_response(data, status=500 if data.get('outcome') == 'ERROR' else 200)
         resp = await asyncio.to_thread(_run_search_v2_sync, **arguments)
+        data = resp.to_dict()
+        if resolved_barcode_info:
+            data["resolved_from_barcode"] = query
+            data["resolved_product_title"] = resolved_barcode_info["title"]
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200
-        return web.json_response(resp.to_dict(), status=status_code)
+        return web.json_response(data, status=status_code)
     except Exception as e:
         print(f"[API search v2] Ошибка: {e}")
         return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
