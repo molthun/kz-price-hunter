@@ -2316,198 +2316,8 @@
       margin: 0 auto;
     }
 
-    /* Mobile Reels mode (<600px): immersive Instagram/TikTok social shopping feed */
-    @media (max-width: 599px) {
-      .deals-page-layout {
-        padding: 0 10px;
-        gap: 6px;
-        max-width: 100%;
-      }
-
-      .deals-filter-bar {
-        background: transparent;
-        border: none;
-        box-shadow: none;
-        padding: 2px 0 6px 0;
-        margin: 0;
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-      }
-
-      .deals-type-pills {
-        display: flex;
-        gap: 6px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-        padding-bottom: 2px;
-        width: 100%;
-      }
-
-      .deal-type-pill {
-        padding: 6px 12px;
-        font-size: 0.78rem;
-        flex-shrink: 0;
-      }
-
-      .deals-selectors-group {
-        display: flex;
-        gap: 6px;
-        width: 100%;
-        align-items: center;
-      }
-
-      .deals-select {
-        flex: 1 1 50%;
-        min-width: 0;
-        height: 32px;
-        padding: 4px 8px;
-        font-size: 0.78rem;
-        font-weight: 600;
-        border-radius: var(--radius-full);
-        text-overflow: ellipsis;
-      }
-
-      .deals-reels-wrapper {
-        width: 100%;
-        max-width: 440px;
-        display: flex;
-        justify-content: center;
-      }
-
-      .deals-reels-container {
-        width: 100%;
-        height: min(740px, calc(100dvh - 150px));
-        overflow-y: scroll;
-        scroll-snap-type: y mandatory;
-        scroll-behavior: smooth;
-        -webkit-overflow-scrolling: touch;
-        border-radius: 20px;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-      }
-
-      .deals-reels-container::-webkit-scrollbar {
-        display: none;
-        width: 0;
-        height: 0;
-      }
-
-      .deal-reel-card {
-        height: 100%;
-        scroll-snap-align: start;
-        scroll-snap-stop: always;
-        margin-bottom: 12px;
-        border-radius: 20px;
-        border: 1px solid var(--border-color);
-        background: var(--bg-card);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        overflow: hidden;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-      }
-
-      .deal-reel-media {
-        flex: 1 1 54%;
-        min-height: 0;
-        margin: 10px 10px 0 10px;
-        border-radius: 16px;
-        background: #ffffff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 16px;
-        position: relative;
-        cursor: pointer;
-        -webkit-user-select: none;
-        user-select: none;
-      }
-
-      .deal-reel-img {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
-      }
-
-      .deal-reel-content {
-        flex: 0 0 auto;
-        padding: 10px 14px 14px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        background: var(--bg-card);
-      }
-
-      .deal-reel-shop-row {
-        font-size: 0.78rem;
-      }
-
-      .deal-reel-title {
-        font-size: 0.95rem;
-        line-height: 1.32;
-        min-height: auto;
-        max-height: 2.64em;
-        margin: 0;
-      }
-
-      .deal-evidence {
-        font-size: 0.76rem;
-        min-height: auto;
-        display: -webkit-box;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-
-      .deal-reel-price-row {
-        gap: 6px;
-        align-items: baseline;
-        margin-top: 2px;
-      }
-
-      .deal-price-current {
-        font-size: 1.38rem;
-        font-weight: 900;
-      }
-
-      .deal-price-old {
-        font-size: 0.9rem;
-      }
-
-      .deal-savings-badge {
-        font-size: 0.72rem;
-        padding: 2px 7px;
-      }
-
-      .deal-provenance-text {
-        font-size: 0.72rem;
-        min-height: auto;
-      }
-
-      .deal-actions-row {
-        margin-top: 4px;
-        padding-top: 4px;
-        gap: 6px;
-      }
-
-      .btn-deal-buy {
-        height: 42px;
-        font-size: 0.88rem;
-        border-radius: var(--radius-md);
-      }
-
-      .btn-deal-action {
-        width: 42px;
-        height: 42px;
-        flex: 0 0 42px;
-        font-size: 0.95rem;
-        border-radius: var(--radius-md);
-      }
+    .deals-reels-container {
+      width: 100%;
     }
 
     /* Universal Deal Card Styling */
@@ -2545,9 +2355,15 @@
       transition: background 0.2s ease;
     }
 
+    [data-theme="dark"] .deal-reel-card {
+      background: #111827;
+      border-color: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
     [data-theme="dark"] .deal-reel-media {
       background: #ffffff;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 2px 8px rgba(0, 0, 0, 0.3);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 4px 16px rgba(0, 0, 0, 0.35);
     }
 
     .deal-reel-img {
@@ -2931,7 +2747,239 @@
       margin-top: 16px;
     }
 
+    /* Mobile Reels mode (<600px): immersive Instagram/TikTok social shopping feed */
     @media (max-width: 599px) and (min-height: 501px) {
+      .deals-page-layout {
+        padding: 0 8px;
+        gap: 4px;
+        max-width: 100%;
+      }
+
+      .deals-filter-bar {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        padding: 0 0 4px 0;
+        margin: 0;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+      }
+
+      .deals-type-pills {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 2px;
+        width: 100%;
+      }
+
+      .deal-type-pill {
+        padding: 5px 12px;
+        font-size: 0.78rem;
+        flex-shrink: 0;
+      }
+
+      .deals-selectors-group {
+        display: flex;
+        gap: 6px;
+        width: 100%;
+        align-items: center;
+      }
+
+      .deals-select {
+        flex: 1 1 50%;
+        min-width: 0;
+        height: 30px;
+        padding: 3px 8px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        border-radius: var(--radius-full);
+        text-overflow: ellipsis;
+      }
+
+      .deals-reels-wrapper {
+        width: 100%;
+        max-width: 440px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .deals-reels-container {
+        width: 100%;
+        height: min(740px, calc(100dvh - 145px));
+        overflow-y: scroll;
+        scroll-snap-type: y mandatory;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 20px;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+
+      .deals-reels-container::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+      }
+
+      .deal-reel-card {
+        height: 100% !important;
+        min-height: 100% !important;
+        max-height: 100% !important;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+        margin: 0 !important;
+        border-radius: 20px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-card);
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+        box-sizing: border-box;
+      }
+
+      .deal-reel-media {
+        flex: 1 1 56% !important;
+        min-height: 220px;
+        max-height: 58%;
+        margin: 8px 8px 0 8px;
+        border-radius: 16px;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+        position: relative;
+        cursor: pointer;
+        -webkit-user-select: none;
+        user-select: none;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+
+      .deal-reel-img {
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+
+      .deal-reel-content {
+        flex: 0 0 auto;
+        padding: 8px 12px 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        background: var(--bg-card);
+        box-sizing: border-box;
+      }
+
+      .deal-reel-shop-row {
+        font-size: 0.78rem;
+        line-height: 1.2;
+      }
+
+      .deal-reel-title {
+        font-size: 0.94rem;
+        font-weight: 700;
+        line-height: 1.28;
+        min-height: auto;
+        max-height: 2.56em;
+        margin: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .deal-evidence {
+        font-size: 0.74rem;
+        line-height: 1.2;
+        min-height: auto;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        margin: 0;
+      }
+
+      .deal-reel-price-row {
+        gap: 8px;
+        align-items: baseline;
+        margin-top: 1px;
+        flex-wrap: nowrap;
+        overflow: hidden;
+      }
+
+      .deal-price-current {
+        font-size: 1.42rem;
+        font-weight: 900;
+        line-height: 1.1;
+      }
+
+      .deal-price-old {
+        font-size: 0.88rem;
+      }
+
+      .deal-savings-badge {
+        font-size: 0.72rem;
+        padding: 2px 7px;
+      }
+
+      .deal-provenance-text {
+        font-size: 0.72rem;
+        min-height: auto;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .deal-actions-row {
+        margin-top: 4px;
+        padding-top: 4px;
+        gap: 8px;
+        display: flex;
+        align-items: center;
+        width: 100%;
+      }
+
+      .btn-deal-buy {
+        flex: 1;
+        min-width: 0;
+        height: 44px;
+        min-height: 44px;
+        font-size: 0.92rem;
+        font-weight: 700;
+        border-radius: var(--radius-md);
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+
+      .btn-deal-action {
+        width: 44px;
+        height: 44px;
+        flex: 0 0 44px;
+        min-height: 44px;
+        font-size: 1rem;
+        border-radius: var(--radius-md);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
       .deals-bottom-controls,
       #dealsSentinel {
         display: none !important;
@@ -8478,6 +8526,10 @@
       const activeEl = document.getElementById(viewId);
       if (activeEl) activeEl.classList.add('active');
       window.scrollTo(0, 0);
+      if (viewId === 'viewDeals' && typeof fitDealsFeed === 'function') {
+        requestAnimationFrame(() => fitDealsFeed());
+        setTimeout(() => fitDealsFeed(), 50);
+      }
       if (typeof TelegramApp !== 'undefined') {
         if (viewId !== 'viewDetail') TelegramApp.hideProductActions();
         TelegramApp.updateBackButton();
@@ -11827,6 +11879,7 @@
       box.style.height = Math.max(340, Math.round(free)) + 'px';
     }
     window.addEventListener('resize', fitDealsFeed);
+    window.addEventListener('orientationchange', () => setTimeout(fitDealsFeed, 100));
 
     // В витрине подгрузка идёт по прокрутке окна или колесу мыши, если лента приближается к низу
     function handleDealsWindowScrollOrWheel() {
