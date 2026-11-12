@@ -1241,12 +1241,21 @@ class SearchRepository(BaseRepository):
 
                     def _facet_sort_key(item):
                         val_str, count_val = item
-                        if key in ('storage', 'ram', 'vram'):
-                            m_num = re.search(r'^(\d+)\s*([ГТМ]Б)$', val_str)
+                        if key in ('storage', 'ram', 'vram', 'capacity'):
+                            m_num = re.search(r'^(\d+(?:\.\d+)?)\s*([ГТМKК]?Б|GB|TB|MB)$', val_str, re.I)
                             if m_num:
-                                mult = 1024 * 1024 if m_num.group(2) == 'ТБ' else 1024 if m_num.group(2) == 'ГБ' else 1
-                                return (-int(m_num.group(1)) * mult, -count_val)
-                        return (-count_val, val_str)
+                                unit = m_num.group(2).upper()
+                                mult = 1024 * 1024 if ('Т' in unit or 'T' in unit) else 1024 if ('Г' in unit or 'G' in unit) else 1
+                                return (0, float(m_num.group(1)) * mult, -count_val)
+                        elif key in ('screen_size', 'screen_diagonal'):
+                            m_diag = re.search(r'^(\d+(?:\.\d+)?)\s*"?$', val_str)
+                            if m_diag:
+                                return (0, float(m_diag.group(1)), -count_val)
+                        elif key == 'refresh_rate':
+                            m_hz = re.search(r'^(\d+)\s*(?:Гц|Hz)?$', val_str, re.I)
+                            if m_hz:
+                                return (0, int(m_hz.group(1)), -count_val)
+                        return (1, -count_val, val_str)
 
                     merged_rows = [{'value': k, 'count': v} for k, v in sorted(norm_groups.items(), key=_facet_sort_key)]
                     raw_label = field.get('label') if isinstance(field, dict) else None

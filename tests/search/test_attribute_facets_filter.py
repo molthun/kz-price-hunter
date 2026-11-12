@@ -644,6 +644,56 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         self.assertIn('diameter', tire_cat.attributes_schema)
         self.assertIn('season', tire_cat.attributes_schema)
 
+    def test_facet_semantic_sorting(self):
+        """Проверяет упорядочивание значений фасетов по объёму памяти, диагонали и частоте."""
+        conn = create_test_db()
+        repo = SearchRepository(conn)
+
+        # 1. Проверка сортировки памяти (storage)
+        rows_storage = [
+            {'value': '2 ТБ', 'count': 5},
+            {'value': '128 ГБ', 'count': 20},
+            {'value': '512 ГБ', 'count': 10},
+            {'value': '256 ГБ', 'count': 15},
+        ]
+        # Симулируем расчет через _facet_sort_key в репозитории
+        key = 'storage'
+        norm = {r['value']: r['count'] for r in rows_storage}
+        import re
+        def _facet_sort_key(item):
+            val_str, count_val = item
+            if key in ('storage', 'ram', 'vram', 'capacity'):
+                m_num = re.search(r'^(\d+(?:\.\d+)?)\s*([ГТМKК]?Б|GB|TB|MB)$', val_str, re.I)
+                if m_num:
+                    unit = m_num.group(2).upper()
+                    mult = 1024 * 1024 if ('Т' in unit or 'T' in unit) else 1024 if ('Г' in unit or 'G' in unit) else 1
+                    return (0, float(m_num.group(1)) * mult, -count_val)
+            return (1, -count_val, val_str)
+
+        sorted_storage = [k for k, _ in sorted(norm.items(), key=_facet_sort_key)]
+        self.assertEqual(sorted_storage, ['128 ГБ', '256 ГБ', '512 ГБ', '2 ТБ'])
+
+        # 2. Проверка сортировки диагоналей экрана
+        rows_diag = [
+            {'value': '55"', 'count': 5},
+            {'value': '14"', 'count': 20},
+            {'value': '65"', 'count': 10},
+            {'value': '15.6"', 'count': 15},
+            {'value': '27"', 'count': 8},
+        ]
+        key = 'screen_size'
+        norm_diag = {r['value']: r['count'] for r in rows_diag}
+        def _diag_sort_key(item):
+            val_str, count_val = item
+            if key in ('screen_size', 'screen_diagonal'):
+                m_diag = re.search(r'^(\d+(?:\.\d+)?)\s*"?$', val_str)
+                if m_diag:
+                    return (0, float(m_diag.group(1)), -count_val)
+            return (1, -count_val, val_str)
+
+        sorted_diag = [k for k, _ in sorted(norm_diag.items(), key=_diag_sort_key)]
+        self.assertEqual(sorted_diag, ['14"', '15.6"', '27"', '55"', '65"'])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1121,6 +1121,68 @@
       margin-bottom: 14px;
     }
 
+    .quick-spec-pills-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 2px 2px 8px 2px;
+      margin-bottom: 12px;
+      scrollbar-width: thin;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .quick-spec-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-main);
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .quick-spec-pill:hover {
+      border-color: var(--primary);
+      background: var(--bg-subtle);
+    }
+
+    .quick-spec-pill.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      font-weight: 600;
+    }
+
+    .card-specs-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .card-spec-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      font-size: 0.74rem;
+      font-weight: 500;
+      border-radius: 6px;
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+      line-height: 1.25;
+    }
+
     .filter-chip {
       display: inline-flex;
       align-items: center;
@@ -6344,6 +6406,9 @@
           <!-- Active Filter Chips -->
           <div id="activeFilterChips" class="active-filter-chips" style="display:none;"></div>
 
+          <!-- Quick Spec Pills Bar -->
+          <div id="quickSpecPillsContainer" class="quick-spec-pills-bar" style="display:none;"></div>
+
           <!-- Loading Skeleton -->
           <div id="localSearchHelp" class="filter-group" role="status" style="display:none; padding:16px; border:1px solid var(--border-color); border-radius:12px; margin-bottom:16px; background:var(--bg-card);"></div>
 
@@ -10699,6 +10764,7 @@
       renderPagination(data);
       renderFacets(data);
       renderActiveFilterChips(data);
+      renderQuickSpecPills(data);
       renderLocalSearchHelp(data);
 
       if (items.length === 0) {
@@ -10764,6 +10830,14 @@
         const bCode = prod.barcode || (prod.attributes && prod.attributes.barcode) || item.barcode;
         const bCodeHtml = bCode ? `<span class="badge badge-barcode" style="background:rgba(59,130,246,0.12); color:#2563eb; border:1px solid rgba(59,130,246,0.3); font-weight:600;" title="Штрихкод товара: ${escapeHtml(bCode)}">🏷️ ${escapeHtml(bCode)}</span>` : '';
 
+        const specs = [];
+        const attrs = prod.attributes || {};
+        if (attrs.storage || attrs['Встроенная память']) specs.push('💾 ' + (attrs.storage || attrs['Встроенная память']));
+        if (attrs.ram || attrs['Оперативная память']) specs.push('⚡ ' + (attrs.ram || attrs['Оперативная память']));
+        if (attrs.screen_size || attrs.screen_diagonal || attrs['Диагональ экрана']) specs.push('📱 ' + (attrs.screen_size || attrs.screen_diagonal || attrs['Диагональ экрана']));
+        if (attrs.color || attrs['Цвет']) specs.push('🎨 ' + (attrs.color || attrs['Цвет']));
+        const specsHtml = specs.length > 0 ? `<div class="card-specs-row">${specs.map(s => `<span class="card-spec-tag">${escapeHtml(s)}</span>`).join('')}</div>` : '';
+
         return `
           <div class="product-card" data-id="${escapeHtml(pId)}" onclick="openProduct(event, this.dataset.id)">
             <div class="card-img-wrap">
@@ -10777,6 +10851,7 @@
                 ${bCodeHtml}
               </div>
               <h3 class="card-title">${escapeHtml(title)}</h3>
+              ${specsHtml}
               ${item.has_gift ? '<div class="card-gift-hint" title="У части магазинов с подарком">🎁 Есть с подарком</div>' : ''}
               ${item.variants_count ? '<div class="card-variants-hint">Ещё исполнений: ' + Number(item.variants_count) + '</div>' : ''}
               <div class="card-sellers-hint">Сравнение предложений магазинов и маркетплейсов Казахстана</div>
@@ -11093,6 +11168,52 @@
       }
 
       container.style.display = 'flex';
+    }
+
+    function renderQuickSpecPills(data) {
+      const container = document.getElementById('quickSpecPillsContainer');
+      if (!container) return;
+      container.replaceChildren();
+
+      const facets = (data && data.attribute_facets) || [];
+      if (!facets.length) {
+        container.style.display = 'none';
+        return;
+      }
+
+      const priorityKeys = ['storage', 'ram', 'screen_size', 'screen_diagonal', 'vram', 'color'];
+      const targetFacets = facets.filter(f => priorityKeys.includes(f.key) && f.values && f.values.length > 1);
+
+      if (!targetFacets.length) {
+        container.style.display = 'none';
+        return;
+      }
+
+      targetFacets.forEach(facet => {
+        const currentVal = (AppState.attributes && AppState.attributes[facet.key]) || '';
+        (facet.values || []).slice(0, 6).forEach(v => {
+          const isActive = (currentVal === v.value);
+          const icon = (facet.key === 'storage' ? '💾' : (facet.key === 'ram' ? '⚡' : (facet.key.startsWith('screen') ? '📱' : (facet.key === 'color' ? '🎨' : '🏷️'))));
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'quick-spec-pill' + (isActive ? ' active' : '');
+          btn.innerHTML = `<span>${icon}</span> <span>${escapeHtml(v.value)}</span> <small style="opacity:0.75; font-size:0.75rem;">(${v.count})</small>`;
+          btn.onclick = () => {
+            if (isActive) {
+              delete AppState.attributes[facet.key];
+            } else {
+              if (!AppState.attributes || typeof AppState.attributes !== 'object') AppState.attributes = {};
+              AppState.attributes[facet.key] = v.value;
+            }
+            AppState.page = 1;
+            updateSearchUrl();
+            executeSearch();
+          };
+          container.appendChild(btn);
+        });
+      });
+
+      container.style.display = container.children.length ? 'flex' : 'none';
     }
 
     function renderLocalSearchHelp(data) {
