@@ -26,6 +26,7 @@ ACTIONS = {
     'local_paused': ('Локальная модель на паузе', 'Уточните причину паузы в разделе ИИ и модели. Пауза соблюдается и не обходится платным провайдером.', '#systemTool'),
     'local_missing': ('Локальное подключение не готово', 'Проверьте разрешение работы ИИ, адрес и модель в настройках подключения.', '#systemTool'),
     'local_errors': ('Были ошибки локальной модели', 'Проверьте подключение локальной модели и её доступность. История вызовов не является проверкой сервера прямо сейчас.', '#systemTool'),
+    'local_matching_drift': ('Снижение качества сопоставления', 'Точность или охват теневого сопоставления локальной модели ниже нормы (менее 85%). Проверьте калибровку в мониторинге.', '/monitoring#normalizeShadow'),
     'local_unknown': ('Нет подтверждённых вызовов локальной модели', 'Выполните проверку подключения в разделе ИИ и модели. Настроенный адрес не доказывает доступность.', '#systemTool'),
     'notifications': ('Есть ошибки доставки', 'Разберите очередь и подключение в разделе Telegram. Сообщения с этого экрана не отправляются.', '#telegramTool'),
     'telemetry': ('Проверьте сбор показателей', 'Телеметрия отключена или её фоновая запись не подтверждена. Отсутствие записанных ошибок не означает исправность сервиса.', '/monitoring'),
@@ -86,9 +87,12 @@ def local():
     calls, errors, at = row[0], row[1] or 0, row[2]
     configured = bool(cfg.get('local_api_base') and cfg.get('local_model') and cfg.get('ai_search_enabled'))
     paused = bool(state['paused'])
+    import local_matching_monitor
+    drift_eval = local_matching_monitor.evaluate_drift(days=1)
     status = 'disabled' if paused else 'limited' if not configured else 'unknown' if not calls or not telemetry.telemetry_enabled() else 'degraded' if errors == calls else 'limited' if errors else 'healthy'
     return {'status': status, 'configured': configured, 'paused': paused, 'calls_24h': calls, 'errors_24h': errors,
-            'last_call_at': at, 'gpu_fresh': state['gpu']['fresh'], 'gpu_busy': state['gpu']['busy'], 'live_probe': False}
+            'last_call_at': at, 'gpu_fresh': state['gpu']['fresh'], 'gpu_busy': state['gpu']['busy'], 'live_probe': False,
+            'matching_drift': drift_eval['drift_detected'], 'matching_rate': drift_eval.get('match_rate')}
 
 
 def notifications():
@@ -146,13 +150,14 @@ def issue_codes(data):
         if l['paused']: codes.append('local_paused')
         elif not l['configured']: codes.append('local_missing')
         elif l['errors_24h']: codes.append('local_errors')
+        elif l.get('matching_drift'): codes.append('local_matching_drift')
         elif l['status'] == 'unknown': codes.append('local_unknown')
     if s['notifications']['available'] and s['notifications']['counts'].get('failed'): codes.append('notifications')
     if s['events']['available']:
         e = s['events']
         if not e['enabled'] or e['flusher_alive'] is not True: codes.append('telemetry')
         if e['errors_24h']: codes.append('errors')
-    if any(v['available'] and v['status'] == 'unknown' for v in s.values()): codes.append('unknown')
+    if any(v.get('available') and v.get('status') == 'unknown' for v in s.values()): codes.append('unknown')
     return codes or ['observed']
 
 

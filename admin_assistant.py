@@ -117,12 +117,16 @@ def _scheduler(days: int = DEFAULT_DAYS, now: Optional[datetime.datetime] = None
             "rollout_stage": state["stage"], "rollout_canary": state["canary"]}
 
 
-@tool("quality", "Качество цен и сопоставления", ("цена", "качеств", "фасовк", "сравнен", "арбитраж"))
+@tool("quality", "Качество цен и сопоставления", ("цена", "качеств", "фасовк", "сравнен", "арбитраж", "сопоставл", "дрейф"))
 def _quality(days: int = DEFAULT_DAYS, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     import monitoring
+    import local_matching_monitor
     data = monitoring.matching_quality(days=days, now=now)
+    drift = local_matching_monitor.evaluate_drift(days=days, now=now)
     return {"period": f"{days} дн.", "status": data["status"], "reason": data["reason"],
-            "blocked": data["blocked"], "uncertain": data["uncertain"]}
+            "blocked": data["blocked"], "uncertain": data["uncertain"],
+            "matching_drift": {"status": drift["status"], "drift_detected": drift["drift_detected"],
+                               "match_rate": drift["match_rate"], "coverage": drift["coverage"]}}
 
 
 @tool("system", "Система и работники", ("систем", "версия", "работник", "перезапуск", "пульс", "окружени"))

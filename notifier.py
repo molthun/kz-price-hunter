@@ -1154,6 +1154,12 @@ async def notification_worker():
                 await asyncio.to_thread(access_notify.queue_if_due)
             except Exception as e:
                 print(f"[Access] Напоминание о подтверждениях не поставлено: {type(e).__name__}")
+            # Регламентный мониторинг дрейфа качества локального сопоставления (P17-C5 кандидат)
+            try:
+                import local_matching_monitor
+                await asyncio.to_thread(local_matching_monitor.scheduled_audit_if_due)
+            except Exception as e:
+                print(f"[MatchingMonitor] Ошибка регламентного аудита: {type(e).__name__}")
             # Обращения магазинов к тем, кто их парсит: раз в неделю, см. shop_notices.py.
             # Отказ проверки не должен мешать доставке уведомлений — она здесь главная.
             try:
