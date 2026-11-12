@@ -9022,7 +9022,7 @@
           if (profileAvatar) {
             const fallbackChar = currentUser.is_admin ? '👑' : '👤';
             profileAvatar.innerHTML = currentUser.photo_url
-              ? `<img src="${escapeHtml(currentUser.photo_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="" onerror="this.parentElement.textContent='${fallbackChar}'" />`
+              ? `<img src="${escapeHtml(currentUser.photo_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="" onerror="if(this.parentElement){this.parentElement.textContent='${fallbackChar}';}" />`
               : fallbackChar;
           }
           if (profileAuthBadge) {
@@ -10324,9 +10324,14 @@
     }
 
     function renderResultsHeader(total) {
-      document.getElementById('resultsCountText').textContent = AppState.query ? '«' + AppState.query + '»' : 'Каталог товаров';
-      document.getElementById('resultsCountSubtitle').textContent =
-        total === null ? '' : '— найдено ' + total + ' ' + pluralizeProducts(total);
+      const elText = document.getElementById('resultsCountText');
+      const elSub = document.getElementById('resultsCountSubtitle');
+      if (elText) {
+        elText.textContent = AppState.query ? '«' + AppState.query + '»' : 'Каталог товаров';
+      }
+      if (elSub) {
+        elSub.textContent = total === null ? '' : '— найдено ' + total + ' ' + pluralizeProducts(total);
+      }
 
       const headerWebBtn = document.getElementById('resultsHeaderWebSearchBtn');
       if (headerWebBtn) {

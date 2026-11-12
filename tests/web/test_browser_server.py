@@ -12,6 +12,13 @@ async def main():
         for key in ('TELEGRAM_BOT_TOKEN','DNS_BOT_TOKEN','OPENAI_API_KEY','GEMINI_API_KEY','ADMIN_TELEGRAM_IDS','PUBLIC_ORIGIN','APP_URL','TRUSTED_PROXIES'):
             os.environ[key]=''
         os.environ['ALLOW_DEV_LOGIN']='1'
+        import config, auth
+        config.ALLOW_DEV_LOGIN = True
+        auth.ALLOW_DEV_LOGIN = True
+        config.ADMIN_TELEGRAM_IDS = set()
+        auth.ADMIN_TELEGRAM_IDS = set()
+        config.PUBLIC_ORIGIN = None
+        auth.PUBLIC_ORIGIN = None
         original_connect=socket.socket.connect
         def connect(sock,address):
             if isinstance(address,tuple) and not ipaddress.ip_address(address[0]).is_loopback:
