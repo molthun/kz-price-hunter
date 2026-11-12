@@ -6908,12 +6908,16 @@ def approve_bot_auth_token(token: str, user_id: int) -> bool:
     now = time.time()
     with get_connection() as conn:
         _ensure_bot_auth_tokens_table(conn)
-        row = conn.execute("SELECT 1 FROM bot_auth_tokens WHERE token = ? AND expires_at > ?", (token, now)).fetchone()
-        if not row:
-            return False
-        conn.execute("UPDATE bot_auth_tokens SET user_id = ? WHERE token = ?", (int(user_id), token))
+        # Подтверждение одноразовое: первый подтвердивший закрепляет токен за собой.
+        # Повтор тем же пользователем безопасен (двойное нажатие в боте), чужой — отклоняется,
+        # иначе второй аккаунт мог бы перехватить уже подтверждённую ссылку.
+        uid = int(user_id)
+        cur = conn.execute(
+            "UPDATE bot_auth_tokens SET user_id = ? "
+            "WHERE token = ? AND expires_at > ? AND (user_id IS NULL OR user_id = ?)",
+            (uid, token, now, uid))
         conn.commit()
-        return True
+        return cur.rowcount == 1
 
 def claim_bot_auth_token(token: str) -> Optional[int]:
     now = time.time()
@@ -6925,7 +6929,11 @@ def claim_bot_auth_token(token: str) -> Optional[int]:
         if row["user_id"] is None:
             return None
         uid = int(row["user_id"])
-        conn.execute("DELETE FROM bot_auth_tokens WHERE token = ?", (token,))
+        # Погашение атомарно: сессию получает только тот запрос, чей DELETE действительно
+        # удалил строку. Параллельные bot-poll/token-login по одной ссылке видят rowcount=0.
+        cur = conn.execute(
+            "DELETE FROM bot_auth_tokens WHERE token = ? AND user_id = ? AND expires_at >= ?",
+            (token, uid, now))
         conn.commit()
-        return uid
+        return uid if cur.rowcount == 1 else -1
 
