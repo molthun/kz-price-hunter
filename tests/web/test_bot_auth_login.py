@@ -71,7 +71,9 @@ class TestBotAuthLogin(unittest.IsolatedAsyncioTestCase):
             return {"ok": True}
 
         orig_send = telegram_bot.send_tg_message
+        orig_app_url = telegram_bot.APP_URL
         telegram_bot.send_tg_message = fake_send
+        telegram_bot.APP_URL = "https://shdev.molthun.ru"
         try:
             from_user = {
                 "id": 999888,
@@ -94,6 +96,7 @@ class TestBotAuthLogin(unittest.IsolatedAsyncioTestCase):
             self.assertIn("/api/auth/token-login?token=", buttons[0]["url"])
         finally:
             telegram_bot.send_tg_message = orig_send
+            telegram_bot.APP_URL = orig_app_url
 
 
 if __name__ == "__main__":
