@@ -314,10 +314,10 @@ def build_prompt(report: Dict[str, Any]) -> str:
     data = json.dumps(numbers_source(report), ensure_ascii=False, indent=1, default=str)
     return (
         f"Ты пишешь короткую сводку за сутки {report['day']} ({report['tz']}) для владельца сервиса.\n"
-        "Правила: пиши по-русски, 3–6 предложений. НЕ ПРИВОДИ НИКАКИХ ЧИСЕЛ И ССЫЛОК НА НИХ: все цифры "
+        "Правила: пиши по-русски, 3–6 предложений. НЕ ПРИВОДИ НИКАКИХ ЧИСЕЛ, ЦИФР И ССЫЛОК НА НИХ: все цифры "
         "владелец видит рядом, их показывает сервис. Твоя часть — словесное объяснение: на что похоже "
         "происходящее и что стоит проверить. Догадку помечай словом «вероятно». Если данных за сутки "
-        "нет, так и напиши.\n"
+        "нет, так и напиши. Ответь строго JSON-объектом: {\"summary\": \"текст сводки\"}.\n"
         + ("Сутки ещё не закончились, скажи об этом.\n" if report.get("partial") else "")
         + ai_router.untrusted_block(data, "ДАННЫЕ")
     )
@@ -335,7 +335,16 @@ async def summarize(report: Dict[str, Any]) -> Dict[str, Any]:
         result["rejected"] = f"AI недоступен: {e}"
         return result
     value = routed["result"]
-    text = (value if isinstance(value, str) else str(value.get("summary") or value.get("answer") or "")).strip()
+    if isinstance(value, dict):
+        text = str(value.get("summary") or value.get("answer") or value.get("text")
+                   or value.get("response") or value.get("comment") or "").strip()
+        if not text:
+            parts = [f"{k}: {v}" if isinstance(v, str) else str(v)
+                     for k, v in value.items() if k not in ("status", "intent") and v]
+            text = "\n\n".join(parts) if parts else ""
+    else:
+        text = str(value or "").strip()
+
     text = text[:MAX_SUMMARY_CHARS]
     if not text:
         result["rejected"] = "модель не дала пересказа"
