@@ -3422,7 +3422,7 @@ async def token_login_handler(request):
         raise web.HTTPFound(target)
     response = web.HTTPFound(target)
     session_id = await asyncio.to_thread(create_session, user["id"])
-    _set_session_cookie(request, response, session_id)
+    set_session_cookie(response, request, session_id)
     return response
 
 @routes.post("/api/auth/logout")

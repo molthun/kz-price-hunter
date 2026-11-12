@@ -98,6 +98,26 @@ class TestBotAuthLogin(unittest.IsolatedAsyncioTestCase):
             telegram_bot.send_tg_message = orig_send
             telegram_bot.APP_URL = orig_app_url
 
+    async def test_token_login_handler_success(self):
+        from aiohttp.test_utils import make_mocked_request
+        from aiohttp import web
+        from web.server import token_login_handler
+
+        upsert_telegram_user({
+            "id": 777666,
+            "first_name": "LoginTester",
+            "username": "logintester"
+        })
+        token = create_bot_auth_token(ttl_seconds=60)
+        approve_bot_auth_token(token, 777666)
+
+        req = make_mocked_request("GET", f"/api/auth/token-login?token={token}&next=/profile")
+        resp = await token_login_handler(req)
+        self.assertEqual(resp.status, 302)
+        self.assertEqual(resp.location, "/profile")
+        self.assertIn("kzph_session", resp.cookies)
+        self.assertTrue(bool(resp.cookies["kzph_session"].value))
+
 
 if __name__ == "__main__":
     unittest.main()
