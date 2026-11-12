@@ -490,17 +490,20 @@ class GuardedSettingsTest(unittest.IsolatedAsyncioTestCase):
         app.cleanup_ctx.clear()
         async with TestClient(TestServer(app)) as client:
             client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: token})
+            origin_hdr = {"Origin": auth.PUBLIC_ORIGIN or "http://127.0.0.1"}
             with patch.object(auth, "ADMIN_TELEGRAM_IDS", {9601}):
                 res = await client.post("/api/admin/config",
+                                        headers=origin_hdr,
                                         json={"adaptive_scheduler_stage": "all"})
                 self.assertEqual(res.status, 400)
                 self.assertIn("своим переключателем", (await res.json())["message"])
                 self.assertEqual(config.load_settings()["adaptive_scheduler_stage"], "off")
                 # Тот же запрет и для режима AI-сопоставления
                 self.assertEqual((await client.post("/api/admin/config",
+                                                    headers=origin_hdr,
                                                     json={"ai_matching_mode": "on"})).status, 400)
                 # Обычные настройки по-прежнему сохраняются
-                ok = await client.post("/api/admin/config", json={"candidate_drop_pct": 33})
+                ok = await client.post("/api/admin/config", headers=origin_hdr, json={"candidate_drop_pct": 33})
                 self.assertEqual(ok.status, 200)
                 self.assertEqual(config.load_settings()["candidate_drop_pct"], 33)
 
@@ -727,16 +730,17 @@ class SwitchApiTest(unittest.IsolatedAsyncioTestCase):
         app.cleanup_ctx.clear()
         async with TestClient(TestServer(app)) as client:
             client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: token})
+            origin_hdr = {"Origin": auth.PUBLIC_ORIGIN or "http://127.0.0.1"}
             with patch.object(auth, "ADMIN_TELEGRAM_IDS", {9701}):
                 # Сбой подготовки: раньше шаг оставался включённым без снимка «до»
                 with patch.object(database, "scheduler_candidates", side_effect=RuntimeError("база занята")):
-                    res = await client.post("/api/admin/scheduler/rollout", json={"stage": "canary_one"})
+                    res = await client.post("/api/admin/scheduler/rollout", headers=origin_hdr, json={"stage": "canary_one"})
                 self.assertEqual(res.status, 500)
                 self.assertEqual(config.load_settings()[rollout_module.SETTING_STAGE], "off")
                 self.assertEqual(rollout_module.canary_members(), [])
                 self.assertIsNone(rollout_module.baseline_metrics())
                 # Прыжок через шаг по-прежнему отклоняется
-                jump = await client.post("/api/admin/scheduler/rollout", json={"stage": "all"})
+                jump = await client.post("/api/admin/scheduler/rollout", headers=origin_hdr, json={"stage": "all"})
                 self.assertEqual(jump.status, 400)
                 self.assertEqual(config.load_settings()[rollout_module.SETTING_STAGE], "off")
 
@@ -982,10 +986,11 @@ class SwitchErrorMessageTest(unittest.IsolatedAsyncioTestCase):
         app.cleanup_ctx.clear()
         async with TestClient(TestServer(app)) as client:
             client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: token})
+            origin_hdr = {"Origin": auth.PUBLIC_ORIGIN or "http://127.0.0.1"}
             with patch.object(auth, "ADMIN_TELEGRAM_IDS", {9801}), \
                  patch.object(database, "scheduler_candidates",
                               side_effect=RuntimeError("no such table: source_scans")):
-                res = await client.post("/api/admin/scheduler/rollout", json={"stage": "canary_one"})
+                res = await client.post("/api/admin/scheduler/rollout", headers=origin_hdr, json={"stage": "canary_one"})
                 self.assertEqual(res.status, 500)
                 message = (await res.json())["message"]
                 self.assertIn("RuntimeError", message)

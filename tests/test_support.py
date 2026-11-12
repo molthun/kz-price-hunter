@@ -29,12 +29,27 @@ if _is_repo_dir(os.environ.get("DATA_DIR")):
 else:
     TEST_DATA_DIR = os.environ["DATA_DIR"]
 
+# Тестовая изоляция: в тестах сервер крутится на случайном порту loopback,
+# поэтому PUBLIC_ORIGIN прода/стенда не должен блокировать вызовы test_client
+os.environ["PUBLIC_ORIGIN"] = ""
+os.environ["APP_URL"] = ""
+
 _config = sys.modules.get("config")
 if _config is not None and _is_repo_dir(str(_config.DATA_DIR)):
     raise RuntimeError(
         "config was imported before test_support with DATA_DIR = repo root; "
         "tests would write to the working prices.db. Import test_support first.")
 
+import config
+config.PUBLIC_ORIGIN = ""
+config.APP_URL = ""
+try:
+    import auth
+    auth.PUBLIC_ORIGIN = ""
+except ImportError:
+    pass
+
+import aiohttp.test_utils
 from aiohttp.test_utils import TestClient  # noqa: E402
 
 
@@ -46,3 +61,6 @@ class BrowserTestClient(TestClient):
         if method.upper() not in ('GET', 'HEAD', 'OPTIONS'):
             headers.setdefault('Origin', str(self.make_url('/')).rstrip('/'))
         return await super()._request(method, path, headers=headers, **kwargs)
+
+# Подменяем TestClient на BrowserTestClient для всех тестов
+aiohttp.test_utils.TestClient = BrowserTestClient
