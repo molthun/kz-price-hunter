@@ -15,6 +15,8 @@
   - `telegram_bot.py`:
     - Класс `DraftProgress` расширен поддержкой стриминга токенов: буферизация, живой курсор ` ▌`, адаптивный троттлинг (не чаще раза в 350 мс для защиты от Bot API rate limits / 429), отложенный таймер сброса хвоста токенов.
     - В `_consult`: динамическое определение сигнатуры `ask_ai_consultant` и передача `on_token=progress.on_token`.
+  - `web/templates/admin.html` (TG-04 UI):
+    - В списке пользователей (`/admin#usersTool`) добавлен статус-бейдж `🚫 Бот заблокирован пользователем` при `user.bot_blocked == true`. Закрывает долг по TG-04 из `docs/TELEGRAM_BOT.md`.
   - Тесты:
     - Добавлен тестовый набор `StreamingDraftTests` в `tests/notifications/test_ai_drafts.py` (тестирование декодера, троттлинга и сквозного стриминга).
     - Все 12 тестов `test_ai_drafts.py` успешно пройдены.

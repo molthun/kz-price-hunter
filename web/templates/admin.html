@@ -87,6 +87,7 @@
     .user-status.pending { color: #d97706; }
     .user-status.ok { color: #16a34a; }
     .user-status.blocked { color: #dc2626; }
+    .user-status.bot-blocked { color: #ea580c; font-weight: 500; font-size: 0.78rem; margin-top: 2px; }
     .user-actions { display: flex; flex-wrap: wrap; gap: 6px; }
     button {
       min-height: 34px;
@@ -645,6 +646,9 @@
       info.append(element('div', 'user-name', [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'Пользователь'));
       info.append(element('div', 'user-meta', (user.username ? '@' + user.username + ' · ' : '') + 'ID ' + user.id));
       info.append(element('div', 'user-status ' + statusClass, statusText));
+      if (user.bot_blocked) {
+        info.append(element('div', 'user-status bot-blocked', '🚫 Бот заблокирован пользователем'));
+      }
       row.append(info);
       const actions = element('div', 'user-actions');
       actionsOf(user).forEach(([label, className, action, value]) => {
