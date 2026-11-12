@@ -90,6 +90,19 @@ class ReplyKeyboardAndProfileTests(unittest.TestCase):
         self.assertEqual(buttons[2][0]["text"], "🔔 Мои наблюдения")
         self.assertEqual(buttons[2][1]["text"], "🤖 AI-Консультант")
 
+    def test_default_reply_keyboard_structure_kk(self):
+        kb = get_default_reply_keyboard("https://shdev.molthun.ru", lang="kk")
+        self.assertTrue(kb.get("is_persistent"))
+        self.assertTrue(kb.get("resize_keyboard"))
+        buttons = kb.get("keyboard", [])
+        self.assertEqual(len(buttons), 3)
+        self.assertEqual(buttons[0][0]["text"], "🛍 Каталогты ашу")
+        self.assertEqual(buttons[0][1]["text"], "📷 Штрихкод сканері")
+        self.assertEqual(buttons[1][0]["text"], "🔥 Ыстық жеңілдіктер")
+        self.assertEqual(buttons[1][1]["text"], "❤️ Таңдаулылар")
+        self.assertEqual(buttons[2][0]["text"], "🔔 Менің бақылауларым")
+        self.assertEqual(buttons[2][1]["text"], "🤖 AI-Кеңесші")
+
     def test_profile_setup_calls_contains_ru_and_kk(self):
         calls = profile_setup_calls()
         methods = [c[0] for c in calls]
@@ -108,14 +121,44 @@ class TelegramBotQuickActionsAsyncTests(unittest.IsolatedAsyncioTestCase):
             "message": {
                 "message_id": 1,
                 "chat": {"id": 100, "type": "private"},
-                "from": {"id": 100, "is_bot": False},
+                "from": {"id": 100, "is_bot": False, "language_code": "ru"},
                 "text": "🔔 Мои наблюдения"
             }
         }
         with patch("telegram_bot.handle_watches_command", new_callable=AsyncMock) as mock_watches, \
              patch("telegram_bot.get_user", return_value=None):
             await process_telegram_update(session, "tok", update)
-            mock_watches.assert_awaited_once_with(session, "tok", 100)
+            mock_watches.assert_awaited_once_with(session, "tok", 100, lang="ru")
+
+    async def test_quick_action_watches_button_kk(self):
+        session = Mock(spec=aiohttp.ClientSession)
+        update = {
+            "message": {
+                "message_id": 1,
+                "chat": {"id": 100, "type": "private"},
+                "from": {"id": 100, "is_bot": False, "language_code": "kk-KZ"},
+                "text": "🔔 Менің бақылауларым"
+            }
+        }
+        with patch("telegram_bot.handle_watches_command", new_callable=AsyncMock) as mock_watches, \
+             patch("telegram_bot.get_user", return_value=None):
+            await process_telegram_update(session, "tok", update)
+            mock_watches.assert_awaited_once_with(session, "tok", 100, lang="kk")
+
+    async def test_quick_action_deals_button_kk(self):
+        session = Mock(spec=aiohttp.ClientSession)
+        update = {
+            "message": {
+                "message_id": 1,
+                "chat": {"id": 100, "type": "private"},
+                "from": {"id": 100, "is_bot": False, "language_code": "kk"},
+                "text": "🔥 Ыстық жеңілдіктер"
+            }
+        }
+        with patch("telegram_bot.handle_deals_command", new_callable=AsyncMock) as mock_deals, \
+             patch("telegram_bot.get_user", return_value=None):
+            await process_telegram_update(session, "tok", update)
+            mock_deals.assert_awaited_once_with(session, "tok", 100, lang="kk")
 
     async def test_quick_action_ai_consultant_button(self):
         session = Mock(spec=aiohttp.ClientSession)
@@ -123,7 +166,7 @@ class TelegramBotQuickActionsAsyncTests(unittest.IsolatedAsyncioTestCase):
             "message": {
                 "message_id": 2,
                 "chat": {"id": 100, "type": "private"},
-                "from": {"id": 100, "is_bot": False},
+                "from": {"id": 100, "is_bot": False, "language_code": "ru"},
                 "text": "🤖 AI-Консультант"
             }
         }
@@ -133,3 +176,20 @@ class TelegramBotQuickActionsAsyncTests(unittest.IsolatedAsyncioTestCase):
             mock_send.assert_awaited_once()
             args, kwargs = mock_send.call_args
             self.assertIn("AI-Консультант", args[3])
+
+    async def test_quick_action_ai_consultant_button_kk(self):
+        session = Mock(spec=aiohttp.ClientSession)
+        update = {
+            "message": {
+                "message_id": 2,
+                "chat": {"id": 100, "type": "private"},
+                "from": {"id": 100, "is_bot": False, "language_code": "kk"},
+                "text": "🤖 AI-Кеңесші"
+            }
+        }
+        with patch("telegram_bot.send_tg_message", new_callable=AsyncMock) as mock_send, \
+             patch("telegram_bot.get_user", return_value=None):
+            await process_telegram_update(session, "tok", update)
+            mock_send.assert_awaited_once()
+            args, kwargs = mock_send.call_args
+            self.assertIn("AI-Кеңесшісі", args[3])

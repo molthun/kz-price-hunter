@@ -550,21 +550,22 @@ def decode_deep_link_param(param: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def get_default_reply_keyboard(app_url: str = "") -> Dict[str, Any]:
-    """TG-15: постоянная нижняя клавиатура быстрого доступа с кнопкой запуска Mini App (Bot API 7.0)."""
+def get_default_reply_keyboard(app_url: str = "", lang: str = "ru") -> Dict[str, Any]:
+    """TG-15 / TG-05б: постоянная нижняя клавиатура быстрого доступа с кнопкой запуска Mini App (ru/kk, Bot API 7.0)."""
     target_url = app_url or APP_URL or config.PUBLIC_ORIGIN or ""
+    is_kk = str(lang or "").lower().startswith(("kk", "kz"))
     first_row = []
     if target_url and target_url.startswith("https://"):
-        first_row.append({"text": "🛍 Открыть каталог", "web_app": {"url": target_url}})
-        first_row.append({"text": "📷 Сканер штрихкода", "web_app": {"url": f"{target_url}?scan=1"}})
+        first_row.append({"text": "🛍 Каталогты ашу" if is_kk else "🛍 Открыть каталог", "web_app": {"url": target_url}})
+        first_row.append({"text": "📷 Штрихкод сканері" if is_kk else "📷 Сканер штрихкода", "web_app": {"url": f"{target_url}?scan=1"}})
     else:
-        first_row.append({"text": "🛍 Открыть каталог"})
-        first_row.append({"text": "🔥 Горячие скидки"})
+        first_row.append({"text": "🛍 Каталогты ашу" if is_kk else "🛍 Открыть каталог"})
+        first_row.append({"text": "🔥 Ыстық жеңілдіктер" if is_kk else "🔥 Горячие скидки"})
 
     keyboard = [
         first_row,
-        [{"text": "🔥 Горячие скидки"}, {"text": "❤️ Избранное"}],
-        [{"text": "🔔 Мои наблюдения"}, {"text": "🤖 AI-Консультант"}]
+        [{"text": "🔥 Ыстық жеңілдіктер" if is_kk else "🔥 Горячие скидки"}, {"text": "❤️ Таңдаулылар" if is_kk else "❤️ Избранное"}],
+        [{"text": "🔔 Менің бақылауларым" if is_kk else "🔔 Мои наблюдения"}, {"text": "🤖 AI-Кеңесші" if is_kk else "🤖 AI-Консультант"}]
     ]
     return {
         "keyboard": keyboard,
@@ -576,7 +577,8 @@ def get_default_reply_keyboard(app_url: str = "") -> Dict[str, Any]:
 async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_id: int,
                                user_first_name: str = "", payload: str = "",
                                from_user: Optional[Dict[str, Any]] = None,
-                               message_thread_id: Optional[int] = None):
+                               message_thread_id: Optional[int] = None,
+                               lang: str = "ru"):
     # Обеспечиваем регистрацию пользователя в users при переходе по глубокой ссылке
     if from_user:
         try:
@@ -584,6 +586,9 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
             await asyncio.to_thread(upsert_user, from_user)
         except Exception as e:
             print(f"[Telegram Bot] Ошибка регистрации пользователя: {type(e).__name__}")
+
+    user_lang = lang or (from_user.get("language_code") or "").lower().split("-")[0] if from_user else lang
+    is_kk = str(user_lang or "").lower().startswith(("kk", "kz"))
 
     # Обработка глубокой ссылки (TG-09)
     if payload:
@@ -608,22 +613,39 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
                     watch = await asyncio.to_thread(create_watch, chat_id, {
                         "kind": "search", "target": query, "condition": "any_drop"})
                     if watch.get("already_existed"):
-                        text = (
-                            f"🔔 <b>Вы уже следите за этим запросом:</b>\n"
-                            f"«<b>{html.escape(query)}</b>»\n\n"
-                            "Я сообщу вам сюда, как только появятся новые предложения или снизится цена."
-                        )
+                        if is_kk:
+                            text = (
+                                f"🔔 <b>Сіз бұл сұранысты бақылап отырсыз:</b>\n"
+                                f"«<b>{html.escape(query)}</b>»\n\n"
+                                "Жаңа ұсыныстар пайда болғанда немесе баға түскенде осында хабарлаймын."
+                            )
+                        else:
+                            text = (
+                                f"🔔 <b>Вы уже следите за этим запросом:</b>\n"
+                                f"«<b>{html.escape(query)}</b>»\n\n"
+                                "Я сообщу вам сюда, как только появятся новые предложения или снизится цена."
+                            )
                     else:
-                        text = (
-                            f"🔔 <b>Наблюдение включено!</b>\n\n"
-                            f"🔍 Поисковый запрос: «<b>{html.escape(query)}</b>»\n"
-                            "Условие: <b>любое снижение цены</b>\n\n"
-                            "Я пришлю уведомление прямо в этот чат, как только цена снизится."
-                        )
+                        if is_kk:
+                            text = (
+                                f"🔔 <b>Бақылау қосылды!</b>\n\n"
+                                f"🔍 Іздеу сұранысы: «<b>{html.escape(query)}</b>»\n"
+                                "Шарт: <b>кез келген бағаның төмендеуі</b>\n\n"
+                                "Баға төмендеген кезде осы чатқа хабарлама келеді."
+                            )
+                        else:
+                            text = (
+                                f"🔔 <b>Наблюдение включено!</b>\n\n"
+                                f"🔍 Поисковый запрос: «<b>{html.escape(query)}</b>»\n"
+                                "Условие: <b>любое снижение цены</b>\n\n"
+                                "Я пришлю уведомление прямо в этот чат, как только цена снизится."
+                            )
                     keyboard = []
                     if APP_URL:
-                        keyboard.append([site_button("⚙️ Мои наблюдения на сайте", APP_URL)])
-                    keyboard.append([callback_button("🔕 Отключить наблюдение", f"unwatch:{watch['id']}", style="danger")])
+                        btn_txt = "⚙️ Менің бақылауларым" if is_kk else "⚙️ Мои наблюдения на сайте"
+                        keyboard.append([site_button(btn_txt, APP_URL)])
+                    unwatch_txt = "🔕 Бақылауды өшіру" if is_kk else "🔕 Отключить наблюдение"
+                    keyboard.append([callback_button(unwatch_txt, f"unwatch:{watch['id']}", style="danger")])
                     reply_markup = {"inline_keyboard": keyboard}
                     await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
                     return
@@ -653,108 +675,188 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
                     url = str(row_dict.get("url") or "")
 
                     if watch.get("already_existed"):
-                        text = (
-                            f"🔔 <b>Вы уже следите за этим товаром:</b>\n\n"
-                            f"📦 <b>{html.escape(p_title)}</b>\n"
-                        )
-                        if price > 0:
-                            text += f"Текущая цена: <b>{format_price(price)}</b>" + (f" ({shop})" if shop else "") + "\n"
-                        text += "\nЯ напишу вам сюда, как только цена снизится."
+                        if is_kk:
+                            text = (
+                                f"🔔 <b>Сіз бұл тауарды бақылап отырсыз:</b>\n\n"
+                                f"📦 <b>{html.escape(p_title)}</b>\n"
+                            )
+                            if price > 0:
+                                text += f"Ағымдағы баға: <b>{format_price(price)}</b>" + (f" ({shop})" if shop else "") + "\n"
+                            text += "\nБаға түскенде осында жазамын."
+                        else:
+                            text = (
+                                f"🔔 <b>Вы уже следите за этим товаром:</b>\n\n"
+                                f"📦 <b>{html.escape(p_title)}</b>\n"
+                            )
+                            if price > 0:
+                                text += f"Текущая цена: <b>{format_price(price)}</b>" + (f" ({shop})" if shop else "") + "\n"
+                            text += "\nЯ напишу вам сюда, как только цена снизится."
                     else:
-                        text = (
-                            f"🔔 <b>Наблюдение включено!</b>\n\n"
-                            f"📦 <b>{html.escape(p_title)}</b>\n"
-                        )
-                        if price > 0:
-                            text += f"Текущая цена: <b>{format_price(price)}</b>" + (f" ({shop})" if shop else "") + "\n"
-                        text += "Условие: <b>любое снижение цены</b>\n\nЯ пришлю уведомление прямо в этот чат, как только цена снизится."
+                        if is_kk:
+                            text = (
+                                f"🔔 <b>Бақылау қосылды!</b>\n\n"
+                                f"📦 <b>{html.escape(p_title)}</b>\n"
+                            )
+                            if price > 0:
+                                text += f"Ағымдағы баға: <b>{format_price(price)}</b>" + (f" ({shop})" if shop else "") + "\n"
+                            text += "Шарт: <b>кез келген бағаның төмендеуі</b>\n\nБаға түскен кезде осы чатқа хабарлама келеді."
+                        else:
+                            text = (
+                                f"🔔 <b>Наблюдение включено!</b>\n\n"
+                                f"📦 <b>{html.escape(p_title)}</b>\n"
+                            )
+                            if price > 0:
+                                text += f"Текущая цена: <b>{format_price(price)}</b>" + (f" ({shop})" if shop else "") + "\n"
+                            text += "Условие: <b>любое снижение цены</b>\n\nЯ пришлю уведомление прямо в этот чат, как только цена снизится."
 
                     keyboard = []
                     if url and url.startswith("http"):
-                        row1 = [url_button(f"🛒 Открыть в {shop or 'магазине'}", url, style="primary")]
-                        c_btn = copy_button("📋 Скопировать ссылку", url)
+                        open_btn_txt = f"🛒 {shop or 'дүкенде'} ашу" if is_kk else f"🛒 Открыть в {shop or 'магазине'}"
+                        row1 = [url_button(open_btn_txt, url, style="primary")]
+                        copy_btn_txt = "📋 Сілтемені көшіру" if is_kk else "📋 Скопировать ссылку"
+                        c_btn = copy_button(copy_btn_txt, url)
                         if c_btn:
                             row1.append(c_btn)
                         keyboard.append(row1)
-                    keyboard.append([callback_button("🔕 Отключить наблюдение", f"unwatch:{watch['id']}", style="danger")])
+                    unwatch_txt = "🔕 Бақылауды өшіру" if is_kk else "🔕 Отключить наблюдение"
+                    keyboard.append([callback_button(unwatch_txt, f"unwatch:{watch['id']}", style="danger")])
                     if APP_URL:
-                        keyboard.append([site_button("⚙️ Все наблюдения на сайте", APP_URL)])
+                        all_watches_txt = "⚙️ Барлық бақылаулар" if is_kk else "⚙️ Все наблюдения на сайте"
+                        keyboard.append([site_button(all_watches_txt, APP_URL)])
                     reply_markup = {"inline_keyboard": keyboard}
                     await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
                     return
 
         # Некорректный или устаревший payload
-        greeting = f"Привет, {html.escape(user_first_name)}! " if user_first_name else "Привет! "
-        text = (
-            f"👋 {greeting}\n\n"
-            "Ссылка устарела или содержит некорректный код.\n"
-            "Вы можете найти товар через <b>/search &lt;товар&gt;</b> или посмотреть свои активные наблюдения через <b>/watches</b>."
-        )
+        if is_kk:
+            greeting = f"Сәлеметсіз бе, {html.escape(user_first_name)}! " if user_first_name else "Сәлеметсіз бе! "
+            text = (
+                f"👋 {greeting}\n\n"
+                "Сілтеме ескірген немесе қате кодты қамтиды.\n"
+                "Тауарды <b>/search &lt;тауар&gt;</b> арқылы іздеуге немесе <b>/watches</b> арқылы бақылауларыңызды көруге болады."
+            )
+            cat_txt = "📊 Каталогқа өту"
+        else:
+            greeting = f"Привет, {html.escape(user_first_name)}! " if user_first_name else "Привет! "
+            text = (
+                f"👋 {greeting}\n\n"
+                "Ссылка устарела или содержит некорректный код.\n"
+                "Вы можете найти товар через <b>/search &lt;товар&gt;</b> или посмотреть свои активные наблюдения через <b>/watches</b>."
+            )
+            cat_txt = "📊 Перейти в каталог"
         keyboard = []
         if APP_URL:
-            keyboard.append([site_button("📊 Перейти в каталог", APP_URL)])
+            keyboard.append([site_button(cat_txt, APP_URL)])
         reply_markup = {"inline_keyboard": keyboard} if keyboard else None
         await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
         return
 
     # Стандартное приветствие без payload
-    greeting = f"Привет, {html.escape(user_first_name)}! " if user_first_name else "Привет! "
-    text = (
-        f"👋 {greeting}Я умный бот-ассистент <b>KZ Price Hunter</b> 🇰🇿\n\n"
-        f"Я отслеживаю цены, скидки и ошибки в крупнейших магазинах Казахстана (подключено: <b>{len(config.SHOP_KEYS)}</b>) "
-        "(электроника, продукты, стройка, товары для дома: Kaspi, DNS, Белый Ветер, Лемана ПРО, Arbuz, 12 Месяцев, Мечта и др.) "
-        "и помогаю сделать самую выгодную покупку с помощью AI!\n\n"
-        "📌 <b>Что я умею:</b>\n"
-        "• <b>Задайте любой вопрос</b> — напишите, например:\n"
-        "  <i>«Посоветуй игровой ноутбук до 350к»</i>\n"
-        "  <i>«Какой iPhone сейчас выгоднее брать?»</i>\n"
-        "  <i>«Что выбрать: RTX 4060 или RX 7600?»</i>\n"
-        "  Я проанализирую реальные цены в магазинах и дам совет эксперта!\n\n"
-        "• <b>/search &lt;товар&gt;</b> — мгновенная проверка минимальной цены по магазинам Казахстана\n"
-        "• <b>/ai &lt;вопрос&gt;</b> — вызов AI-консультанта. Он помнит разговор 30 минут: можно уточнять "
-        "(<i>«а подешевле?»</i>, <i>«сравни первые два»</i>)\n"
-        "• <b>/new</b> — начать новый разговор с консультантом\n"
-        "• <b>/status</b> — проверка статуса базы и нейросети\n"
-        "• <b>/watches</b> — просмотр и управление вашими наблюдениями за ценами\n\n"
-        "🔒 Я отвечаю только в личном чате. Вопрос и контекст диалога передаются настроенному AI-провайдеру. "
-        "Для поиска без AI используйте /search; /new очищает текущий контекст.\n\n"
-        "🔔 Уведомления включаются в личных настройках сайта."
-    )
-    reply_markup = get_default_reply_keyboard(APP_URL)
+    if is_kk:
+        greeting = f"Сәлеметсіз бе, {html.escape(user_first_name)}! " if user_first_name else "Сәлеметсіз бе! "
+        text = (
+            f"👋 {greeting}Мен <b>KZ Price Hunter</b> ақылды бот-көмекшісімін 🇰🇿\n\n"
+            f"Мен Қазақстанның ірі дүкендеріндегі (қосылған: <b>{len(config.SHOP_KEYS)}</b>) "
+            "(электроника, өнімдер, құрылыс, үй тауарлары: Kaspi, DNS, Белый Ветер, Лемана ПРО, Arbuz, 12 Месяцев, Мечта және т.б.) "
+            "бағаларды, жеңілдіктерді бақылаймын және AI көмегімен ең тиімді сатып алуға көмектесемін!\n\n"
+            "📌 <b>Мен не істей аламын:</b>\n"
+            "• <b>Кез келген сұрақ қойыңыз</b> — мысалы:\n"
+            "  <i>«350 мыңға дейін ойын ноутбугын кеңес берші»</i>\n"
+            "  <i>«Қазір қай iPhone сатып алу тиімдірек?»</i>\n"
+            "  <i>«Қайсысын таңдаған жөн: RTX 4060 немесе RX 7600?»</i>\n"
+            "  Мен дүкендердегі нақты бағаларды талдап, сарапшылық кеңес беремін!\n\n"
+            "• <b>/search &lt;тауар&gt;</b> — Қазақстан дүкендері бойынша минималды бағаны жылдам тексеру\n"
+            "• <b>/deals</b> — қазіргі ең ыстық жеңілдіктер мен бағалар\n"
+            "• <b>/favorites</b> — сақталған таңдаулы тауарлар\n"
+            "• <b>/scan</b> — дүкендегі штрихкод сканері\n"
+            "• <b>/ai &lt;сұрақ&gt;</b> — AI-кеңесшіні шақыру (30 минут есте сақтайды)\n"
+            "• <b>/new</b> — жаңа диалог бастау\n"
+            "• <b>/status</b> — сервис пен нейрожелі жағдайы\n"
+            "• <b>/watches</b> — бағаны бақылау тізімін көру және басқару\n\n"
+            "🔒 Мен тек жеке чатта жауап беремін. AI-сыз іздеу үшін /search қолданыңыз; /new контекстті тазалайды.\n\n"
+            "🔔 Хабарламалар сайттың жеке баптауларында қосылады."
+        )
+    else:
+        greeting = f"Привет, {html.escape(user_first_name)}! " if user_first_name else "Привет! "
+        text = (
+            f"👋 {greeting}Я умный бот-ассистент <b>KZ Price Hunter</b> 🇰🇿\n\n"
+            f"Я отслеживаю цены, скидки и ошибки в крупнейших магазинах Казахстана (подключено: <b>{len(config.SHOP_KEYS)}</b>) "
+            "(электроника, продукты, стройка, товары для дома: Kaspi, DNS, Белый Ветер, Лемана ПРО, Arbuz, 12 Месяцев, Мечта и др.) "
+            "и помогаю сделать самую выгодную покупку с помощью AI!\n\n"
+            "📌 <b>Что я умею:</b>\n"
+            "• <b>Задайте любой вопрос</b> — напишите, например:\n"
+            "  <i>«Посоветуй игровой ноутбук до 350к»</i>\n"
+            "  <i>«Какой iPhone сейчас выгоднее брать?»</i>\n"
+            "  <i>«Что выбрать: RTX 4060 или RX 7600?»</i>\n"
+            "  Я проанализирую реальные цены в магазинах и дам совет эксперта!\n\n"
+            "• <b>/search &lt;товар&gt;</b> — мгновенная проверка минимальной цены по магазинам Казахстана\n"
+            "• <b>/deals</b> — горячие скидки прямо сейчас\n"
+            "• <b>/favorites</b> — сохранённые товары\n"
+            "• <b>/scan</b> — сканер штрихкодов в магазине\n"
+            "• <b>/ai &lt;вопрос&gt;</b> — вызов AI-консультанта. Он помнит разговор 30 минут: можно уточнять "
+            "(<i>«а подешевле?»</i>, <i>«сравни первые два»</i>)\n"
+            "• <b>/new</b> — начать новый разговор с консультантом\n"
+            "• <b>/status</b> — проверка статуса базы и нейросети\n"
+            "• <b>/watches</b> — просмотр и управление вашими наблюдениями за ценами\n\n"
+            "🔒 Я отвечаю только в личном чате. Вопрос и контекст диалога передаются настроенному AI-провайдеру. "
+            "Для поиска без AI используйте /search; /new очищает текущий контекст.\n\n"
+            "🔔 Уведомления включаются в личных настройках сайта."
+        )
+    reply_markup = get_default_reply_keyboard(APP_URL, lang=user_lang)
     await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
 
 
-async def handle_status_command(session: aiohttp.ClientSession, token: str, chat_id: int, message_thread_id: Optional[int] = None):
+async def handle_status_command(session: aiohttp.ClientSession, token: str, chat_id: int, message_thread_id: Optional[int] = None, lang: str = "ru"):
+    is_kk = str(lang or "").lower().startswith(("kk", "kz"))
     ai_conf = config.get_ai_config()
-    ai_status = f"✅ Активен ({ai_conf['provider']})" if ai_conf["configured"] and ai_conf["enabled"] else "⚠️ Не настроен"
+    if is_kk:
+        ai_status = f"✅ Белсенді ({ai_conf['provider']})" if ai_conf["configured"] and ai_conf["enabled"] else "⚠️ Бапталмаған"
+    else:
+        ai_status = f"✅ Активен ({ai_conf['provider']})" if ai_conf["configured"] and ai_conf["enabled"] else "⚠️ Не настроен"
     time_badge = tg_time_tag(format_spec="wDT", fallback=time.strftime("%Y-%m-%d %H:%M"))
     
-    text = (
-        "📊 <b>Статус системы KZ Price Hunter</b>\n\n"
-        f"🧠 <b>AI-консультант:</b> {ai_status}\n"
-        f"🏪 <b>Подключенных сетей:</b> {len(config.SHOP_KEYS)}\n"
-        "📍 <b>Основной регион сбора:</b> Астана / Алматы / Доставка по РК\n"
-        f"🕒 <b>Время проверки:</b> {time_badge}\n\n"
-        "Чтобы получить совет по выбору товара, просто напишите мне свой вопрос!"
-    )
+    if is_kk:
+        text = (
+            "📊 <b>KZ Price Hunter жүйесінің жағдайы</b>\n\n"
+            f"🧠 <b>AI-кеңесші:</b> {ai_status}\n"
+            f"🏪 <b>Қосылған дүкен желілері:</b> {len(config.SHOP_KEYS)}\n"
+            "📍 <b>Негізгі жинау аймағы:</b> Астана / Алматы / ҚР бойынша жеткізу\n"
+            f"🕒 <b>Тексеру уақыты:</b> {time_badge}\n\n"
+            "Тауар таңдау бойынша кеңес алу үшін сұрағыңызды чатқа жазыңыз немесе <b>/search &lt;тауар&gt;</b> арқылы іздеңіз!"
+        )
+    else:
+        text = (
+            "📊 <b>Статус системы KZ Price Hunter</b>\n\n"
+            f"🧠 <b>AI-консультант:</b> {ai_status}\n"
+            f"🏪 <b>Подключенных сетей:</b> {len(config.SHOP_KEYS)}\n"
+            "📍 <b>Основной регион сбора:</b> Астана / Алматы / Доставка по РК\n"
+            f"🕒 <b>Время проверки:</b> {time_badge}\n\n"
+            "Чтобы получить совет по выбору товара, просто напишите мне свой вопрос!"
+        )
     await send_tg_message(session, token, chat_id, text, message_thread_id=message_thread_id)
 
 
-async def handle_watches_command(session: aiohttp.ClientSession, token: str, chat_id: int, message_thread_id: Optional[int] = None):
+async def handle_watches_command(session: aiohttp.ClientSession, token: str, chat_id: int, message_thread_id: Optional[int] = None, lang: str = "ru"):
     """Показывает список активных наблюдений за ценами пользователя и позволяет отключить их."""
+    is_kk = str(lang or "").lower().startswith(("kk", "kz"))
     if message_thread_id is None:
         message_thread_id = await get_or_create_tg_topic(session, token, chat_id, "watches")
 
     from database import list_watches
     watches = list_watches(chat_id, only_active=True)
     if not watches:
-        text = (
-            "🔕 <b>У вас нет активных наблюдений за ценами.</b>\n\n"
-            "Вы можете настроить отслеживание снижения цен в карточке любого товара на сайте или через поиск бота."
-        )
-        keyboard = []
-        if APP_URL:
-            keyboard.append([site_button("🔍 Перейти в каталог", APP_URL)])
+        if is_kk:
+            text = (
+                "🔕 <b>Сізде әзірге белсенді бақылаулар жоқ.</b>\n\n"
+                "Бағаның төмендеуін сайттағы кез келген тауар карточкасында немесе бот іздеуі арқылы бақылауға болады."
+            )
+            keyboard = [[site_button("🔍 Каталогқа өту", APP_URL)]] if APP_URL else None
+        else:
+            text = (
+                "🔕 <b>У вас нет активных наблюдений за ценами.</b>\n\n"
+                "Вы можете настроить отслеживание снижения цен в карточке любого товара на сайте или через поиск бота."
+            )
+            keyboard = [[site_button("🔍 Перейти в каталог", APP_URL)]] if APP_URL else None
         reply_markup = {"inline_keyboard": keyboard} if keyboard else None
         await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
         return
@@ -763,19 +865,23 @@ async def handle_watches_command(session: aiohttp.ClientSession, token: str, cha
     if telegram_widgets.watches_widget_enabled(chat_id) and await _send_watches_widget(session, token, chat_id, watches):
         return
 
-    text = f"🔔 <b>Ваши активные наблюдения ({len(watches)}):</b>\n\n"
+    header_txt = f"🔔 <b>Сіздің белсенді бақылауларыңыз ({len(watches)}):</b>\n\n" if is_kk else f"🔔 <b>Ваши активные наблюдения ({len(watches)}):</b>\n\n"
+    text = header_txt
     keyboard = []
     for idx, w in enumerate(watches[:15], 1):
         desc = w.get("description") or w.get("title") or f"Наблюдение #{w['id']}"
         text += f"{idx}. <b>{html.escape(desc)}</b>\n"
         w_title = (w.get("title") or f"#{w['id']}")[:24]
-        keyboard.append([callback_button(f"🔕 Отключить: {w_title}", f"unwatch:{w['id']}", style="danger")])
+        unwatch_btn = f"🔕 Өшіру: {w_title}" if is_kk else f"🔕 Отключить: {w_title}"
+        keyboard.append([callback_button(unwatch_btn, f"unwatch:{w['id']}", style="danger")])
 
     if len(watches) > 15:
-        text += f"\n<i>(Показаны первые 15 из {len(watches)})</i>\n"
+        more_txt = f"\n<i>(Алғашқы 15-і көрсетілген, барлығы: {len(watches)})</i>\n" if is_kk else f"\n<i>(Показаны первые 15 из {len(watches)})</i>\n"
+        text += more_txt
 
     if APP_URL:
-        keyboard.append([site_button("⚙️ Все наблюдения на сайте", APP_URL)])
+        all_txt = "⚙️ Барлық бақылаулар сайтта" if is_kk else "⚙️ Все наблюдения на сайте"
+        keyboard.append([site_button(all_txt, APP_URL)])
 
     reply_markup = {"inline_keyboard": keyboard}
     await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
@@ -1043,8 +1149,10 @@ async def handle_deals_command(
     token: str,
     chat_id: int,
     message_thread_id: Optional[int] = None,
+    lang: str = "ru",
 ):
-    """TG-23: команда /deals (Горячие скидки)."""
+    """TG-23 / TG-05б: команда /deals (Горячие скидки, ru/kk)."""
+    is_kk = str(lang or "").lower().startswith(("kk", "kz"))
     if message_thread_id is None:
         message_thread_id = await get_or_create_tg_topic(session, token, chat_id, "alerts")
 
@@ -1056,7 +1164,8 @@ async def handle_deals_command(
         alerts = deals_data.get("deals", []) if isinstance(deals_data, dict) else []
 
     if alerts:
-        lines = ["🔥 <b>Топ горячих скидок прямо сейчас:</b>\n"]
+        header = "🔥 <b>Дәл қазіргі ең ыстық жеңілдіктер:</b>\n" if is_kk else "🔥 <b>Топ горячих скидок прямо сейчас:</b>\n"
+        lines = [header]
         keyboard = []
         for idx, it in enumerate(alerts[:5], 1):
             p = format_price(_item_price(it))
@@ -1067,13 +1176,16 @@ async def handle_deals_command(
             lines.append(f"{idx}. {emoji} <b>-{drop}%</b> | {p} — {title} ({html.escape(shop)})")
             url = it.get("url")
             if url and url.startswith("http"):
-                keyboard.append([url_button(f"{idx}. В {shop} ({p})", url, style="primary")])
+                btn_shop = f"{idx}. {shop} дүкенінде ({p})" if is_kk else f"{idx}. В {shop} ({p})"
+                keyboard.append([url_button(btn_shop, url, style="primary")])
 
         if APP_URL:
-            keyboard.append([site_button("🔥 Все скидки в каталоге", f"{APP_URL}/deals")])
+            all_deals_btn = "🔥 Барлық жеңілдіктер каталогта" if is_kk else "🔥 Все скидки в каталоге"
+            keyboard.append([site_button(all_deals_btn, f"{APP_URL}/deals")])
 
         # TG-24: Кнопка выбора чата для шеринга
-        keyboard.append([choose_chat_button("📤 Поделиться скидками с другом", query="скидки", style="success")])
+        share_btn = "📤 Досыммен бөлісу" if is_kk else "📤 Поделиться скидками с другом"
+        keyboard.append([choose_chat_button(share_btn, query="скидки", style="success")])
 
         reply_markup = {"inline_keyboard": keyboard} if keyboard else None
         await send_tg_message(
@@ -1083,10 +1195,16 @@ async def handle_deals_command(
             message_thread_id=message_thread_id
         )
     else:
+        empty_msg = (
+            "ℹ️ Қазір жаңа баға аномалиялары жоқ. <code>/search &lt;тауар&gt;</code> арқылы іздеп көріңіз немесе каталогты ашыңыз."
+            if is_kk else
+            "ℹ️ Сейчас нет новых аномалий цен. Попробуйте поиск <code>/search &lt;товар&gt;</code> или откройте каталог."
+        )
+        cat_btn = "🛍 Каталогты ашу" if is_kk else "🛍 Открыть каталог"
         await send_tg_message(
             session, token, chat_id,
-            "ℹ️ Сейчас нет новых аномалий цен. Попробуйте поиск <code>/search &lt;товар&gt;</code> или откройте каталог.",
-            reply_markup={"inline_keyboard": [[site_button("🛍 Открыть каталог", APP_URL)]]} if APP_URL else None,
+            empty_msg,
+            reply_markup={"inline_keyboard": [[site_button(cat_btn, APP_URL)]]} if APP_URL else None,
             message_thread_id=message_thread_id
         )
 
@@ -1097,8 +1215,10 @@ async def handle_favorites_command(
     chat_id: int,
     user_id: int,
     message_thread_id: Optional[int] = None,
+    lang: str = "ru",
 ):
-    """TG-23: команда /favorites (Моё избранное)."""
+    """TG-23 / TG-05б: команда /favorites (Моё избранное, ru/kk)."""
+    is_kk = str(lang or "").lower().startswith(("kk", "kz"))
     if message_thread_id is None:
         message_thread_id = await get_or_create_tg_topic(session, token, chat_id, "watches")
 
@@ -1106,21 +1226,27 @@ async def handle_favorites_command(
     favs = await asyncio.to_thread(list_user_favorites, user_id)
 
     if not favs:
+        empty_favs_msg = (
+            "❤️ <b>Таңдаулы тауарлар тізімі бос</b>\n\nТауарларды каталогта немесе Mini App-та ♡ жүрекшесін басу арқылы сақтай аласыз."
+            if is_kk else
+            "❤️ <b>Ваше избранное пусто</b>\n\nВы можете сохранять товары в каталоге или Mini App, нажимая на сердечко ♡."
+        )
+        cat_btn = "🛍 Каталогты ашу" if is_kk else "🛍 Открыть каталог"
         await send_tg_message(
             session, token, chat_id,
-            "❤️ <b>Ваше избранное пусто</b>\n\nВы можете сохранять товары в каталоге или Mini App, нажимая на сердечко ♡.",
-            reply_markup={"inline_keyboard": [[site_button("🛍 Открыть каталог", APP_URL)]]} if APP_URL else None,
+            empty_favs_msg,
+            reply_markup={"inline_keyboard": [[site_button(cat_btn, APP_URL)]]} if APP_URL else None,
             message_thread_id=message_thread_id,
         )
         return
 
-    lines = [f"❤️ <b>Ваши сохранённые товары ({len(favs)}):</b>\n"]
+    favs_header = f"❤️ <b>Сіздің сақталған тауарларыңыз ({len(favs)}):</b>\n" if is_kk else f"❤️ <b>Ваши сохранённые товары ({len(favs)}):</b>\n"
+    lines = [favs_header]
     keyboard = []
     for idx, f in enumerate(favs[:5], 1):
         title = html.escape(str(f.get("title") or "Товар")[:50])
         price = format_price(int(f.get("new_price") or f.get("saved_price") or 0))
-        shop = f.get("shop", "")
-        drop_badge = " 📉 <b>Снизилась!</b>" if f.get("has_price_drop") else ""
+        drop_badge = " 📉 <b>Төмендеді!</b>" if (f.get("has_price_drop") and is_kk) else (" 📉 <b>Снизилась!</b>" if f.get("has_price_drop") else "")
         lines.append(f"{idx}. 🏷 <b>{title}</b>\n   ✅ {price}{drop_badge}")
 
         url = f.get("url")
@@ -1128,7 +1254,8 @@ async def handle_favorites_command(
             keyboard.append([url_button(f"{idx}. {title[:20]}…", url)])
 
     if APP_URL:
-        keyboard.append([site_button("❤️ Открыть всё избранное", f"{APP_URL}/favorites")])
+        all_favs_btn = "❤️ Барлық таңдаулыларды ашу" if is_kk else "❤️ Открыть всё избранное"
+        keyboard.append([site_button(all_favs_btn, f"{APP_URL}/favorites")])
 
     await send_tg_message(
         session, token, chat_id, "\n".join(lines),
@@ -1142,22 +1269,35 @@ async def handle_scan_command(
     token: str,
     chat_id: int,
     message_thread_id: Optional[int] = None,
+    lang: str = "ru",
 ):
-    """TG-25: команда /scan (Сканер штрихкодов и QR-кодов в магазине, Bot API 6.4/7.7)."""
+    """TG-25 / TG-05б: команда /scan (Сканер штрихкодов и QR-кодов в магазине, ru/kk, Bot API 6.4/7.7)."""
+    is_kk = str(lang or "").lower().startswith(("kk", "kz"))
     target_url = APP_URL or config.PUBLIC_ORIGIN or ""
     scan_url = f"{target_url}?scan=1" if target_url else ""
     keyboard = []
     if scan_url:
-        keyboard.append([{"text": "📷 Открыть сканер штрихкода", "web_app": {"url": scan_url}}])
-    keyboard.append([choose_chat_button("📤 Поделиться сканером с другом", query="сканер")])
+        scan_btn_txt = "📷 Штрихкод сканерін ашу" if is_kk else "📷 Открыть сканер штрихкода"
+        keyboard.append([{"text": scan_btn_txt, "web_app": {"url": scan_url}}])
+    share_scan_btn = "📤 Сканерді досыммен бөлісу" if is_kk else "📤 Поделиться сканером с другом"
+    keyboard.append([choose_chat_button(share_scan_btn, query="сканер")])
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
-    text = (
-        "📷 <b>Сканер штрихкодов и QR-кодов KZ Price Hunter</b>\n\n"
-        "Находитесь в магазине электроники или супермаркете (Kaspi, Technodom, Sulpak, Magnum)?\n\n"
-        "Нажмите кнопку ниже, чтобы открыть камеру прямо в Telegram:\n"
-        "• Мгновенно распознает штрихкод товара на коробке или ценнике\n"
-        "• Покажет сравнение цен и где купить дешевле всего в Казахстане!"
-    )
+    if is_kk:
+        text = (
+            "📷 <b>KZ Price Hunter штрихкод және QR-код сканері</b>\n\n"
+            "Электроника дүкенінде немесе супермаркеттесіз бе (Kaspi, Technodom, Sulpak, Magnum)?\n\n"
+            "Камераны тікелей Telegram ішінде ашу үшін төмендегі батырманы басыңыз:\n"
+            "• Қораптағы немесе баға көрсеткіштегі тауар штрихкодын лезде таниды\n"
+            "• Бағаларды салыстырып, Қазақстанда қай жерде ең арзан екенін көрсетеді!"
+        )
+    else:
+        text = (
+            "📷 <b>Сканер штрихкодов и QR-кодов KZ Price Hunter</b>\n\n"
+            "Находитесь в магазине электроники или супермаркете (Kaspi, Technodom, Sulpak, Magnum)?\n\n"
+            "Нажмите кнопку ниже, чтобы открыть камеру прямо в Telegram:\n"
+            "• Мгновенно распознает штрихкод товара на коробке или ценнике\n"
+            "• Покажет сравнение цен и где купить дешевле всего в Казахстане!"
+        )
     await send_tg_message(session, token, chat_id, text, reply_markup=reply_markup, message_thread_id=message_thread_id)
 
 
@@ -1486,6 +1626,8 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
     cmd = text.split()[0].lower() if text.startswith("/") else ""
     kwargs = {"message_thread_id": thread_id} if thread_id is not None else {}
     message_id = msg.get("message_id", 0)
+    user_lang = (from_user.get("language_code") or "ru").lower().split("-")[0]
+    is_kk = user_lang.startswith(("kk", "kz"))
 
     if cmd in ("/start", "/help", "/new"):
         reset_chat_history(chat_id)
@@ -1494,22 +1636,22 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
             parts = text.split(maxsplit=1)
             payload = parts[1].strip() if len(parts) > 1 else ""
         await set_tg_message_reaction(session, token, chat_id, message_id, "⚡️")
-        await handle_start_command(session, token, chat_id, first_name, payload=payload, from_user=from_user, **kwargs)
+        await handle_start_command(session, token, chat_id, first_name, payload=payload, from_user=from_user, lang=user_lang, **kwargs)
     elif cmd in ("/status", "/info"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "🩺")
-        await handle_status_command(session, token, chat_id, **kwargs)
+        await handle_status_command(session, token, chat_id, lang=user_lang, **kwargs)
     elif cmd in ("/watches", "/my_watches", "/subs", "/tracking"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "🔔")
-        await handle_watches_command(session, token, chat_id, **kwargs)
+        await handle_watches_command(session, token, chat_id, lang=user_lang, **kwargs)
     elif cmd in ("/deals", "/hot", "/discounts"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "🔥")
-        await handle_deals_command(session, token, chat_id, **kwargs)
+        await handle_deals_command(session, token, chat_id, lang=user_lang, **kwargs)
     elif cmd in ("/favorites", "/favs", "/saved"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "❤️")
-        await handle_favorites_command(session, token, chat_id, user_id, **kwargs)
+        await handle_favorites_command(session, token, chat_id, user_id, lang=user_lang, **kwargs)
     elif cmd in ("/scan", "/barcode", "/qr"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "📷")
-        await handle_scan_command(session, token, chat_id, **kwargs)
+        await handle_scan_command(session, token, chat_id, lang=user_lang, **kwargs)
     elif cmd in ("/search", "/find", "/price"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "🔍")
         query = text[len(cmd):].strip()
@@ -1519,39 +1661,50 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
         query = text[len(cmd):].strip()
         await handle_ai_consultant_message(session, token, chat_id, query, **kwargs)
     else:
-        # Быстрые действия постоянной клавиатуры (TG-15)
+        # Быстрые действия постоянной клавиатуры (TG-15 / TG-05б ru/kk)
         clean_text = text.strip()
-        if clean_text in ("🔥 Горячие скидки", "🔥 Топ скидки", "Горячие скидки"):
+        if clean_text in ("🔥 Горячие скидки", "🔥 Топ скидки", "Горячие скидки", "🔥 Ыстық жеңілдіктер", "Ыстық жеңілдіктер"):
             await set_tg_message_reaction(session, token, chat_id, message_id, "🔥")
-            await handle_deals_command(session, token, chat_id, **kwargs)
+            await handle_deals_command(session, token, chat_id, lang=user_lang, **kwargs)
             return
-        elif clean_text in ("🔔 Мои наблюдения", "Мои наблюдения"):
+        elif clean_text in ("🔔 Мои наблюдения", "Мои наблюдения", "🔔 Менің бақылауларым", "Менің бақылауларым"):
             await set_tg_message_reaction(session, token, chat_id, message_id, "🔔")
-            await handle_watches_command(session, token, chat_id, **kwargs)
+            await handle_watches_command(session, token, chat_id, lang=user_lang, **kwargs)
             return
-        elif clean_text in ("❤️ Избранное", "Моё избранное", "Таңдаулы"):
+        elif clean_text in ("❤️ Избранное", "Моё избранное", "Таңдаулы", "❤️ Таңдаулылар", "Таңдаулылар"):
             await set_tg_message_reaction(session, token, chat_id, message_id, "❤️")
-            await handle_favorites_command(session, token, chat_id, user_id, **kwargs)
+            await handle_favorites_command(session, token, chat_id, user_id, lang=user_lang, **kwargs)
             return
-        elif clean_text in ("📷 Сканер штрихкода", "📷 Сканер", "Сканер", "Штрихкод"):
+        elif clean_text in ("📷 Сканер штрихкода", "📷 Сканер", "Сканер", "Штрихкод", "📷 Штрихкод сканері", "Штрихкод сканері"):
             await set_tg_message_reaction(session, token, chat_id, message_id, "📷")
-            await handle_scan_command(session, token, chat_id, **kwargs)
+            await handle_scan_command(session, token, chat_id, lang=user_lang, **kwargs)
             return
-        elif clean_text in ("🤖 AI-Консультант", "AI-Консультант"):
+        elif clean_text in ("🤖 AI-Консультант", "AI-Консультант", "🤖 AI-Кеңесші", "AI-Кеңесші"):
             await set_tg_message_reaction(session, token, chat_id, message_id, "✨")
-            prompt_text = (
-                "✨ <b>AI-Консультант KZ Price Hunter готов помочь!</b>\n\n"
-                "Задайте любой вопрос по выбору техники, продуктов или товаров для дома прямо в чат, например:\n"
-                "• <i>«Какой игровой ноутбук выбрать до 350к?»</i>\n"
-                "• <i>«Посоветуй надежную стиральную машину»</i>\n"
-                "• <i>«Сравни iPhone 15 и Samsung S24»</i>"
-            )
+            if is_kk:
+                prompt_text = (
+                    "✨ <b>KZ Price Hunter AI-Кеңесшісі көмекке дайын!</b>\n\n"
+                    "Техника, өнімдер немесе үй тауарларын таңдау бойынша кез келген сұрақты чатқа тікелей жазыңыз, мысалы:\n"
+                    "• <i>«350 мыңға дейін қандай ойын ноутбугін таңдауға болады?»</i>\n"
+                    "• <i>«Сенімді кір жуғыш машинаны ұсыншы»</i>\n"
+                    "• <i>«iPhone 15 пен Samsung S24 салыстыр»</i>"
+                )
+            else:
+                prompt_text = (
+                    "✨ <b>AI-Консультант KZ Price Hunter готов помочь!</b>\n\n"
+                    "Задайте любой вопрос по выбору техники, продуктов или товаров для дома прямо в чат, например:\n"
+                    "• <i>«Какой игровой ноутбук выбрать до 350к?»</i>\n"
+                    "• <i>«Посоветуй надежную стиральную машину»</i>\n"
+                    "• <i>«Сравни iPhone 15 и Samsung S24»</i>"
+                )
             await send_tg_message(session, token, chat_id, prompt_text, **kwargs)
             return
-        elif clean_text in ("🛍 Открыть каталог", "Каталог"):
+        elif clean_text in ("🛍 Открыть каталог", "Каталог", "🛍 Каталогты ашу", "Каталогты ашу"):
             if APP_URL:
-                await send_tg_message(session, token, chat_id, "🛍 <b>Каталог товаров и скидок:</b>",
-                                      reply_markup={"inline_keyboard": [[site_button("📊 Открыть каталог", APP_URL)]]}, **kwargs)
+                cat_btn_txt = "📊 Каталогты ашу" if is_kk else "📊 Открыть каталог"
+                cat_msg_txt = "🛍 <b>Тауарлар мен жеңілдіктер каталогы:</b>" if is_kk else "🛍 <b>Каталог товаров и скидок:</b>"
+                await send_tg_message(session, token, chat_id, cat_msg_txt,
+                                      reply_markup={"inline_keyboard": [[site_button(cat_btn_txt, APP_URL)]]}, **kwargs)
             return
 
         # Любое обычное сообщение без слеша считается вопросом к AI-консультанту

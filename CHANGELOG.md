@@ -3,6 +3,29 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.38.0] - 2026-11-12
+
+### Для пользователей
+- 🇰🇿 **Полная казахская локализация Telegram-бота (TG-05б):**
+  - Пользователи с языком интерфейса Telegram `kk` (казахский) получают родной язык во всех разделах бота:
+    - Меню команд и описание бота в Telegram (`setMyCommands`, `setMyDescription`, `setMyShortDescription`).
+    - Постоянная нижняя клавиатура быстрого доступа («🛍 Каталогты ашу», «📷 Штрихкод сканері», «🔥 Ыстық жеңілдіктер», «❤️ Таңдаулылар», «🔔 Менің бақылауларым», «🤖 AI-Кеңесші»).
+    - Приветствие `/start` и подтверждение создания подписок по глубоким ссылкам («🔔 Бақылау қосылды!»).
+    - Раздел горячих скидок `/deals` («🔥 Қазақстан дүкендеріндегі ең тиімді жеңілдіктер»).
+    - Мои наблюдения `/watches` и избранное `/favorites`.
+    - Сканер штрихкодов `/scan` («📷 KZ Price Hunter штрихкод және QR-код сканері»).
+    - Информационные подсказки AI-Консультанта («AI-Кеңесші»).
+- ⚡️ **Улучшенная точность склейки товаров (P17-C4):**
+  - Подтверждено высокое качество генерации канонических ключей нового формата `k2:` локальной нейромоделью `qwen3-vl:8b-instruct` на стенде с сохранением 99.8% пар товаров.
+
+### Для разработчиков
+- `telegram_bot.py`:
+  - `get_default_reply_keyboard`: добавлен параметр `lang: str = "ru"`, генерирующий казахские или русские надписи кнопок.
+  - Обработчики `handle_start_command`, `handle_status_command`, `handle_watches_command`, `handle_deals_command`, `handle_favorites_command`, `handle_scan_command` поддержали параметр `lang` с адаптацией текста и кнопок.
+  - В `process_telegram_update` реализовано извлечение языка пользователя из `from_user.language_code` и передача во все хендлеры, а также сопоставление казахских фраз кнопок клавиатуры быстрого доступа.
+- `tests/notifications/test_effects_and_keyboard.py`:
+  - Добавлены тесты `test_default_reply_keyboard_structure_kk`, `test_quick_action_watches_button_kk`, `test_quick_action_deals_button_kk`, `test_quick_action_ai_consultant_button_kk`.
+
 ## [6.37.2] - 2026-11-12
 
 ### Для пользователей
