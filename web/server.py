@@ -235,12 +235,15 @@ def _int_param(request, name, default, minimum=0, maximum=None):
 def _public_user(user):
     if not user:
         return None
+    photo = user.get("photo_url")
+    if not photo and user.get("username"):
+        photo = f"https://t.me/i/userpic/320/{user['username']}.jpg"
     return {
         "id": user["id"],
         "username": user.get("username"),
         "first_name": user.get("first_name"),
         "last_name": user.get("last_name"),
-        "photo_url": user.get("photo_url"),
+        "photo_url": photo,
         "is_admin": is_admin(user),
         "is_confirmed": is_confirmed_user(user),
         "bot_blocked": bool(user.get("bot_blocked") or user.get("bot_blocked_at")),

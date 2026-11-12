@@ -4121,23 +4121,29 @@ def _user_row_to_dict(row) -> Dict[str, Any]:
     user["settings"] = merge_user_settings(raw)
     user["is_blocked"] = bool(user["is_blocked"])
     user["bot_blocked"] = bool(user.get("bot_blocked_at"))
+    if not user.get("photo_url") and user.get("username"):
+        user["photo_url"] = f"https://t.me/i/userpic/320/{user['username']}.jpg"
     return user
 
 def upsert_telegram_user(tg: Dict[str, Any], initial_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Создает пользователя при первом входе или обновляет его профиль Telegram."""
     uid = int(tg["id"])
+    username = tg.get("username")
+    photo = tg.get("photo_url")
+    if not photo and username:
+        photo = f"https://t.me/i/userpic/320/{username}.jpg"
     with get_connection() as conn:
         exists = conn.execute("SELECT 1 FROM users WHERE id = ?", (uid,)).fetchone()
         if exists:
             conn.execute("""
-                UPDATE users SET username = ?, first_name = ?, last_name = ?, photo_url = ?, last_login_at = CURRENT_TIMESTAMP
+                UPDATE users SET username = ?, first_name = ?, last_name = ?, photo_url = COALESCE(?, photo_url), last_login_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """, (tg.get("username"), tg.get("first_name"), tg.get("last_name"), tg.get("photo_url"), uid))
+            """, (username, tg.get("first_name"), tg.get("last_name"), photo, uid))
         else:
             conn.execute("""
                 INSERT INTO users (id, username, first_name, last_name, photo_url, settings)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (uid, tg.get("username"), tg.get("first_name"), tg.get("last_name"), tg.get("photo_url"),
+            """, (uid, username, tg.get("first_name"), tg.get("last_name"), photo,
                   json.dumps(initial_settings or {}, ensure_ascii=False)))
         conn.commit()
     return get_user(uid)

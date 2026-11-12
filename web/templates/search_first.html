@@ -8969,7 +8969,7 @@
         if (currentUser) {
           const name = escapeHtml(currentUser.first_name || currentUser.username || 'Профиль');
           const avatar = currentUser.photo_url
-            ? `<img src="${escapeHtml(currentUser.photo_url)}" alt="" class="header-user-avatar" />`
+            ? `<img src="${escapeHtml(currentUser.photo_url)}" alt="" class="header-user-avatar" onerror="this.outerHTML='<span class=\\'header-user-avatar-fallback\\'>👤</span>'" />`
             : `<span class="header-user-avatar-fallback">👤</span>`;
           headerArea.innerHTML = `
             <a href="/profile" class="header-user-btn" onclick="navigateTo(event, '/profile')" title="${currentUser.is_admin ? 'Профиль администратора' : 'Открыть профиль'}">
@@ -8995,6 +8995,10 @@
           bottomAvatarImg.src = currentUser.photo_url;
           bottomAvatarImg.style.display = 'block';
           bottomAvatarFallback.style.display = 'none';
+          bottomAvatarImg.onerror = function() {
+            bottomAvatarImg.style.display = 'none';
+            bottomAvatarFallback.style.display = 'inline-block';
+          };
         } else {
           bottomAvatarImg.style.display = 'none';
           bottomAvatarFallback.style.display = 'inline-block';
@@ -9016,9 +9020,10 @@
             profileSubtext.textContent = `@${currentUser.username || '—'} • Telegram ID: ${currentUser.id}`;
           }
           if (profileAvatar) {
+            const fallbackChar = currentUser.is_admin ? '👑' : '👤';
             profileAvatar.innerHTML = currentUser.photo_url
-              ? `<img src="${escapeHtml(currentUser.photo_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="" />`
-              : (currentUser.is_admin ? '👑' : '👤');
+              ? `<img src="${escapeHtml(currentUser.photo_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="" onerror="this.parentElement.textContent='${fallbackChar}'" />`
+              : fallbackChar;
           }
           if (profileAuthBadge) {
             if (currentUser.is_admin) {
