@@ -3170,40 +3170,62 @@
         pointer-events: none;
       }
 
-      #viewDeals .deals-select,
       #viewDeals .deal-type-pill:not(.active) {
         background: color-mix(in srgb, var(--bg-card) 78%, transparent);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
       }
 
+      /* Группа 1: Компактная сегментированная капсула селекторов (Категория + Сортировка) */
       #viewDeals .deals-selectors-group {
-        display: flex;
+        display: inline-flex;
         flex: none;
         flex-shrink: 0;
-        gap: 6px;
+        align-items: center;
+        gap: 0;
+        background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-full);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 2px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
         width: auto;
       }
 
       #viewDeals .deals-selectors-group .deals-select {
         flex: none;
         width: auto;
-        max-width: 150px;
-        height: 34px;
-        padding: 0 26px 0 12px;
-        font-size: 0.8rem;
+        max-width: 136px;
+        height: 30px;
+        padding: 0 22px 0 10px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        border: none;
+        background: transparent;
         border-radius: var(--radius-full);
         text-overflow: ellipsis;
       }
 
+      #viewDeals .deals-selectors-group .deals-select:first-child {
+        border-right: 1px solid var(--border-color);
+        border-radius: 0;
+        padding-right: 22px;
+      }
+
+      /* Группа 2: Чипсы скидок с элегантным вертикальным разделителем */
       #viewDeals .deals-type-pills {
-        display: flex;
+        display: inline-flex;
         flex: none;
         flex-shrink: 0;
+        align-items: center;
         gap: 6px;
         overflow: visible;
         width: auto;
         padding: 0;
+        margin-left: 2px;
+        padding-left: 8px;
+        border-left: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent);
       }
 
       #viewDeals .deal-type-pill {
@@ -3212,6 +3234,22 @@
         font-size: 0.8rem;
         flex-shrink: 0;
         box-sizing: border-box;
+      }
+
+      /* Логический микро-разделитель перед специальными режимами (Арбитраж, Проверенные) */
+      #viewDeals .deal-type-pill[data-type="arbitrage"] {
+        margin-left: 4px;
+        position: relative;
+      }
+
+      #viewDeals .deal-type-pill[data-type="arbitrage"]::before {
+        content: '';
+        position: absolute;
+        left: -6px;
+        top: 22%;
+        height: 56%;
+        width: 1px;
+        background: color-mix(in srgb, var(--border-color) 75%, transparent);
       }
 
       #viewDeals .deals-reels-wrapper {
