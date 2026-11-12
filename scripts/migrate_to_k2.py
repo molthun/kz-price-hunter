@@ -49,51 +49,91 @@ def get_db_connection(db_path: str, read_only: bool = False) -> sqlite3.Connecti
     return conn
 
 
+def _has_table(conn: sqlite3.Connection, table: str) -> bool:
+    """Проверка наличия таблицы в базе данных."""
+    return bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone())
+
+
 def find_titles_to_migrate(conn: sqlite3.Connection, limit: Optional[int] = None,
-                           rescore_only: bool = False) -> List[Tuple[str, str]]:
+                           rescore_only: bool = False, use_shadow: bool = False) -> List[Tuple[str, str]]:
     """Список (title, canonical_key) из title_canonical_cache.
 
     Первичная миграция — ключи ещё не в k2. Пересборка (--rescore-only) — все названия с сохранёнными полями,
-    включая уже переведённые в k2: она нужна именно при смене правил ключа (P17C-06)."""
+    включая уже переведённые в k2: она нужна именно при смене правил ключа (P17C-06).
+    При use_shadow=True учитываются и поля из title_fields_shadow (P17-C4/P17-C5)."""
+    has_shadow = use_shadow and _has_table(conn, "title_fields_shadow")
     if rescore_only:
-        query = """
-            SELECT c.title, c.canonical_key
-            FROM title_canonical_cache c JOIN title_fields f ON f.title_hash = c.title_hash
-            ORDER BY c.created_at ASC, c.title ASC
-        """
+        if has_shadow:
+            query = """
+                SELECT DISTINCT c.title, c.canonical_key
+                FROM title_canonical_cache c
+                WHERE c.title_hash IN (
+                    SELECT title_hash FROM title_fields
+                    UNION
+                    SELECT title_hash FROM title_fields_shadow
+                )
+                ORDER BY c.created_at ASC, c.title ASC
+            """
+        else:
+            query = """
+                SELECT c.title, c.canonical_key
+                FROM title_canonical_cache c JOIN title_fields f ON f.title_hash = c.title_hash
+                ORDER BY c.created_at ASC, c.title ASC
+            """
     else:
-        query = """
-            SELECT title, canonical_key
-            FROM title_canonical_cache
-            WHERE canonical_key != '' AND canonical_key NOT LIKE 'k2:%'
-            ORDER BY created_at ASC, title ASC
-        """
+        if has_shadow:
+            query = """
+                SELECT c.title, c.canonical_key
+                FROM title_canonical_cache c
+                WHERE c.canonical_key != '' AND c.canonical_key NOT LIKE 'k2:%'
+                ORDER BY (
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM title_fields f WHERE f.title_hash = c.title_hash
+                    ) OR EXISTS (
+                        SELECT 1 FROM title_fields_shadow s WHERE s.title_hash = c.title_hash
+                    ) THEN 0 ELSE 1 END
+                ) ASC, c.created_at ASC, c.title ASC
+            """
+        else:
+            query = """
+                SELECT title, canonical_key
+                FROM title_canonical_cache
+                WHERE canonical_key != '' AND canonical_key NOT LIKE 'k2:%'
+                ORDER BY created_at ASC, title ASC
+            """
     if limit is not None and limit > 0:
         query += f" LIMIT {int(limit)}"
     return conn.execute(query).fetchall()
 
 
-def load_existing_fields(conn: sqlite3.Connection, titles: Iterable[str]) -> Dict[str, Dict[str, Any]]:
-    """Поля, которые уже были ранее сохранены в title_fields."""
+def load_existing_fields(conn: sqlite3.Connection, titles: Iterable[str],
+                         use_shadow: bool = False) -> Dict[str, Dict[str, Any]]:
+    """Поля, которые уже были ранее сохранены в title_fields (или title_fields_shadow при use_shadow=True)."""
     unique = list({t.strip() for t in titles if t and t.strip()})
     if not unique:
         return {}
     hashes = {hashlib.sha256(t.encode("utf-8")).hexdigest(): t for t in unique}
     res: Dict[str, Dict[str, Any]] = {}
-    for i in range(0, len(hashes), 500):
-        chunk = list(hashes)[i:i + 500]
-        cursor = conn.execute("""
-            SELECT title_hash, fields_json
-            FROM title_fields
-            WHERE title_hash IN (SELECT value FROM json_each(?))
-        """, (json.dumps(chunk, ensure_ascii=False),))
-        for row in cursor.fetchall():
-            orig = hashes.get(row[0])
-            if orig:
-                try:
-                    res[orig] = json.loads(row[1])
-                except Exception:
-                    pass
+    has_shadow = use_shadow and _has_table(conn, "title_fields_shadow")
+    tables = ["title_fields_shadow", "title_fields"] if has_shadow else ["title_fields"]
+    for table in tables:
+        for i in range(0, len(hashes), 500):
+            chunk = list(hashes)[i:i + 500]
+            try:
+                cursor = conn.execute(f"""
+                    SELECT title_hash, fields_json
+                    FROM {table}
+                    WHERE title_hash IN (SELECT value FROM json_each(?))
+                """, (json.dumps(chunk, ensure_ascii=False),))
+                for row in cursor.fetchall():
+                    orig = hashes.get(row[0])
+                    if orig:
+                        try:
+                            res[orig] = json.loads(row[1])
+                        except Exception:
+                            pass
+            except sqlite3.OperationalError:
+                pass
     return res
 
 
@@ -450,12 +490,13 @@ async def run_migration(
     out_file: Optional[str] = None,
     run_id: str = "k2",
     verified_set: Optional[str] = None,
+    use_shadow_fields: bool = False,
 ) -> Dict[str, Any]:
     conn = get_db_connection(db_path, read_only=dry_run)
     try:
         import product_key
         baseline, totals = load_baseline(conn, run_id, read_only=dry_run)
-        raw_items = find_titles_to_migrate(conn, limit=limit, rescore_only=rescore_only)
+        raw_items = find_titles_to_migrate(conn, limit=limit, rescore_only=rescore_only, use_shadow=use_shadow_fields)
         print(f"[C4] Найдено названий для миграции: {len(raw_items)}, в исходном снимке {run_id}: {len(baseline)}")
         if not raw_items and not check_pairs and not verified_set:
             return {"total": 0, "status": "nothing_to_migrate"}
@@ -464,9 +505,10 @@ async def run_migration(
 
         # Проверяем, у кого поля уже есть
         # Сохранённый неполный ответ (раньше такие записывались) — не поля: название запрашивается заново (C45R-02)
-        saved_fields = {t: f for t, f in load_existing_fields(conn, titles_all).items()
+        saved_fields = {t: f for t, f in load_existing_fields(conn, titles_all, use_shadow=use_shadow_fields).items()
                         if rescore_only or product_key.fields_usable(f)}
-        print(f"[C4] Из них уже сохранены поля: {len(saved_fields)}")
+        print(f"[C4] Из них уже сохранены поля: {len(saved_fields)}"
+              + (" (включая shadow)" if use_shadow_fields else ""))
 
         all_new_keys: Dict[str, str] = {}
         no_identity: Set[str] = set()
@@ -569,6 +611,7 @@ async def run_migration(
             "api_failures": api_failures,
             "seconds": round(total_elapsed, 1),
             "dry_run": dry_run,
+            "use_shadow_fields": use_shadow_fields,
             # Весь проход: фактическое состояние исходного снимка и накопленные счётчики
             "run": {"run_id": run_id, "baseline_created_at": totals["created_at"], "baseline_titles": len(baseline),
                     "actual_k2_keys": sum(1 for k in current.values() if k.startswith("k2:")),
@@ -616,6 +659,7 @@ def main():
     ap.add_argument("--out", default=None, help="Путь к JSON-файлу отчёта")
     ap.add_argument("--run-id", default="k2", help="Проход миграции: его исходный снимок не меняется при возобновлении")
     ap.add_argument("--verified-set", default=None, help="JSON проверенных пар для оценки по критериям C2")
+    ap.add_argument("--use-shadow-fields", action="store_true", help="Использовать предрассчитанные поля из title_fields_shadow")
     args = ap.parse_args()
 
     asyncio.run(run_migration(
@@ -630,6 +674,7 @@ def main():
         out_file=args.out,
         run_id=args.run_id,
         verified_set=args.verified_set,
+        use_shadow_fields=args.use_shadow_fields,
     ))
 
 

@@ -154,6 +154,42 @@ class MigrateToK2Test(_FullSchemaCase):
         self.assertEqual((res["api_failures"], res["with_k2_key"]), (1, 0))
         self.assertEqual(database.get_cached_canonical_keys_batch([T1])[T1], "old:a")
 
+    def test_use_shadow_fields_migrates_without_model_calls(self):
+        """P17-C4: использование предрассчитанных полей из title_fields_shadow не требует вызовов модели."""
+        self.add_product("a1", T1, "Sulpak", "old:a")
+        database.save_shadow_fields_batch({T1: FIELDS[T1]}, {T1: "k2:shadow:old"}, "k2", "local", "fake")
+        with patch("ai_service._call_local_api", side_effect=AssertionError("модель не должна вызываться")):
+            res = self.run_migration(use_shadow_fields=True)
+        self.assertEqual(res["with_k2_key"], 1)
+        self.assertEqual(res["api_calls"], 0)
+        expected = pk.build_key(FIELDS[T1], T1)
+        self.assertEqual(database.get_cached_canonical_keys_batch([T1])[T1], expected)
+        # Проверяем, что поля успешно перенесены в основную таблицу title_fields
+        with database.get_connection() as conn:
+            row = conn.execute("SELECT fields_json FROM title_fields WHERE title = ?", (T1,)).fetchone()
+            self.assertIsNotNone(row)
+
+    def test_use_shadow_fields_prioritizes_shadow_items(self):
+        """Названия с shadow-полями обрабатываются в первую очередь при use_shadow_fields=True."""
+        database.save_cached_canonical_keys_batch({"Item 1": "old:1", "Item 2": "old:2"})
+        database.save_shadow_fields_batch({"Item 2": FIELDS[T2]}, {"Item 2": "k2:test"}, "k2", "local", "fake")
+        conn = mig.get_db_connection(self.db_path)
+        try:
+            titles = [t for t, _ in mig.find_titles_to_migrate(conn, use_shadow=True)]
+            self.assertEqual(titles[0], "Item 2")
+        finally:
+            conn.close()
+
+    def test_rescore_only_with_shadow_fields(self):
+        """--rescore-only с --use-shadow-fields находит записи из title_fields_shadow."""
+        self.add_product("a2", T2, "DNS Казахстан", "k2:old:wrong")
+        database.save_shadow_fields_batch({T2: FIELDS[T2]}, {T2: "k2:shadow:test"}, "k2", "local", "fake")
+        with patch("ai_service._call_local_api", side_effect=AssertionError("модель не должна вызываться")):
+            res = self.run_migration(rescore_only=True, use_shadow_fields=True)
+        self.assertEqual(res["with_k2_key"], 1)
+        expected = pk.build_key(FIELDS[T2], T2)
+        self.assertEqual(database.get_cached_canonical_keys_batch([T2])[T2], expected)
+
 
 class BatchOrderSafetyTest(unittest.TestCase):
     """P17CR-01: 128 и 256 ГБ не попадают в одну группу ни при каком порядке и размере пачки,
