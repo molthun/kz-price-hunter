@@ -149,7 +149,8 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
               config: Optional[Dict[str, Any]] = None,
               fallback_from: Optional[str] = None,
               image_bytes: Optional[bytes] = None,
-              mime_type: str = "image/jpeg") -> Dict[str, Any]:
+              mime_type: str = "image/jpeg",
+              on_token: Optional[Callable[[str], Any]] = None) -> Dict[str, Any]:
     """Выполняет AI-задачу по политике: сначала без модели, затем провайдер, затем запасной.
 
     Провайдеры проекта возвращают уже разобранный ответ модели (или None, если ответа нет и разобрать
@@ -158,6 +159,7 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
 
     fallback_from — этот вызов продолжает работу другого провайдера (досылка после частичного отказа
     локальной модели, V660-02): успешный ответ учитывается как переход на запасной, а не как первый выбор.
+    on_token — потоковый вывод текстовых токенов в черновик Telegram (TG-02б).
 
     Возвращает {"result", "source", "provider", "model", "fallback_used"}. Источник "deterministic"
     означает, что модель не вызывалась, "cache" — ответ взят из кэша.
@@ -223,6 +225,8 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
         token = ai_service.usage_sink.set(calls)
         try:
             extra_call_kw = {}
+            if on_token is not None:
+                extra_call_kw["on_token"] = on_token
             if image_bytes is not None:
                 extra_call_kw["image_bytes"] = image_bytes
                 extra_call_kw["mime_type"] = mime_type

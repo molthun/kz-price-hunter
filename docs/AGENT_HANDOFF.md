@@ -2,6 +2,23 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## LOCAL_TESTED v6.37.0: потоковый вывод ответов AI-консультанта в Telegram-черновики (TG-02б) — Antigravity (2026-11-12)
+
+- **Задача:** TG-02б — потоковый вывод текста ответа AI-консультанта в реальном времени через `sendMessageDraft` (Telegram Bot API 10.x).
+- **Сделано:**
+  - `ai_service.py`:
+    - Добавлен потоковый экстрактор `IncrementalJsonAnswerExtractor`, который парсит SSE-поток модели на лету и извлекает только строковое содержимое `"answer"`, декодируя спецсимволы JSON (`\"`, `\\`, `\n`, `\r`, `\t`, `\/`, `\uXXXX`). Внутренние поля (`recommended_product_ids`, `suggested_questions`) изолированы и не просачиваются в черновик. Если модель отдаёт обычный текст без JSON, работает passthrough-режим.
+    - Реализована поддержка `on_token` в `_call_gemini_api` (SSE endpoint `streamGenerateContent?alt=sse`), `_call_openai_api` (`stream: true`), `_call_local_api` (`stream: true`), `_limited_provider_call` и `ask_ai_consultant`.
+  - `ai_router.py`:
+    - Обеспечена сквозная передача `on_token` в `ai_router.run(...)` ко всем провайдерам.
+  - `telegram_bot.py`:
+    - Класс `DraftProgress` расширен поддержкой стриминга токенов: буферизация, живой курсор ` ▌`, адаптивный троттлинг (не чаще раза в 350 мс для защиты от Bot API rate limits / 429), отложенный таймер сброса хвоста токенов.
+    - В `_consult`: динамическое определение сигнатуры `ask_ai_consultant` и передача `on_token=progress.on_token`.
+  - Тесты:
+    - Добавлен тестовый набор `StreamingDraftTests` в `tests/notifications/test_ai_drafts.py` (тестирование декодера, троттлинга и сквозного стриминга).
+    - Все 12 тестов `test_ai_drafts.py` успешно пройдены.
+- **Следующий шаг:** сборка git bundle `kzph-v6.37.0.bundle`, доставка на стенд (`molthun@192.168.28.25:2222`), перезапуск контейнера и тактильная проверка в боте.
+
 ## ОТМЕНЕНО: мобильная доработка ленты «Скидки» — Codex (2026-11-12)
 
 - Владелец предпочёл прежний вид. Codex снял свои локальные правки шаблона и тестов, вернув их к `db308ac` с интерфейсом 6.34.0. Редизайн Codex на стенд не доставлялся.

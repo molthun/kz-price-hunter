@@ -173,5 +173,90 @@ class ConsultantStageHookTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['answer'], 'Ответ')
 
 
+class StreamingDraftTests(unittest.IsolatedAsyncioTestCase):
+    """TG-02б: тесты потокового вывода токенов в черновики Telegram."""
+
+    def test_incremental_json_extractor_decodes_and_isolates_answer(self):
+        chunks_received = []
+        extractor = ai_service.IncrementalJsonAnswerExtractor(chunks_received.append)
+
+        tokens = [
+            '{\n  "answer": "Привет',
+            ', \\nмир! Вот \\"това',
+            'ры\\" и \\u0410',
+            'pple.",\n  "recommended_product_ids": ["123"],\n  "suggested_questions": ["Q?"]\n}'
+        ]
+        for t in tokens:
+            extractor.feed(t)
+
+        combined = "".join(chunks_received)
+        self.assertEqual(combined, 'Привет, \nмир! Вот "товары" и \u0410pple.')
+
+    def test_incremental_json_extractor_handles_passthrough_non_json(self):
+        chunks = []
+        extractor = ai_service.IncrementalJsonAnswerExtractor(chunks.append)
+        extractor.feed("Прямой ответ модели без JSON разметки.")
+        extractor.feed(" Вторая часть ответа.")
+        self.assertEqual("".join(chunks), "Прямой ответ модели без JSON разметки. Вторая часть ответа.")
+
+    async def test_draft_progress_streaming_tokens_and_throttling(self):
+        drafts = []
+
+        async def fake_draft(session, token, chat_id, draft_id, text='', can_stop=True, **kwargs):
+            drafts.append(text)
+            return True
+
+        with patch.object(bot, 'send_tg_draft', side_effect=fake_draft):
+            progress = bot.DraftProgress(None, 'fake_token', 888)
+            started = await progress.start()
+            self.assertTrue(started)
+
+            progress.stage("generate", 5)
+            await asyncio.sleep(0.01)
+
+            progress.on_token("Лучший ")
+            progress.on_token("выбор ")
+            await asyncio.sleep(0.01)
+            self.assertTrue(any("Лучший" in t and "▌" in t for t in drafts))
+
+            for word in ("это ", "iPhone ", "15."):
+                progress.on_token(word)
+
+            await asyncio.sleep(0.4)
+            self.assertTrue(any("iPhone 15" in t for t in drafts))
+
+            await progress.close()
+
+    async def test_consult_with_streaming_tokens_delivers_live_draft_and_final_answer(self):
+        drafts = []
+
+        async def fake_draft(session, token, chat_id, draft_id, text='', can_stop=True, **kwargs):
+            drafts.append(text)
+            return True
+
+        message_mock = AsyncMock()
+
+        async def streaming_consultant(message, history, city, on_stage=None, on_token=None):
+            if on_stage:
+                on_stage("search", 0)
+                on_stage("generate", 3)
+            if on_token:
+                on_token("Советую ")
+                await asyncio.sleep(0.05)
+                on_token("взять DNS.")
+            return {'answer': 'Советую взять DNS.', 'products': [], 'history_turn': 'Советую взять DNS.'}
+
+        with patch.dict(os.environ, {'TELEGRAM_AI_DRAFTS': 'all'}), \
+                patch.object(bot, 'send_tg_draft', side_effect=fake_draft), \
+                patch.object(bot, 'send_tg_message', message_mock), \
+                patch.object(ai_service, 'ask_ai_consultant', side_effect=streaming_consultant):
+            await bot.handle_ai_consultant_message(None, 'fake', 999, 'что купить')
+
+        self.assertTrue(any("🔎 Ищу" in d for d in drafts))
+        self.assertTrue(any("Советую" in d and "▌" in d for d in drafts))
+        message_mock.assert_awaited_once()
+        self.assertIn("Советую взять DNS.", message_mock.call_args[0][3])
+
+
 if __name__ == '__main__':
     unittest.main()

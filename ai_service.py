@@ -301,7 +301,7 @@ def _record_ai(provider: str, purpose: str, outcome: str, duration_ms: float = 0
         pass
 
 
-async def _limited_provider_call(fn, *args, scan: bool = False):
+async def _limited_provider_call(fn, *args, scan: bool = False, **kwargs):
     global _provider_active
     provider = "gemini" if "gemini" in fn.__name__ else "openai"
     purpose = "normalize" if scan else "user"
@@ -334,7 +334,7 @@ async def _limited_provider_call(fn, *args, scan: bool = False):
     started = time.monotonic()
     result = None
     try:
-        result = await fn(*args)
+        result = await fn(*args, **kwargs)
         return result
     finally:
         _call_info.reset(token)
@@ -350,11 +350,15 @@ async def _limited_provider_call(fn, *args, scan: bool = False):
 
 async def call_gemini_api(prompt: str, api_key: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS,
                           scan: bool = False, model: Optional[str] = None,
-                          image_bytes: Optional[bytes] = None, mime_type: str = "image/jpeg"):
+                          image_bytes: Optional[bytes] = None, mime_type: str = "image/jpeg",
+                          on_token: Optional[Callable[[str], Any]] = None):
+    extra = {}
+    if on_token is not None:
+        extra["on_token"] = on_token
     if image_bytes is not None:
         return await _limited_provider_call(_call_gemini_api, prompt, api_key, timeout, model,
-                                            image_bytes, mime_type, scan=scan)
-    return await _limited_provider_call(_call_gemini_api, prompt, api_key, timeout, model, scan=scan)
+                                            image_bytes, mime_type, scan=scan, **extra)
+    return await _limited_provider_call(_call_gemini_api, prompt, api_key, timeout, model, scan=scan, **extra)
 
 
 # ---------------------------------------------------------------------------
@@ -494,11 +498,129 @@ async def list_openai_models(api_key: str, api_base: str = "",
 async def call_openai_api(prompt: str, api_key: str, api_base: str, *,
                           timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False,
                           model: Optional[str] = None,
-                          image_bytes: Optional[bytes] = None, mime_type: str = "image/jpeg"):
+                          image_bytes: Optional[bytes] = None, mime_type: str = "image/jpeg",
+                          on_token: Optional[Callable[[str], Any]] = None):
+    extra = {}
+    if on_token is not None:
+        extra["on_token"] = on_token
     if image_bytes is not None:
         return await _limited_provider_call(_call_openai_api, prompt, api_key, api_base, timeout, model,
-                                            image_bytes, mime_type, scan=scan)
-    return await _limited_provider_call(_call_openai_api, prompt, api_key, api_base, timeout, model, scan=scan)
+                                            image_bytes, mime_type, scan=scan, **extra)
+    return await _limited_provider_call(_call_openai_api, prompt, api_key, api_base, timeout, model, scan=scan, **extra)
+
+
+class IncrementalJsonAnswerExtractor:
+    """Извлекает поле 'answer' из потокового JSON-ответа LLM на лету (TG-02б).
+
+    Модель возвращает JSON со структурой:
+    {"answer": "...", "recommended_product_ids": [...], "suggested_questions": [...]}
+    Этот парсер отслеживает появление ключа "answer", считывает содержимое строки, декодирует
+    escape-последовательности (\\", \\n, \\r, \\t, \\\\, \\uXXXX) и передаёт очищенный текст в коллбэк
+    on_delta порциями. Как только строка answer закрывается кавычкой, парсер переходит в DONE
+    и игнорирует внутренние служебные поля (recommended_product_ids и т.д.).
+    Если модель ответила обычным текстом без JSON, он безопасно переходит в passthrough.
+    """
+    def __init__(self, on_delta: Callable[[str], Any]):
+        self.on_delta = on_delta
+        self.buffer = ""
+        self.state = "SEARCHING_KEY"  # SEARCHING_KEY -> IN_STRING -> DONE | PASSTHROUGH
+        self.escape = False
+        self.unicode_buf = ""
+        self.in_unicode = False
+
+    def feed(self, chunk: str) -> None:
+        if not chunk or self.state == "DONE":
+            return
+        if self.state == "SEARCHING_KEY":
+            self.buffer += chunk
+            stripped = self.buffer.lstrip()
+            # Если текст явно не JSON (например, модель начала ответ словами без '{')
+            if stripped and not stripped.startswith("{") and len(stripped) > 20:
+                self.state = "PASSTHROUGH"
+                try:
+                    self.on_delta(self.buffer)
+                except Exception:
+                    pass
+                self.buffer = ""
+                return
+            idx = self.buffer.find('"answer"')
+            if idx == -1:
+                return
+            colon_idx = self.buffer.find(":", idx + 8)
+            if colon_idx == -1:
+                return
+            quote_idx = self.buffer.find('"', colon_idx + 1)
+            if quote_idx == -1:
+                return
+            self.state = "IN_STRING"
+            remaining = self.buffer[quote_idx + 1:]
+            self.buffer = ""
+            self._process_string_chars(remaining)
+        elif self.state == "IN_STRING":
+            self._process_string_chars(chunk)
+        elif self.state == "PASSTHROUGH":
+            try:
+                self.on_delta(chunk)
+            except Exception:
+                pass
+
+    def _process_string_chars(self, text: str) -> None:
+        out = []
+        i = 0
+        n = len(text)
+        while i < n:
+            ch = text[i]
+            if self.in_unicode:
+                self.unicode_buf += ch
+                if len(self.unicode_buf) == 4:
+                    try:
+                        out.append(chr(int(self.unicode_buf, 16)))
+                    except Exception:
+                        out.append("?")
+                    self.in_unicode = False
+                    self.unicode_buf = ""
+                i += 1
+                continue
+            if self.escape:
+                self.escape = False
+                if ch == '"':
+                    out.append('"')
+                elif ch == "\\":
+                    out.append("\\")
+                elif ch == "/":
+                    out.append("/")
+                elif ch == "n":
+                    out.append("\n")
+                elif ch == "r":
+                    out.append("\r")
+                elif ch == "t":
+                    out.append("\t")
+                elif ch == "u":
+                    self.in_unicode = True
+                    self.unicode_buf = ""
+                else:
+                    out.append(ch)
+                i += 1
+                continue
+            if ch == "\\":
+                self.escape = True
+                i += 1
+                continue
+            if ch == '"':
+                self.state = "DONE"
+                if out:
+                    try:
+                        self.on_delta("".join(out))
+                    except Exception:
+                        pass
+                return
+            out.append(ch)
+            i += 1
+        if out:
+            try:
+                self.on_delta("".join(out))
+            except Exception:
+                pass
 
 
 # Запасная цепочка на случай, когда список моделей у провайдера получить не удалось. Имена здесь
@@ -511,11 +633,13 @@ STATIC_GEMINI_FALLBACK = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gem
 async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
                            model: Optional[str] = None,
                            image_bytes: Optional[bytes] = None,
-                           mime_type: str = "image/jpeg") -> Optional[Dict[str, Any]]:
+                           mime_type: str = "image/jpeg",
+                           on_token: Optional[Callable[[str], Any]] = None) -> Optional[Dict[str, Any]]:
     """Вызов Gemini REST API через aiohttp.
 
     Модель приходит от вызывающего: в ручном режиме — заданная владельцем, в «Авто» — выбранная из
     списка провайдера. Если ничего не передали, работает прежний порядок с запасной цепочкой.
+    Поддерживает SSE-потоковую отдачу токенов через on_token (TG-02б).
     """
     ai_cfg = config.get_ai_config()
     configured_model = model or ai_cfg.get("gemini_model") or STATIC_GEMINI_FALLBACK[0]
@@ -527,7 +651,8 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
         models_to_try = list(dict.fromkeys(active_chain or chain))      # без повторов, порядок сохраняется
 
     for model in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        endpoint = "streamGenerateContent?alt=sse&key=" if on_token is not None else "generateContent?key="
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:{endpoint}{api_key}"
         parts: List[Dict[str, Any]] = [{"text": prompt}]
         if image_bytes:
             import base64
@@ -556,6 +681,34 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
                 async with session.post(url, json=payload) as resp:
                     _note_call(http_status=resp.status, model=model)
                     if resp.status == 200:
+                        if on_token is not None:
+                            accumulated: List[str] = []
+                            extractor = IncrementalJsonAnswerExtractor(on_token)
+                            async for line in resp.content:
+                                line_str = line.decode("utf-8", "replace").strip()
+                                if not line_str.startswith("data:"):
+                                    continue
+                                data_part = line_str[5:].strip()
+                                if not data_part:
+                                    continue
+                                try:
+                                    event = json.loads(data_part)
+                                    candidates = event.get("candidates") or []
+                                    if candidates:
+                                        p_list = candidates[0].get("content", {}).get("parts", [])
+                                        if p_list:
+                                            part_text = p_list[0].get("text", "")
+                                            if part_text:
+                                                accumulated.append(part_text)
+                                                extractor.feed(part_text)
+                                    usage = event.get("usageMetadata") or {}
+                                    if usage:
+                                        _note_call(input_tokens=usage.get("promptTokenCount"), output_tokens=usage.get("candidatesTokenCount"))
+                                except Exception:
+                                    pass
+                            full_text = "".join(accumulated)
+                            return _extract_json_from_text(full_text)
+
                         data = await resp.json()
                         usage = data.get("usageMetadata") or {}
                         _note_call(input_tokens=usage.get("promptTokenCount"), output_tokens=usage.get("candidatesTokenCount"))
@@ -597,8 +750,9 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str,
                            timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
                            model: Optional[str] = None,
                            image_bytes: Optional[bytes] = None,
-                           mime_type: str = "image/jpeg") -> Optional[Dict[str, Any]]:
-    """Вызов OpenAI-совместимого API через aiohttp."""
+                           mime_type: str = "image/jpeg",
+                           on_token: Optional[Callable[[str], Any]] = None) -> Optional[Dict[str, Any]]:
+    """Вызов OpenAI-совместимого API через aiohttp. Поддерживает streaming через on_token (TG-02б)."""
     url = f"{api_base.rstrip('/')}/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -636,6 +790,8 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str,
             "temperature": 0.1,
             "max_completion_tokens": MAX_OUTPUT_TOKENS
         }
+        if on_token is not None:
+            payload["stream"] = True
 
         try:
             timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=min(10, timeout_seconds))
@@ -643,6 +799,31 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str,
                 async with session.post(url, json=payload, headers=headers) as resp:
                     _note_call(http_status=resp.status, model=model)
                     if resp.status == 200:
+                        if on_token is not None:
+                            accumulated: List[str] = []
+                            extractor = IncrementalJsonAnswerExtractor(on_token)
+                            async for line in resp.content:
+                                line_str = line.decode("utf-8", "replace").strip()
+                                if not line_str.startswith("data:"):
+                                    continue
+                                data_part = line_str[5:].strip()
+                                if data_part == "[DONE]":
+                                    break
+                                try:
+                                    chunk = json.loads(data_part)
+                                    choices = chunk.get("choices") or []
+                                    delta = choices[0].get("delta", {}).get("content", "") if choices else ""
+                                    if delta:
+                                        accumulated.append(delta)
+                                        extractor.feed(delta)
+                                    usage = chunk.get("usage") or {}
+                                    if usage:
+                                        _note_call(input_tokens=usage.get("prompt_tokens"), output_tokens=usage.get("completion_tokens"))
+                                except Exception:
+                                    pass
+                            full_text = "".join(accumulated)
+                            return _extract_json_from_text(full_text)
+
                         data = await resp.json()
                         usage = data.get("usage") or {}
                         _note_call(input_tokens=usage.get("prompt_tokens"), output_tokens=usage.get("completion_tokens"))
@@ -779,8 +960,11 @@ def _local_headers(api_key: str) -> Dict[str, str]:
 
 async def call_local_api(prompt: str, api_base: str, model: str, api_key: str = "", *,
                          timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False,
-                         image_bytes: Optional[bytes] = None, mime_type: str = "image/jpeg"):
-    """Вызов локальной модели с тем же учётом, что у платных (usage_sink, телеметрия), но без бюджета."""
+                         image_bytes: Optional[bytes] = None, mime_type: str = "image/jpeg",
+                         on_token: Optional[Callable[[str], Any]] = None):
+    """Вызов локальной модели с тем же учётом, что у платных (usage_sink, телеметрия), но без бюджета.
+    Поддерживает SSE-стриминг через on_token (TG-02б).
+    """
     purpose = "normalize" if scan else "user"
     info: Dict[str, Any] = {}
     token = _call_info.set(info)
@@ -807,9 +991,9 @@ async def call_local_api(prompt: str, api_base: str, model: str, api_key: str = 
             remaining = max(1.0, budget - (time.monotonic() - started))
             if image_bytes is not None:
                 result = await _call_local_api(prompt, api_base, model, api_key, remaining,
-                                               image_bytes, mime_type)
+                                               image_bytes, mime_type, on_token=on_token)
             else:
-                result = await _call_local_api(prompt, api_base, model, api_key, remaining)
+                result = await _call_local_api(prompt, api_base, model, api_key, remaining, on_token=on_token)
             return result
         finally:
             slot.release()
@@ -830,7 +1014,8 @@ async def call_local_api(prompt: str, api_base: str, model: str, api_key: str = 
 async def _call_local_api(prompt: str, api_base: str, model: str, api_key: str,
                           timeout_seconds: float,
                           image_bytes: Optional[bytes] = None,
-                          mime_type: str = "image/jpeg") -> Optional[Dict[str, Any]]:
+                          mime_type: str = "image/jpeg",
+                          on_token: Optional[Callable[[str], Any]] = None) -> Optional[Dict[str, Any]]:
     url = f"{api_base.rstrip('/')}/chat/completions"
     if image_bytes:
         import base64
@@ -853,6 +1038,9 @@ async def _call_local_api(prompt: str, api_base: str, model: str, api_key: str,
         # Без этого qwen3 сначала «рассуждает»: на стенде 43 с вместо 4 с на тот же ответ (29.10.2026)
         "reasoning_effort": "none",
     }
+    if on_token is not None:
+        payload["stream"] = True
+
     try:
         timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=min(5.0, timeout_seconds))
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -862,6 +1050,34 @@ async def _call_local_api(prompt: str, api_base: str, model: str, api_key: str,
                     print(f"[AI Service] Локальная модель ответила HTTP {resp.status} ({model})")
                     _note_call(failure=f"http_{resp.status}")
                     return None
+                if on_token is not None:
+                    accumulated: List[str] = []
+                    extractor = IncrementalJsonAnswerExtractor(on_token)
+                    async for line in resp.content:
+                        line_str = line.decode("utf-8", "replace").strip()
+                        if not line_str.startswith("data:"):
+                            continue
+                        data_part = line_str[5:].strip()
+                        if data_part == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data_part)
+                            choices = chunk.get("choices") or []
+                            delta = choices[0].get("delta", {}).get("content", "") if choices else ""
+                            if delta:
+                                accumulated.append(delta)
+                                extractor.feed(delta)
+                            usage = chunk.get("usage") or {}
+                            if usage:
+                                _note_call(input_tokens=usage.get("prompt_tokens"), output_tokens=usage.get("completion_tokens"))
+                        except Exception:
+                            pass
+                    full_text = "".join(accumulated)
+                    parsed = _extract_json_from_text(full_text)
+                    if parsed is None:
+                        _note_call(failure="bad_json")
+                    return parsed
+
                 data = await resp.json(content_type=None)
     except Exception as e:                          # сервер выключен, сеть, таймаут, не JSON
         print(f"[AI Service] Локальная модель недоступна ({model}): {type(e).__name__}")
@@ -1086,16 +1302,18 @@ async def ask_ai_consultant(
     message: str,
     history: Optional[List[Dict[str, str]]] = None,
     city: str = "Все",
-    on_stage: Optional[Callable[[str, int], Any]] = None
+    on_stage: Optional[Callable[[str, int], Any]] = None,
+    on_token: Optional[Callable[[str], Any]] = None
 ) -> Dict[str, Any]:
     """
-    Интерактивный AI-консультант по покупкам (RAG) на базе Gemini Flash / OpenAI:
+    Интерактивный AI-консультант по покупкам (RAG) на базе Gemini Flash / OpenAI / Local:
     1. Распознает потребность пользователя и ищет в локальной базе магазинов лучшие товары.
     2. Инжектирует актуальные цены, скидки и магазины в контекст LLM.
     3. Генерирует аргументированный ответ эксперта с подборкой конкретных товаров.
 
     on_stage(имя, число) — необязательное уведомление о ходе работы: "search" перед выборкой из базы,
     "generate" с числом найденных предложений перед обращением к модели. Ошибка в нём ответу не мешает.
+    on_token(текст_дельта) — потоковая передача текста поля 'answer' для живых черновиков в Telegram (TG-02б).
     """
     def stage(name: str, count: int = 0) -> None:
         if on_stage:
@@ -1227,7 +1445,8 @@ async def ask_ai_consultant(
     import ai_router
     try:
         routed = await ai_router.run("consultant", prompt, config=creds,
-                                     validate=lambda v: v if isinstance(v, dict) else None)
+                                     validate=lambda v: v if isinstance(v, dict) else None,
+                                     on_token=on_token)
         res = routed["result"]
     except ai_router.AIUnavailable:
         res = None

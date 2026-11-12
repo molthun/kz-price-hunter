@@ -276,8 +276,9 @@ async def send_tg_draft(session: aiohttp.ClientSession, token: str, chat_id: int
 
 
 # TG-02: ход работы консультанта черновиком. Модель отдаёт ответ целиком (строгий JSON через AI-роутер),
-# поэтому в черновике не текст ответа по словам, а честные этапы: «Думаю…» → поиск → сравнение.
+# а с TG-02б текст ответа стримится порциями на лету через sendMessageDraft с дросселированием.
 DRAFT_KEEPALIVE_SECONDS = 12      # черновик исчезает через ~30 секунд без обновления
+DRAFT_STREAM_INTERVAL = 0.35      # дросселирование черновика при потоковом выводе (TG-02б)
 DRAFT_STAGE_TEXT = {
     "search": "🔎 Ищу подходящие товары в магазинах…",
     "generate": "⚖️ Нашёл предложений: {count}. Сравниваю цены и готовлю ответ…",
@@ -288,7 +289,9 @@ _active_generations: Dict[tuple, "DraftProgress"] = {}
 
 
 class DraftProgress:
-    """Показывает ход генерации одним черновиком и не даёт ему погаснуть, пока ответ готовится."""
+    """Показывает ход генерации одним черновиком и не даёт ему погаснуть, пока ответ готовится.
+    С TG-02б поддерживает потоковое обновление черновика по токенам модели.
+    """
 
     def __init__(self, session, token: str, chat_id: int, message_thread_id: Optional[int] = None):
         self.session, self.token, self.chat_id = session, token, chat_id
@@ -299,6 +302,9 @@ class DraftProgress:
         self.generation: Optional[asyncio.Task] = None
         self._keepalive: Optional[asyncio.Task] = None
         self._pushes: set = set()
+        self._streamed_text = ""
+        self._last_stream_push = 0.0
+        self._delayed_push_task: Optional[asyncio.Task] = None
 
     def _draft_kwargs(self) -> Dict[str, Any]:
         return {"message_thread_id": self.message_thread_id} if self.message_thread_id is not None else {}
@@ -327,6 +333,37 @@ class DraftProgress:
         self._pushes.add(push)
         push.add_done_callback(self._pushes.discard)
 
+    def on_token(self, delta: str) -> None:
+        """Принимает порцию текста поля answer и обновляет черновик с ограничением частоты (TG-02б)."""
+        if self.stopped or not delta:
+            return
+        self._streamed_text += delta
+        now = time.monotonic()
+        if now - self._last_stream_push >= DRAFT_STREAM_INTERVAL:
+            self._send_stream_draft()
+        elif not self._delayed_push_task or self._delayed_push_task.done():
+            delay = max(0.05, DRAFT_STREAM_INTERVAL - (now - self._last_stream_push))
+            self._delayed_push_task = asyncio.create_task(self._delayed_push(delay))
+
+    async def _delayed_push(self, delay: float) -> None:
+        try:
+            await asyncio.sleep(delay)
+            if not self.stopped:
+                self._send_stream_draft()
+        except asyncio.CancelledError:
+            pass
+
+    def _send_stream_draft(self) -> None:
+        if self.stopped or not self._streamed_text:
+            return
+        self._last_stream_push = time.monotonic()
+        preview = self._streamed_text[:3800]
+        self.text = preview + " ▌"
+        push = asyncio.create_task(
+            send_tg_draft(self.session, self.token, self.chat_id, self.draft_id, self.text, **self._draft_kwargs()))
+        self._pushes.add(push)
+        push.add_done_callback(self._pushes.discard)
+
     def stop(self) -> None:
         """Пользователь нажал «Стоп»: отменяем обращение к модели."""
         self.stopped = True
@@ -335,7 +372,9 @@ class DraftProgress:
 
     async def close(self) -> None:
         _active_generations.pop((self.chat_id, self.draft_id), None)
-        tasks = [t for t in (self._keepalive, *self._pushes) if t and not t.done()]
+        if self._delayed_push_task and not self._delayed_push_task.done():
+            self._delayed_push_task.cancel()
+        tasks = [t for t in (self._keepalive, self._delayed_push_task, *self._pushes) if t and not t.done()]
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
@@ -366,8 +405,23 @@ async def _consult(session, token: str, chat_id: int, query: str, message_thread
         await send_tg_chat_action(session, token, chat_id, "typing")
         return await ai_service.ask_ai_consultant(message=query, history=history, city="Все")
 
+    consultant_kwargs: Dict[str, Any] = {
+        "message": query,
+        "history": history,
+        "city": "Все",
+        "on_stage": progress.stage,
+    }
+    try:
+        import inspect
+        target = getattr(ai_service.ask_ai_consultant, "side_effect", None) or ai_service.ask_ai_consultant
+        sig = inspect.signature(target)
+        if "on_token" in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+            consultant_kwargs["on_token"] = progress.on_token
+    except Exception:
+        consultant_kwargs["on_token"] = progress.on_token
+
     progress.generation = asyncio.create_task(
-        ai_service.ask_ai_consultant(message=query, history=history, city="Все", on_stage=progress.stage))
+        ai_service.ask_ai_consultant(**consultant_kwargs))
     try:
         return await progress.generation
     except asyncio.CancelledError:
