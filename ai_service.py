@@ -334,7 +334,18 @@ async def _limited_provider_call(fn, *args, scan: bool = False, **kwargs):
     started = time.monotonic()
     result = None
     try:
-        result = await fn(*args, **kwargs)
+        if kwargs:
+            import inspect
+            target = getattr(fn, "side_effect", None) or fn
+            try:
+                sig = inspect.signature(target)
+                valid_kw = {k: v for k, v in kwargs.items()
+                            if k in sig.parameters or any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values())}
+            except Exception:
+                valid_kw = kwargs
+            result = await fn(*args, **valid_kw)
+        else:
+            result = await fn(*args)
         return result
     finally:
         _call_info.reset(token)
@@ -989,11 +1000,21 @@ async def call_local_api(prompt: str, api_base: str, model: str, api_key: str = 
                 info["paused_reason"] = paused
                 return None
             remaining = max(1.0, budget - (time.monotonic() - started))
+            extra = {}
+            if on_token is not None:
+                import inspect
+                target = getattr(_call_local_api, "side_effect", None) or _call_local_api
+                try:
+                    sig = inspect.signature(target)
+                    if "on_token" in sig.parameters or any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values()):
+                        extra["on_token"] = on_token
+                except Exception:
+                    extra["on_token"] = on_token
             if image_bytes is not None:
                 result = await _call_local_api(prompt, api_base, model, api_key, remaining,
-                                               image_bytes, mime_type, on_token=on_token)
+                                               image_bytes, mime_type, **extra)
             else:
-                result = await _call_local_api(prompt, api_base, model, api_key, remaining, on_token=on_token)
+                result = await _call_local_api(prompt, api_base, model, api_key, remaining, **extra)
             return result
         finally:
             slot.release()
