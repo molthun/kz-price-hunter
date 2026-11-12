@@ -144,7 +144,8 @@ _guest_key_cache: Dict[str, bytes] = {}
 # Всегда доступны: вход, выход, кто я, версия, диагностика
 ACCESS_EXEMPT_API = frozenset(("/api/me", "/api/auth/telegram", "/api/auth/telegram-webapp",
                                "/api/auth/dev-login", "/api/auth/logout", "/api/diag",
-                               "/api/version", "/api/telegram/deep-link"))
+                               "/api/version", "/api/telegram/deep-link",
+                               "/api/auth/bot-start", "/api/auth/bot-poll"))
 
 
 def _guest_key() -> bytes:

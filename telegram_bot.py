@@ -592,6 +592,61 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
 
     # Обработка глубокой ссылки (TG-09)
     if payload:
+        # Авторизация на веб-сайте через Telegram-бота в один клик
+        if payload.startswith("login_") or payload.startswith("bauth_"):
+            auth_token = payload.split("_", 1)[1] if "_" in payload else payload
+            from database import approve_bot_auth_token
+            u_id = (from_user.get("id") if from_user else None) or chat_id
+            approved = await asyncio.to_thread(approve_bot_auth_token, auth_token, u_id)
+            user_name = html.escape((from_user.get("first_name") if from_user else "") or "пользователь")
+            if approved:
+                if is_kk:
+                    text = (
+                        f"✅ <b>Қош келдіңіз, {user_name}!</b>\n\n"
+                        "Сіз <b>KZ Price Hunter</b> сайтына сәтті кірдіңіз 🇰🇿\n"
+                        "Браузер терезесіне оралыңыз — сайт автоматты түрде ашылады!"
+                    )
+                else:
+                    text = (
+                        f"✅ <b>Вход выполнен, {user_name}!</b>\n\n"
+                        "Вы успешно вошли на сайт <b>KZ Price Hunter</b> 🇰🇿\n"
+                        "Вернитесь во вкладку браузера — сайт автоматически обновится и откроет доступ!"
+                    )
+                keyboard = []
+                if APP_URL:
+                    cat_txt = "🌐 Сайтқа өту" if is_kk else "🌐 Перейти на сайт"
+                    keyboard.append([url_button(cat_txt, APP_URL)])
+                reply_markup = {"inline_keyboard": keyboard} if keyboard else None
+                await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
+                return
+            else:
+                if is_kk:
+                    text = "⚠️ <b>Кіру сілтемесі ескірген немесе жарамсыз.</b>\nСайттағы «Telegram-ботты ашу» түймесін қайта басыңыз."
+                else:
+                    text = "⚠️ <b>Ссылка для входа устарела или недействительна.</b>\nПожалуйста, нажмите «Открыть Telegram-бот» на сайте ещё раз."
+                await send_tg_message(session, token, chat_id, text, message_thread_id=message_thread_id)
+                return
+
+        if payload == "auth":
+            user_name = html.escape((from_user.get("first_name") if from_user else "") or "пользователь")
+            if is_kk:
+                text = (
+                    f"👋 <b>Сәлеметсіз бе, {user_name}!</b>\n\n"
+                    "Браузерде кіру үшін сайттағы кіру терезесінде «Telegram-ботты ашу» түймесін басыңыз — браузер сізді автоматты түрде таниды!"
+                )
+            else:
+                text = (
+                    f"👋 <b>Привет, {user_name}!</b>\n\n"
+                    "Для входа на сайте нажмите кнопку «Открыть Telegram-бот» в окне авторизации в браузере — вход произойдёт автоматически!"
+                )
+            keyboard = []
+            if APP_URL:
+                cat_txt = "🌐 Сайтқа өту" if is_kk else "🌐 Открыть сайт"
+                keyboard.append([url_button(cat_txt, APP_URL)])
+            reply_markup = {"inline_keyboard": keyboard} if keyboard else None
+            await send_tg_message(session, token, chat_id, text, reply_markup, message_thread_id=message_thread_id)
+            return
+
         action_data = await asyncio.to_thread(decode_deep_link_param, payload)
         if action_data:
             action = action_data.get("action")

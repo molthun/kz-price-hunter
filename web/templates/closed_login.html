@@ -36,13 +36,40 @@ main{width:100%;max-width:460px;padding:28px;border:1px solid var(--border);bord
 <noscript>Для входа включите JavaScript в браузере.</noscript>
 </main>
 <script>
-let lastWidget='',checking=false;
+let lastWidget='',checking=false,botPollTimer=null;
 const byId=id=>document.getElementById(id);
 async function post(path,body){
  const res=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
  const data=await res.json();if(!res.ok)throw Error(data.message||'Не удалось выполнить вход. Повторите попытку.');return data;
 }
 window.onTelegramAuth=async user=>{try{byId('status').textContent='Выполняем вход…';await post('/api/auth/telegram',user);await checkAccess();}catch(e){byId('status').textContent=e.message;}};
+window.addEventListener('message',function(e){
+ if(!e.origin||!e.origin.includes('telegram.org'))return;
+ try{const d=typeof e.data==='string'?JSON.parse(e.data):e.data;if(d&&d.event==='auth_result'&&d.result)onTelegramAuth(d.result);}catch(err){}
+});
+async function initClosedBotAuth(){
+ try{
+  const res=await post('/api/auth/bot-start');
+  if(res.status==='ok'&&res.bot_url){
+   const directLink=byId('directBotLink');
+   if(directLink)directLink.href=res.bot_url;
+   if(botPollTimer)clearInterval(botPollTimer);
+   botPollTimer=setInterval(async()=>{
+    try{
+     const pRes=await fetch('/api/auth/bot-poll?token='+encodeURIComponent(res.token));
+     if(pRes.ok){
+      const pData=await pRes.json();
+      if(pData.status==='ok'){
+       clearInterval(botPollTimer);
+       byId('status').textContent='✅ Вход выполнен!';
+       location.reload();
+      }
+     }
+    }catch(e){}
+   },1500);
+  }
+ }catch(e){}
+}
 async function checkAccess(){
  if(checking)return;checking=true;byId('retry').hidden=true;
  try{
@@ -56,8 +83,7 @@ async function checkAccess(){
   const directArea = byId('directBotArea');
   if(directArea) {
     directArea.hidden = !!user || !auth.bot_username;
-    const directLink = byId('directBotLink');
-    if(directLink && auth.bot_username) directLink.href = 'https://t.me/' + encodeURIComponent(auth.bot_username) + '?start=auth';
+    if(!user && auth.bot_username && !botPollTimer) initClosedBotAuth();
   }
   if(user){
    byId('title').textContent=timed?'Пробное время закончилось':'Ожидание подтверждения';
@@ -68,7 +94,11 @@ async function checkAccess(){
    byId('description').textContent=timed?'Войдите через Telegram — откроется ещё 30 минут, а после подтверждения владельцем доступ станет без ограничений.':'Сайт находится в закрытой разработке. Войдите через Telegram для доступа.';
    byId('status').textContent=auth.bot_username?(timed?'Вход занимает пару секунд.':'После входа потребуется подтверждение владельца.'):'Вход временно недоступен. Попробуйте позже.';
    if(auth.bot_username&&lastWidget!==auth.bot_username){
-    byId('widget').replaceChildren();const s=document.createElement('script');s.async=true;s.src='https://telegram.org/js/telegram-widget.js?22';s.setAttribute('data-telegram-login',auth.bot_username);s.setAttribute('data-size','large');s.setAttribute('data-radius','12');s.setAttribute('data-request-access','write');s.setAttribute('data-onauth','onTelegramAuth(user)');byId('widget').append(s);lastWidget=auth.bot_username;
+    byId('widget').replaceChildren();
+    const ifr=document.createElement('iframe');
+    ifr.src='https://oauth.telegram.org/embed/'+encodeURIComponent(auth.bot_username)+'?origin='+encodeURIComponent(location.origin)+'&return_to='+encodeURIComponent(location.href)+'&size=large&request_access=write&radius=12';
+    ifr.width='238';ifr.height='40';ifr.frameBorder='0';ifr.scrolling='no';ifr.style.border='none';ifr.style.overflow='hidden';
+    byId('widget').append(ifr);lastWidget=auth.bot_username;
    }
    byId('devLogin').replaceChildren();if(auth.dev_login){const b=document.createElement('button');b.textContent='Вход разработчика';b.onclick=async()=>{try{await post('/api/auth/dev-login');await checkAccess();}catch(e){byId('status').textContent=e.message;}};byId('devLogin').append(b);}
   }

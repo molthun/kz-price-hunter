@@ -1144,6 +1144,14 @@ def _create_schema(cursor) -> None:
         expires_at REAL NOT NULL
     )""")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_bot_deep_links_expires ON bot_deep_links(expires_at)")
+    # Авторизация на веб-сайте через Telegram-бота (one-click web login)
+    cursor.execute("""CREATE TABLE IF NOT EXISTS bot_auth_tokens (
+        token TEXT PRIMARY KEY,
+        user_id INTEGER,
+        created_at REAL NOT NULL,
+        expires_at REAL NOT NULL
+    )""")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_bot_auth_tokens_expires ON bot_auth_tokens(expires_at)")
     # C01, C02, C05: Персистентный журнал очереди задач сохранения товаров в SQLite (Spool / Outbox).
     # Обеспечивает строгую транзакционность, гарантию непотери задач при kill -9/рестартах и fencing поколений.
     cursor.execute("""CREATE TABLE IF NOT EXISTS product_queue_spool (
@@ -6862,3 +6870,56 @@ def get_bot_deep_link(token: str) -> Optional[Dict[str, Any]]:
 
 
 upsert_user = upsert_telegram_user
+
+# --- Авторизация на веб-сайте через Telegram-бота (One-Click Web Auth) ---
+
+_bot_auth_tokens_checked = False
+
+def _ensure_bot_auth_tokens_table(conn):
+    global _bot_auth_tokens_checked
+    if not _bot_auth_tokens_checked:
+        conn.execute("""CREATE TABLE IF NOT EXISTS bot_auth_tokens (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER,
+            created_at REAL NOT NULL,
+            expires_at REAL NOT NULL
+        )""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_bot_auth_tokens_expires ON bot_auth_tokens(expires_at)")
+        _bot_auth_tokens_checked = True
+
+def create_bot_auth_token(ttl_seconds: int = 600) -> str:
+    now = time.time()
+    token = secrets.token_urlsafe(16)
+    with get_connection() as conn:
+        _ensure_bot_auth_tokens_table(conn)
+        conn.execute("DELETE FROM bot_auth_tokens WHERE expires_at < ?", (now,))
+        conn.execute("INSERT INTO bot_auth_tokens (token, user_id, created_at, expires_at) VALUES (?, NULL, ?, ?)",
+                     (token, now, now + ttl_seconds))
+        conn.commit()
+    return token
+
+def approve_bot_auth_token(token: str, user_id: int) -> bool:
+    now = time.time()
+    with get_connection() as conn:
+        _ensure_bot_auth_tokens_table(conn)
+        row = conn.execute("SELECT 1 FROM bot_auth_tokens WHERE token = ? AND expires_at > ?", (token, now)).fetchone()
+        if not row:
+            return False
+        conn.execute("UPDATE bot_auth_tokens SET user_id = ? WHERE token = ?", (int(user_id), token))
+        conn.commit()
+        return True
+
+def claim_bot_auth_token(token: str) -> Optional[int]:
+    now = time.time()
+    with get_connection() as conn:
+        _ensure_bot_auth_tokens_table(conn)
+        row = conn.execute("SELECT user_id, expires_at FROM bot_auth_tokens WHERE token = ?", (token,)).fetchone()
+        if not row or row["expires_at"] < now:
+            return -1
+        if row["user_id"] is None:
+            return None
+        uid = int(row["user_id"])
+        conn.execute("DELETE FROM bot_auth_tokens WHERE token = ?", (token,))
+        conn.commit()
+        return uid
+

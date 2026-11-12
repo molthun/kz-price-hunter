@@ -9092,6 +9092,50 @@
       }
     }
 
+    let botAuthPollTimer = null;
+
+    async function initBotLoginFlow() {
+      try {
+        const res = await fetch('/api/auth/bot-start', { method: 'POST' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.status !== 'ok') return;
+        const botLink = document.getElementById('modalLoginBotLink');
+        const botText = document.getElementById('modalLoginBotBtnText');
+        if (botLink && data.bot_url) {
+          botLink.href = data.bot_url;
+          botLink.target = '_blank';
+        }
+        if (botText && data.bot_username) {
+          botText.textContent = 'Открыть Telegram-бот (@' + data.bot_username + ')';
+        }
+        if (botAuthPollTimer) clearInterval(botAuthPollTimer);
+        const token = data.token;
+        let pollCount = 0;
+        botAuthPollTimer = setInterval(async () => {
+          pollCount++;
+          if (pollCount > 120) {
+            clearInterval(botAuthPollTimer);
+            return;
+          }
+          try {
+            const pRes = await fetch('/api/auth/bot-poll?token=' + encodeURIComponent(token));
+            if (!pRes.ok) {
+              if (pRes.status === 410) clearInterval(botAuthPollTimer);
+              return;
+            }
+            const pData = await pRes.json();
+            if (pData.status === 'ok') {
+              clearInterval(botAuthPollTimer);
+              showToast('✅ Вход через Telegram выполнен!');
+              closeLoginModal();
+              setTimeout(() => location.reload(), 400);
+            }
+          } catch (e) {}
+        }, 1500);
+      } catch (e) {}
+    }
+
     function openLoginModal() {
       const modal = document.getElementById('modalLogin');
       if (!modal) return;
@@ -9105,6 +9149,7 @@
       if (botText) {
         botText.textContent = 'Открыть Telegram-бот (@' + botUname + ')';
       }
+      initBotLoginFlow();
       renderTelegramWidget('modalTgWidgetContainer');
       const devContainer = document.getElementById('modalDevLoginContainer');
       if (devContainer) {
@@ -9121,6 +9166,10 @@
     }
 
     function closeLoginModal() {
+      if (botAuthPollTimer) {
+        clearInterval(botAuthPollTimer);
+        botAuthPollTimer = null;
+      }
       const modal = document.getElementById('modalLogin');
       if (modal) {
         modal.classList.remove('open');
@@ -9138,19 +9187,36 @@
       if (!container) return;
       container.innerHTML = '';
       const auth = currentAuthConfig || {};
-      if (auth.bot_username) {
-        const script = document.createElement('script');
-        script.async = true;
-        script.src = 'https://telegram.org/js/telegram-widget.js?22';
-        script.setAttribute('data-telegram-login', auth.bot_username);
-        script.setAttribute('data-size', 'large');
-        script.setAttribute('data-radius', '12');
-        script.setAttribute('data-request-access', 'write');
-        script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-        container.appendChild(script);
+      const botUname = auth.bot_username || 'kzph_dev_bot';
+      if (botUname) {
+        const iframe = document.createElement('iframe');
+        iframe.src = 'https://oauth.telegram.org/embed/' + encodeURIComponent(botUname) +
+                     '?origin=' + encodeURIComponent(window.location.origin) +
+                     '&return_to=' + encodeURIComponent(window.location.href) +
+                     '&size=large&request_access=write&radius=12';
+        iframe.width = '238';
+        iframe.height = '40';
+        iframe.frameBorder = '0';
+        iframe.scrolling = 'no';
+        iframe.style.border = 'none';
+        iframe.style.overflow = 'hidden';
+        container.appendChild(iframe);
       } else {
         container.innerHTML = '<span style="font-size:0.85rem; color:var(--text-muted);">Вход через Telegram настраивается на сервере (TELEGRAM_BOT_TOKEN)</span>';
       }
+    }
+
+    if (!window._tgAuthListenerAdded) {
+      window._tgAuthListenerAdded = true;
+      window.addEventListener('message', function(event) {
+        if (!event.origin || !event.origin.includes('telegram.org')) return;
+        try {
+          const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+          if (data && data.event === 'auth_result' && data.result) {
+            onTelegramAuth(data.result);
+          }
+        } catch (e) {}
+      });
     }
 
     function renderDevLoginBtn(containerId) {

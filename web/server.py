@@ -106,7 +106,9 @@ from database import (
     get_user,
     set_user_blocked,
     create_session,
-    delete_session
+    delete_session,
+    create_bot_auth_token,
+    claim_bot_auth_token
 )
 from detector import check_anomaly, check_market_arbitrage
 from offer_identity import assign_offer_ids
@@ -3366,6 +3368,39 @@ async def dev_login_handler(request):
         {"id": uid, "username": "dev", "first_name": "Разработчик"},
         initial_settings=None if existing else {**_initial_settings_for(uid), "telegram_notify_enabled": False}
     )
+    return _login_response(request, user)
+
+@routes.post("/api/auth/bot-start")
+async def bot_auth_start_handler(request):
+    if auth_limiter.retry_after(f"ip:{client_ip(request)}"):
+        return web.json_response({"status": "error", "message": "Слишком много запросов"}, status=429)
+    bot_username = await asyncio.to_thread(get_bot_username)
+    if not bot_username and get_bot_token():
+        bot_username = "kzph_dev_bot"
+    token = await asyncio.to_thread(create_bot_auth_token)
+    bot_url = f"https://t.me/{bot_username}?start=login_{token}" if bot_username else None
+    return web.json_response({
+        "status": "ok",
+        "token": token,
+        "bot_username": bot_username,
+        "bot_url": bot_url,
+    })
+
+@routes.get("/api/auth/bot-poll")
+async def bot_auth_poll_handler(request):
+    token = str(request.query.get("token") or "").strip()
+    if not token or len(token) > 64:
+        return web.json_response({"status": "error", "message": "Некорректный токен"}, status=400)
+    user_id = await asyncio.to_thread(claim_bot_auth_token, token)
+    if user_id is None:
+        return web.json_response({"status": "pending"})
+    if user_id == -1:
+        return web.json_response({"status": "expired", "message": "Срок действия ссылки истёк"}, status=410)
+    user = await asyncio.to_thread(get_user, user_id)
+    if not user:
+        return web.json_response({"status": "error", "message": "Пользователь не найден"}, status=404)
+    if user.get("is_blocked"):
+        return web.json_response({"status": "error", "message": "Аккаунт заблокирован администратором"}, status=403)
     return _login_response(request, user)
 
 @routes.post("/api/auth/logout")
