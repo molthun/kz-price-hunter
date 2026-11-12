@@ -2,25 +2,21 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## STAND_DEPLOYED v6.37.0: потоковый вывод ответов AI-консультанта в Telegram-черновики (TG-02б) — Antigravity (2026-11-12)
+## RELEASED v6.37.0 (прод и стенд): потоковый вывод ответов AI-консультанта в Telegram-черновики (TG-02б) и статус блокировки бота в админке (TG-04) — Antigravity (2026-11-12)
 
-- **Задача:** TG-02б — потоковый вывод текста ответа AI-консультанта в реальном времени через `sendMessageDraft` (Telegram Bot API 10.x).
-- **Стенд:** доставлен через `git bundle` (коммит `22666fa`), контейнер `kzph-stand` пересобран и здоров (`healthy`), эндпоинт `https://shdev.molthun.ru/api/version` возвращает `6.37.0`.
-- **Сделано:**
-  - `ai_service.py`:
-    - Добавлен потоковый экстрактор `IncrementalJsonAnswerExtractor`, который парсит SSE-поток модели на лету и извлекает только строковое содержимое `"answer"`, декодируя спецсимволы JSON (`\"`, `\\`, `\n`, `\r`, `\t`, `\/`, `\uXXXX`). Внутренние поля (`recommended_product_ids`, `suggested_questions`) изолированы и не просачиваются в черновик. Если модель отдаёт обычный текст без JSON, работает passthrough-режим.
-    - Реализована поддержка `on_token` в `_call_gemini_api` (SSE endpoint `streamGenerateContent?alt=sse`), `_call_openai_api` (`stream: true`), `_call_local_api` (`stream: true`), `_limited_provider_call` и `ask_ai_consultant`.
-  - `ai_router.py`:
-    - Обеспечена сквозная передача `on_token` в `ai_router.run(...)` ко всем провайдерам.
-  - `telegram_bot.py`:
-    - Класс `DraftProgress` расширен поддержкой стриминга токенов: буферизация, живой курсор ` ▌`, адаптивный троттлинг (не чаще раза в 350 мс для защиты от Bot API rate limits / 429), отложенный таймер сброса хвоста токенов.
-    - В `_consult`: динамическое определение сигнатуры `ask_ai_consultant` и передача `on_token=progress.on_token`.
-  - `web/templates/admin.html` (TG-04 UI):
-    - В списке пользователей (`/admin#usersTool`) добавлен статус-бейдж `🚫 Бот заблокирован пользователем` при `user.bot_blocked == true`. Закрывает долг по TG-04 из `docs/TELEGRAM_BOT.md`.
-  - Тесты:
-    - Добавлен тестовый набор `StreamingDraftTests` в `tests/notifications/test_ai_drafts.py` (тестирование декодера, троттлинга и сквозного стриминга).
-    - Все 12 тестов `test_ai_drafts.py` успешно пройдены.
-- **Следующий шаг:** тактильная приёмка владельцем работы потокового AI-консультанта в Telegram-боте на стенде.
+- **Решение владельца (12.11.2026):** «Делай» (выпуск v6.37.0 на прод).
+- **Стенд:** проверен, контейнер `kzph-stand` healthy, `/api/version` = 6.37.0, тесты пройдены.
+- **Прод:** пуш в `main`, тег `v6.37.0`, автосборка в GitHub Actions и доставка через Watchtower.
+- **Состав релиза v6.37.0:**
+  - **TG-02б (Streaming Drafts):**
+    - `ai_service.py`: инкрементальный экстрактор `IncrementalJsonAnswerExtractor`, стриминг ответов моделей (Gemini SSE, OpenAI stream, Local API stream), изоляция внутренних полей JSON от попадания в черновик.
+    - `ai_router.py`: сквозная поддержка `on_token` во всех цепочках роутера.
+    - `telegram_bot.py`: стриминг токенов в `DraftProgress` через Bot API 10.x `sendMessageDraft` с курсором ` ▌`, троттлингом 350 мс для защиты от 429 и кнопкой «Стоп» (`stopped_message_generation`).
+  - **TG-04 UI (индикация блокировки бота):**
+    - `web/templates/admin.html`: индикатор `🚫 Бот заблокирован пользователем` в карточке пользователя в разделе `#usersTool`.
+    - `docs/TELEGRAM_BOT.md`: закрыт пункт по индикации блокировки бота.
+  - **Тесты:** `tests/notifications/test_ai_drafts.py` (все 12 тестов успешно пройдены), `test_admin_page.py`.
+- **Следующий шаг:** контроль развертывания Watchtower на проде и продолжение очереди задач.
 
 ## ОТМЕНЕНО: мобильная доработка ленты «Скидки» — Codex (2026-11-12)
 
