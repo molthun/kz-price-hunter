@@ -5832,6 +5832,34 @@ async def admin_daily_telegram_handler(request):
     return web.json_response({"status": "ok", "telegram": {**view, "recipients": len(people)}})
 
 
+@routes.post("/api/admin/monitoring/daily/send-now")
+@require_admin
+async def admin_daily_send_now_handler(request):
+    """Принудительная отправка суточной сводки текущему администратору (P13)."""
+    import daily_digest
+    import config
+    user = request.get("user")
+    user_id = user["id"] if user and user.get("id") else None
+    if not user_id:
+        admins = sorted(config.ADMIN_TELEGRAM_IDS)
+        if not admins:
+            return web.json_response({"status": "error", "message": "ADMIN_TELEGRAM_IDS не задан"}, status=400)
+        user_id = admins[0]
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    day = str(data.get("day") or "").strip() or None
+    tz = str(data.get("tz") or "").strip() or None
+    res = await daily_digest.async_send_digest_now(user_id, day=day, tz=tz)
+    status = getattr(res, "status", "unknown")
+    ok = bool(res) and status == "sent"
+    return web.json_response({"status": "ok" if ok else "error", "delivery_status": status,
+                              "recipient": user_id, "error": getattr(res, "error", None)})
+
+
+
+
 @routes.get("/api/admin/scheduler/rollout")
 @require_admin
 async def scheduler_rollout_status_handler(request):

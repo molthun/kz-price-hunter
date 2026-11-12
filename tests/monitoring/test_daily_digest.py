@@ -6,7 +6,7 @@ import json
 import os
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 import ai_service
 import daily_digest as digest
@@ -325,6 +325,15 @@ class PermissionsTest(unittest.IsolatedAsyncioTestCase):
                 self.assertIn("blocks", body["report"])
                 bad = await client.get("/api/admin/monitoring/daily?day=вчера")
                 self.assertEqual(bad.status, 400)
+                from notifier import DeliveryResult
+                with patch("daily_digest.async_send_digest_now", new_callable=AsyncMock) as mock_send:
+                    mock_send.return_value = DeliveryResult("sent", 101, None)
+                    send_res = await client.post("/api/admin/monitoring/daily/send-now", json={"day": "2026-09-22"})
+                    self.assertEqual(send_res.status, 200)
+                    send_body = await send_res.json()
+                    self.assertEqual(send_body["status"], "ok")
+                    self.assertEqual(send_body["delivery_status"], "sent")
+
 
 
 if __name__ == "__main__":
@@ -420,6 +429,37 @@ class TelegramDigestTest(unittest.TestCase):
         with patch.object(digest, "settings_view", return_value=self.view):
             digest.queue_if_due(NOW)
         self.assertIsNotNone(digest.load(DAY, "UTC"), "сводка сохранена и её можно открыть в мониторинге")
+
+    def test_async_queue_if_due(self):
+        import asyncio
+        with patch.object(digest, "settings_view", return_value=self.view), \
+             patch.object(digest, "summarize", side_effect=AsyncMock(return_value={"summary": "Всё штатно"})):
+            res = asyncio.run(digest.async_queue_if_due(NOW))
+            self.assertEqual(res, 1)
+            queue = self.outbox()
+            self.assertEqual(len(queue), 1)
+
+    def test_async_send_digest_now(self):
+        import asyncio
+        from notifier import DeliveryResult
+        with patch("notifier.send_daily_digest", return_value=DeliveryResult("sent", message_id=12345)):
+            res = asyncio.run(digest.async_send_digest_now(501))
+            self.assertEqual(res.status, "sent")
+            self.assertEqual(res.message_id, 12345)
+
+    def test_handle_digest_bot_command(self):
+        import asyncio
+        import telegram_bot
+        session = AsyncMock()
+        with patch.object(digest, "async_send_digest_now", new_callable=AsyncMock) as mock_send, \
+             patch("telegram_bot.send_tg_message", new_callable=AsyncMock) as mock_msg:
+            from notifier import DeliveryResult
+            mock_send.return_value = DeliveryResult("sent", 999, None)
+            asyncio.run(telegram_bot.handle_digest_command(session, "token", 501))
+            mock_send.assert_awaited_once_with(501)
+            asyncio.run(telegram_bot.handle_digest_command(session, "token", 502))
+            mock_msg.assert_awaited_with(session, "token", 502, "⛔️ Команда доступна только администраторам сервиса.", message_thread_id=None)
+
 
     # --- текст ------------------------------------------------------------
 

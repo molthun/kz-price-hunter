@@ -506,3 +506,42 @@ def queue_if_due(now: Optional[datetime.datetime] = None) -> int:
             queued += cur.rowcount or 0
         conn.commit()
     return queued
+
+
+async def async_queue_if_due(now: Optional[datetime.datetime] = None) -> int:
+    """Ставит сводку в общую очередь уведомлений с попыткой AI-пересказа (если доступен)."""
+    import asyncio
+    view = settings_view()
+    day = due_day(now, view)
+    if not day:
+        return 0
+    people = recipients()
+    if not people:
+        return 0
+    stored = load(day, view["tz"]) or report(day, view["tz"], now=now)
+    if not stored.get("summary"):
+        try:
+            await asyncio.wait_for(summarize(stored), timeout=15.0)
+        except Exception:
+            pass
+    return queue_if_due(now=now)
+
+
+async def async_send_digest_now(user_id: int, day: Optional[str] = None, tz: Optional[str] = None) -> Any:
+    """Принудительно формирует и отправляет сводку администратору прямо сейчас."""
+    import asyncio
+    import notifier
+    view = settings_view()
+    target_tz = tz or view["tz"]
+    target_day = day or previous_day(target_tz)
+    rep = load(target_day, target_tz) or report(target_day, target_tz)
+    if not rep.get("summary"):
+        try:
+            await asyncio.wait_for(summarize(rep), timeout=15.0)
+            rep = load(target_day, target_tz) or rep
+        except Exception:
+            pass
+    payload = {"kind": "daily_digest", "day": target_day, "tz": target_tz,
+               "lines": message_lines(rep)}
+    return await asyncio.to_thread(notifier.send_daily_digest, user_id, payload)
+

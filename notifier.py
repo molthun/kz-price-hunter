@@ -810,6 +810,7 @@ def _deliver_daily_digest(item, payload, counts) -> tuple:
         result = DeliveryResult("sent" if result else "retry", None, None if result else "Telegram delivery failed")
     if result:
         finish_notification(item["id"], "sent", item["attempts"])
+        _remember_message(item["id"], result)
         counts["sent"] += 1
         return True, None
     if result.status == "permanent":
@@ -1145,7 +1146,10 @@ async def notification_worker():
             # Суточная сводка администратору (P13): ставится в очередь раз в сутки, если включена
             try:
                 import daily_digest
-                await asyncio.to_thread(daily_digest.queue_if_due)
+                if hasattr(daily_digest, "async_queue_if_due"):
+                    await daily_digest.async_queue_if_due()
+                else:
+                    await asyncio.to_thread(daily_digest.queue_if_due)
             except Exception as e:
                 print(f"[Daily] Сводка не поставлена в очередь: {type(e).__name__}")
             # Утром — владельцу список ждущих подтверждения доступа (6.36.0), раз в день и только если они есть

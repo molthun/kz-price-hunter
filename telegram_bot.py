@@ -899,6 +899,27 @@ async def handle_status_command(session: aiohttp.ClientSession, token: str, chat
     await send_tg_message(session, token, chat_id, text, message_thread_id=message_thread_id)
 
 
+async def handle_digest_command(session: aiohttp.ClientSession, token: str, chat_id: int, user_id: Optional[int] = None, message_thread_id: Optional[int] = None, lang: str = "ru"):
+    """Суточная сводка сервиса владельцу / администратору (P13)."""
+    uid = user_id or chat_id
+    import config
+    import database
+    user = database.get_user(uid)
+    is_admin = bool(user and user.get("is_admin")) or (uid in config.ADMIN_TELEGRAM_IDS)
+    if not is_admin:
+        await send_tg_message(session, token, chat_id, "⛔️ Команда доступна только администраторам сервиса.", message_thread_id=message_thread_id)
+        return
+    import daily_digest
+    await send_tg_message(session, token, chat_id, "⏳ <i>Формирую суточную сводку...</i>", message_thread_id=message_thread_id)
+    try:
+        res = await daily_digest.async_send_digest_now(uid)
+        if not res or getattr(res, "status", None) != "sent":
+            err = getattr(res, "error", "Ошибка отправки")
+            await send_tg_message(session, token, chat_id, f"⚠️ Не удалось доставить сводку: {err}", message_thread_id=message_thread_id)
+    except Exception as e:
+        await send_tg_message(session, token, chat_id, f"⚠️ Ошибка формирования сводки: {type(e).__name__}: {e}", message_thread_id=message_thread_id)
+
+
 async def handle_watches_command(session: aiohttp.ClientSession, token: str, chat_id: int, message_thread_id: Optional[int] = None, lang: str = "ru"):
     """Показывает список активных наблюдений за ценами пользователя и позволяет отключить их."""
     is_kk = str(lang or "").lower().startswith(("kk", "kz"))
@@ -1703,6 +1724,9 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
     elif cmd in ("/status", "/info"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "🩺")
         await handle_status_command(session, token, chat_id, lang=user_lang, **kwargs)
+    elif cmd in ("/digest", "/daily", "/summary", "/сводка"):
+        await set_tg_message_reaction(session, token, chat_id, message_id, "📊")
+        await handle_digest_command(session, token, chat_id, user_id=user_id, lang=user_lang, **kwargs)
     elif cmd in ("/watches", "/my_watches", "/subs", "/tracking"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "🔔")
         await handle_watches_command(session, token, chat_id, lang=user_lang, **kwargs)
