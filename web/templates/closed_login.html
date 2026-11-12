@@ -22,6 +22,13 @@ main{width:100%;max-width:460px;padding:28px;border:1px solid var(--border);bord
 <h1 id="title">Вход на закрытый сайт</h1>
 <p id="description">Сайт находится в закрытой разработке. Доступ открыт только пользователям, подтверждённым владельцем.</p>
 <p id="identity" hidden></p>
+<div id="directBotArea" style="margin: 16px 0;" hidden>
+ <a id="directBotLink" href="#" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#2481cc;color:#fff;font-weight:600;padding:12px 20px;border-radius:10px;text-decoration:none;min-height:44px;box-shadow:0 2px 8px rgba(36,129,204,0.3);width:100%;max-width:280px;margin:0 auto 12px;">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" fill="currentColor"/></svg>
+  <span>Открыть Telegram-бот</span>
+ </a>
+ <div style="font-size:12px;color:var(--muted);margin-top:4px;">или через виджет ниже:</div>
+</div>
 <div id="widget"></div><div id="devLogin"></div>
 <div id="pendingActions" hidden><button id="refresh" type="button">Проверить доступ</button><button id="logout" class="secondary" type="button">Выйти</button></div>
 <p id="status" role="status">Проверяем доступ…</p>
@@ -46,6 +53,12 @@ async function checkAccess(){
   const blocked=data.maintenance_mode?!(user&&(user.is_confirmed||user.is_admin)):access.allowed===false;
   if(!blocked){location.reload();return;}
   byId('pendingActions').hidden=!user;byId('identity').hidden=!user;byId('widget').hidden=!!user;byId('devLogin').hidden=!!user;
+  const directArea = byId('directBotArea');
+  if(directArea) {
+    directArea.hidden = !!user || !auth.bot_username;
+    const directLink = byId('directBotLink');
+    if(directLink && auth.bot_username) directLink.href = 'https://t.me/' + encodeURIComponent(auth.bot_username) + '?start=auth';
+  }
   if(user){
    byId('title').textContent=timed?'Пробное время закончилось':'Ожидание подтверждения';
    byId('description').textContent=timed?'30 минут пробного доступа прошли. Владелец подтвердит ваш аккаунт — и сайт откроется без ограничений. Утром он получает список тех, кто ждёт.':'Вы вошли. Владелец должен подтвердить доступ к сайту.';
