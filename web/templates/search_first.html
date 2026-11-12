@@ -3180,6 +3180,7 @@
       #viewDeals .deals-selectors-group {
         display: flex;
         flex: none;
+        flex-shrink: 0;
         gap: 6px;
         width: auto;
       }
@@ -3198,6 +3199,7 @@
       #viewDeals .deals-type-pills {
         display: flex;
         flex: none;
+        flex-shrink: 0;
         gap: 6px;
         overflow: visible;
         width: auto;
@@ -3280,6 +3282,7 @@
         transform: none;
         content-visibility: auto;
         contain-intrinsic-size: auto 600px;
+        contain: layout paint;
       }
 
       body.deals-fullscreen #viewDeals .deal-reel-card {
@@ -3295,7 +3298,12 @@
         width: calc(100% + 80px);
         height: calc(100% + 80px);
         object-fit: cover;
-        filter: blur(34px) saturate(1.5) brightness(0.62);
+        filter: blur(22px) saturate(1.5) brightness(0.62);
+        -webkit-filter: blur(22px) saturate(1.5) brightness(0.62);
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        will-change: transform;
+        contain: paint;
         z-index: -2;
         pointer-events: none;
         user-select: none;
@@ -3679,6 +3687,7 @@
 
       #viewDeals .deal-reel-card.is-active .deal-single-photo .deal-reel-img.is-loaded {
         animation: dealKenBurns 9s ease-out both;
+        will-change: transform;
       }
 
       #viewDeals .deal-reel-card.is-active .deal-reel-content > *,
@@ -12546,7 +12555,7 @@
       return `
         <article class="deal-reel-card${hasPhoto ? '' : ' no-photo'}" data-index="${idx}" data-deal-id="${escapeHtml(deal.id)}" style="--deal-hue: ${dealShopHue(shopName)}">
           ${backdropHtml}
-          <div class="deal-reel-media" ondblclick="onMediaDoubleTap(this)" ontouchend="onMediaTouchEnd(event, this)">
+          <div class="deal-reel-media" ondblclick="onMediaDoubleTap(this)" ontouchend="onMediaTouchEnd(event, this)" onclick="onMediaClick(event, this)">
             ${mediaHtml}
             <div class="deal-story-head">
               <span class="deal-story-ring"><span class="deal-story-avatar">${escapeHtml(shopInitial)}</span></span>
@@ -12870,6 +12879,17 @@
           if (!isDealsShowcase()) setDealsFullscreen(!dealsFullscreen);
         }, 320);
       }
+    }
+
+    function onMediaClick(e, mediaEl) {
+      if (!mediaEl) return;
+      if (e && e.target && e.target.closest('.deal-side-actions, .deal-actions-row, .btn-deal-buy-full, button, a, select, input')) {
+        return;
+      }
+      if (Date.now() - lastMediaTapTime < 450) {
+        return;
+      }
+      if (!isDealsShowcase()) setDealsFullscreen(!dealsFullscreen);
     }
 
     function onMediaDoubleTap(mediaEl) {
