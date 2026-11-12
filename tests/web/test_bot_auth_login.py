@@ -63,6 +63,38 @@ class TestBotAuthLogin(unittest.IsolatedAsyncioTestCase):
         finally:
             telegram_bot.send_tg_message = orig_send
 
+    async def test_telegram_bot_auth_payload_creates_token_login(self):
+        sent_messages = []
+
+        async def fake_send(session, bot_token, chat_id, text, reply_markup=None, message_thread_id=None):
+            sent_messages.append({"chat_id": chat_id, "text": text, "markup": reply_markup})
+            return {"ok": True}
+
+        orig_send = telegram_bot.send_tg_message
+        telegram_bot.send_tg_message = fake_send
+        try:
+            from_user = {
+                "id": 999888,
+                "first_name": "Тест",
+                "username": "test_user",
+                "language_code": "ru"
+            }
+            await telegram_bot.handle_start_command(
+                None, "fake_token", 999888,
+                from_user=from_user,
+                payload="auth"
+            )
+            self.assertEqual(len(sent_messages), 1)
+            self.assertIn("Привет, Тест!", sent_messages[0]["text"])
+            markup = sent_messages[0]["markup"]
+            self.assertIsNotNone(markup)
+            self.assertIn("inline_keyboard", markup)
+            buttons = markup["inline_keyboard"][0]
+            self.assertEqual(buttons[0]["text"], "🔑 Войти на сайт")
+            self.assertIn("/api/auth/token-login?token=", buttons[0]["url"])
+        finally:
+            telegram_bot.send_tg_message = orig_send
+
 
 if __name__ == "__main__":
     unittest.main()

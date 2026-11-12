@@ -3406,6 +3406,25 @@ async def bot_auth_poll_handler(request):
         return web.json_response({"status": "error", "message": "Аккаунт заблокирован администратором"}, status=403)
     return _login_response(request, user)
 
+@routes.get("/api/auth/token-login")
+async def token_login_handler(request):
+    token = str(request.query.get("token") or "").strip()
+    target = str(request.query.get("next") or "/profile").strip()
+    if not target.startswith("/") or target.startswith("//"):
+        target = "/profile"
+    if not token or len(token) > 64:
+        raise web.HTTPFound(target)
+    user_id = await asyncio.to_thread(claim_bot_auth_token, token)
+    if not user_id or user_id == -1:
+        raise web.HTTPFound(target)
+    user = await asyncio.to_thread(get_user, user_id)
+    if not user or user.get("is_blocked"):
+        raise web.HTTPFound(target)
+    response = web.HTTPFound(target)
+    session_id = await asyncio.to_thread(create_session, user["id"])
+    _set_session_cookie(request, response, session_id)
+    return response
+
 @routes.post("/api/auth/logout")
 async def logout_handler(request):
     delete_session(request.cookies.get(SESSION_COOKIE))

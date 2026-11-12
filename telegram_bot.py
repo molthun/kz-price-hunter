@@ -629,18 +629,26 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
 
         if payload == "auth":
             user_name = html.escape((from_user.get("first_name") if from_user else "") or "пользователь")
+            from database import create_bot_auth_token, approve_bot_auth_token
+            u_id = (from_user.get("id") if from_user else None) or chat_id
+            login_token = await asyncio.to_thread(create_bot_auth_token)
+            await asyncio.to_thread(approve_bot_auth_token, login_token, u_id)
+            login_url = f"{APP_URL}/api/auth/token-login?token={login_token}" if APP_URL else ""
             if is_kk:
                 text = (
                     f"👋 <b>Сәлеметсіз бе, {user_name}!</b>\n\n"
-                    "Браузерде кіру үшін сайттағы кіру терезесінде «Telegram-ботты ашу» түймесін басыңыз — браузер сізді автоматты түрде таниды!"
+                    "Браузерде кіру үшін төмендегі батырманы басыңыз — сіз автоматты түрде өз профиліңізге кіресіз:"
                 )
             else:
                 text = (
                     f"👋 <b>Привет, {user_name}!</b>\n\n"
-                    "Для входа на сайте нажмите кнопку «Открыть Telegram-бот» в окне авторизации в браузере — вход произойдёт автоматически!"
+                    "Для входа на сайте нажмите кнопку ниже — вы сразу окажетесь в своём профиле:"
                 )
             keyboard = []
-            if APP_URL:
+            if login_url:
+                login_btn_txt = "🔑 Сайтқа кіру" if is_kk else "🔑 Войти на сайт"
+                keyboard.append([url_button(login_btn_txt, login_url, style="primary")])
+            elif APP_URL:
                 cat_txt = "🌐 Сайтқа өту" if is_kk else "🌐 Открыть сайт"
                 keyboard.append([url_button(cat_txt, APP_URL)])
             reply_markup = {"inline_keyboard": keyboard} if keyboard else None
