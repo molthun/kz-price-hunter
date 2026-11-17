@@ -9,20 +9,22 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > По завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
-## READY_FOR_STAND v6.40.14: P13 (ограничение повторов AI в сводке) и кликабельные характеристики — Antigravity (2026-11-18 01:51 +05)
+## STAND_DEPLOYED v6.40.14: P13 (ограничение повторов AI в сводке) и кликабельные характеристики — Antigravity (2026-11-18 02:26 +05)
 
 - **Основание:** открытые P2-пункты аудита [AUDIT_2026-11-12_OPEN_TASKS_CODEX.md](AUDIT_2026-11-12_OPEN_TASKS_CODEX.md).
 - **Сделано:**
   1. **P13 (`daily_digest.py`, `notifier.py`):** в `async_queue_if_due` добавлена предварительная проверка `notification_outbox` (`_pending_recipients`) до вызова `report()`/`summarize()` и ограничение `MAX_AUTO_SUMMARY_ATTEMPTS = 1` на `(day, tz)`. При таймауте или отказе ИИ сводка ставится в очередь с детерминированными цифрами без повторных вызовов модели. В `notification_worker` (`notifier.py`) `deliver_pending()` перенесён перед `async_queue_if_due()`, чтобы доставка уведомлений не ждала пересказа.
   2. **Кликабельные характеристики (`web/templates/search_first.html`):** реализована `toggleSpecFilter(key, val)` (переиспользуется и в `renderQuickSpecPills`), параметры тегов карточек передаются через `data-spec-key` / `data-spec-val` (исключён `SyntaxError` на апострофах/кавычках), для диагонали ТВ сохраняется ключ `screen_diagonal`.
   3. **Версионность:** `version.py` = `6.40.14` (`2026-11-18`), `CHANGELOG.md` обновлён (включая раздел `### Для пользователей`).
-- **Проверки (локально, `venv/bin/python`, временные БД и моки):**
-  - `tests.monitoring.test_daily_digest.TelegramDigestTest` — 21/21 OK (включая 2 новых теста на ограничение повторов при `TimeoutError` и пропуск ИИ при наличии записи в `outbox`).
-  - `tests.web.test_search_first_specs` (Chromium Playwright) — 1/1 OK (клик по тегу с апострофом `"Men's Black"`, повторный клик для снятия фильтра, тег `6.1"` → `screen_diagonal`, синхронизация URL и `/api/v2/search`, 0 ошибок страницы).
-  - `tests.core.test_release_notes` — запускается следом.
-- **Осталось / следующий шаг:**
-  - Доставить изменения на стенд (в текущем окружении `docker` не установлен), выполнить контрольный прогон на стенде, затем передать Claude/Codex для проверки и выпуска в прод.
-  - Открытыми по проекту остаются: `D04` (очистка описаний в рабочей БД прода), живая приёмка Telegram/Mini App на телефоне, сквозная приёмка Search-first + локального ИИ, `P17-C4/C5/C8` (`k2` на прод), решение по `P17-C7` и `P11`.
+- **Стенд (`192.168.28.25`, коммит `b3caddc`):**
+  - Доставлен `kzph-v6.40.14.bundle`, `merge --ff-only` (локальная правка `docker-compose.stand.yml` сохранена), `docker compose -f docker-compose.stand.yml up -d --build` → контейнер `kzph-stand` `healthy`.
+  - `/api/version` = `6.40.14`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `redis_active=true`, `worker_running=true`), `/api/changelog` начинается с `6.40.14`.
+- **Проверки:**
+  - Полный прогон `python -m unittest discover -s . -p 'test_*.py'` в изолированном контейнере `kzph-stand:local` (`--network none --cpus 2 --tmpfs /app/data`, журнал на хосте стенда `/tmp/kzph-6414-unittest.log`): **3 093 тестов OK** (417.06s).
+  - Целевой прогон на `kzph-stand:local` (`test_release_notes`, `TelegramDigestTest`, `test_search_first_specs`, `test_bot_auth_login`): **37/37 OK** (4.20s).
+  - Локально (`venv/bin/python`): **27/27 OK** (1.42s), включая 2 новых теста P13 и браузерный тест Chromium для кликабельных характеристик (апострофы `"Men's Black"`, диагональ `'6.1"'`, снятие фильтра, синхронизация URL).
+- **Готовность к релизу:** готово к проверке Claude/Codex и владельцем.
+- **Осталось по проекту:** `D04` (очистка описаний в рабочей БД прода), живая приёмка Telegram/Mini App на телефоне, сквозная приёмка Search-first + локального ИИ, `P17-C4/C5/C8` (`k2` на прод), решение по `P17-C7` и `P11`.
 
 ## DOCS_PUBLISHED: документация GitHub, стенда и прода — Codex (2026-11-13, Asia/Almaty)
 
