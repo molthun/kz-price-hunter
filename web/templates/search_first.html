@@ -1162,6 +1162,19 @@
       font-weight: 600;
     }
 
+    .quick-spec-pill.quick-spec-reset {
+      background: var(--bg-subtle);
+      border-color: var(--border-color);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .quick-spec-pill.quick-spec-reset:hover {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+
     .card-specs-row {
       display: flex;
       flex-wrap: wrap;
@@ -1173,7 +1186,8 @@
     .card-spec-tag {
       display: inline-flex;
       align-items: center;
-      padding: 2px 7px;
+      gap: 3px;
+      padding: 2px 8px;
       font-size: 0.74rem;
       font-weight: 500;
       border-radius: 6px;
@@ -1181,6 +1195,24 @@
       color: var(--text-muted);
       border: 1px solid var(--border-color);
       line-height: 1.25;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+      font-family: inherit;
+    }
+
+    .card-spec-tag:hover {
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--primary);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .card-spec-tag.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      font-weight: 600;
     }
 
     .filter-chip {
@@ -10832,11 +10864,31 @@
 
         const specs = [];
         const attrs = prod.attributes || {};
-        if (attrs.storage || attrs['Встроенная память']) specs.push('💾 ' + (attrs.storage || attrs['Встроенная память']));
-        if (attrs.ram || attrs['Оперативная память']) specs.push('⚡ ' + (attrs.ram || attrs['Оперативная память']));
-        if (attrs.screen_size || attrs.screen_diagonal || attrs['Диагональ экрана']) specs.push('📱 ' + (attrs.screen_size || attrs.screen_diagonal || attrs['Диагональ экрана']));
-        if (attrs.color || attrs['Цвет']) specs.push('🎨 ' + (attrs.color || attrs['Цвет']));
-        const specsHtml = specs.length > 0 ? `<div class="card-specs-row">${specs.map(s => `<span class="card-spec-tag">${escapeHtml(s)}</span>`).join('')}</div>` : '';
+        const specCandidates = [
+          { key: 'storage', icon: '💾', val: attrs.storage || attrs['Встроенная память'] },
+          { key: 'ram', icon: '⚡', val: attrs.ram || attrs['Оперативная память'] },
+          { key: attrs.screen_size ? 'screen_size' : (attrs.screen_diagonal ? 'screen_diagonal' : 'screen_size'), icon: '📱', val: attrs.screen_size || attrs.screen_diagonal || attrs['Диагональ экрана'] },
+          { key: 'color', icon: '🎨', val: attrs.color || attrs['Цвет'] },
+          { key: 'refresh_rate', icon: '🔄', val: attrs.refresh_rate || attrs['Частота обновления'] },
+          { key: 'vram', icon: '🎮', val: attrs.vram || attrs['Объем видеопамяти'] },
+          { key: 'gpu', icon: '🖥️', val: attrs.gpu || attrs['Видеокарта'] },
+          { key: 'diaper_size', icon: '👶', val: attrs.diaper_size || attrs['Размер подгузников'] }
+        ];
+
+        specCandidates.forEach(sc => {
+          if (sc.val) {
+            const valStr = String(sc.val);
+            const isActive = (AppState.attributes && AppState.attributes[sc.key] === valStr);
+            specs.push({
+              key: sc.key,
+              val: valStr,
+              icon: sc.icon,
+              isActive: isActive
+            });
+          }
+        });
+
+        const specsHtml = specs.length > 0 ? `<div class="card-specs-row">${specs.map(s => `<button type="button" class="card-spec-tag${s.isActive ? ' active' : ''}" data-spec-key="${escapeHtml(s.key)}" data-spec-val="${escapeHtml(s.val)}" onclick="event.stopPropagation(); toggleSpecFilter(this.dataset.specKey, this.dataset.specVal)" title="Фильтровать по: ${escapeHtml(s.val)}">${s.icon} <span>${escapeHtml(s.val)}</span></button>`).join('')}</div>` : '';
 
         return `
           <div class="product-card" data-id="${escapeHtml(pId)}" onclick="openProduct(event, this.dataset.id)">
@@ -11170,6 +11222,21 @@
       container.style.display = 'flex';
     }
 
+    function toggleSpecFilter(key, val) {
+      if (!key || !val) return;
+      if (!AppState.attributes || typeof AppState.attributes !== 'object' || Array.isArray(AppState.attributes)) {
+        AppState.attributes = {};
+      }
+      if (AppState.attributes[key] === val) {
+        delete AppState.attributes[key];
+      } else {
+        AppState.attributes[key] = val;
+      }
+      AppState.page = 1;
+      updateSearchUrl();
+      executeSearch();
+    }
+
     function renderQuickSpecPills(data) {
       const container = document.getElementById('quickSpecPillsContainer');
       if (!container) return;
@@ -11198,17 +11265,7 @@
           btn.type = 'button';
           btn.className = 'quick-spec-pill' + (isActive ? ' active' : '');
           btn.innerHTML = `<span>${icon}</span> <span>${escapeHtml(v.value)}</span> <small style="opacity:0.75; font-size:0.75rem;">(${v.count})</small>`;
-          btn.onclick = () => {
-            if (isActive) {
-              delete AppState.attributes[facet.key];
-            } else {
-              if (!AppState.attributes || typeof AppState.attributes !== 'object') AppState.attributes = {};
-              AppState.attributes[facet.key] = v.value;
-            }
-            AppState.page = 1;
-            updateSearchUrl();
-            executeSearch();
-          };
+          btn.onclick = () => toggleSpecFilter(facet.key, v.value);
           container.appendChild(btn);
         });
       });

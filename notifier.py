@@ -1143,6 +1143,8 @@ async def notification_worker():
     import environment
     while True:
         try:
+            # Доставка готовых уведомлений идёт первой, чтобы фоновые задачи (включая AI-сводку) не задерживали очередь
+            await asyncio.to_thread(deliver_pending)
             # Суточная сводка администратору (P13): ставится в очередь раз в сутки, если включена
             try:
                 import daily_digest
@@ -1170,7 +1172,6 @@ async def notification_worker():
                 await asyncio.to_thread(_check_shop_notices)
             except Exception as e:
                 print(f"[Notices] Проверка обращений магазинов не выполнена: {type(e).__name__}")
-            await asyncio.to_thread(deliver_pending)
             # TG-06: находки, переставшие быть правдой, правятся на месте; сбой не мешает доставке
             try:
                 await asyncio.to_thread(mark_stale_alerts)

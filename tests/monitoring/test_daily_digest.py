@@ -432,12 +432,39 @@ class TelegramDigestTest(unittest.TestCase):
 
     def test_async_queue_if_due(self):
         import asyncio
+        digest._AUTO_SUMMARY_ATTEMPTS.clear()
         with patch.object(digest, "settings_view", return_value=self.view), \
              patch.object(digest, "summarize", side_effect=AsyncMock(return_value={"summary": "Всё штатно"})):
             res = asyncio.run(digest.async_queue_if_due(NOW))
             self.assertEqual(res, 1)
             queue = self.outbox()
             self.assertEqual(len(queue), 1)
+
+    def test_async_queue_if_due_limits_ai_retries_on_failure(self):
+        import asyncio
+        digest._AUTO_SUMMARY_ATTEMPTS.clear()
+        mock_sum = AsyncMock(side_effect=asyncio.TimeoutError())
+        with patch.object(digest, "settings_view", return_value=self.view), \
+             patch.object(digest, "summarize", mock_sum):
+            results = [asyncio.run(digest.async_queue_if_due(NOW)) for _ in range(3)]
+        self.assertEqual(results, [1, 0, 0])
+        self.assertEqual(mock_sum.await_count, 1)
+        queue = self.outbox()
+        self.assertEqual(len(queue), 1)
+        import json as json_module
+        payload = json_module.loads(queue[0]["payload"])
+        self.assertIn("Поиски", "\n".join(payload["lines"]))
+
+    def test_async_queue_if_due_skips_ai_when_already_in_outbox(self):
+        import asyncio
+        digest._AUTO_SUMMARY_ATTEMPTS.clear()
+        mock_sum = AsyncMock(return_value={"summary": "Всё штатно"})
+        with patch.object(digest, "settings_view", return_value=self.view):
+            self.assertEqual(digest.queue_if_due(NOW), 1)
+            with patch.object(digest, "summarize", mock_sum):
+                res = asyncio.run(digest.async_queue_if_due(NOW))
+        self.assertEqual(res, 0)
+        self.assertEqual(mock_sum.await_count, 0)
 
     def test_async_send_digest_now(self):
         import asyncio

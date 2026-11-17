@@ -368,6 +368,23 @@ async def summarize(report: Dict[str, Any]) -> Dict[str, Any]:
 # Своё пространство идентификаторов в общей очереди уведомлений: alert_id отрицательный и не может
 # совпасть ни с алертом ленты (положительный), ни со срабатыванием наблюдения (−id события, небольшое).
 DIGEST_ALERT_BASE = 1_000_000_000
+MAX_AUTO_SUMMARY_ATTEMPTS = 1
+_AUTO_SUMMARY_ATTEMPTS: Dict[tuple, int] = {}
+
+
+def _pending_recipients(day: str, people: List[int]) -> List[int]:
+    """Возвращает получателей, которым сводка за day ещё не поставлена в notification_outbox."""
+    import database
+    if not people:
+        return []
+    alert_id = digest_alert_id(day)
+    with database.get_connection() as conn:
+        rows = conn.execute(
+            "SELECT user_id FROM notification_outbox WHERE alert_id = ?",
+            (alert_id,),
+        ).fetchall()
+    existing = {int(r[0]) for r in rows}
+    return [uid for uid in people if uid not in existing]
 
 
 def digest_alert_id(day: str) -> int:
@@ -509,17 +526,22 @@ def queue_if_due(now: Optional[datetime.datetime] = None) -> int:
 
 
 async def async_queue_if_due(now: Optional[datetime.datetime] = None) -> int:
-    """Ставит сводку в общую очередь уведомлений с попыткой AI-пересказа (если доступен)."""
+    """Ставит сводку в общую очередь уведомлений с ограниченной попыткой AI-пересказа."""
     import asyncio
     view = settings_view()
     day = due_day(now, view)
     if not day:
         return 0
     people = recipients()
-    if not people:
+    if not _pending_recipients(day, people):
         return 0
     stored = load(day, view["tz"]) or report(day, view["tz"], now=now)
-    if not stored.get("summary"):
+    attempt_key = (day, view["tz"])
+    attempts = _AUTO_SUMMARY_ATTEMPTS.get(attempt_key, 0)
+    if not stored.get("summary") and attempts < MAX_AUTO_SUMMARY_ATTEMPTS:
+        if len(_AUTO_SUMMARY_ATTEMPTS) > 30:
+            _AUTO_SUMMARY_ATTEMPTS.clear()
+        _AUTO_SUMMARY_ATTEMPTS[attempt_key] = attempts + 1
         try:
             await asyncio.wait_for(summarize(stored), timeout=15.0)
         except Exception:

@@ -26,7 +26,7 @@ const detail={ok:true,product:{id:'p1',title:'Товар один',category:'foo
    points:[{observed_at:'2026-10-29T10:00:00+00:00',price:7000}]}]}};
 
 const searchResponse=(q)=>({query:q,total_products:45,page:1,total_pages:3,has_prev:false,has_next:true,outcome:'FOUND',facets_available:true,
- items:[{product:{id:'p1',title:'Товар '+q},min_price:6000,sellers_count:1,has_new:true,best_offer:{}}],
+ items:[{product:{id:'p1',title:'Товар '+q,attributes:{storage:'256 ГБ',screen_diagonal:'6.1"',color:"Men's Black"}},min_price:6000,sellers_count:1,has_new:true,best_offer:{}}],
  category_facets:[{id:'food',name:'Еда',count:40},{id:'home',name:'Дом',count:5}],
  seller_facets:[{id:'s1',name:'Магазин Один',slug:'one',count:45}],city_facets:[],brand_facets:[]});
 
@@ -77,6 +77,23 @@ async function scenario(browser,{width,height,scheme}){
  assert.match(page.url(),/sort=price_asc/);
  await page.locator('#paginationBar .page-btn',{hasText:'2'}).click();
  await page.waitForFunction(()=>location.search.includes('page=2'));
+ await cardsVisible('Товар третий');
+
+ // Кликабельные характеристики на карточке: апостроф, диагональ и снятие фильтра
+ const colorTag=page.locator('.card-spec-tag',{hasText:"Men's Black"}).first();
+ await colorTag.click();
+ await page.waitForFunction(()=>{const a=new URLSearchParams(location.search).get('attributes');return a&&JSON.parse(a).color==="Men's Black";});
+ await cardsVisible('Товар третий');
+ assert.ok(await page.locator('.card-spec-tag.active',{hasText:"Men's Black"}).first().isVisible(),`${label}: активная плашка цвета`);
+ await page.locator('.card-spec-tag.active',{hasText:"Men's Black"}).first().click();
+ await page.waitForFunction(()=>!new URLSearchParams(location.search).get('attributes'));
+ await cardsVisible('Товар третий');
+ const diagTag=page.locator('.card-spec-tag',{hasText:'6.1"'}).first();
+ await diagTag.click();
+ await page.waitForFunction(()=>{const a=new URLSearchParams(location.search).get('attributes');return a&&JSON.parse(a).screen_diagonal==='6.1"';});
+ await cardsVisible('Товар третий');
+ await page.locator('.card-spec-tag.active',{hasText:'6.1"'}).first().click();
+ await page.waitForFunction(()=>!new URLSearchParams(location.search).get('attributes'));
  await cardsVisible('Товар третий');
 
  // Фильтры: применение и сброс; на узком экране — через панель
