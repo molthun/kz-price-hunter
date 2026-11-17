@@ -3,6 +3,16 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.40.15] - 2026-11-18
+
+### Для пользователей
+- 🗂️ Исправлена вёрстка мега-меню «Все категории» (`web/templates/search_first.html`): названия категорий и подкатегорий больше не обрезаются о счётчики, а группы подкатегорий плотно выстраиваются по колонкам без пустых вертикальных провалов.
+
+### Исправления
+- **Каталог категорий (`web/templates/search_first.html`):**
+  - Ширина левой колонки `.catalog-modal-grid` увеличена до `300px`, добавлены `gap: 8px` и перенос строк для `.catalog-l1-item-left` и `.catalog-subcat-left` с `flex-shrink: 0` для счётчиков.
+  - `.catalog-groups-container` переведён на CSS multi-column masonry (`columns: 260px 3; column-gap: 28px`) с `break-inside: avoid` на `.catalog-group-card` и одноколоночным режимом на мобильных (`@media (max-width: 768px)`).
+
 ## [6.40.14] - 2026-11-18
 
 ### Для пользователей
