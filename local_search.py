@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import Counter
 import hashlib
 import json
 import math
@@ -196,13 +197,10 @@ def _drop_memory_word(m):
     return ' '
 
 
-def _memory_numbers(attrs):
-    """Числа из подтверждённых значений памяти: они переехали в фильтр и не теряются при переписывании."""
-    out = set()
-    for key in _MEMORY_KEYS:
-        if attrs.get(key):
-            out.update(re.findall(r'\d+', str(attrs[key])))
-    return out
+def _pair_components(m):
+    """Значения «a/b» в виде индекса: ОЗУ «a ГБ» и встроенная память «b ГБ/ТБ»."""
+    unit = 'тб' if _canon_unit(m.group(3) or 'гб') == 'тб' else 'гб'
+    return {'ram': f'{m.group(1)} гб', 'storage': f'{m.group(2)} {unit}'}
 
 
 def _strip_memory_phrases(search, attrs):
@@ -210,6 +208,8 @@ def _strip_memory_phrases(search, attrs):
 
     «ноутбук оперативная память 16 ГБ» → «ноутбук»; «Xiaomi 14 8/256» → «Xiaomi 14». Номер модели
     и прочие слова не трогаются: удаляется только число вместе со своей единицей или парой.
+    Запись «8/256» удаляется, только если ОБА её компонента стали фильтрами (R21-03): иначе
+    необработанная половина осталась бы без условия, и 8/128 выдавался бы за 8/256.
     """
     text = search
     present = [k for k in _MEMORY_KEYS if attrs.get(k)]
@@ -217,20 +217,79 @@ def _strip_memory_phrases(search, attrs):
         return text
     values = {_norm(attrs[k]) for k in present}
     for m in list(_MEMORY_PAIR.finditer(_norm(text)))[::-1]:
-        ram, storage = m.group(1), m.group(2)
-        unit = _canon_unit(m.group(3) or 'гб')
-        if (_norm(f'{ram} гб') in values) or (_norm(f'{storage} {unit}') in values):
+        comps = _pair_components(m)
+        if all(_norm(v) in values for v in comps.values()):
             text = text[:m.start()] + ' ' + text[m.end():]
     for value in values:
         numbers = re.findall(r'\d+(?:[.,]\d+)?', value)
         if len(numbers) != 1:
             continue
         unit = _canon_unit(value.replace(numbers[0], '', 1))
-        for m in reversed(_unit_occurrences(_norm(text), numbers[0], unit)):
+        low = _norm(text)
+        kept_pairs = [(m.start(), m.end()) for m in _MEMORY_PAIR.finditer(low)]
+        for m in reversed(_unit_occurrences(low, numbers[0], unit)):
+            # «256GB» внутри оставленной «8/256GB» — часть необработанной записи
+            if any(a <= m.start() < b for a, b in kept_pairs):
+                continue
             text = text[:m.start()] + ' ' + text[m.end():]
     text = _MEMORY_WORDS_RE.sub(_drop_memory_word, text)
     text = re.sub(r'\s+', ' ', text).strip(' ,;/-')
     return text
+
+
+def _restore_unapplied_memory(text, original, grounded, applied):
+    """Память запроса, которая не стала фильтром (поле не заполнено в индексе), остаётся в тексте.
+
+    Модель могла убрать «8/256» или «16 ГБ» из search_query, рассчитывая на фильтр; если фильтра
+    нет, условие возвращается словами исходного запроса — иначе оно исчезает молча (R21-03).
+    """
+    unapplied = {k: _norm(v) for k, v in grounded.items() if k in _MEMORY_KEYS and v and k not in applied}
+    if not unapplied:
+        return text
+    q, low = _norm(original), _norm(text)
+    extra, pair_spans = [], []
+    for m in _MEMORY_PAIR.finditer(q):
+        pair_spans.append((m.start(), m.end()))
+        comps = _pair_components(m)
+        if not any(unapplied.get(k) == v for k, v in comps.items()):
+            continue
+        if not any(_pair_components(t) == comps for t in _MEMORY_PAIR.finditer(low)):
+            # «8 ГБ 256 ГБ» от модели не встречается в названиях («8/256GB»): пара возвращается
+            # в записи запроса, а раздельные значения её компонентов убираются
+            for value in comps.values():
+                number, unit = value.split()
+                for hit in reversed(_unit_occurrences(_norm(text), number, unit)):
+                    text = text[:hit.start()] + ' ' + text[hit.end():]
+            low = _norm(text)
+            extra.append(m.group(0).strip())
+    for key, value in unapplied.items():
+        numbers = re.findall(r'\d+(?:[.,]\d+)?', value)
+        if len(numbers) != 1:
+            continue
+        unit = _canon_unit(value.replace(numbers[0], '', 1))
+        hits = [m for m in _unit_occurrences(q, numbers[0], unit)
+                if not any(a <= m.start() < b for a, b in pair_spans)]
+        if hits and not _unit_occurrences(low, numbers[0], unit):
+            extra.append(hits[0].group(0).strip())
+    return re.sub(r'\s+', ' ', ' '.join([text] + extra)).strip() if extra else text
+
+
+_VARIANT_WORDS = ('pro', 'max', 'ultra', 'mini', 'lite', 'air', 'plus', 'se', 'fe')
+
+
+def _rewrite_loses_constraints(query, search, attrs):
+    """Переписанный запрос потерял номер модели/размер или вариант (Pro, Max…).
+
+    Числа сравниваются как МУЛЬТИМНОЖЕСТВА после удаления описаний памяти, ставших условием:
+    в «VivoBook 16 ОЗУ 16 ГБ» второе 16 — фильтр ram, а первое — номер модели, и его потеря
+    не оправдывается совпадающим объёмом памяти (R21-02).
+    """
+    need = Counter(re.findall(r'\d+', _strip_memory_phrases(query, attrs)))
+    have = Counter(re.findall(r'\d+', _strip_memory_phrases(search, attrs)))
+    if need - have:
+        return True
+    return any(re.search(r'\b' + v + r'\b', query, re.I) and not re.search(r'\b' + v + r'\b', search, re.I)
+               for v in _VARIANT_WORDS)
 
 
 def grounded_attributes(attrs, query, fields=()):
@@ -530,12 +589,7 @@ def clean_plan(answer, query, categories):
     # Число памяти, подтверждённое характеристикой (ОЗУ/накопитель/видеопамять), не потеряно —
     # оно стало условием фильтра; описание памяти убирается из текста поиска, иначе
     # «оперативная память 16 ГБ» ищется словами, которых нет в названиях («16GB»).
-    covered = _memory_numbers(attrs)
-    original_numbers = set(re.findall(r'\d+', query)) - covered
-    required_variants = {v for v in ('pro','max','ultra','mini','lite','air','plus','se','fe')
-                         if re.search(r'\b'+v+r'\b', query, re.I)}
-    if (not original_numbers.issubset(set(re.findall(r'\d+', search))) or
-        any(not re.search(r'\b'+v+r'\b', search, re.I) for v in required_variants)):
+    if _rewrite_loses_constraints(query, search, attrs):
         search = query
         attrs = {k: v for k, v in attrs.items() if k in _MEMORY_KEYS}
     try:
@@ -769,6 +823,11 @@ def search_sync(arguments, understanding, selected_attributes):
                 # память 16 ГБ» не встречается в названиях («16GB») и обнуляла выдачу (стенд 6.40.19–20)
                 memory = {k: inferred_attrs[k] for k in _MEMORY_KEYS if k in inferred_attrs}
                 memory.update({k: attrs[k] for k in _MEMORY_KEYS if k in attrs})
+                # Сохранённый план мог потерять номер модели, совпавший с объёмом памяти (R21-02)
+                if _rewrite_loses_constraints(original, search_args['query'], grounded):
+                    search_args['query'] = original
+                # Память без заполненного поля остаётся условием текста (R21-03)
+                search_args['query'] = _restore_unapplied_memory(search_args['query'], original, grounded, memory)
                 if memory:
                     search_args['query'] = _strip_memory_phrases(search_args['query'], memory) or search_args['query']
                 # Подтверждённые моделью товары не теряются из-за слова запроса, которого нет в названии:
@@ -782,6 +841,9 @@ def search_sync(arguments, understanding, selected_attributes):
                         search_args[key] = value
         repo = SearchRepository(conn)
         repo.attribute_filters = attrs
+        # Цель наблюдения получает тот же текст, что и выдача, до apply_semantics: matches_watch
+        # применяет семантику сам (R21-01 — раньше в цель уходил неочищенный текст модели)
+        watch_query = search_args['query']
         if inferred_category:
             search_args['query'], verified = apply_semantics(repo, original, search_args['query'],
                                                              search_args.get('category'), inferred_attrs)
@@ -832,12 +894,12 @@ def search_sync(arguments, understanding, selected_attributes):
             'is_fallback': fallback_applied,
         }
         if original and res.outcome != 'ERROR':
-            spec = dict(query=search_args['query'], original_query=original, category=search_args.get('category'),
+            spec = dict(query=watch_query, original_query=original, category=search_args.get('category'),
                         attributes=attrs, inferred_attributes=inferred_attrs,
                         min_price=res.parsed_query.min_price, max_price=res.parsed_query.max_price,
                         brand=search_args.get('brand'), model=search_args.get('model'), kind=search_args.get('kind'))
             if plan and plan['confidence'] >= 0.85 and not selected_category:
-                spec.update(query=plan['search_query'], category=plan['category_id'])
+                spec.update(category=plan['category_id'])
             data['search_help']['watch_target'] = WATCH_PREFIX + json.dumps(spec, ensure_ascii=False, sort_keys=True)
             data['search_help']['watch_city'] = res.parsed_query.detected_city
             data['search_help']['watch_conditions'] = ([res.parsed_query.condition.lower()]
@@ -1156,6 +1218,10 @@ def matches_watch(target, offer):
         pid = offer.get('canonical_product_id') or offer.get('product_id')
         if not pid:
             return False
+        # Цели, сохранённые до 6.40.22, несут неочищенный текст памяти: та же очистка, что в выдаче
+        memory = {k: v for k, v in {**inferred, **attrs}.items() if k in _MEMORY_KEYS}
+        if memory:
+            query = _strip_memory_phrases(query, memory) or query
         conn = get_connection()
         try:
             repo = SearchRepository(conn); repo.attribute_filters = attrs
