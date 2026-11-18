@@ -103,3 +103,100 @@ class SearchAndWatchGroundingTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class NumericRoleGroundingTests(unittest.TestCase):
+    """Остаток A04 (переаудит 6.40.16): число подтверждает признак только в своей роли."""
+
+    def g(self, query, **attrs):
+        return local_search.grounded_attributes(attrs, query)
+
+    def test_model_number_is_not_memory_or_diagonal(self):
+        self.assertEqual(self.g('iPhone 16', ram='16 ГБ', storage='16 ГБ', screen_size='16"'), {})
+        self.assertEqual(self.g('Galaxy S24', ram='24 ГБ'), {})
+        self.assertEqual(self.g('RTX 4060', vram='4060 ГБ'), {})
+        self.assertEqual(self.g('телевизор LG 55', screen_diagonal='55"'), {})
+
+    def test_tire_size_numbers_only_in_their_positions(self):
+        q = 'зимняя резина 205/55 R16'
+        self.assertEqual(self.g(q, width='205', profile='55', diameter='16'),
+                         {'width': '205', 'profile': '55', 'diameter': '16'})
+        self.assertEqual(self.g(q, width='55', profile='205', diameter='55'), {})
+        self.assertEqual(self.g('шины R17', diameter='17', width='17'), {'diameter': '17'})
+        self.assertEqual(self.g('шины 16', diameter='16'), {})
+
+    def test_explicit_memory_requests_are_kept(self):
+        cases = [
+            ('iPhone 16 128GB', dict(storage='128 ГБ', ram='128 ГБ'), {'storage': '128 ГБ'}),
+            ('iPhone 15 Pro 1TB', dict(storage='1 ТБ'), {'storage': '1 ТБ'}),
+            ('Xiaomi 14 8/256', dict(ram='8 ГБ', storage='256 ГБ'), {'ram': '8 ГБ', 'storage': '256 ГБ'}),
+            ('ноутбук 16 ГБ ОЗУ 512 ГБ SSD', dict(ram='16 ГБ', storage='512 ГБ'), {'ram': '16 ГБ', 'storage': '512 ГБ'}),
+            ('ноутбук озу 16гб', dict(ram='16 ГБ', storage='16 ГБ'), {'ram': '16 ГБ'}),
+            ('iPhone 16 память 16 ГБ', dict(ram='16 ГБ', storage='16 ГБ'), {'storage': '16 ГБ'}),
+            ('телевизор 55 дюймов 120 Гц', {'screen_diagonal': '55"', 'refresh_rate': '120 Гц'},
+             {'screen_diagonal': '55"', 'refresh_rate': '120 Гц'}),
+            ('RTX 4060 8GB', dict(vram='8 ГБ'), {'vram': '8 ГБ'}),
+        ]
+        for query, attrs, expected in cases:
+            with self.subTest(query=query):
+                self.assertEqual(local_search.grounded_attributes(attrs, query), expected)
+
+    def test_ambiguous_memory_number_is_not_a_requirement(self):
+        # «16GB» без пояснения — ОЗУ или память? Обязательным условием не становится
+        self.assertEqual(self.g('ноутбук 16GB', ram='16 ГБ', storage='16 ГБ'), {})
+        # Пояснения по обе стороны числа спорят: ОЗУ не берётся, однозначный 1 ТБ — да
+        self.assertEqual(self.g('ноутбук ОЗУ 32GB SSD 1TB', ram='32 ГБ', storage='1 ТБ'), {'storage': '1 ТБ'})
+
+
+class NumericRoleSearchTests(unittest.TestCase):
+    """Полный путь пробы аудитора: clean_plan → search_sync → watch_target, новый и старый план."""
+
+    def setUp(self):
+        from tests.search.test_attribute_facets_filter import create_test_db
+        from tests.search.test_card_attributes_consistency import seed as seed_phone, TITLE
+        from repositories.category_repo import CategoryRepository
+        from domain.attribute_indexing import index_product_facts
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = self.tmp.name + '/db'
+        conn = create_test_db()
+        CategoryRepository(conn).seed_defaults_if_empty()
+        seed_phone(conn, attrs={'storage': '128 ГБ', 'ram': '6 ГБ'})
+        index_product_facts(conn, 'p1', [{'name': 'Оперативная память', 'value': '6 ГБ'}], TITLE)
+        conn.commit()
+        disk = sqlite3.connect(self.path)
+        conn.backup(disk)
+        disk.close()
+        self.cats = local_search.catalog_context(conn)
+        conn.close()
+
+    def run_search(self, understanding):
+        args = {'query': 'iPhone 16', 'city': 'Алматы', 'limit': 20}
+        with patch('database.get_connection', side_effect=lambda: sqlite3.connect(self.path)):
+            return local_search.search_sync(args, understanding, {})
+
+    def assert_no_ram(self, data):
+        self.assertEqual(data['total_products'], 1)
+        self.assertNotIn('ram', data['selected_attributes'])
+        spec = json.loads(data['search_help']['watch_target'][len(local_search.WATCH_PREFIX):])
+        self.assertNotIn('ram', spec.get('inferred_attributes') or {})
+        self.assertNotIn('ram', spec.get('attributes') or {})
+
+    def test_new_model_answer_with_ram_16(self):
+        fields = [{'key': 'ram', 'label': 'Оперативная память'}]
+        answer = {'category_id': 'phones', 'category_name': 'Смартфоны', 'confidence': .99,
+                  'search_query': 'iPhone 16', 'fields': fields, 'attributes': {'ram': '16 ГБ'}}
+        plan = local_search.clean_plan(answer, 'iPhone 16', self.cats)
+        self.assertNotIn('ram', plan['attributes'])
+        self.assert_no_ram(self.run_search({'status': 'ok', 'plan': plan}))
+
+    def test_stale_saved_plan_with_ram_16(self):
+        stale = dict(search_query='iPhone 16', category_id='phones', category_name='Смартфоны', parent_id=None,
+                     fields=[{'key': 'ram', 'label': 'Оперативная память'}], confidence=0.99,
+                     attributes={'ram': '16 ГБ'}, clarification='')
+        conn = sqlite3.connect(self.path)
+        CatalogExpansionRepository(conn).save_intent('iPhone 16', stale)
+        conn.commit()
+        conn.close()
+        self.assert_no_ram(self.run_search({'status': 'ok', 'plan': stale}))
+        self.assert_no_ram(self.run_search({'status': 'unavailable'}))

@@ -63,6 +63,102 @@ def _flag_from_query(key, label, q):
     return None
 
 
+# Остаток A04 (переаудит 6.40.16): совпадение цифр — не основание. «iPhone 16» не даёт «ОЗУ 16 ГБ»,
+# а «205/55 R16» подтверждает ширину, профиль и диаметр только на своих позициях.
+_TIRE_SIZE = re.compile(r'(?<!\d)(\d{3})\s*/\s*(\d{2})(?:\s*(?:z?r|р)?\s*(\d{2}))?(?!\d)')
+_TIRE_DIAMETER = re.compile(r'(?<![\w.])(?:z?r|р)\s*(\d{2})(?!\d)')
+_TIRE_KEYS = {'width': 0, 'profile': 1, 'diameter': 2}
+_NUM = r'(\d+(?:[.,]\d+)?)'
+# Единица значения → как её пишут в запросах. Число подтверждается только вместе с единицей.
+_UNIT_SYNONYMS = {
+    'гб': r'(?:гб|gb|g|гиг\w*)', 'тб': r'(?:тб|tb|t)', 'мб': r'(?:мб|mb)',
+    '"': r'(?:"|”|″|\'\'|дюйм\w*|inch\w*|in)', 'гц': r'(?:гц|hz)', 'вт': r'(?:вт|w)',
+    'мач': r'(?:мач|mah)', 'л': r'(?:л|l|литр\w*)', 'кг': r'(?:кг|kg)', 'мм': r'(?:мм|mm)',
+    'см': r'(?:см|cm)', 'мп': r'(?:мп|mp|мпикс\w*)', 'мгц': r'(?:мгц|mhz)', 'ггц': r'(?:ггц|ghz)',
+}
+_MEMORY_PAIR = re.compile(r'(?<![\w.])(\d{1,2})\s*/\s*(\d{2,4})\s*(?:гб|gb|g|тб|tb)?(?![\w/])')
+_RAM_WORDS = re.compile(r'озу|оператив|\bram\b')
+_STORAGE_WORDS = re.compile(r'памят|встроен|накопит|\brom\b|storage|ssd|hdd')
+
+
+def _same_number(a, b):
+    return float(a.replace(',', '.')) == float(b.replace(',', '.'))
+
+
+def _unit_occurrences(q, number, unit):
+    """Позиции, где в запросе стоит это число с этой единицей (16GB, 16 гб, 6.1", 120 Гц)."""
+    syn = _UNIT_SYNONYMS.get(unit)
+    if not syn:
+        return []
+    pattern = re.compile(r'(?<![\w.,])' + _NUM + r'\s*' + syn + r'(?![a-zа-я])')
+    return [m for m in pattern.finditer(q) if _same_number(m.group(1), number)]
+
+
+def _number_grounded(key, val, q, label):
+    numbers = re.findall(r'\d+(?:[.,]\d+)?', val)
+    if len(numbers) != 1:
+        return False
+    number = numbers[0]
+    if key in _TIRE_KEYS:
+        size = _TIRE_SIZE.search(q)
+        found = size.group(_TIRE_KEYS[key] + 1) if size else None
+        if key == 'diameter' and not found:
+            m = _TIRE_DIAMETER.search(q)
+            found = m.group(1) if m else None
+        return bool(found) and _same_number(found, number)
+    unit = _norm(val.replace(number, '', 1)).strip(' .')
+    if key in ('ram', 'storage'):
+        return _memory_grounded(key, number, unit, q)
+    if unit:
+        return bool(_unit_occurrences(q, number, unit))
+    # Безразмерное число: нужно слово самого признака рядом («мощность 2000»), а не номер модели
+    stems = [_stem(w) for w in re.findall(r'\w{3,}', _norm(label))]
+    for m in re.finditer(r'(?<![\w.,])' + re.escape(number) + r'(?![\w.,])', q):
+        near = q[max(0, m.start() - 24):m.end() + 24]
+        if stems and any(st in near for st in stems):
+            return True
+    return False
+
+
+def _between_numbers(q, m, reach=20):
+    """Пояснение относится к ближайшему числу: окно не заходит за соседние числа запроса."""
+    before = q[max(0, m.start() - reach):m.start()]
+    after = q[m.end():m.end() + reach]
+    prev = list(re.finditer(r'\d', before))
+    nxt = re.search(r'\d', after)
+    before = before[prev[-1].end():] if prev else before
+    after = after[:nxt.start()] if nxt else after
+    return before, after
+
+
+def _memory_role(q, m):
+    """'ram' / 'storage' по пояснению рядом с числом; None — пояснения нет или стороны спорят."""
+    roles = set()
+    for side in _between_numbers(q, m):
+        ram, storage = bool(_RAM_WORDS.search(side)), bool(_STORAGE_WORDS.search(side))
+        if ram != storage:
+            roles.add('ram' if ram else 'storage')
+    return roles.pop() if len(roles) == 1 else None
+
+
+def _memory_grounded(key, number, unit, q):
+    """ОЗУ и встроенная память: запись «8/256», явное слово рядом или однозначный объём."""
+    for m in _MEMORY_PAIR.finditer(q):
+        if _same_number(m.group(1 if key == 'ram' else 2), number):
+            return True
+    hits = _unit_occurrences(q, number, unit or 'гб')
+    for m in hits:
+        role = _memory_role(q, m)
+        if role:
+            if role == key:
+                return True
+            continue
+        # Без пояснения объём ≥ 64 ГБ или в ТБ — встроенная память; меньшее неоднозначно
+        if key == 'storage' and (unit == 'тб' or float(number.replace(',', '.')) >= 64):
+            return True
+    return False
+
+
 def grounded_attributes(attrs, query, fields=()):
     """Оставляет только характеристики, для которых в запросе есть основание.
 
@@ -83,9 +179,8 @@ def grounded_attributes(attrs, query, fields=()):
             if flag is not None:
                 out[key] = 'Да' if flag else 'Нет'
             continue
-        numbers = re.findall(r'\d+', val)
-        if numbers:
-            if set(numbers) <= q_numbers:
+        if re.search(r'\d', val):
+            if _number_grounded(key, val, q, labels.get(key) or ''):
                 out[key] = value
             continue
         words = [w for w in re.findall(r'\w{3,}', val)]
