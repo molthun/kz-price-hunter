@@ -1,0 +1,16 @@
+{
+  "captured_at": "2026-11-18T05:45:46.793966+00:00",
+  "result": {
+    "problems": [],
+    "version": "6.40.16",
+    "queue": {
+      "size": 0,
+      "failures": 0,
+      "redis_active": true,
+      "worker_running": true
+    },
+    "event_loop_lag_ms": 12.7,
+    "journal_mode": "wal"
+  },
+  "returncode": 0
+}

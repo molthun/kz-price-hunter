@@ -1,0 +1,32 @@
+{
+  "candidate_commit": "75b804eca8be50802d915d32d196849d0064c510",
+  "previous_audit_commit": "926e2b7",
+  "version": "6.40.16",
+  "decision": "returned",
+  "remaining": [
+    "A04: numeric occurrence is not evidence for an attribute role"
+  ],
+  "python": {
+    "count": 3112,
+    "seconds": 417.597,
+    "result": "OK",
+    "environment": "Linux Python 3.14.4; network none; temporary DB; 2 CPUs"
+  },
+  "frontend": {
+    "suites": 41,
+    "passed": 41,
+    "failed": 0
+  },
+  "dependencies": {
+    "pins_checked": 25,
+    "pip_audit_completed": true,
+    "known_vulnerabilities": 0,
+    "gate_ok": true
+  },
+  "secret_scan_findings": 0,
+  "live_tire_cases": 6,
+  "live_tire_cases_passed": 6,
+  "stand_only": true,
+  "production_changes": false,
+  "D04_in_scope": false
+}

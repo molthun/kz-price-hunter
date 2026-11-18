@@ -1,0 +1,14 @@
+{
+  "commit": "75b804eca8be50802d915d32d196849d0064c510",
+  "all_match": true,
+  "sha256": {
+    "version.py": "51254d16cf4c37ebc52360df63bab62b4144e0a2f3df7d61c28438da1a493e6c",
+    "constraints.txt": "0d6b0b1a3a6e8e590fe2f93ccb5f212a37bd20a2908c3f7dada0336107e83064",
+    "release_gate.py": "5029d77976e8fa7420525631f457d21dbd788d9646bfdf04518e847ae71f1f95",
+    "local_search.py": "400875ae3d5bdedcae2814bb25d0fd3bfa8cd79523f887653d3be9937ed67e58",
+    "domain/search_core.py": "74e9c0981a2ecfda93f0171aafdd8b999cb9cc7e6a696329123b506373908a77",
+    "repositories/search_repo.py": "7d8cd234232e716a4a67dd66d07d7a20f54d7be624fad2c0bffe38f62dfeb68b",
+    "web/templates/closed_login.html": "bb6487271f94be59394d58014584b01c0b56bc3e9c1b62541b1ebcecdaa02161",
+    "web/templates/search_first.html": "2b4a179f5ab5d1e2e1c7ba627622c2903707ccbef0d85c2bc9d7c90919a1a54c"
+  }
+}

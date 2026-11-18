@@ -1,0 +1,12 @@
+{'ok': True, 'checked': 25, 'mismatched': [], 'unpinned': [], 'pinned_not_installed': []}
+WARNING:pip_audit._cli:--no-deps is supported, but users are encouraged to fully hash their pinned dependencies
+WARNING:pip_audit._cli:Consider using a tool like `pip-compile`: https://pip-tools.readthedocs.io/en/latest/#using-hashes
+No known vulnerabilities found
+{
+  "ok": true,
+  "blocking": [],
+  "allowed": [],
+  "expired": [],
+  "skipped": [],
+  "note": "Пропуск уязвимости действует только с причиной и до указанной даты; непроверенная зависимость считается непроверенной, а не безопасной"
+}

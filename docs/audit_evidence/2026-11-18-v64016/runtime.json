@@ -1,0 +1,40 @@
+{
+  "captured_at": "2026-11-18T05:41:02.444081+00:00",
+  "returncode": 0,
+  "snapshot": {
+    "problems": [
+      {
+        "severity": "info",
+        "code": "fresh_start",
+        "problem": "Процесс поднят 165 с назад",
+        "meaning": "Метрики ещё не накопились; возможен недавний перезапуск или выкладка."
+      }
+    ],
+    "service": {
+      "version": "6.40.16",
+      "release_date": "2026-11-18",
+      "uptime_seconds": 164.8,
+      "started_at": "2026-11-18T05:38:17.557466+00:00"
+    },
+    "runtime": {
+      "python": "3.14.4",
+      "platform": "linux",
+      "cpu_count": 16,
+      "thread_pool_size": 16,
+      "threads_alive": 12,
+      "rss_mb": 194.8,
+      "event_loop_lag_ms": 1.9
+    },
+    "queue": {
+      "size": 0,
+      "failures": 0,
+      "redis_active": true,
+      "worker_running": true
+    },
+    "journal_mode": "wal",
+    "versions": {
+      "soupsieve": "4.1.1"
+    }
+  },
+  "error": null
+}

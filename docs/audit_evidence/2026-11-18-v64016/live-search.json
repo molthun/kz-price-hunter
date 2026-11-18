@@ -1,0 +1,246 @@
+[
+  {
+    "query": "зимняя резина 205/55 R16",
+    "city": "Астана",
+    "seconds": 9.61,
+    "total": 0,
+    "outcome": "NOT_FOUND",
+    "local_ai": {
+      "status": "ok",
+      "model": "qwen3-vl:8b-instruct",
+      "cached": false,
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": "tires",
+      "category_name": "Шины и диски",
+      "clarification": "",
+      "expansion": {
+        "id": "a50a209b5b62aba7b38b536a",
+        "status": "indexed",
+        "message": "Опрошено при обходе: найдено 30 товаров в магазинах"
+      },
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"tires\", \"inferred_attributes\": {\"diameter\": \"16\", \"profile\": \"55\", \"season\": \"Зимние\", \"width\": \"205\"}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"зимняя резина 205/55 R16\", \"query\": \"зимн 205/55 R16\"}",
+      "watch_city": "Астана",
+      "watch_conditions": []
+    },
+    "selected_attributes": {
+      "season": "Зимние",
+      "width": "205",
+      "profile": "55",
+      "diameter": "16"
+    },
+    "assertions": {
+      "studs_expected": null,
+      "studs_actual": null,
+      "studs_ok": true,
+      "city_ok": true,
+      "no_size_requestion": true
+    }
+  },
+  {
+    "query": "зимняя резина 205/55 R16",
+    "city": "Алматы",
+    "seconds": 6.33,
+    "total": 0,
+    "outcome": "NOT_FOUND",
+    "local_ai": {
+      "status": "ok",
+      "model": "qwen3-vl:8b-instruct",
+      "cached": true,
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": "tires",
+      "category_name": "Шины и диски",
+      "clarification": "",
+      "expansion": {
+        "id": "a547ef2c66d83fc0515e014f",
+        "status": "approved",
+        "message": ""
+      },
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"tires\", \"inferred_attributes\": {\"diameter\": \"16\", \"profile\": \"55\", \"season\": \"Зимние\", \"width\": \"205\"}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"зимняя резина 205/55 R16\", \"query\": \"зимн 205/55 R16\"}",
+      "watch_city": "Алматы",
+      "watch_conditions": []
+    },
+    "selected_attributes": {
+      "season": "Зимние",
+      "width": "205",
+      "profile": "55",
+      "diameter": "16"
+    },
+    "assertions": {
+      "studs_expected": null,
+      "studs_actual": null,
+      "studs_ok": true,
+      "city_ok": true,
+      "no_size_requestion": true
+    }
+  },
+  {
+    "query": "зимняя резина 205/55 R16 без шипов",
+    "city": "Астана",
+    "seconds": 10.5,
+    "total": 0,
+    "outcome": "NOT_FOUND",
+    "local_ai": {
+      "status": "ok",
+      "model": "qwen3-vl:8b-instruct",
+      "cached": false,
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": "tires",
+      "category_name": "Шины и диски",
+      "clarification": "",
+      "expansion": {
+        "id": "0452150284f844b6a4114dd4",
+        "status": "approved",
+        "message": ""
+      },
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"tires\", \"inferred_attributes\": {\"diameter\": \"16\", \"profile\": \"55\", \"season\": \"Зимние\", \"studs\": \"Нет\", \"width\": \"205\"}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"зимняя резина 205/55 R16 без шипов\", \"query\": \"зимн 205/55 R16 без шипов\"}",
+      "watch_city": "Астана",
+      "watch_conditions": []
+    },
+    "selected_attributes": {
+      "season": "Зимние",
+      "width": "205",
+      "profile": "55",
+      "diameter": "16",
+      "studs": "Нет"
+    },
+    "assertions": {
+      "studs_expected": "Нет",
+      "studs_actual": "Нет",
+      "studs_ok": true,
+      "city_ok": true,
+      "no_size_requestion": true
+    }
+  },
+  {
+    "query": "зимняя резина 205/55 R16 без шипов",
+    "city": "Алматы",
+    "seconds": 6.63,
+    "total": 0,
+    "outcome": "NOT_FOUND",
+    "local_ai": {
+      "status": "ok",
+      "model": "qwen3-vl:8b-instruct",
+      "cached": true,
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": "tires",
+      "category_name": "Шины и диски",
+      "clarification": "",
+      "expansion": {
+        "id": "4491290472800573a3002f88",
+        "status": "approved",
+        "message": ""
+      },
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"tires\", \"inferred_attributes\": {\"diameter\": \"16\", \"profile\": \"55\", \"season\": \"Зимние\", \"studs\": \"Нет\", \"width\": \"205\"}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"зимняя резина 205/55 R16 без шипов\", \"query\": \"зимн 205/55 R16 без шипов\"}",
+      "watch_city": "Алматы",
+      "watch_conditions": []
+    },
+    "selected_attributes": {
+      "season": "Зимние",
+      "width": "205",
+      "profile": "55",
+      "diameter": "16",
+      "studs": "Нет"
+    },
+    "assertions": {
+      "studs_expected": "Нет",
+      "studs_actual": "Нет",
+      "studs_ok": true,
+      "city_ok": true,
+      "no_size_requestion": true
+    }
+  },
+  {
+    "query": "зимняя резина 205/55 R16 шипованные",
+    "city": "Астана",
+    "seconds": 9.88,
+    "total": 0,
+    "outcome": "NOT_FOUND",
+    "local_ai": {
+      "status": "ok",
+      "model": "qwen3-vl:8b-instruct",
+      "cached": false,
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": "tires",
+      "category_name": "Шины и диски",
+      "clarification": "",
+      "expansion": {
+        "id": "c185f9b4380361b65b070444",
+        "status": "approved",
+        "message": ""
+      },
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"tires\", \"inferred_attributes\": {\"diameter\": \"16\", \"profile\": \"55\", \"season\": \"Зимние\", \"studs\": \"Да\", \"width\": \"205\"}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"зимняя резина 205/55 R16 шипованные\", \"query\": \"зимн 205/55 R16 шип\"}",
+      "watch_city": "Астана",
+      "watch_conditions": []
+    },
+    "selected_attributes": {
+      "season": "Зимние",
+      "width": "205",
+      "profile": "55",
+      "diameter": "16",
+      "studs": "Да"
+    },
+    "assertions": {
+      "studs_expected": "Да",
+      "studs_actual": "Да",
+      "studs_ok": true,
+      "city_ok": true,
+      "no_size_requestion": true
+    }
+  },
+  {
+    "query": "зимняя резина 205/55 R16 шипованные",
+    "city": "Алматы",
+    "seconds": 6.46,
+    "total": 0,
+    "outcome": "NOT_FOUND",
+    "local_ai": {
+      "status": "ok",
+      "model": "qwen3-vl:8b-instruct",
+      "cached": true,
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": "tires",
+      "category_name": "Шины и диски",
+      "clarification": "",
+      "expansion": {
+        "id": "b8516601549b218c274b43bc",
+        "status": "approved",
+        "message": ""
+      },
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"tires\", \"inferred_attributes\": {\"diameter\": \"16\", \"profile\": \"55\", \"season\": \"Зимние\", \"studs\": \"Да\", \"width\": \"205\"}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"зимняя резина 205/55 R16 шипованные\", \"query\": \"зимн 205/55 R16 шип\"}",
+      "watch_city": "Алматы",
+      "watch_conditions": []
+    },
+    "selected_attributes": {
+      "season": "Зимние",
+      "width": "205",
+      "profile": "55",
+      "diameter": "16",
+      "studs": "Да"
+    },
+    "assertions": {
+      "studs_expected": "Да",
+      "studs_actual": "Да",
+      "studs_ok": true,
+      "city_ok": true,
+      "no_size_requestion": true
+    }
+  }
+]

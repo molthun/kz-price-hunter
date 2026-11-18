@@ -1,0 +1,24 @@
+{
+  "local_ai": {
+    "status": "ok",
+    "model": "qwen3-vl:8b-instruct",
+    "cached": false,
+    "cached_plan": false
+  },
+  "checks": [
+    {
+      "id": "prod_c66aaa0e1a038fc0",
+      "title": "Смартфон Apple iPhone 15 6/128GB Green (3M426ZF/A) Demo",
+      "filter": {
+        "color": "Green"
+      },
+      "exact_product_kept": true,
+      "total_after": 1,
+      "attributes": {
+        "color": "Green",
+        "ram": "6 ГБ",
+        "storage": "128 ГБ"
+      }
+    }
+  ]
+}
