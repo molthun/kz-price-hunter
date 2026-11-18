@@ -180,6 +180,59 @@ def _memory_grounded(key, number, unit, q):
     return False
 
 
+_MEMORY_KEYS = ('ram', 'storage', 'vram')
+_MEMORY_WORDS_RE = re.compile(
+    r'(?:оперативн\w*|встроенн\w*|видео)?\s*памят\w*|\bозу\b|\bram\b|\brom\b|\bvram\b|видеопамят\w*|'
+    r'(?<![\w])(?:объ[её]м\w*)\b', re.I)
+
+
+# «карта памяти», «модуль памяти», «флешка памяти» — вид товара, а не пояснение к числу
+_MEMORY_PRODUCT_NOUN = re.compile(r'(?:карт\w*|модул\w*|планк\w*|флеш\w*|чип\w*|микросхем\w*)\s*$', re.I)
+
+
+def _drop_memory_word(m):
+    if _MEMORY_PRODUCT_NOUN.search(m.string[:m.start()]):
+        return m.group(0)
+    return ' '
+
+
+def _memory_numbers(attrs):
+    """Числа из подтверждённых значений памяти: они переехали в фильтр и не теряются при переписывании."""
+    out = set()
+    for key in _MEMORY_KEYS:
+        if attrs.get(key):
+            out.update(re.findall(r'\d+', str(attrs[key])))
+    return out
+
+
+def _strip_memory_phrases(search, attrs):
+    """Убирает из текста поиска значения памяти, ставшие фильтром, и слова-пояснения к ним.
+
+    «ноутбук оперативная память 16 ГБ» → «ноутбук»; «Xiaomi 14 8/256» → «Xiaomi 14». Номер модели
+    и прочие слова не трогаются: удаляется только число вместе со своей единицей или парой.
+    """
+    text = search
+    present = [k for k in _MEMORY_KEYS if attrs.get(k)]
+    if not present:
+        return text
+    values = {_norm(attrs[k]) for k in present}
+    for m in list(_MEMORY_PAIR.finditer(_norm(text)))[::-1]:
+        ram, storage = m.group(1), m.group(2)
+        unit = _canon_unit(m.group(3) or 'гб')
+        if (_norm(f'{ram} гб') in values) or (_norm(f'{storage} {unit}') in values):
+            text = text[:m.start()] + ' ' + text[m.end():]
+    for value in values:
+        numbers = re.findall(r'\d+(?:[.,]\d+)?', value)
+        if len(numbers) != 1:
+            continue
+        unit = _canon_unit(value.replace(numbers[0], '', 1))
+        for m in reversed(_unit_occurrences(_norm(text), numbers[0], unit)):
+            text = text[:m.start()] + ' ' + text[m.end():]
+    text = _MEMORY_WORDS_RE.sub(_drop_memory_word, text)
+    text = re.sub(r'\s+', ' ', text).strip(' ,;/-')
+    return text
+
+
 def grounded_attributes(attrs, query, fields=()):
     """Оставляет только характеристики, для которых в запросе есть основание.
 
@@ -441,13 +494,19 @@ def clean_plan(answer, query, categories):
 
     search = str(answer.get('search_query', query)).strip()[:300]
     # A rewritten query must not silently lose a concrete model/size number.
-    original_numbers = set(re.findall(r'\d+', query))
+    # Число памяти, подтверждённое характеристикой (ОЗУ/накопитель/видеопамять), не потеряно —
+    # оно стало условием фильтра; описание памяти убирается из текста поиска, иначе
+    # «оперативная память 16 ГБ» ищется словами, которых нет в названиях («16GB»).
+    covered = _memory_numbers(attrs)
+    original_numbers = set(re.findall(r'\d+', query)) - covered
     required_variants = {v for v in ('pro','max','ultra','mini','lite','air','plus','se','fe')
                          if re.search(r'\b'+v+r'\b', query, re.I)}
     if (not original_numbers.issubset(set(re.findall(r'\d+', search))) or
         any(not re.search(r'\b'+v+r'\b', search, re.I) for v in required_variants)):
         search = query
-        attrs = {}
+        attrs = {k: v for k, v in attrs.items() if k in _MEMORY_KEYS}
+    if attrs:
+        search = _strip_memory_phrases(search, attrs) or search
     try:
         raw_conf = answer.get('confidence')
         if raw_conf is not None:
@@ -459,18 +518,24 @@ def clean_plan(answer, query, categories):
     except (ValueError, TypeError):
         confidence = 0.95 if cid in by_id else 0.5
     clarification = '' if (orig_cid and cid != orig_cid) else str(answer.get('clarification') or '').strip()[:220]
-    if _asks_known(clarification, attrs, fields, query):
+    if _asks_known(clarification, attrs, fields, query) or (
+            set(attrs) & set(_MEMORY_KEYS) and re.search(r'памят|озу', _norm(clarification))):
         clarification = ''
     if not clarification:
         if cid == 'tires':
             if not (_SIZE_KEYS & set(attrs)) and not re.search(r'\d{3}\s*/\s*\d{2}', query):
                 clarification = 'Укажите размер, например 205/55 R16, — это поможет точнее подобрать варианты.'
-        elif cid == 'laptops':
-            clarification = 'Укажите диагональ экрана, процессор или объем памяти для точного подбора.'
+        # Подсказка не переспрашивает память, уже указанную в запросе и ставшую условием
+        has_memory = bool(set(attrs) & set(_MEMORY_KEYS))
+        if cid == 'laptops':
+            clarification = ('Укажите диагональ экрана или процессор для точного подбора.' if has_memory else
+                             'Укажите диагональ экрана, процессор или объем памяти для точного подбора.')
         elif cid in ('phones', 'smartphones'):
-            clarification = 'Укажите объем памяти или цвет модели для точного подбора.'
+            clarification = ('Укажите цвет модели для точного подбора.' if has_memory else
+                             'Укажите объем памяти или цвет модели для точного подбора.')
         elif cid in ('gpus', 'pc_components'):
-            clarification = 'Укажите модель чипа или объем памяти для точного подбора.'
+            clarification = ('Укажите модель чипа для точного подбора.' if has_memory else
+                             'Укажите модель чипа или объем памяти для точного подбора.')
 
     return dict(search_query=search, category_id=cid, category_name=name,
                 parent_id=parent if parent in by_id and parent != cid else None,
@@ -716,7 +781,8 @@ def search_sync(arguments, understanding, selected_attributes):
         data['local_ai'] = {k: v for k, v in understanding.items() if k != 'plan'}
         data['local_ai']['cached_plan'] = cached_plan
         clarification_msg = (plan or {}).get('clarification', '')
-        if plan and _asks_known(clarification_msg, plan.get('attributes') or {}, plan.get('fields') or (), original):
+        if plan and (_asks_known(clarification_msg, plan.get('attributes') or {}, plan.get('fields') or (), original) or (
+                set(plan.get('attributes') or {}) & set(_MEMORY_KEYS) and re.search(r'памят|озу', _norm(clarification_msg)))):
             clarification_msg = ''
         if fallback_applied:
             clarification_msg = f'По запросу «{original}» точных совпадений в каталоге не найдено. Показаны товары из раздела «{cat.name if cat else inferred_category}».'

@@ -268,3 +268,94 @@ class MemoryRoleSearchTests(NumericRoleSearchTests):
         self.assertEqual(plan['attributes'], {})
         self.assertEqual(data['total_products'], 1)
         self.assertEqual({k: v for k, v in watch.items() if k in ('ram', 'storage')}, {})
+
+
+class LaptopMemorySearchTests(unittest.TestCase):
+    """Стенд 6.40.19: «ноутбук оперативная память 16 ГБ» давал 0 товаров.
+
+    Модель переносит «16 ГБ» из текста в характеристику ram; clean_plan считал это потерей числа,
+    откатывал запрос к исходной фразе и сбрасывал ram, а такой фразы нет в названиях («16GB»).
+    """
+    T16 = 'Ноутбук ASUS VivoBook 15 X1504 16GB 512GB SSD'
+    T8 = 'Ноутбук ASUS VivoBook 15 X1504 8GB 512GB SSD'
+    QUERY = 'ноутбук оперативная память 16 ГБ'
+
+    def setUp(self):
+        from tests.search.test_attribute_facets_filter import create_test_db
+        from tests.search.test_card_attributes_consistency import seed as seed_product
+        from repositories.category_repo import CategoryRepository
+        from domain.attribute_indexing import index_product_facts
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = self.tmp.name + '/db'
+        conn = create_test_db()
+        CategoryRepository(conn).seed_defaults_if_empty()
+        for pid, title in (('l16', self.T16), ('l8', self.T8)):
+            seed_product(conn, title=title, pid=pid, category='Ноутбуки', brand='ASUS')
+            index_product_facts(conn, pid, [], title)
+        conn.commit()
+        disk = sqlite3.connect(self.path)
+        conn.backup(disk)
+        disk.close()
+        self.cats = local_search.catalog_context(conn)
+        conn.close()
+
+    def search(self, search_query, attrs, city='Алматы'):
+        answer = {'category_id': 'laptops', 'category_name': 'Ноутбуки', 'confidence': .95,
+                  'search_query': search_query, 'fields': [{'key': 'ram', 'label': 'Оперативная память'}],
+                  'attributes': attrs}
+        plan = local_search.clean_plan(answer, self.QUERY, self.cats)
+        with patch('database.get_connection', side_effect=lambda: sqlite3.connect(self.path)):
+            data = local_search.search_sync({'query': self.QUERY, 'city': city, 'limit': 20},
+                                            {'status': 'ok', 'plan': plan}, {})
+        return plan, data
+
+    def test_ram_moved_to_filter_finds_only_matching_laptop(self):
+        # Модель сократила текст, сохранила текст целиком или оставила «16 ГБ» — результат один
+        for search_query in ('ноутбук', self.QUERY, 'ноутбук 16 ГБ'):
+            with self.subTest(search_query=search_query):
+                plan, data = self.search(search_query, {'ram': '16 ГБ'})
+                self.assertEqual(plan['search_query'], 'ноутбук')
+                self.assertEqual(plan['attributes'], {'ram': '16 ГБ'})
+                self.assertEqual([i['product']['id'] for i in data['items']], ['l16'])
+                spec = json.loads(data['search_help']['watch_target'][len(local_search.WATCH_PREFIX):])
+                self.assertEqual(spec.get('inferred_attributes', {}).get('ram'), '16 ГБ')
+                # Память уже указана — подсказка её не переспрашивает
+                self.assertNotIn('памят', data['search_help']['clarification'])
+
+    def test_lost_model_number_still_rolls_back_but_keeps_grounded_memory(self):
+        """Пропажа номера модели («15») по-прежнему возвращает исходный текст — без описания памяти."""
+        answer = {'category_id': 'laptops', 'category_name': 'Ноутбуки', 'confidence': .95,
+                  'search_query': 'ноутбук vivobook', 'fields': [{'key': 'ram', 'label': 'Оперативная память'}],
+                  'attributes': {'ram': '16 ГБ'}}
+        plan = local_search.clean_plan(answer, 'ноутбук vivobook 15 оперативная память 16 ГБ', self.cats)
+        self.assertEqual(plan['search_query'], 'ноутбук vivobook 15')
+        self.assertEqual(plan['attributes'], {'ram': '16 ГБ'})
+
+    def test_ungrounded_memory_number_is_still_a_loss(self):
+        """«16» без основания (номер модели) не переносится в фильтр и не считается сохранённым."""
+        answer = {'category_id': 'phones', 'category_name': 'Смартфоны', 'confidence': .95,
+                  'search_query': 'iPhone', 'fields': [], 'attributes': {'ram': '16 ГБ'}}
+        plan = local_search.clean_plan(answer, 'iPhone 16', self.cats)
+        self.assertEqual(plan['search_query'], 'iPhone 16')
+        self.assertEqual(plan['attributes'], {})
+
+
+class StripMemoryPhrasesTests(unittest.TestCase):
+    def test_only_the_memory_value_and_its_words_are_removed(self):
+        cases = [
+            ('ноутбук оперативная память 16 ГБ', {'ram': '16 ГБ'}, 'ноутбук'),
+            ('ноутбук 32 ГБ оперативной памяти', {'ram': '32 ГБ'}, 'ноутбук'),
+            ('iPhone 16 128GB', {'storage': '128 ГБ'}, 'iPhone 16'),
+            ('iPhone 16 память 128 ГБ', {'storage': '128 ГБ'}, 'iPhone 16'),
+            ('Xiaomi 14 8/256', {'ram': '8 ГБ', 'storage': '256 ГБ'}, 'Xiaomi 14'),
+            ('RTX 4060 8GB', {'vram': '8 ГБ'}, 'RTX 4060'),
+            # Вид товара сохраняется
+            ('карта памяти 64 ГБ', {'storage': '64 ГБ'}, 'карта памяти'),
+            ('модуль памяти DDR5 32 ГБ', {'ram': '32 ГБ'}, 'модуль памяти DDR5'),
+            # Без условий памяти текст не меняется
+            ('зимняя резина 205/55 R16', {'width': '205'}, 'зимняя резина 205/55 R16'),
+        ]
+        for query, attrs, expected in cases:
+            with self.subTest(query=query):
+                self.assertEqual(local_search._strip_memory_phrases(query, attrs), expected)
