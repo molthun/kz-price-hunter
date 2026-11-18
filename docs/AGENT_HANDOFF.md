@@ -9,10 +9,22 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
-## IN_PROGRESS v6.40.24: улучшение UX избранного и наблюдений (watches UX) — Antigravity (2026-11-19 00:34 +05)
+## READY_FOR_STAND v6.40.24: улучшение UX избранного и наблюдений (watches UX) — Antigravity (2026-11-19 00:38 +05)
 
 - **Основание:** выбор владельца (пункт 2: продолжить разработку согласно `docs/DEVELOPMENT_PLAN.md` — избранное и `watches UX` локально).
 - **Область файлов:** `web/templates/search_first.html`, `tests/frontend/test_frontend_deals_watches.cjs`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- **Сделано:**
+  - `checkAuth()` подгружает `WatchManager.load()` для авторизованного пользователя и синхронизирует состояние `#detailWatchBtn` и карточек Избранного (`WatchManager.findForTarget`, `updateDetailWatchButton`).
+  - В `#watchModalBackdrop` добавлены `#watchExistingList` (отображение действующих наблюдений по товару с отменой в один клик через `cancelExistingWatchFromModal`) и `#watchQuickChips` (`-5%`, `-10%`, `-20%` через `setWatchTargetDiscount`), скрытые при отсутствии текущей цены (`[hidden] { display: none; }`).
+  - В Избранном на `#favTabPriceDrop` выводится счётчик товаров со снижением цены, а кнопка `🔔` на карточке подсвечивается при активном наблюдении (`watch-active`).
+  - В Профиле добавлены `formatWatchCondition`, `watchKindLabel` и бейдж типа наблюдения (`.watch-kind-badge`).
+  - Версия поднята до `6.40.24`, обновлён `CHANGELOG.md` (включая `### Для пользователей`).
+- **Проверки (локально):**
+  - `deno run -A tests/frontend/test_frontend_deals_watches.cjs` — **PASS** (включая новые проверки индикации, чипа `-20%`, отмены из модалки, подсветки в Избранном и бейджа типа в Профиле).
+  - `deno run -A tests/frontend/test_frontend_search_first.cjs` — **PASS**.
+  - `venv/bin/python -m unittest tests/core/test_release_gate.py` — **60/60 OK** (3.48s).
+- **Не проверено:** полный Linux-прогон и стенд (ждёт выкладки `6.40.23` + `6.40.24` на стенд через git bundle по подтверждению владельца).
+- **Следующий шаг:** по слову владельца — закоммитить `6.40.24`, доставить на стенд вместе с `6.40.23` (`3f10d36`) через git bundle, пересобрать стенд и передать на проверку.
 
 ## STAND_DEPLOYED v6.40.23: R22-01 — Claude (2026-11-19, Asia/Almaty)
 

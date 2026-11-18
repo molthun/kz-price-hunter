@@ -4500,6 +4500,97 @@
       background: rgba(239, 68, 68, 0.1);
     }
 
+    .btn-secondary-action.watch-active,
+    .fav-action-icon-btn.watch-active {
+      border-color: var(--primary);
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--primary);
+    }
+
+    .watch-quick-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .watch-quick-chips[hidden],
+    .watch-existing-box[hidden] {
+      display: none;
+    }
+
+    .watch-quick-chip {
+      border: 1px solid var(--border-color);
+      background: var(--bg-subtle);
+      color: var(--text-main);
+      border-radius: var(--radius-full);
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .watch-quick-chip:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .watch-existing-box {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      margin-bottom: 14px;
+    }
+
+    .watch-existing-header {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 6px;
+    }
+
+    .watch-existing-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      padding: 4px 0;
+    }
+
+    .watch-existing-cancel {
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      border-radius: var(--radius-sm);
+      padding: 2px 8px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .watch-existing-cancel:hover {
+      border-color: #ef4444;
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .watch-kind-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
     /* Geo Locate Buttons */
     .btn-geo-header {
       background: none;
@@ -6532,7 +6623,7 @@
               <span id="detailFavIcon">♡</span> <span id="detailFavText">В избранное</span>
             </button>
             <button class="btn-secondary-action" id="detailWatchBtn" onclick="openWatchModalFromDetail()">
-              <span>🔔</span> <span>Следить за ценой</span>
+              <span id="detailWatchIcon">🔔</span> <span id="detailWatchText">Следить за ценой</span>
             </button>
             <button class="btn-secondary-action" id="detailShareBtn" onclick="shareCurrentProduct()" title="Поделиться товаром">
               <span>↗️</span> <span>Поделиться</span>
@@ -7053,6 +7144,8 @@
           </div>
         </div>
 
+        <div id="watchExistingList" class="watch-existing-box" hidden></div>
+
         <form id="watchForm" onsubmit="submitWatchForm(event)">
           <div id="watchFormError" role="alert" style="display: none; margin-bottom: 12px; font-size: 0.85rem; color: var(--badge-discount);"></div>
           <div class="watch-field-group">
@@ -7072,6 +7165,11 @@
                 <div style="display: flex; align-items: center; gap: 6px;">
                   <input type="number" min="1" step="1" id="watchTargetPriceInput" class="filter-input-text" style="max-width: 160px;" placeholder="Целевая цена" />
                   <span style="font-weight: 600;">₸</span>
+                </div>
+                <div id="watchQuickChips" class="watch-quick-chips" hidden>
+                  <button type="button" class="watch-quick-chip" onclick="setWatchTargetDiscount(5)">-5%</button>
+                  <button type="button" class="watch-quick-chip" onclick="setWatchTargetDiscount(10)">-10%</button>
+                  <button type="button" class="watch-quick-chip" onclick="setWatchTargetDiscount(20)">-20%</button>
                 </div>
               </div>
             </div>
@@ -7775,6 +7873,9 @@
         isMaintenanceMode = !!data.maintenance_mode;
         updateAuthUI();
         updateAccessTimer(data.access);
+        if (currentUser && typeof WatchManager !== 'undefined') {
+          WatchManager.load();
+        }
       } catch (e) {
         console.warn('Auth check error:', e);
       }
@@ -11748,9 +11849,10 @@
         `;
       }
 
-      // Update favorite button state
+      // Update favorite and watch button states
       const isFav = Favorites.has(prod.id || prod.canonical_product_id);
       updateDetailFavButton(isFav);
+      updateDetailWatchButton(prod.id || prod.canonical_product_id);
 
       renderHistory(data.history, offers);
 
@@ -13583,6 +13685,12 @@
       });
 
       if (countEl) countEl.textContent = `(${allItems.length})`;
+      const tabDropBtn = document.getElementById('favTabPriceDrop');
+      if (tabDropBtn) {
+        tabDropBtn.textContent = dropItems.length > 0
+          ? `📉 Со снижением цены (${dropItems.length})`
+          : '📉 Со снижением цены';
+      }
 
       const isDropTab = Favorites.currentTab === 'price_drop';
       const items = isDropTab ? dropItems : allItems;
@@ -13628,6 +13736,8 @@
 
             const currentPrice = item.new_price > 0 ? item.new_price : item.saved_price;
             const originalPrice = (hasDrop && item.saved_price) ? item.saved_price : (item.old_price > currentPrice ? item.old_price : null);
+            const watchTarget = favoriteCanonicalId(item) || item.legacy_product_id || item.id;
+            const hasActiveWatch = watchTarget && WatchManager.findForTarget(watchTarget).length > 0;
 
             return `
               <div class="fav-card ${hasDrop ? 'fav-card-price-drop' : ''}" data-item-id="${escapeHtml(item.id)}">
@@ -13694,7 +13804,7 @@
                         В каталог →
                       </button>
                     `}
-                    <button class="fav-action-icon-btn" onclick="favoriteAction(this, 'watch')" title="Следить за ценой" aria-label="Следить за ценой">
+                    <button class="fav-action-icon-btn ${hasActiveWatch ? 'watch-active' : ''}" onclick="favoriteAction(this, 'watch')" title="${hasActiveWatch ? 'Наблюдение активно — изменить или отменить' : 'Следить за ценой'}" aria-label="Следить за ценой">
                       🔔
                     </button>
                     <button class="fav-action-icon-btn" onclick="favoriteAction(this, 'open')" title="Сравнить цены в каталоге" aria-label="Сравнить цены в каталоге">
@@ -13776,7 +13886,7 @@
           this.items = [];
           this.status = 'error';
         }
-        this.updateBadges();
+        this.syncViews();
       },
       async create(payload) {
         const resp = await fetch('/api/me/watches', {
@@ -13815,11 +13925,107 @@
           return [];
         }
       },
+      findForTarget(target) {
+        if (!target) return [];
+        const needle = String(target);
+        return this.items.filter(w => String(w.target) === needle && w.is_active !== false);
+      },
       updateBadges() {
         const badge = document.getElementById('profileWatchesCountBadge');
         if (badge) badge.textContent = String(this.items.length);
+      },
+      syncViews() {
+        this.updateBadges();
+        if (typeof updateDetailWatchButton === 'function') updateDetailWatchButton();
+        const favView = document.getElementById('viewFavorites');
+        if (favView && favView.classList.contains('active') && typeof renderFavorites === 'function') {
+          renderFavorites();
+        }
       }
     };
+
+    function formatWatchCondition(w) {
+      if (!w) return '';
+      if (w.condition === 'target_price' && w.threshold) {
+        return 'Уведомить при цене ≤ ' + formatPrice(w.threshold);
+      }
+      if (w.condition === 'any_drop') return 'Уведомить при любом снижении';
+      if (w.condition === 'pct_drop' && w.threshold) return 'Снижение от ' + w.threshold + '%';
+      if (w.condition === 'amount_drop' && w.threshold) return 'Снижение от ' + formatPrice(w.threshold);
+      if (w.condition === 'in_stock') return 'Появление в наличии';
+      if (w.condition === 'best_price') return 'Лучшая цена на рынке';
+      return w.description || w.condition || 'Любое изменение';
+    }
+
+    function watchKindLabel(kind) {
+      if (kind === 'search') return '🔍 Поиск';
+      if (kind === 'model') return '📱 Модель';
+      if (kind === 'deal') return '🏷 Скидка';
+      return '📦 Товар';
+    }
+
+    function updateDetailWatchButton(productId) {
+      const btn = document.getElementById('detailWatchBtn');
+      const textEl = document.getElementById('detailWatchText');
+      if (!btn || !textEl) return;
+      const pid = productId || (AppState.currentProduct && AppState.currentProduct.product && AppState.currentProduct.product.id);
+      const active = pid ? WatchManager.findForTarget(pid) : [];
+      btn.classList.toggle('watch-active', active.length > 0);
+      if (!active.length) {
+        textEl.textContent = 'Следить за ценой';
+        return;
+      }
+      const targets = active.filter(w => w.condition === 'target_price' && Number(w.threshold) > 0).map(w => Number(w.threshold));
+      if (targets.length) {
+        textEl.textContent = 'Следим (≤ ' + formatPrice(Math.min(...targets)) + ')';
+      } else {
+        textEl.textContent = active.length > 1 ? `Вы следите (${active.length})` : 'Вы следите';
+      }
+    }
+
+    function setWatchTargetDiscount(pct) {
+      const curPrice = Number(WatchManager.currentWatchProduct && WatchManager.currentWatchProduct.price || 0);
+      const targetInput = document.getElementById('watchTargetPriceInput');
+      if (!targetInput || curPrice <= 0) return;
+      targetInput.value = String(Math.max(1, Math.round(curPrice * (1 - pct / 100))));
+      targetInput.focus();
+    }
+
+    function renderWatchModalExisting(target) {
+      const box = document.getElementById('watchExistingList');
+      if (!box) return;
+      const active = WatchManager.findForTarget(target);
+      if (!active.length) {
+        box.hidden = true;
+        box.innerHTML = '';
+        return;
+      }
+      box.hidden = false;
+      box.innerHTML = `
+        <div class="watch-existing-header">Активные наблюдения по этому товару (${active.length})</div>
+        ${active.map(w => `
+          <div class="watch-existing-row">
+            <span>🔔 ${escapeHtml(formatWatchCondition(w))} • ${escapeHtml(w.city || 'Все города')}</span>
+            <button type="button" class="watch-existing-cancel" onclick="cancelExistingWatchFromModal('${escapeHtml(w.id)}', this)">Отменить</button>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    async function cancelExistingWatchFromModal(watchId, btnEl) {
+      if (!watchId) return;
+      if (btnEl) btnEl.disabled = true;
+      const ok = await WatchManager.remove(watchId);
+      if (!ok) {
+        if (btnEl) btnEl.disabled = false;
+        return;
+      }
+      await WatchManager.load();
+      if (WatchManager.currentWatchProduct) {
+        renderWatchModalExisting(WatchManager.currentWatchProduct.target);
+      }
+      if (document.getElementById('viewProfile').classList.contains('active')) renderProfile();
+    }
 
     function openWatchModal(product) {
       if (!product) return;
@@ -13843,6 +14049,9 @@
       if (anyDropRadio) anyDropRadio.checked = true;
       const wrapper = document.getElementById('targetPriceInputWrapper');
       if (wrapper) wrapper.style.display = 'none';
+      const quickChips = document.getElementById('watchQuickChips');
+      if (quickChips) quickChips.hidden = curPrice <= 0;
+      renderWatchModalExisting(product.target);
 
       if (modal) modal.classList.add('open');
       const body = document.getElementById('watchModalBody');
@@ -14085,9 +14294,7 @@
         html = `<div style="${notice}">У вас пока нет активных наблюдений за ценами.<br>Нажмите кнопку «🔔 Следить за ценой» на любом товаре или в ленте скидок.</div>`;
       } else {
         html = WatchManager.items.map((w, idx) => {
-          const condText = w.condition === 'target_price' && w.threshold
-            ? 'Уведомить при цене ≤ ' + formatPrice(w.threshold)
-            : (w.condition === 'any_drop' ? 'Уведомить при любом снижении' : (w.description || w.condition));
+          const condText = formatWatchCondition(w);
           const state = !w.is_active ? '• Выключено' : (w.fired ? '• Уже сработало' : '');
           return `
             <div class="watch-item-card" data-index="${idx}">
@@ -14096,6 +14303,7 @@
                   ${escapeHtml(w.title || w.target)}
                 </div>
                 <div class="watch-item-meta">
+                  <span class="watch-kind-badge">${watchKindLabel(w.kind)}</span>
                   <span>🎯 ${escapeHtml(condText)}</span>
                   <span>• ${escapeHtml(w.city || 'Все города')}</span>
                   ${state ? `<span>${state}</span>` : ''}

@@ -119,20 +119,47 @@ async function realServer(browser){
   assert.equal(list.length,2);
   assert.equal(list.find(w=>w.condition==='any_drop').city,'Астана');
 
-  // Подписка, созданная мимо этой формы, видна; список переживает reload
+  // UX: индикация активного наблюдения на карточке, скрытие чипов без цены и отмена прямо из модалки
+  await page.waitForFunction(()=>document.getElementById('detailWatchBtn').classList.contains('watch-active'));
+  assert.match(await page.locator('#detailWatchText').innerText(),/Следим \(≤ 5\s000 ₸\)/);
+  await page.locator('#detailWatchBtn').click();
+  await page.locator('#watchExistingList .watch-existing-row').first().waitFor();
+  assert.equal(await page.locator('#watchExistingList .watch-existing-row').count(),2);
+  await page.locator('#watchExistingList .watch-existing-cancel').first().click();
+  await page.waitForFunction(()=>document.querySelectorAll('#watchExistingList .watch-existing-row').length===1);
+  assert.equal((await api('/api/me/watches')).data.watches.length,1);
+  await page.locator('#watchForm .btn-secondary').click();
+
+  // В Алматы (где есть цена) быстрый чип -20% рассчитывает целевую цену
+  await page.selectOption('#globalCitySelect','Алматы');
+  await page.waitForFunction(()=>decodeURIComponent(location.search).includes('Алматы'));
+  await page.waitForFunction(()=>AppState.currentProduct && AppState.currentProduct.min_price > 0);
+  await page.locator('#detailWatchBtn').click();
+  await page.locator('input[name="watchCondition"][value="target_price"]').check();
+  await page.locator('.watch-quick-chip',{hasText:'-20%'}).click();
+  assert.equal(await page.inputValue('#watchTargetPriceInput'),String(Math.max(1,Math.round(detail.min_price*0.8))));
+  await page.locator('#watchForm .btn-secondary').click();
+
+  // В Избранном кнопка наблюдения тоже подсвечена
+  await page.goto(base+'/favorites');
+  await page.locator('.fav-card').first().waitFor();
+  await page.waitForFunction(()=>document.querySelector('.fav-card .fav-action-icon-btn[aria-label="Следить за ценой"]').classList.contains('watch-active'));
+
+  // Подписка, созданная мимо этой формы, видна с бейджем типа; список переживает reload
   const other=(await api('/api/me/watches',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({kind:'search',target:'из другого интерфейса',condition:'any_drop'})})).data.watch;
   await page.goto(base+'/profile');
   await page.locator('.watch-item-card').first().waitFor();
-  assert.equal(await page.locator('.watch-item-card').count(),3);
+  assert.equal(await page.locator('.watch-item-card').count(),2);
   assert.match(await page.locator('#profileWatchesList').innerText(),/из другого интерфейса/);
+  assert.match(await page.locator('.watch-item-card',{hasText:'из другого интерфейса'}).locator('.watch-kind-badge').innerText(),/Поиск/);
   assert.match(await page.locator('#profileAuthBadge').innerText(),/Вход выполнен/);
   await page.reload();
   await page.locator('.watch-item-card').first().waitFor();
 
   // Отмена: настоящий DELETE, подтверждается GET
   await page.locator('.watch-item-card',{hasText:'из другого интерфейса'}).locator('.watch-item-delete-btn').click();
-  await page.waitForFunction(()=>document.querySelectorAll('.watch-item-card').length===2);
+  await page.waitForFunction(()=>document.querySelectorAll('.watch-item-card').length===1);
   list=(await api('/api/me/watches')).data.watches;
   assert.ok(!list.some(w=>w.id===other.id));
 
@@ -140,8 +167,8 @@ async function realServer(browser){
   await page.route('**/api/me/watches/*',r=>r.request().method()==='DELETE'?r.fulfill({status:500,contentType:'application/json',body:'{}'}):r.continue());
   await page.locator('.watch-item-delete-btn').first().click();
   await page.waitForFunction(()=>document.getElementById('toastPopup').textContent.includes('продолжает работать'));
-  assert.equal(await page.locator('.watch-item-card').count(),2);
-  assert.equal((await api('/api/me/watches')).data.watches.length,2);
+  assert.equal(await page.locator('.watch-item-card').count(),1);
+  assert.equal((await api('/api/me/watches')).data.watches.length,1);
   await page.unroute('**/api/me/watches/*');
 
   // Выход: чужой список не показывается
