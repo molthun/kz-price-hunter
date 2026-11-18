@@ -265,9 +265,10 @@ class MemoryRoleSearchTests(NumericRoleSearchTests):
 
     def test_wrong_unit_answer_does_not_become_a_condition(self):
         plan, data, watch = self.run_query('iPhone 16 128GB', {'storage': '128 ТБ', 'ram': '16 ГБ'})
-        self.assertEqual(plan['attributes'], {})
+        # Ошибочные «128 ТБ» и «ОЗУ 16» отброшены; верная память «128 ГБ» берётся из самого запроса
+        self.assertEqual(plan['attributes'], {'storage': '128 ГБ'})
         self.assertEqual(data['total_products'], 1)
-        self.assertEqual({k: v for k, v in watch.items() if k in ('ram', 'storage')}, {})
+        self.assertEqual({k: v for k, v in watch.items() if k in ('ram', 'storage')}, {'storage': '128 ГБ'})
 
 
 class LaptopMemorySearchTests(unittest.TestCase):
@@ -315,7 +316,6 @@ class LaptopMemorySearchTests(unittest.TestCase):
         for search_query in ('ноутбук', self.QUERY, 'ноутбук 16 ГБ'):
             with self.subTest(search_query=search_query):
                 plan, data = self.search(search_query, {'ram': '16 ГБ'})
-                self.assertEqual(plan['search_query'], 'ноутбук')
                 self.assertEqual(plan['attributes'], {'ram': '16 ГБ'})
                 self.assertEqual([i['product']['id'] for i in data['items']], ['l16'])
                 spec = json.loads(data['search_help']['watch_target'][len(local_search.WATCH_PREFIX):])
@@ -323,13 +323,36 @@ class LaptopMemorySearchTests(unittest.TestCase):
                 # Память уже указана — подсказка её не переспрашивает
                 self.assertNotIn('памят', data['search_help']['clarification'])
 
+    def test_real_model_shape_empty_attributes_and_full_text(self):
+        """Ответ qwen3-vl на стенде 6.40.20: attributes пусты, search_query = весь запрос."""
+        for city in ('Алматы', 'Астана'):
+            with self.subTest(city=city):
+                seed_city = city  # фикстура продаёт в Алматы; в Астане выдачи нет, ram не выдумывается
+                plan, data = self.search(self.QUERY, {}, city=seed_city)
+                self.assertEqual(plan['attributes'], {'ram': '16 ГБ'})
+                self.assertEqual(data['selected_attributes'], {'ram': '16 ГБ'})
+                if city == 'Алматы':
+                    self.assertEqual([i['product']['id'] for i in data['items']], ['l16'])
+                self.assertNotIn('памят', data['search_help']['clarification'])
+
+    def test_stale_saved_plan_without_memory_is_completed_from_the_query(self):
+        stale = {'search_query': self.QUERY, 'category_id': 'laptops', 'category_name': 'Ноутбуки',
+                 'parent_id': None, 'fields': [{'key': 'ram', 'label': 'Оперативная память'}],
+                 'attributes': {}, 'confidence': 0.95, 'clarification': ''}
+        with patch('database.get_connection', side_effect=lambda: sqlite3.connect(self.path)):
+            data = local_search.search_sync({'query': self.QUERY, 'city': 'Алматы', 'limit': 20},
+                                            {'status': 'ok', 'plan': stale}, {})
+        self.assertEqual([i['product']['id'] for i in data['items']], ['l16'])
+        spec = json.loads(data['search_help']['watch_target'][len(local_search.WATCH_PREFIX):])
+        self.assertEqual(spec['inferred_attributes'].get('ram'), '16 ГБ')
+
     def test_lost_model_number_still_rolls_back_but_keeps_grounded_memory(self):
         """Пропажа номера модели («15») по-прежнему возвращает исходный текст — без описания памяти."""
         answer = {'category_id': 'laptops', 'category_name': 'Ноутбуки', 'confidence': .95,
                   'search_query': 'ноутбук vivobook', 'fields': [{'key': 'ram', 'label': 'Оперативная память'}],
                   'attributes': {'ram': '16 ГБ'}}
         plan = local_search.clean_plan(answer, 'ноутбук vivobook 15 оперативная память 16 ГБ', self.cats)
-        self.assertEqual(plan['search_query'], 'ноутбук vivobook 15')
+        self.assertEqual(plan['search_query'], 'ноутбук vivobook 15 оперативная память 16 ГБ')
         self.assertEqual(plan['attributes'], {'ram': '16 ГБ'})
 
     def test_ungrounded_memory_number_is_still_a_loss(self):
@@ -359,3 +382,24 @@ class StripMemoryPhrasesTests(unittest.TestCase):
         for query, attrs, expected in cases:
             with self.subTest(query=query):
                 self.assertEqual(local_search._strip_memory_phrases(query, attrs), expected)
+
+
+class ExplicitMemoryAttributesTests(unittest.TestCase):
+    def test_only_unambiguous_memory_is_derived_from_the_query(self):
+        keys = {'ram', 'storage'}
+        cases = {
+            'ноутбук оперативная память 16 ГБ': {'ram': '16 ГБ'},
+            'ноутбук 32 ГБ оперативной памяти': {'ram': '32 ГБ'},
+            'ноутбук ОЗУ 8 ГБ': {'ram': '8 ГБ'},
+            'ноутбук 16 ГБ ОЗУ 512 ГБ SSD': {'ram': '16 ГБ', 'storage': '512 ГБ'},
+            'iPhone 16 128GB': {'storage': '128 ГБ'},
+            'Xiaomi 14 8/256': {'ram': '8 ГБ', 'storage': '256 ГБ'},
+            'Galaxy 16/1TB': {'ram': '16 ГБ', 'storage': '1 ТБ'},
+            'iPhone 16': {},
+            'ноутбук 16GB': {},
+        }
+        for query, expected in cases.items():
+            with self.subTest(query=query):
+                self.assertEqual(local_search.explicit_memory_attributes(query, keys), expected)
+        # Поле, которого нет у категории, не добавляется
+        self.assertEqual(local_search.explicit_memory_attributes('ноутбук ОЗУ 8 ГБ', {'storage'}), {})

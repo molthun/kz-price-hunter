@@ -268,6 +268,35 @@ def grounded_attributes(attrs, query, fields=()):
     return out
 
 
+def explicit_memory_attributes(query, allowed_keys):
+    """ОЗУ и встроенная память, однозначно указанные самим запросом («8/256», «ОЗУ 16 ГБ», «128GB»).
+
+    Кандидаты — каждое «число + ГБ/ТБ» и пара «a/b»; оставляется то, что проходит
+    grounded_attributes для своей роли. Спорное число не добавляется ни в одну роль.
+    """
+    q = _norm(query)
+    candidates = {}
+    for m in _MEMORY_PAIR.finditer(q):
+        candidates.setdefault('ram', set()).add(f'{m.group(1)} ГБ')
+        unit = 'ТБ' if _canon_unit(m.group(3) or 'гб') == 'тб' else 'ГБ'
+        candidates.setdefault('storage', set()).add(f'{m.group(2)} {unit}')
+    for m in re.finditer(r'(?<![\w.,/])(\d+)\s*(гб|gb|g|тб|tb)(?![a-zа-я])', q):
+        unit = 'ТБ' if _canon_unit(m.group(2)) == 'тб' else 'ГБ'
+        for key in ('ram', 'storage'):
+            candidates.setdefault(key, set()).add(f'{m.group(1)} {unit}')
+    out = {}
+    for key, values in candidates.items():
+        if key not in allowed_keys:
+            continue
+        accepted = {v for v in values if grounded_attributes({key: v}, query).get(key)}
+        if len(accepted) == 1:
+            out[key] = grounded_attributes({key: accepted.pop()}, query)[key]
+    # Одно и то же число не может быть и ОЗУ, и памятью: такой случай неоднозначен
+    if out.get('ram') and out.get('ram') == out.get('storage'):
+        return {}
+    return out
+
+
 def _asks_known(clarification, attrs, fields, query=''):
     """Уточнение не переспрашивает то, что уже есть в запросе (размер шины, сезон…)."""
     text = _norm(clarification)
@@ -491,6 +520,10 @@ def clean_plan(answer, query, categories):
                         val = 'Всесезонные'
                 attrs[str_k] = val
     attrs = grounded_attributes(attrs, query, fields)
+    # Реальная модель (стенд 6.40.20) оставляет attributes пустыми и для «ноутбук оперативная память
+    # 16 ГБ»: явно указанная в запросе память выводится детерминированно — по тем же правилам основания.
+    for k, v in explicit_memory_attributes(query, keys).items():
+        attrs.setdefault(k, v)
 
     search = str(answer.get('search_query', query)).strip()[:300]
     # A rewritten query must not silently lose a concrete model/size number.
@@ -505,8 +538,6 @@ def clean_plan(answer, query, categories):
         any(not re.search(r'\b'+v+r'\b', search, re.I) for v in required_variants)):
         search = query
         attrs = {k: v for k, v in attrs.items() if k in _MEMORY_KEYS}
-    if attrs:
-        search = _strip_memory_phrases(search, attrs) or search
     try:
         raw_conf = answer.get('confidence')
         if raw_conf is not None:
@@ -730,7 +761,16 @@ def search_sync(arguments, understanding, selected_attributes):
                     'JOIN canonical_products p ON p.id=pa.product_id WHERE pa.source_title=p.title ' + cat_sql, cat_params)}
                 # Сохранённые до 6.40.16 планы могли содержать выдуманные признаки — проверяются заново
                 grounded = grounded_attributes(plan['attributes'], original, plan.get('fields') or ())
+                plan_keys = {f.get('key') for f in plan.get('fields') or () if isinstance(f, dict)}
+                for k, v in explicit_memory_attributes(original, plan_keys).items():
+                    grounded.setdefault(k, v)
                 inferred_attrs = {k:v for k,v in grounded.items() if k in populated and k not in attrs}
+                # Память, ставшая фильтром по заполненному полю, убирается из текста: «оперативная
+                # память 16 ГБ» не встречается в названиях («16GB») и обнуляла выдачу (стенд 6.40.19–20)
+                memory = {k: inferred_attrs[k] for k in _MEMORY_KEYS if k in inferred_attrs}
+                memory.update({k: attrs[k] for k in _MEMORY_KEYS if k in attrs})
+                if memory:
+                    search_args['query'] = _strip_memory_phrases(search_args['query'], memory) or search_args['query']
                 # Подтверждённые моделью товары не теряются из-за слова запроса, которого нет в названии:
                 # зимняя шина «Ice Blazer с шипами» находится и по «зимняя резина».
                 # Keep deterministic condition/price/city constraints from the original query.
