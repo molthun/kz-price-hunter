@@ -76,9 +76,24 @@ _UNIT_SYNONYMS = {
     'мач': r'(?:мач|mah)', 'л': r'(?:л|l|литр\w*)', 'кг': r'(?:кг|kg)', 'мм': r'(?:мм|mm)',
     'см': r'(?:см|cm)', 'мп': r'(?:мп|mp|мпикс\w*)', 'мгц': r'(?:мгц|mhz)', 'ггц': r'(?:ггц|ghz)',
 }
-_MEMORY_PAIR = re.compile(r'(?<![\w.])(\d{1,2})\s*/\s*(\d{2,4})\s*(?:гб|gb|g|тб|tb)?(?![\w/])')
+# R18-02: в «8/256», «12/512GB», «16/1TB» первое число — ОЗУ в ГБ, второе — память с суффиксом пары
+# (без суффикса — ГБ). Сравнивается величина вместе с единицей, а не одни цифры.
+_MEMORY_PAIR = re.compile(r'(?<![\w.])(\d{1,2})\s*/\s*(\d{1,4})\s*(гб|gb|g|тб|tb)?(?![\w/])')
 _RAM_WORDS = re.compile(r'озу|оператив|\bram\b')
 _STORAGE_WORDS = re.compile(r'памят|встроен|накопит|\brom\b|storage|ssd|hdd')
+# R18-01: составное «оперативная память» (любой падеж, ram memory) — это ОЗУ, а не «память»
+_RAM_PHRASE = re.compile(r'оператив\w*\s+памят\w*|памят\w*\s+озу|\bram\s+memory\b|\bmemory\s+ram\b')
+# Написание единицы → каноническая единица из _UNIT_SYNONYMS («128GB» и «128 ГБ» — одно и то же)
+_UNIT_CANON = {'gb': 'гб', 'g': 'гб', 'гб': 'гб', 'tb': 'тб', 't': 'тб', 'тб': 'тб', 'mb': 'мб', 'мб': 'мб',
+               'hz': 'гц', 'гц': 'гц', 'w': 'вт', 'вт': 'вт', 'mah': 'мач', 'мач': 'мач', 'l': 'л', 'л': 'л',
+               'kg': 'кг', 'кг': 'кг', 'mm': 'мм', 'мм': 'мм', 'cm': 'см', 'см': 'см', 'mp': 'мп', 'мп': 'мп',
+               'mhz': 'мгц', 'мгц': 'мгц', 'ghz': 'ггц', 'ггц': 'ггц', '"': '"', '”': '"', '″': '"',
+               "''": '"', 'дюйм': '"', 'дюйма': '"', 'дюймов': '"', 'inch': '"', 'in': '"'}
+
+
+def _canon_unit(unit):
+    unit = _norm(unit).strip(' .')
+    return _UNIT_CANON.get(unit, unit)
 
 
 def _same_number(a, b):
@@ -106,7 +121,7 @@ def _number_grounded(key, val, q, label):
             m = _TIRE_DIAMETER.search(q)
             found = m.group(1) if m else None
         return bool(found) and _same_number(found, number)
-    unit = _norm(val.replace(number, '', 1)).strip(' .')
+    unit = _canon_unit(val.replace(number, '', 1))
     if key in ('ram', 'storage'):
         return _memory_grounded(key, number, unit, q)
     if unit:
@@ -120,7 +135,7 @@ def _number_grounded(key, val, q, label):
     return False
 
 
-def _between_numbers(q, m, reach=20):
+def _between_numbers(q, m, reach=32):
     """Пояснение относится к ближайшему числу: окно не заходит за соседние числа запроса."""
     before = q[max(0, m.start() - reach):m.start()]
     after = q[m.end():m.end() + reach]
@@ -143,10 +158,16 @@ def _memory_role(q, m):
 
 def _memory_grounded(key, number, unit, q):
     """ОЗУ и встроенная память: запись «8/256», явное слово рядом или однозначный объём."""
+    unit = unit or 'гб'
+    if unit not in ('гб', 'тб'):
+        return False
     for m in _MEMORY_PAIR.finditer(q):
-        if _same_number(m.group(1 if key == 'ram' else 2), number):
+        pair_unit = 'гб' if key == 'ram' else _canon_unit(m.group(3) or 'гб')
+        if _same_number(m.group(1 if key == 'ram' else 2), number) and pair_unit == unit:
             return True
-    hits = _unit_occurrences(q, number, unit or 'гб')
+    # Составная фраза заменяется на «озу» той же роли — «память» в ней не тянет к накопителю
+    q = _RAM_PHRASE.sub(lambda m: 'озу' + ' ' * (len(m.group(0)) - 3), q)
+    hits = _unit_occurrences(q, number, unit)
     for m in hits:
         role = _memory_role(q, m)
         if role:
@@ -181,7 +202,12 @@ def grounded_attributes(attrs, query, fields=()):
             continue
         if re.search(r'\d', val):
             if _number_grounded(key, val, q, labels.get(key) or ''):
-                out[key] = value
+                # «128GB» от модели фильтруется как индекс хранит значение — «128 ГБ»
+                try:
+                    from domain.attribute_indexing import normalize_attribute_value
+                    out[key] = normalize_attribute_value(key, value) or value
+                except Exception:
+                    out[key] = value
             continue
         words = [w for w in re.findall(r'\w{3,}', val)]
         if words and any(_stem(w) in q for w in words):

@@ -35,7 +35,8 @@ class CleanPlanGroundingTests(unittest.TestCase):
     def test_live_case_drops_invented_studs_and_keeps_stated_size(self):
         plan = self.plan('зимняя резина 205/55 R16', season='Зимние', studs='Да',
                          width='205', profile='55', diameter='16')
-        self.assertEqual(plan['attributes'], {'season': 'Зимние', 'width': '205', 'profile': '55', 'diameter': '16'})
+        # Значение приводится к виду индекса (normalize_attribute_value): диаметр — «R16»
+        self.assertEqual(plan['attributes'], {'season': 'Зимние', 'width': '205', 'profile': '55', 'diameter': 'R16'})
         self.assertNotIn('studs', plan['attributes'])
         # Размер уже указан — переспрашивать его нельзя
         self.assertEqual(plan['clarification'], '')
@@ -120,9 +121,9 @@ class NumericRoleGroundingTests(unittest.TestCase):
     def test_tire_size_numbers_only_in_their_positions(self):
         q = 'зимняя резина 205/55 R16'
         self.assertEqual(self.g(q, width='205', profile='55', diameter='16'),
-                         {'width': '205', 'profile': '55', 'diameter': '16'})
+                         {'width': '205', 'profile': '55', 'diameter': 'R16'})
         self.assertEqual(self.g(q, width='55', profile='205', diameter='55'), {})
-        self.assertEqual(self.g('шины R17', diameter='17', width='17'), {'diameter': '17'})
+        self.assertEqual(self.g('шины R17', diameter='17', width='17'), {'diameter': 'R17'})
         self.assertEqual(self.g('шины 16', diameter='16'), {})
 
     def test_explicit_memory_requests_are_kept(self):
@@ -200,3 +201,70 @@ class NumericRoleSearchTests(unittest.TestCase):
         conn.close()
         self.assert_no_ram(self.run_search({'status': 'ok', 'plan': stale}))
         self.assert_no_ram(self.run_search({'status': 'unavailable'}))
+
+
+class MemoryRoleAndUnitTests(unittest.TestCase):
+    """R18-01/R18-02 (аудит 6.40.18): «оперативная память» — ОЗУ; величина сверяется с единицей."""
+
+    def g(self, query, **attrs):
+        return local_search.grounded_attributes(attrs, query)
+
+    def test_ram_phrase_is_ram_not_storage(self):
+        cases = [
+            ('ноутбук оперативная память 64 ГБ', dict(ram='64 ГБ', storage='64 ГБ'), {'ram': '64 ГБ'}),
+            ('ноутбук оперативная память 16 ГБ', dict(ram='16 ГБ'), {'ram': '16 ГБ'}),
+            ('ноутбук 32 ГБ оперативной памяти', dict(ram='32 ГБ', storage='32 ГБ'), {'ram': '32 ГБ'}),
+            ('ноутбук SSD 512 ГБ оперативная память 16 ГБ', dict(ram='16 ГБ', storage='512 ГБ'),
+             {'ram': '16 ГБ', 'storage': '512 ГБ'}),
+            ('ноутбук 16 ГБ ОЗУ 512 ГБ SSD', dict(ram='16 ГБ', storage='512 ГБ'), {'ram': '16 ГБ', 'storage': '512 ГБ'}),
+            ('встроенная память 256 ГБ', dict(ram='256 ГБ', storage='256 ГБ'), {'storage': '256 ГБ'}),
+        ]
+        for query, attrs, expected in cases:
+            with self.subTest(query=query):
+                self.assertEqual(local_search.grounded_attributes(attrs, query), expected)
+
+    def test_memory_pair_checks_units(self):
+        self.assertEqual(self.g('Xiaomi 14 8/256', ram='8 ТБ', storage='256 ТБ'), {})
+        self.assertEqual(self.g('Xiaomi 14 8/256', ram='8 ГБ', storage='256 ГБ'), {'ram': '8 ГБ', 'storage': '256 ГБ'})
+        self.assertEqual(self.g('Poco 12/512GB', ram='12 ГБ', storage='512 ГБ'), {'ram': '12 ГБ', 'storage': '512 ГБ'})
+        self.assertEqual(self.g('Galaxy 16/1TB', ram='16 ГБ', storage='1 ТБ'), {'ram': '16 ГБ', 'storage': '1 ТБ'})
+        self.assertEqual(self.g('Galaxy 16/1TB', storage='1 ГБ'), {})
+        self.assertEqual(self.g('Galaxy 16/1TB', ram='16 ТБ'), {})
+
+    def test_latin_units_are_accepted_and_normalized_to_index_form(self):
+        self.assertEqual(self.g('iPhone 16 128GB', storage='128GB'), {'storage': '128 ГБ'})
+        self.assertEqual(self.g('iPhone 15 1 ТБ', storage='1TB'), {'storage': '1 ТБ'})
+        self.assertEqual(self.g('iPhone 16 128 ГБ', storage='128 TB'), {})
+
+
+class MemoryRoleSearchTests(NumericRoleSearchTests):
+    """Полный путь до выдачи и watch_target: каталог — «iPhone 16 128GB (Black)» с 6 ГБ ОЗУ."""
+
+    def run_query(self, query, attrs):
+        fields = [{'key': 'ram', 'label': 'Оперативная память'}, {'key': 'storage', 'label': 'Встроенная память'}]
+        answer = {'category_id': 'phones', 'category_name': 'Смартфоны', 'confidence': .99,
+                  'search_query': query, 'fields': fields, 'attributes': attrs}
+        plan = local_search.clean_plan(answer, query, self.cats)
+        args = {'query': query, 'city': 'Алматы', 'limit': 20}
+        with patch('database.get_connection', side_effect=lambda: sqlite3.connect(self.path)):
+            data = local_search.search_sync(args, {'status': 'ok', 'plan': plan}, {})
+        spec = json.loads(data['search_help']['watch_target'][len(local_search.WATCH_PREFIX):])
+        return plan, data, {**(spec.get('attributes') or {}), **(spec.get('inferred_attributes') or {})}
+
+    def test_ram_phrase_drops_contradicting_storage_up_to_watch_target(self):
+        plan, data, watch = self.run_query('iPhone 16 оперативная память 6 ГБ', {'ram': '6 ГБ', 'storage': '6 ГБ'})
+        self.assertEqual(plan['attributes'], {'ram': '6 ГБ'})
+        self.assertNotIn('storage', data['selected_attributes'])
+        self.assertNotIn('storage', watch)
+
+    def test_latin_unit_answer_keeps_product(self):
+        plan, data, watch = self.run_query('iPhone 16 128GB', {'storage': '128GB'})
+        self.assertEqual(plan['attributes'], {'storage': '128 ГБ'})
+        self.assertEqual(data['total_products'], 1)
+        self.assertEqual(watch.get('storage'), '128 ГБ')
+
+    def test_wrong_unit_answer_does_not_become_a_condition(self):
+        plan, data, watch = self.run_query('iPhone 16 128GB', {'storage': '128 ТБ', 'ram': '16 ГБ'})
+        self.assertEqual(plan['attributes'], {})
+        self.assertEqual(data['total_products'], 1)
+        self.assertEqual({k: v for k, v in watch.items() if k in ('ram', 'storage')}, {})

@@ -66,6 +66,36 @@ class ProductOptionsTest(unittest.TestCase):
     def test_single_color_gives_no_choice(self):
         self.assertEqual(build_options([self._offer("X Black", 100), self._offer("X", 90)]), [])
 
+    def test_brand_color_word_does_not_mask_bracket_color(self):
+        """R18-03: «Black» в бренде Black Shark — не цвет; каждое исполнение — своя группа с ценой."""
+        options = build_options([
+            self._offer("Black Shark GT3 Neo 51 мм (Black)", 30000),
+            self._offer("Black Shark GT3 Neo 51 мм (Burgundy)", 31000),
+            self._offer("Black Shark GT3 Neo 51 мм (Glacier)", 32000),
+            self._offer("Black Shark GT3 Neo 51 мм (Burgundy)", 29500, purchasable=False),
+        ])
+        self.assertEqual(len(options), 1)
+        groups = {v["value"]: v for v in options[0]["values"]}
+        self.assertEqual(set(groups), {"black", "burgundy", "lightblue"})
+        self.assertEqual(groups["black"]["min_price"], 30000)
+        self.assertEqual(groups["burgundy"]["offers_count"], 2)
+        self.assertEqual(groups["burgundy"]["min_price"], 31000)
+        self.assertEqual(groups["lightblue"]["min_price"], 32000)
+
+    def test_brand_color_words_and_existing_rules(self):
+        cases = {
+            "Black Shark GT3": None,
+            "Black Shark GT3 серый": "gray",
+            "Black+Decker дрель оранжевая": "orange",
+            "Смартфон Red Magic 10 Pro Black": "black",
+            "Наушники черно-оранжевые": "black+orange",
+            "Apple Watch S10 42mm Silver Aluminium Case (Sport Band Black)": "silver",
+            "iPhone 18 Pro 256Gb (Burgundy)": "burgundy",
+        }
+        for title, expected in cases.items():
+            with self.subTest(title=title):
+                self.assertEqual(title_color(title), expected)
+
     def test_build_options_includes_burgundy_glacier_and_bracket_colors(self):
         options = build_options([
             self._offer("Смартфон APPLE iPhone 18 PRO 256GB (Burgundy)", 815547),

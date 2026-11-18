@@ -140,6 +140,18 @@ def _extract_color(text: str) -> Optional[str]:
     return "+".join(sorted(set(found)))
 
 
+# R18-03 (аудит 18.11): слово цвета в бренде или серии — не цвет товара. «Black Shark … (Burgundy)»
+# бордовый, а не чёрный; без маски все исполнения схлопывались в одну группу «чёрный».
+_BRAND_COLOR_WORDS_RE = re.compile(
+    r"\b(?:black\s*shark|black\s*(?:\+|&|and)?\s*decker|black\s*view|black\s*berry|black\s*diamond|"
+    r"red\s*magic|red\s*dragon|orange\s*pi|blue\s*yeti|green\s*lion|white\s*shark|gold\s*star|"
+    r"silver\s*crest|golden\s*rose|pink\s*panther)\b", re.I)
+
+
+def _mask_brand_colors(text: str) -> str:
+    return _BRAND_COLOR_WORDS_RE.sub(lambda m: " " * len(m.group(0)), text)
+
+
 def title_color(title: Any) -> Optional[str]:
     """Цвет из названия: "black" или составной "black+orange"; None, если цвета нет.
 
@@ -147,7 +159,7 @@ def title_color(title: Any) -> Optional[str]:
     Слова подряд — один оттенок («Blue Black», «Sky Blue»), через дефис или косую черту — два цвета.
     Если вне скобок цвет не указан, проверяется содержимое скобок («iPhone 18 Pro (Burgundy)»).
     """
-    main = split_added_product(title)[0]
+    main = _mask_brand_colors(split_added_product(title)[0] or "")
     return _extract_color(_BRACKETS_RE.sub(" ", main)) or _extract_color(main)
 
 
