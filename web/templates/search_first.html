@@ -1208,6 +1208,18 @@
       transform: translateY(-1px);
     }
 
+    .card-spec-tag.static {
+      cursor: default;
+      border-style: dashed;
+    }
+
+    .card-spec-tag.static:hover {
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      border-color: var(--border-color);
+      transform: none;
+    }
+
     .card-spec-tag.active {
       background: var(--primary);
       color: #fff;
@@ -5133,21 +5145,28 @@
       border-color: var(--text-muted);
     }
 
+    /* A03 (аудит 18.11): строка сетки ограничена высотой окна (minmax(0, 1fr)), а колонки —
+       min-height: 0, иначе строка растягивалась до всего списка, и overflow:hidden сетки обрезал
+       пункты, до которых нельзя было докрутить. Прокручивается видимая колонка. */
     .catalog-modal-grid {
       display: grid;
       grid-template-columns: 300px 1fr;
-      flex: 1;
+      grid-template-rows: minmax(0, 1fr);
+      flex: 1 1 auto;
       overflow: hidden;
-      min-height: 480px;
-      max-height: calc(100vh - 170px);
+      min-height: 0;
+      height: min(640px, calc(100vh - 170px));
+      height: min(640px, calc(100dvh - 170px));
     }
 
     .catalog-l1-column {
       background: var(--bg-card);
       border-right: 1px solid var(--border-color);
       overflow-y: auto;
+      overscroll-behavior: contain;
       padding: 8px 0;
       flex-shrink: 0;
+      min-height: 0;
     }
 
     .catalog-l1-item {
@@ -5204,6 +5223,8 @@
 
     .catalog-content-column {
       overflow-y: auto;
+      overscroll-behavior: contain;
+      min-height: 0;
       padding: 24px 28px;
       background: var(--bg-card);
       display: flex;
@@ -5388,7 +5409,7 @@
       }
       .catalog-modal-grid {
         grid-template-columns: 1fr;
-        max-height: none;
+        height: auto;
       }
       .catalog-l1-column {
         display: block;
@@ -10875,10 +10896,15 @@
 
         const specs = [];
         const attrs = prod.attributes || {};
+        // A05: фильтр выдачи читает индекс характеристик на текущем названии. Кликабельно только то,
+        // что в нём есть (item.filterable_attributes), — иначе клик по своей памяти убирал товар.
+        const filterable = item.filterable_attributes || {};
+        const screenKey = filterable.screen_size ? 'screen_size' : (filterable.screen_diagonal ? 'screen_diagonal'
+          : (attrs.screen_size ? 'screen_size' : (attrs.screen_diagonal ? 'screen_diagonal' : 'screen_size')));
         const specCandidates = [
           { key: 'storage', icon: '💾', val: attrs.storage || attrs['Встроенная память'] },
           { key: 'ram', icon: '⚡', val: attrs.ram || attrs['Оперативная память'] },
-          { key: attrs.screen_size ? 'screen_size' : (attrs.screen_diagonal ? 'screen_diagonal' : 'screen_size'), icon: '📱', val: attrs.screen_size || attrs.screen_diagonal || attrs['Диагональ экрана'] },
+          { key: screenKey, icon: '📱', val: filterable[screenKey] || attrs.screen_size || attrs.screen_diagonal || attrs['Диагональ экрана'] },
           { key: 'color', icon: '🎨', val: attrs.color || attrs['Цвет'] },
           { key: 'refresh_rate', icon: '🔄', val: attrs.refresh_rate || attrs['Частота обновления'] },
           { key: 'vram', icon: '🎮', val: attrs.vram || attrs['Объем видеопамяти'] },
@@ -10894,12 +10920,15 @@
               key: sc.key,
               val: valStr,
               icon: sc.icon,
-              isActive: isActive
+              isActive: isActive,
+              canFilter: filterable[sc.key] === valStr
             });
           }
         });
 
-        const specsHtml = specs.length > 0 ? `<div class="card-specs-row">${specs.map(s => `<button type="button" class="card-spec-tag${s.isActive ? ' active' : ''}" data-spec-key="${escapeHtml(s.key)}" data-spec-val="${escapeHtml(s.val)}" onclick="event.stopPropagation(); toggleSpecFilter(this.dataset.specKey, this.dataset.specVal)" title="Фильтровать по: ${escapeHtml(s.val)}">${s.icon} <span>${escapeHtml(s.val)}</span></button>`).join('')}</div>` : '';
+        const specsHtml = specs.length > 0 ? `<div class="card-specs-row">${specs.map(s => s.canFilter
+          ? `<button type="button" class="card-spec-tag${s.isActive ? ' active' : ''}" data-spec-key="${escapeHtml(s.key)}" data-spec-val="${escapeHtml(s.val)}" onclick="event.stopPropagation(); toggleSpecFilter(this.dataset.specKey, this.dataset.specVal)" title="Фильтровать по: ${escapeHtml(s.val)}">${s.icon} <span>${escapeHtml(s.val)}</span></button>`
+          : `<span class="card-spec-tag static" data-spec-key="${escapeHtml(s.key)}" title="Значение из описания продавца — не подтверждено по названию, фильтр по нему недоступен">${s.icon} <span>${escapeHtml(s.val)}</span></span>`).join('')}</div>` : '';
 
         return `
           <div class="product-card" data-id="${escapeHtml(pId)}" onclick="openProduct(event, this.dataset.id)">

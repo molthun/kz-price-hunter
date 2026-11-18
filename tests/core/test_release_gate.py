@@ -184,6 +184,77 @@ class DependencyAuditTest(unittest.TestCase):
                 datetime.date.fromisoformat(str(entry.get("until")))
 
 
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+class PinnedSetAuditTest(unittest.TestCase):
+    """A01 (аудит 18.11): аудит обязан смотреть на тот набор, который ставит образ."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def write(self, name, text):
+        path = os.path.join(self.tmp.name, name)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return path
+
+    def test_repository_pins_are_exact_and_soupsieve_is_fixed(self):
+        pins = gate._read_pins(os.path.join(ROOT, "requirements.txt"))
+        pins.update(gate._read_pins(os.path.join(ROOT, "constraints.txt")))
+        major = int(pins["soupsieve"].split(".")[0])
+        # GHSA-mmhr-3c5m-f64f: descendant-селекторы на глубоком HTML, исправлено только в 4.0
+        self.assertGreaterEqual(major, 4, pins["soupsieve"])
+
+    def test_installed_set_equal_to_pins_passes(self):
+        req = self.write("r.txt", "# прямые\nbeautifulsoup4==4.15.0\n")
+        con = self.write("c.txt", "soupsieve==4.1.1\n")
+        inst = self.write("i.txt", "beautifulsoup4==4.15.0\nsoupsieve==4.1.1\npip==25.3\n")
+        result = gate.check_pins(req, con, inst)
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["checked"], 2)
+
+    def test_old_soupsieve_in_the_installed_set_fails(self):
+        req = self.write("r.txt", "beautifulsoup4==4.15.0\n")
+        con = self.write("c.txt", "soupsieve==4.1.1\n")
+        inst = self.write("i.txt", "beautifulsoup4==4.15.0\nsoupsieve==2.10\n")
+        result = gate.check_pins(req, con, inst)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["mismatched"][0]["package"], "soupsieve")
+
+    def test_unpinned_transitive_package_fails(self):
+        req = self.write("r.txt", "beautifulsoup4==4.15.0\n")
+        con = self.write("c.txt", "soupsieve==4.1.1\n")
+        inst = self.write("i.txt", "beautifulsoup4==4.15.0\nsoupsieve==4.1.1\nnew_dep==1.0\n")
+        result = gate.check_pins(req, con, inst)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["unpinned"], ["new-dep"])
+
+    def test_loose_requirement_is_not_a_pin(self):
+        req = self.write("r.txt", "beautifulsoup4>=4.0\n")
+        con = self.write("c.txt", "")
+        inst = self.write("i.txt", "beautifulsoup4==4.15.0\n")
+        self.assertFalse(gate.check_pins(req, con, inst)["ok"])
+
+    def test_audit_report_with_vulnerable_soupsieve_blocks(self):
+        path = self.write("audit.json", json.dumps({"dependencies": [
+            {"name": "soupsieve", "version": "2.10",
+             "vulns": [{"id": "GHSA-mmhr-3c5m-f64f", "fix_versions": ["4.0"]}]}]}))
+        allow = self.write("allow.json", json.dumps({"allow": []}))
+        result = gate.check_dependencies(path, allow, now=NOW)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["blocking"][0]["id"], "GHSA-MMHR-3C5M-F64F")
+
+    def test_workflow_audits_the_installed_set_not_a_fresh_resolution(self):
+        with open(os.path.join(ROOT, ".github", "workflows", "docker-publish.yml"), encoding="utf-8") as fh:
+            wf = fh.read()
+        self.assertIn("-r requirements.txt -c constraints.txt", wf)
+        self.assertIn("release_gate.py pins requirements.txt constraints.txt installed.txt", wf)
+        self.assertIn("pip-audit -r installed.txt --no-deps", wf)
+        self.assertNotIn("pip-audit -r requirements.txt", wf)
+
+
 class UpgradeRehearsalTest(unittest.TestCase):
     """База предыдущего релиза должна подниматься новым кодом — или потеря данных названа вслух."""
 

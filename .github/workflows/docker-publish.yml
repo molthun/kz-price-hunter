@@ -102,9 +102,18 @@ jobs:
       - name: Install pip-audit
         run: pip install pip-audit
 
+      - name: Resolve the exact installed set
+        # Проверяется ровно тот набор, что ставит Dockerfile (requirements + constraints), а не
+        # свежая резолюция requirements.txt: иначе зелёный аудит ничего не говорит о транзитивных пинах.
+        run: |
+          python -m venv /tmp/app-env
+          /tmp/app-env/bin/pip install -r requirements.txt -c constraints.txt
+          /tmp/app-env/bin/pip freeze --exclude-editable > installed.txt
+          python release_gate.py pins requirements.txt constraints.txt installed.txt
+
       - name: Audit dependencies
         # pip-audit сам по себе останавливает шаг, поэтому отчёт пишется всегда, а решение принимает шлюз
-        run: pip-audit -r requirements.txt -f json -o audit.json || true
+        run: pip-audit -r installed.txt --no-deps --disable-pip -f json -o audit.json || true
 
       - name: Apply the gate to the audit report
         run: python release_gate.py deps audit.json

@@ -213,6 +213,8 @@ class ProductSearchResult:
     used_sellers_count: int = 0
     variants_count: int = 0  # другие исполнения той же модели
     has_gift: bool = False
+    # A05: характеристики, по которым фильтр выдачи найдёт этот товар (индекс на текущем названии)
+    filterable_attributes: Dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
@@ -221,6 +223,35 @@ class ProductSearchResult:
         res["sellers"] = [s.to_dict() for s in self.sellers]
         res["best_offer"] = self.best_offer.to_dict() if self.best_offer else None
         return res
+
+
+# Характеристики, которые карточка выдачи показывает тегами (web/templates/search_first.html)
+CARD_SPEC_KEYS = ("storage", "ram", "screen_size", "screen_diagonal", "color", "refresh_rate", "vram", "gpu",
+                  "diaper_size")
+
+
+def reconcile_card_attributes(product: CanonicalProduct, confirmed: Dict[str, str]):
+    """Согласует теги карточки с названием и индексом фильтра (A05, аудит 18.11.2026).
+
+    Порядок доверия: подтверждённое значение индекса на текущем названии > значение, извлечённое из
+    самого названия > сохранённое attributes_json (может остаться от прежнего названия или другого
+    источника: «Белый» у «iPhone 16 128GB (Black)»). Возвращает новый товар и значения для фильтра.
+    """
+    attrs = dict(product.attributes or {})
+    try:
+        from domain.attribute_indexing import extract_title_attributes
+        from_title = extract_title_attributes(product.title or "")
+    except Exception:
+        from_title = {}
+    for key in CARD_SPEC_KEYS:
+        if from_title.get(key):
+            attrs[key] = from_title[key]
+    filterable = {k: v for k, v in (confirmed or {}).items() if k in CARD_SPEC_KEYS}
+    attrs.update(filterable)
+    if attrs == (product.attributes or {}):
+        return product, filterable
+    from dataclasses import replace
+    return replace(product, attributes=attrs), filterable
 
 
 @dataclass
@@ -822,10 +853,21 @@ class SearchCore:
             has_next = (page_val < total_pages)
             has_prev = (page_val > 1)
 
+            page_items = product_results[:limit_val]
+            if hasattr(self.search_repo, "confirmed_attributes"):
+                try:
+                    confirmed = self.search_repo.confirmed_attributes([c.product.id for c in page_items])
+                except Exception as ex:
+                    logger.warning(f"Confirmed attributes lookup failed: {type(ex).__name__}")
+                    confirmed = {}
+                for card in page_items:
+                    card.product, card.filterable_attributes = reconcile_card_attributes(
+                        card.product, confirmed.get(card.product.id, {}))
+
             return SearchResponse2(
                 query=query,
                 parsed_query=parsed,
-                items=product_results[:limit_val],
+                items=page_items,
                 total_products=exact_total_products,
                 total_offers=total_offers_count,
                 latency_ms=round(latency_ms, 2),

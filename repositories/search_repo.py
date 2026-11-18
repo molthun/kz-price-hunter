@@ -1047,6 +1047,29 @@ class SearchRepository(BaseRepository):
                 counts[mapped.id] = counts.get(mapped.id, 0) + int(row["cards"])
         return counts
 
+    def confirmed_attributes(self, product_ids) -> Dict[str, Dict[str, str]]:
+        """Значения, по которым фильтр выдачи действительно найдёт товар (A05, аудит 18.11).
+
+        Тот же источник и то же условие, что в _category_filter: product_search_attributes,
+        привязанные к текущему названию. Карточка делает кликабельными только их — клик по
+        собственной характеристике не может исключить товар из выдачи.
+        """
+        ids = [i for i in dict.fromkeys(product_ids or []) if i]
+        if not ids:
+            return {}
+        out: Dict[str, Dict[str, str]] = {}
+        try:
+            rows = self.conn.execute(
+                "SELECT pa.product_id, pa.key, pa.value FROM product_search_attributes pa "
+                "JOIN canonical_products p ON p.id = pa.product_id AND pa.source_title = p.title "
+                "WHERE pa.product_id IN (SELECT value FROM json_each(?))", (json.dumps(ids),)).fetchall()
+        except Exception:
+            return {}
+        for pid, key, value in rows:
+            if value:
+                out.setdefault(pid, {})[key] = str(value)
+        return out
+
     def attribute_facets(self, arguments, schema):
         """Dynamic fields use the same entire SQL result set, before family grouping/LIMIT."""
         from domain.query_parser import QueryParser

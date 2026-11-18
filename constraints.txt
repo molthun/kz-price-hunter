@@ -12,7 +12,9 @@ propcache==0.5.4
 pycparser==3.0
 # pyee 14 вышел, но playwright 1.63 требует pyee<14 — это потолок, а не отставший пин
 pyee==13.0.1
-soupsieve==2.10
+# soupsieve: 2.x и 3.x уязвимы (GHSA-mmhr-3c5m-f64f — экспоненциальный разбор descendant-селекторов
+# на глубоко вложенном HTML источников); исправлено в 4.0, 4.1.1 — без записей OSV на 18.11.2026
+soupsieve==4.1.1
 typing-extensions==4.16.0
 urllib3==2.8.0
 yarl==1.25.1

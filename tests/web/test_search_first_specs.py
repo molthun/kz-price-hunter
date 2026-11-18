@@ -37,6 +37,11 @@ class SearchFirstSpecTagsTest(unittest.TestCase):
                             "color": "Men's Black",
                         },
                     },
+                    "filterable_attributes": {
+                        "storage": "256 ГБ",
+                        "screen_diagonal": '6.1"',
+                        "color": "Men's Black",
+                    },
                     "min_price": 450000,
                     "sellers_count": 2,
                     "has_new": True,

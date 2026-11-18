@@ -26,7 +26,9 @@ const detail={ok:true,product:{id:'p1',title:'Товар один',category:'foo
    points:[{observed_at:'2026-10-29T10:00:00+00:00',price:7000}]}]}};
 
 const searchResponse=(q)=>({query:q,total_products:45,page:1,total_pages:3,has_prev:false,has_next:true,outcome:'FOUND',facets_available:true,
- items:[{product:{id:'p1',title:'Товар '+q,attributes:{storage:'256 ГБ',screen_diagonal:'6.1"',color:"Men's Black"}},min_price:6000,sellers_count:1,has_new:true,best_offer:{}}],
+ items:[{product:{id:'p1',title:'Товар '+q,attributes:{storage:'256 ГБ',screen_diagonal:'6.1"',color:"Men's Black"}},
+  // A05: память не подтверждена индексом на текущем названии — тег не должен быть фильтром
+  filterable_attributes:{screen_diagonal:'6.1"',color:"Men's Black"},min_price:6000,sellers_count:1,has_new:true,best_offer:{}}],
  category_facets:[{id:'food',name:'Еда',count:40},{id:'home',name:'Дом',count:5}],
  seller_facets:[{id:'s1',name:'Магазин Один',slug:'one',count:45}],city_facets:[],brand_facets:[]});
 
@@ -79,6 +81,11 @@ async function scenario(browser,{width,height,scheme}){
  await page.waitForFunction(()=>location.search.includes('page=2'));
  await cardsVisible('Товар третий');
 
+ // Неподтверждённая характеристика видна, но не выглядит фильтром и не меняет выдачу
+ const storageTag=page.locator('.card-spec-tag',{hasText:'256 ГБ'}).first();
+ assert.equal(await storageTag.evaluate(e=>e.tagName),'SPAN',`${label}: память не кнопка`);
+ assert.ok(await storageTag.evaluate(e=>e.classList.contains('static')),`${label}: память помечена как неподтверждённая`);
+ assert.equal(await storageTag.evaluate(e=>e.hasAttribute('onclick')||e.hasAttribute('data-spec-val')),false,`${label}: у памяти нет обработчика фильтра`);
  // Кликабельные характеристики на карточке: апостроф, диагональ и снятие фильтра
  const colorTag=page.locator('.card-spec-tag',{hasText:"Men's Black"}).first();
  await colorTag.click();

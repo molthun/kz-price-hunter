@@ -36,7 +36,7 @@ main{width:100%;max-width:460px;padding:28px;border:1px solid var(--border);bord
 <noscript>Для входа включите JavaScript в браузере.</noscript>
 </main>
 <script>
-let lastWidget='',checking=false,botPollTimer=null;
+let lastWidget='',checking=false,botPollTimer=null,botLinkReady=false;
 const byId=id=>document.getElementById(id);
 async function post(path,body){
  const res=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
@@ -47,28 +47,27 @@ window.addEventListener('message',function(e){
  if(!e.origin||!e.origin.includes('telegram.org'))return;
  try{const d=typeof e.data==='string'?JSON.parse(e.data):e.data;if(d&&d.event==='auth_result'&&d.result)onTelegramAuth(d.result);}catch(err){}
 });
+function stopBotPoll(){if(botPollTimer)clearInterval(botPollTimer);botPollTimer=null;}
+function hideBotLink(){botLinkReady=false;const a=byId('directBotArea');if(a)a.hidden=true;const l=byId('directBotLink');if(l)l.href='#';}
 async function initClosedBotAuth(){
+ // Кнопка бота показывается только с настоящей ссылкой: пустой href="#" вёл в никуда
+ stopBotPoll();botPollTimer=-1;
  try{
   const res=await post('/api/auth/bot-start');
-  if(res.status==='ok'&&res.bot_url){
-   const directLink=byId('directBotLink');
-   if(directLink)directLink.href=res.bot_url;
-   if(botPollTimer)clearInterval(botPollTimer);
-   botPollTimer=setInterval(async()=>{
-    try{
-     const pRes=await fetch('/api/auth/bot-poll?token='+encodeURIComponent(res.token));
-     if(pRes.ok){
-      const pData=await pRes.json();
-      if(pData.status==='ok'){
-       clearInterval(botPollTimer);
-       byId('status').textContent='✅ Вход выполнен!';
-       location.reload();
-      }
-     }
-    }catch(e){}
-   },1500);
-  }
- }catch(e){}
+  if(botPollTimer!==-1)return; // пока ждали ответ, вход уже случился или опрос отменён
+  if(res.status!=='ok'||!res.bot_url||!res.token){stopBotPoll();hideBotLink();return;}
+  byId('directBotLink').href=res.bot_url;botLinkReady=true;byId('directBotArea').hidden=false;
+  botPollTimer=setInterval(async()=>{
+   let pRes;try{pRes=await fetch('/api/auth/bot-poll?token='+encodeURIComponent(res.token),{cache:'no-store'});}catch(e){return;}
+   let pData={};try{pData=await pRes.json();}catch(e){}
+   if(pRes.ok&&pData.status==='ok'){stopBotPoll();byId('status').textContent='✅ Вход выполнен!';location.reload();return;}
+   if(pRes.ok)return;
+   // 410 — ссылка истекла: берём новую; 403/404/400 — опрос бессмысленен, говорим причину
+   stopBotPoll();hideBotLink();
+   if(pRes.status===410){byId('status').textContent='Ссылка для входа устарела — получаем новую.';initClosedBotAuth();}
+   else byId('status').textContent=pData.message||'Не удалось выполнить вход. Повторите попытку.';
+  },1500);
+ }catch(e){stopBotPoll();hideBotLink();}
 }
 async function checkAccess(){
  if(checking)return;checking=true;byId('retry').hidden=true;
@@ -80,11 +79,9 @@ async function checkAccess(){
   const blocked=data.maintenance_mode?!(user&&(user.is_confirmed||user.is_admin)):access.allowed===false;
   if(!blocked){location.reload();return;}
   byId('pendingActions').hidden=!user;byId('identity').hidden=!user;byId('widget').hidden=!!user;byId('devLogin').hidden=!!user;
-  const directArea = byId('directBotArea');
-  if(directArea) {
-    directArea.hidden = !!user || !auth.bot_username;
-    if(!user && auth.bot_username && !botPollTimer) initClosedBotAuth();
-  }
+  const directArea=byId('directBotArea');
+  if(user||!auth.bot_username){stopBotPoll();hideBotLink();}
+  else{directArea.hidden=!botLinkReady;if(!botPollTimer)initClosedBotAuth();}
   if(user){
    byId('title').textContent=timed?'Пробное время закончилось':'Ожидание подтверждения';
    byId('description').textContent=timed?'30 минут пробного доступа прошли. Владелец подтвердит ваш аккаунт — и сайт откроется без ограничений. Утром он получает список тех, кто ждёт.':'Вы вошли. Владелец должен подтвердить доступ к сайту.';

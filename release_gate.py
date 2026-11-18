@@ -233,6 +233,53 @@ def check_dependencies(report_path: str, allowlist_path: str = ALLOWLIST_FILE,
 # Репетиция обновления базы предыдущего релиза
 # ---------------------------------------------------------------------------
 
+# Инструменты окружения, которые pip ставит сам; приложением они не используются и в образ не входят пинами.
+_ENV_TOOLS = {"pip", "setuptools", "wheel"}
+_PIN_LINE = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._\-]*)\s*==\s*([^\s;#]+)")
+
+
+def _canon(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _read_pins(path: str) -> Dict[str, str]:
+    pins: Dict[str, str] = {}
+    with open(path, "r", encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.split("#", 1)[0].strip()
+            if not line or line.startswith("-"):
+                continue
+            m = _PIN_LINE.match(line)
+            if not m:
+                raise ValueError(f"{os.path.basename(path)}: не точный пин: {line[:80]}")
+            pins[_canon(m.group(1))] = m.group(2)
+    return pins
+
+
+def check_pins(requirements: str, constraints: str, installed: str) -> Dict[str, Any]:
+    """Аудит зависимостей смотрит на `installed` — значит, он обязан совпадать с образом.
+
+    Dockerfile ставит `-r requirements.txt -c constraints.txt`. Если в установленном наборе версия
+    отличается от пина или появился незакреплённый пакет, отчёт pip-audit описывает не то, что поедет
+    в образ (A01 аудита 18.11: проверялась свежая резолюция requirements, а в образе стоял soupsieve 2.10).
+    """
+    try:
+        expected = _read_pins(requirements)
+        expected.update(_read_pins(constraints))
+        actual = {k: v for k, v in _read_pins(installed).items() if k not in _ENV_TOOLS}
+    except (OSError, ValueError) as e:
+        return {"ok": False, "error": f"Набор зависимостей не прочитан: {e}"}
+    mismatched = [{"package": k, "pinned": expected[k], "installed": actual[k]}
+                  for k in sorted(actual) if k in expected and actual[k] != expected[k]]
+    unpinned = sorted(k for k in actual if k not in expected)
+    # Пин без установки допустим только для условных зависимостей (маркеры платформы) — их здесь нет,
+    # но отказ по ним скрыл бы осмысленную причину, поэтому они лишь перечисляются.
+    unused = sorted(k for k in expected if k not in actual)
+    ok = not mismatched and not unpinned and bool(actual)
+    return {"ok": ok, "checked": len(actual), "mismatched": mismatched,
+            "unpinned": unpinned, "pinned_not_installed": unused}
+
+
 def _schema_version(path: str) -> Optional[int]:
     try:
         with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as conn:
@@ -567,6 +614,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p_deps = sub.add_parser("deps", help="разбор отчёта pip-audit с учётом списка пропусков")
     p_deps.add_argument("report")
     p_deps.add_argument("--allowlist", default=ALLOWLIST_FILE)
+    p_pins = sub.add_parser("pins", help="установленный набор совпадает с requirements + constraints")
+    p_pins.add_argument("requirements")
+    p_pins.add_argument("constraints")
+    p_pins.add_argument("installed")
     p_upgrade = sub.add_parser("upgrade", help="репетиция обновления базы предыдущего релиза")
     p_upgrade.add_argument("db")
     p_upgrade.add_argument("--keep", default=None,
@@ -586,6 +637,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return _print(check_secrets(args.root))
     if args.command == "deps":
         return _print(check_dependencies(args.report, args.allowlist))
+    if args.command == "pins":
+        return _print(check_pins(args.requirements, args.constraints, args.installed))
     if args.command == "upgrade":
         return _print(upgrade_rehearsal(args.db, args.keep))
     if args.command == "baseline":

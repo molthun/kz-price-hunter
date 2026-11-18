@@ -28,6 +28,87 @@ def catalog_context(conn):
             for c in CategoryRepository(conn).list_all()]
 
 
+# A04 (аудит 18.11): характеристика плана становится обязательным фильтром и условием наблюдения
+# только при основании в самом запросе. Модель дописывала «шипы: Да» к «зимняя резина 205/55 R16».
+_YES_NO = {'да': True, 'нет': False, 'yes': True, 'no': False, 'true': True, 'false': False}
+# Признак-флаг: слова, которые его утверждают, и слова, которые отрицают (проверяются первыми)
+_FLAG_EVIDENCE = {
+    'studs': (('шип', 'stud'), ('без шип', 'нешип', 'не шип', 'липучк', 'фрикцион', 'studless',
+                                'non-stud', 'нешиповк')),
+    'runflat': (('runflat', 'run flat', 'ранфлэт', 'ранфлет'), ()),
+}
+_SIZE_KEYS = {'width', 'profile', 'diameter', 'size', 'tire_size'}
+
+
+def _norm(text):
+    return str(text).casefold().replace('ё', 'е')
+
+
+def _stem(word):
+    word = _norm(word)
+    return word[:4] if len(word) >= 6 else word[:max(3, len(word) - 1)]
+
+
+def _flag_from_query(key, label, q):
+    """True/False, если запрос утверждает или отрицает признак; None — запрос о нём молчит."""
+    yes, no = _FLAG_EVIDENCE.get(key, ((), ()))
+    if not yes:
+        stems = [_stem(w) for w in re.findall(r'\w{3,}', _norm(label))] or [_stem(key)]
+        yes = tuple(stems)
+        no = tuple(p + st for st in stems for p in ('без ', 'не ', 'не'))
+    if any(n in q for n in no):
+        return False
+    if any(y in q for y in yes):
+        return True
+    return None
+
+
+def grounded_attributes(attrs, query, fields=()):
+    """Оставляет только характеристики, для которых в запросе есть основание.
+
+    Числа значения должны встречаться среди чисел запроса; текстовое значение — хотя бы одним
+    словом (по основе); флаг Да/Нет выводится из самого запроса («шипованные» → Да,
+    «без шипов»/«липучка» → Нет), а при молчании запроса не ставится вовсе.
+    """
+    q = _norm(query)
+    q_numbers = set(re.findall(r'\d+', q))
+    labels = {f.get('key'): f.get('label') or '' for f in fields or () if isinstance(f, dict)}
+    out = {}
+    for key, value in (attrs or {}).items():
+        val = _norm(value).strip()
+        if not val:
+            continue
+        if val in _YES_NO or key in _FLAG_EVIDENCE:
+            flag = _flag_from_query(key, labels.get(key) or key, q)
+            if flag is not None:
+                out[key] = 'Да' if flag else 'Нет'
+            continue
+        numbers = re.findall(r'\d+', val)
+        if numbers:
+            if set(numbers) <= q_numbers:
+                out[key] = value
+            continue
+        words = [w for w in re.findall(r'\w{3,}', val)]
+        if words and any(_stem(w) in q for w in words):
+            out[key] = value
+    return out
+
+
+def _asks_known(clarification, attrs, fields, query=''):
+    """Уточнение не переспрашивает то, что уже есть в запросе (размер шины, сезон…)."""
+    text = _norm(clarification)
+    if not text:
+        return False
+    if 'размер' in text and (_SIZE_KEYS & set(attrs) or re.search(r'\d{3}\s*/\s*\d{2}', query)):
+        return True
+    labels = {f.get('key'): f.get('label') or '' for f in fields or () if isinstance(f, dict)}
+    for key in attrs:
+        words = re.findall(r'\w{4,}', _norm(labels.get(key) or ''))
+        if words and all(_stem(w) in text for w in words):
+            return True
+    return False
+
+
 def clean_plan(answer, query, categories):
     if not isinstance(answer, dict):
         return None
@@ -235,6 +316,7 @@ def clean_plan(answer, query, categories):
                     elif 'всесезон' in val.lower():
                         val = 'Всесезонные'
                 attrs[str_k] = val
+    attrs = grounded_attributes(attrs, query, fields)
 
     search = str(answer.get('search_query', query)).strip()[:300]
     # A rewritten query must not silently lose a concrete model/size number.
@@ -256,9 +338,12 @@ def clean_plan(answer, query, categories):
     except (ValueError, TypeError):
         confidence = 0.95 if cid in by_id else 0.5
     clarification = '' if (orig_cid and cid != orig_cid) else str(answer.get('clarification') or '').strip()[:220]
+    if _asks_known(clarification, attrs, fields, query):
+        clarification = ''
     if not clarification:
         if cid == 'tires':
-            clarification = 'Укажите размер, например 205/55 R16, — это поможет точнее подобрать варианты.'
+            if not (_SIZE_KEYS & set(attrs)) and not re.search(r'\d{3}\s*/\s*\d{2}', query):
+                clarification = 'Укажите размер, например 205/55 R16, — это поможет точнее подобрать варианты.'
         elif cid == 'laptops':
             clarification = 'Укажите диагональ экрана, процессор или объем памяти для точного подбора.'
         elif cid in ('phones', 'smartphones'):
@@ -457,7 +542,9 @@ def search_sync(arguments, understanding, selected_attributes):
                 cat_sql, cat_params = SearchRepository(conn)._category_filter_only(known.id)
                 populated = {r[0] for r in conn.execute('SELECT DISTINCT pa.key FROM product_search_attributes pa '
                     'JOIN canonical_products p ON p.id=pa.product_id WHERE pa.source_title=p.title ' + cat_sql, cat_params)}
-                inferred_attrs = {k:v for k,v in plan['attributes'].items() if k in populated and k not in attrs}
+                # Сохранённые до 6.40.16 планы могли содержать выдуманные признаки — проверяются заново
+                grounded = grounded_attributes(plan['attributes'], original, plan.get('fields') or ())
+                inferred_attrs = {k:v for k,v in grounded.items() if k in populated and k not in attrs}
                 # Подтверждённые моделью товары не теряются из-за слова запроса, которого нет в названии:
                 # зимняя шина «Ice Blazer с шипами» находится и по «зимняя резина».
                 # Keep deterministic condition/price/city constraints from the original query.
@@ -508,6 +595,8 @@ def search_sync(arguments, understanding, selected_attributes):
         data['local_ai'] = {k: v for k, v in understanding.items() if k != 'plan'}
         data['local_ai']['cached_plan'] = cached_plan
         clarification_msg = (plan or {}).get('clarification', '')
+        if plan and _asks_known(clarification_msg, plan.get('attributes') or {}, plan.get('fields') or (), original):
+            clarification_msg = ''
         if fallback_applied:
             clarification_msg = f'По запросу «{original}» точных совпадений в каталоге не найдено. Показаны товары из раздела «{cat.name if cat else inferred_category}».'
         data['search_help'] = {
