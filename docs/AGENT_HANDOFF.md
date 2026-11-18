@@ -9,6 +9,18 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## IN_PROGRESS v6.40.24: улучшение UX избранного и наблюдений (watches UX) — Antigravity (2026-11-19 00:34 +05)
+
+- **Основание:** выбор владельца (пункт 2: продолжить разработку согласно `docs/DEVELOPMENT_PLAN.md` — избранное и `watches UX` локально).
+- **Область файлов:** `web/templates/search_first.html`, `tests/frontend/test_frontend_deals_watches.cjs`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+
+## STAND_DEPLOYED v6.40.23: R22-01 — Claude (2026-11-19, Asia/Almaty)
+
+- По слову владельца «Да, на стенд»: коммит `3f10d36` доставлен bundle, `merge --ff-only`; стенд пересобран (`app`), шлюз сборки в Dockerfile — `ok: true`. Образ `sha256:4eb64df29f75…`, healthy, `/api/version` = 6.40.23. Push нет, прод 6.37.0 не трогался; правка compose стенда сохранена.
+- **Шлюз на фактическом образе:** `pip freeze` чистого `kzph-stand:local` и работающего контейнера совпадают — **25** пакетов; `pins` ok (0 mismatched/unpinned/pinned_not_installed); pip-audit 2.10.1 — без известных уязвимостей; `deps` ok (blocking/allowed/expired/skipped пусты); `secrets --root /app` — 0 находок.
+- Чистый `docker run --rm --network none --tmpfs /app/data` — **3 152 OK**, 432 с. Живой поиск «ноутбук оперативная память 16 ГБ» (Алматы) — 380, `ram=16 ГБ`.
+- **Следующий шаг:** повторная приёмка шлюза Codex по критерию R22-01 [отчёта 6.40.22](ACCEPTANCE_2026-11-18_V64022_CODEX.md). Живой GitHub Actions проверяется только при push — по слову владельца.
+
 ## READY_FOR_STAND v6.40.23: R22-01 — Claude (2026-11-19, Asia/Almaty)
 
 - **Основание:** возврат шлюза [приёмки 6.40.22](ACCEPTANCE_2026-11-18_V64022_CODEX.md). Изменены `Dockerfile`, `.github/workflows/docker-publish.yml`, тесты шлюза; код приложения не менялся. Не закоммичено, рабочий стенд не пересобирался, push нет, прод 6.37.0 не трогался.
