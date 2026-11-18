@@ -99,16 +99,28 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Build the image locally
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: kz-price-hunter:audit
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Install pip-audit
         run: pip install pip-audit
 
-      - name: Resolve the exact installed set
-        # Проверяется ровно тот набор, что ставит Dockerfile (requirements + constraints), а не
-        # свежая резолюция requirements.txt: иначе зелёный аудит ничего не говорит о транзитивных пинах.
+      - name: Take the installed set from the built image
+        # Проверяется freeze собранного образа, а не отдельный venv: пакеты базового образа в venv
+        # не попадают, и зелёный аудит 25 пинов ничего не говорил о 30 пакетах поставки (R22-01).
         run: |
-          python -m venv /tmp/app-env
-          /tmp/app-env/bin/pip install -r requirements.txt -c constraints.txt
-          /tmp/app-env/bin/pip freeze --exclude-editable > installed.txt
+          docker run --rm --network none --entrypoint pip kz-price-hunter:audit freeze --exclude-editable > installed.txt
+          cat installed.txt
           python release_gate.py pins requirements.txt constraints.txt installed.txt
 
       - name: Audit dependencies

@@ -19,8 +19,16 @@ COPY requirements.txt constraints.txt ./
 # зовут системный python3 напрямую.
 RUN pip install --no-cache-dir --break-system-packages -r requirements.txt -c constraints.txt && \
     playwright install chromium
+# Базовый образ Playwright несёт virtualenv с зависимостями (filelock, platformdirs, distlib,
+# python-discovery). Приложению они не нужны, а в аудит пинов не попадали: 36 записей pip-audit
+# по полному freeze образа (R22-01). pip пользуется своими вендорными копиями.
+RUN pip uninstall -y --break-system-packages virtualenv python-discovery filelock platformdirs distlib
 
 COPY . .
+# Шлюз сборки: Python-окружение образа — ровно requirements + constraints, без лишних пакетов
+RUN pip freeze --exclude-editable > /tmp/installed.txt && \
+    python3 release_gate.py pins requirements.txt constraints.txt /tmp/installed.txt && \
+    rm /tmp/installed.txt
 
 RUN mkdir -p /app/data
 

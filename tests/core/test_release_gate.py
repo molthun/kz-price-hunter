@@ -254,6 +254,37 @@ class PinnedSetAuditTest(unittest.TestCase):
         self.assertIn("pip-audit -r installed.txt --no-deps", wf)
         self.assertNotIn("pip-audit -r requirements.txt", wf)
 
+    def test_audit_takes_the_freeze_of_the_built_image(self):
+        """R22-01: отдельный venv не видел пакетов базового образа (virtualenv, filelock…)."""
+        with open(os.path.join(ROOT, ".github", "workflows", "docker-publish.yml"), encoding="utf-8") as fh:
+            wf = fh.read()
+        job = wf[wf.index("  dependency-audit:"):wf.index("  upgrade-rehearsal:")]
+        self.assertIn("load: true", job)
+        self.assertIn("--entrypoint pip kz-price-hunter:audit freeze --exclude-editable > installed.txt", job)
+        self.assertNotIn("python -m venv", job)
+        self.assertLess(job.index("freeze --exclude-editable"), job.index("pip-audit -r installed.txt"))
+
+    def test_image_drops_base_tools_and_checks_pins_at_build(self):
+        with open(os.path.join(ROOT, "Dockerfile"), encoding="utf-8") as fh:
+            df = fh.read()
+        uninstall = next(l for l in df.splitlines() if "pip uninstall" in l)
+        for pkg in ("virtualenv", "python-discovery", "filelock", "platformdirs", "distlib"):
+            self.assertIn(pkg, uninstall)
+        self.assertIn("release_gate.py pins requirements.txt constraints.txt /tmp/installed.txt", df)
+        self.assertLess(df.index("COPY . ."), df.index("release_gate.py pins"))
+        # Удаляемые пакеты не должны оказаться среди пинов приложения
+        pins = gate._read_pins(os.path.join(ROOT, "requirements.txt"))
+        pins.update(gate._read_pins(os.path.join(ROOT, "constraints.txt")))
+        self.assertFalse({"virtualenv", "filelock", "platformdirs", "distlib", "python-discovery"} & set(pins))
+
+    def test_extra_base_image_package_fails_pins(self):
+        req = self.write("r.txt", "beautifulsoup4==4.15.0\n")
+        con = self.write("c.txt", "soupsieve==4.1.1\n")
+        inst = self.write("i.txt", "beautifulsoup4==4.15.0\nsoupsieve==4.1.1\nvirtualenv==21.7.8\nfilelock==3.32.5\n")
+        result = gate.check_pins(req, con, inst)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["unpinned"], ["filelock", "virtualenv"])
+
 
 class UpgradeRehearsalTest(unittest.TestCase):
     """База предыдущего релиза должна подниматься новым кодом — или потеря данных названа вслух."""
