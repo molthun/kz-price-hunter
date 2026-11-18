@@ -1,0 +1,377 @@
+{
+  "time_utc": "2026-11-18T03:59:22.797299+00:00",
+  "environments": [
+    {
+      "container": "kzph-stand",
+      "returncode": 0,
+      "snapshot": {
+        "url": "https://shdev.molthun.ru/api/diag",
+        "problems": [
+          {
+            "severity": "warning",
+            "code": "error_rate",
+            "problem": "26 ошибок за час, больше всего в «http»",
+            "meaning": "Смотрите errors.last: там последние сообщения с временем и компонентом."
+          }
+        ],
+        "service": {
+          "version": "6.40.15",
+          "release_date": "2026-11-18",
+          "uptime_seconds": 21632.3,
+          "started_at": "2026-11-17T21:58:51.522500+00:00"
+        },
+        "runtime": {
+          "python": "3.14.4",
+          "platform": "linux",
+          "cpu_count": 16,
+          "thread_pool_size": 16,
+          "threads_alive": 21,
+          "rss_mb": 788.5,
+          "event_loop_lag_ms": 0.3
+        },
+        "queue": {
+          "size": 0,
+          "failures": 0,
+          "redis_active": true,
+          "worker_running": true
+        },
+        "database": {
+          "journal_mode": "wal",
+          "size_mb": 2231.3,
+          "rows": {
+            "products": 187392,
+            "offers": 187481,
+            "sellers": 39,
+            "alerts": 55132,
+            "watches": 0
+          },
+          "schema_version": "5"
+        },
+        "http_errors": {
+          "total": 26,
+          "components": {
+            "http": 26
+          }
+        },
+        "settings": {
+          "ai_key_standard": "k2",
+          "local_normalize_enabled": true,
+          "adaptive_scheduler_stage": "off",
+          "daily_digest_telegram_enabled": true,
+          "daily_digest_hour": 10,
+          "daily_digest_timezone": "Asia/Almaty"
+        },
+        "versions": {
+          "soupsieve": "2.10",
+          "beautifulsoup4": "4.15.0",
+          "aiohttp": "3.14.4"
+        },
+        "descriptions": {
+          "products": 0,
+          "canonical_products": 0
+        },
+        "normalize_shadow": [
+          [
+            "2026-11-17",
+            "both_empty",
+            17
+          ],
+          [
+            "2026-11-17",
+            "failed",
+            20
+          ],
+          [
+            "2026-11-17",
+            "matched",
+            49
+          ],
+          [
+            "2026-11-17",
+            "mismatch",
+            58
+          ],
+          [
+            "2026-11-17",
+            "missing",
+            19
+          ],
+          [
+            "2026-11-17",
+            "primary_empty",
+            42
+          ],
+          [
+            "2026-11-17",
+            "scheduled",
+            226
+          ],
+          [
+            "2026-11-17",
+            "shadow_empty",
+            1
+          ],
+          [
+            "2026-11-18",
+            "both_empty",
+            20
+          ],
+          [
+            "2026-11-18",
+            "failed",
+            40
+          ],
+          [
+            "2026-11-18",
+            "matched",
+            333
+          ],
+          [
+            "2026-11-18",
+            "mismatch",
+            284
+          ],
+          [
+            "2026-11-18",
+            "missing",
+            18
+          ],
+          [
+            "2026-11-18",
+            "primary_empty",
+            62
+          ],
+          [
+            "2026-11-18",
+            "scheduled",
+            757
+          ]
+        ],
+        "digest_days": [
+          [
+            "2026-11-12",
+            "sent",
+            1,
+            1
+          ],
+          [
+            "2026-11-11",
+            "sent",
+            1,
+            0
+          ],
+          [
+            "2026-11-10",
+            "sent",
+            1,
+            0
+          ],
+          [
+            "2026-11-09",
+            "sent",
+            1,
+            0
+          ],
+          [
+            "2026-11-08",
+            "sent",
+            1,
+            0
+          ]
+        ]
+      },
+      "error": null
+    },
+    {
+      "container": "kz-price-hunter",
+      "returncode": 0,
+      "snapshot": {
+        "url": "https://shop.molthun.ru/api/diag",
+        "problems": [
+          {
+            "severity": "warning",
+            "code": "error_rate",
+            "problem": "44 ошибок за час, больше всего в «http»",
+            "meaning": "Смотрите errors.last: там последние сообщения с временем и компонентом."
+          }
+        ],
+        "service": {
+          "version": "6.37.0",
+          "release_date": "2026-11-12",
+          "uptime_seconds": 45203.1,
+          "started_at": "2026-11-17T15:26:01.982603+00:00"
+        },
+        "runtime": {
+          "python": "3.14.4",
+          "platform": "linux",
+          "cpu_count": 16,
+          "thread_pool_size": 32,
+          "threads_alive": 23,
+          "rss_mb": 1090.4,
+          "event_loop_lag_ms": 14.3
+        },
+        "queue": {
+          "size": 13,
+          "failures": 0,
+          "redis_active": true,
+          "worker_running": true
+        },
+        "database": {
+          "journal_mode": "wal",
+          "size_mb": 2507.9,
+          "rows": {
+            "products": 226175,
+            "offers": 221953,
+            "sellers": 38,
+            "alerts": 300438,
+            "watches": 0
+          },
+          "schema_version": "5"
+        },
+        "http_errors": {
+          "total": 44,
+          "components": {
+            "http": 44
+          }
+        },
+        "settings": {
+          "ai_key_standard": "v1",
+          "local_normalize_enabled": false,
+          "adaptive_scheduler_stage": "off",
+          "daily_digest_telegram_enabled": true,
+          "daily_digest_hour": 10,
+          "daily_digest_timezone": "Asia/Almaty"
+        },
+        "versions": {
+          "soupsieve": "2.10",
+          "beautifulsoup4": "4.15.0",
+          "aiohttp": "3.14.4"
+        },
+        "descriptions": {
+          "products": 14869,
+          "canonical_products": 5551
+        },
+        "normalize_shadow": [
+          [
+            "2026-11-17",
+            "both_empty",
+            37
+          ],
+          [
+            "2026-11-17",
+            "failed",
+            1417
+          ],
+          [
+            "2026-11-17",
+            "incomparable",
+            107
+          ],
+          [
+            "2026-11-17",
+            "matched",
+            395
+          ],
+          [
+            "2026-11-17",
+            "mismatch",
+            336
+          ],
+          [
+            "2026-11-17",
+            "missing",
+            118
+          ],
+          [
+            "2026-11-17",
+            "primary_empty",
+            2155
+          ],
+          [
+            "2026-11-17",
+            "scheduled",
+            4594
+          ],
+          [
+            "2026-11-17",
+            "shadow_empty",
+            29
+          ],
+          [
+            "2026-11-18",
+            "failed",
+            885
+          ],
+          [
+            "2026-11-18",
+            "incomparable",
+            21
+          ],
+          [
+            "2026-11-18",
+            "matched",
+            112
+          ],
+          [
+            "2026-11-18",
+            "mismatch",
+            183
+          ],
+          [
+            "2026-11-18",
+            "missing",
+            21
+          ],
+          [
+            "2026-11-18",
+            "primary_empty",
+            535
+          ],
+          [
+            "2026-11-18",
+            "scheduled",
+            1764
+          ],
+          [
+            "2026-11-18",
+            "shadow_empty",
+            7
+          ]
+        ],
+        "digest_days": [
+          [
+            "2026-11-16",
+            "sent",
+            1,
+            0
+          ],
+          [
+            "2026-11-14",
+            "sent",
+            1,
+            0
+          ],
+          [
+            "2026-11-13",
+            "sent",
+            1,
+            0
+          ],
+          [
+            "2026-11-12",
+            "sent",
+            1,
+            0
+          ],
+          [
+            "2026-11-11",
+            "sent",
+            1,
+            0
+          ]
+        ]
+      },
+      "error": null
+    }
+  ]
+}

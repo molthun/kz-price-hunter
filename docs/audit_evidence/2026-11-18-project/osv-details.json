@@ -1,0 +1,418 @@
+[
+  {
+    "id": "GHSA-6655-6qjp-jx7x",
+    "summary": "Soup Sieve: Exponential ReDoS in selector compilation via \\9-run in CSS_ESCAPES/IDENTIFIER",
+    "details": "### Summary\nThe IDENTIFIER/CSS_ESCAPES regex (css_parser.py:119-124) exhibits exponential backtracking on a run of ambiguous digit-escapes (`\\9`) in an attribute-name or tag position of an otherwise well-formed selector. It fires at compile time (before the SELECTOR_LIMIT guard) via the public `soupsieve.compile()` and BeautifulSoup `.select()`.\n\n### PoC (verified on soupsieve 2.9.2)\n\n    import soupsieve as sv\n    sv.compile('[a' + '\\\\9'*26 + '=x]')   # ~57 bytes -> ~10s; ~16x time per +4 chars\n\n### Novelty\nDistinct from the patched GHSA-836r-... (VALUE regex) and GHSA-2wc2-... (comma-list) advisories, which are fixed in 2.9.2; this is a different regex/vector.\n\n### Reachability\nCSS selectors are usually developer-controlled, so exposure requires an application that compiles UNTRUSTED selector strings (web-scraping-as-a-service, no-code/query builders, user-defined extraction rules). Where selectors are user-supplied, a ~60-byte string hangs the worker.\n\n### Note\nThis issue was fixed in version 3.0.0, which has been yanked from the PyPI registry. Use versions 3.0.2 and above to upgrade.",
+    "aliases": [
+      "CVE-2026-126191"
+    ],
+    "modified": "2026-11-13T16:45:03.387641194Z",
+    "published": "2026-11-13T16:39:43Z",
+    "database_specific": {
+      "severity": "HIGH",
+      "github_reviewed": true,
+      "github_reviewed_at": "2026-11-13T16:39:43Z",
+      "nvd_published_at": "2026-11-12T17:17:32Z",
+      "cwe_ids": [
+        "CWE-1333"
+      ]
+    },
+    "references": [
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/security/advisories/GHSA-6655-6qjp-jx7x"
+      },
+      {
+        "type": "ADVISORY",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-126191"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/pull/300"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/commit/dbfa2854ff31a863326bd6660d4e55c6f068db9e"
+      },
+      {
+        "type": "PACKAGE",
+        "url": "https://github.com/facelessuser/soupsieve"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/releases/tag/3.0"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "name": "soupsieve",
+          "ecosystem": "PyPI",
+          "purl": "pkg:pypi/soupsieve"
+        },
+        "ranges": [
+          {
+            "type": "ECOSYSTEM",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "3.0.2"
+              }
+            ]
+          }
+        ],
+        "versions": [
+          "0.4",
+          "0.5",
+          "0.5.1",
+          "0.5.2",
+          "0.5.3",
+          "0.6",
+          "1.0",
+          "1.0.1",
+          "1.0.2",
+          "1.0b1",
+          "1.0b2",
+          "1.1",
+          "1.2",
+          "1.2.1",
+          "1.3",
+          "1.3.1",
+          "1.4",
+          "1.5",
+          "1.6",
+          "1.6.1",
+          "1.6.2",
+          "1.7",
+          "1.7.1",
+          "1.7.2",
+          "1.7.3",
+          "1.8",
+          "1.9",
+          "1.9.1",
+          "1.9.2",
+          "1.9.3",
+          "1.9.4",
+          "1.9.5",
+          "1.9.6",
+          "2.0",
+          "2.0.1",
+          "2.1",
+          "2.10",
+          "2.2",
+          "2.2.1",
+          "2.3",
+          "2.3.1",
+          "2.3.2",
+          "2.3.2.post1",
+          "2.4",
+          "2.4.1",
+          "2.5",
+          "2.6",
+          "2.7",
+          "2.8",
+          "2.8.1",
+          "2.8.2",
+          "2.8.3",
+          "2.8.4",
+          "2.9",
+          "2.9.1",
+          "2.9.2",
+          "3.0",
+          "3.0.1"
+        ],
+        "database_specific": {
+          "last_known_affected_version_range": "<= 2.10",
+          "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/11/GHSA-6655-6qjp-jx7x/GHSA-6655-6qjp-jx7x.json"
+        }
+      }
+    ],
+    "schema_version": "1.9.2",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      }
+    ]
+  },
+  {
+    "id": "GHSA-7g44-g9rc-x53w",
+    "summary": "Soup Sieve: Uncontrolled recursion in CSS parser lets nested pseudo-class selectors exhaust the Python call stack",
+    "details": "## Summary\n\nThe Soup Sieve CSS selector parser recurses once per level of nested pseudo-class selector (`:is()`, `:not()`, `:where()`, `:has()`) without any limit on nesting depth. An unauthenticated attacker who can supply a CSS selector string to `soupsieve.compile()`, `soupsieve.select()`, or Beautiful Soup's `soup.select()` / `soup.select_one()` can force the parser to exceed Python's recursion limit with a small crafted input (about 1.6 KB, roughly 330 nesting levels), raising an uncontrolled `RecursionError`. Because this exception is not part of the parser's documented error contract, applications that catch only `ValueError` or `SelectorSyntaxError` see an unexpected failure of the request or task that parsed the selector.\n\n## Root Cause\n\nThe parser dispatches each opening pseudo-class token to `parse_pseudo_open`, which calls back into `parse_selectors` to parse the pseudo-class body. Every nesting level therefore adds Python stack frames, and no counter, depth guard, or `RecursionError` handler bounds this descent. The token-count guard `SELECTOR_LIMIT = 8192` (added for the earlier comma-separated-list memory issue) counts parsed tokens, not recursion depth; at the failing nesting depth the token count is only about 330, roughly four percent of that limit, so the guard never fires. The security invariant that untrusted selector input must not be able to exhaust interpreter resources is not enforced for nesting depth.\n\n```text\nsoupsieve/css_parser.py\n  CSSParser.parse_pseudo_open (line 985): sel.selectors.append(self.parse_selectors(iselector, index, flags))\n  CSSParser.parse_selectors  (line 1137): recursive target; dispatches pseudo-class tokens back into parse_pseudo_class -> parse_pseudo_open\n  CSSParser.increment_count  (lines 707-712): SELECTOR_LIMIT token guard; increments once per nesting level, cannot bound depth\n```\n\n## Impact\n\nAny application that compiles or evaluates untrusted CSS selectors through Soup Sieve (directly or via Beautiful Soup) is affected. No authentication, privilege, or user interaction is required; the failure occurs during selector parsing, before any document is matched. A single crafted selector of about 1.6 KB reliably raises `RecursionError`. The demonstrated capability is a transient denial of the individual request, task, or invocation that parsed the malicious selector: the exception propagates uncaught unless the caller handles `RecursionError` (or a broad `except Exception`). The `RecursionError` in CPython 3.x is a recoverable stack unwind, not an interpreter crash or persistent resource exhaustion, and it carries no confidentiality or integrity impact. Applications following the parser's documented error pattern (catching `ValueError` / `SelectorSyntaxError`) will not catch it, so a repeated stream of such selectors can plausibly cause repeated per-request failures; this per-request availability effect is the demonstrated consequence, not a service-wide or amplified outage.\n\n## Proof of Concept\n\nRequires only an installed Soup Sieve (any release from 0.4 through 2.10) and a default CPython recursion limit of 1000. No Beautiful Soup document or network setup is needed.\n\n```python\nimport soupsieve as sv\n\n# ~330 levels of nested :is() around a single tag: about 1.6 KB of input.\ndepth = 330\nselector = \":is(\" * depth + \"a\" + \")\" * depth\nprint(\"selector length:\", len(selector))\nsv.compile(selector)\n```\n\n```text\nselector length: 1651\nTraceback (most recent call last):\n  ...\n  File \".../soupsieve/css_parser.py\", line 985, in parse_pseudo_open\n    sel.selectors.append(self.parse_selectors(iselector, index, flags))\nRecursionError: maximum recursion depth exceeded\n```\n\nThe same failure was reproduced with `:not()`, `:where()`, and `:has()`, and through `BeautifulSoup(...).select(selector)`. A negative control at depth 100 compiles successfully with a token count of 101, confirming the token guard is far from firing.\n\n## Attack Chain\n\n1. **Exposure:** The application exposes `soupsieve.compile()` / `select()` or Beautiful Soup's `.select()` / `.select_one()` to attacker-influenced CSS selector input. These are the library's primary public API and ship enabled by default; Soup Sieve is an automatic dependency of Beautiful Soup 4.\n2. **Control:** The attacker fully controls the selector string. The nested pseudo-class pattern (`:is(:is(...a...))`) survives tokenization and normalization unchanged.\n3. **Path:** `compile()` reaches `CSSParser.process_selectors()` and then `parse_selectors()`, which dispatches each pseudo-class token through `parse_pseudo_class()` into `parse_pseudo_open()`, which calls `parse_selectors()` again, once per nesting level.\n4. **Guard:** The only resource guard is the `SELECTOR_LIMIT` token counter, which reaches about 330 at the failing depth versus its limit of 8192, so it never fires. No recursion-depth counter and no `RecursionError` handler exist anywhere in the package.\n5. **Primitive:** Python's recursion limit is exceeded during parsing, raising an uncontrolled `RecursionError`.\n6. **Result:** The unhandled `RecursionError` propagates to the caller, failing the request, task, or process invocation that parsed the selector, outside the parser's documented `ValueError` / `SelectorSyntaxError` error contract.\n\n## Bypass Evidence\n\nThe relevant existing guard is the `SELECTOR_LIMIT = 8192` token counter in `increment_count()`. It does not block this path: it increments once per nesting level, so at the failing depth of about 330 the count is roughly 330 (about four percent of 8192), verified by instrumenting `increment_count` and observing a maximum count of 329 at the point `RecursionError` was raised. A search of the package for `RecursionError` and `RuntimeError` handlers returns no matches, so nothing catches the error internally, and `functools.lru_cache` on the compile path does not cache exceptions. Attempts to invalidate the finding were made and failed: raising the interpreter recursion limit only shifts the required nesting depth (a proportionally larger but still small selector), and a broad `except Exception` in the caller does catch the error but the parser's documented contract raises only `ValueError` / `SelectorSyntaxError`, so callers coded to that contract remain exposed. This is a distinct weakness from the prior comma-separated-list memory-exhaustion advisory: that issue exhausts heap memory through linear object expansion and was addressed by the token count limit, whereas this issue exhausts the call stack through unbounded recursion depth and is not addressed by any released version, including 2.8.4 which was independently confirmed to still raise `RecursionError` on this input.\n\n## Affected Versions\n\n- `Ecosystem: pip (PyPI)`\n- `Package: soupsieve`\n- `Confirmed affected range: >= 0.4, <= 2.10`\n- `Latest release checked: soupsieve 2.10 (PyPI, latest published release as of 2026-09-25)`\n- `Fix status: not fixed in any released version`\n\nThe recursive `parse_pseudo_open` to `parse_selectors` structure is present in the earliest PyPI release (0.4) and in every subsequent release through the current 2.10, verified against the published PyPI source artifacts. Version 2.5, release 2.8.4 (which added that token-count limit), and 2.10 were each executed and confirmed to raise `RecursionError` on the crafted input. No released version adds a recursion-depth limit; the token-count `SELECTOR_LIMIT` introduced in 2.8.4 is architecturally unable to bound nesting depth. There is no registry or tag disagreement and no package or module path change.\n\n## Possible Solution\n\nPython's `RecursionError` is sometimes a contested issue related to security. The Soup Sieve project does not consider it \"uncontrolled\" and allows it to be raised to indicate Python's maximum recursion depth was reached, and allows it to fail to prevent overflows, a much worse and real security vulnerability. With that said, the algorithm can be reworked to be non-recursive, allowing the selector limit check to now capture and raise an exception. In addition, the limit could be exposed to the user to give them better control.\n\n## Mitigation\n\nFor those on older versions where the algorithm is still recursive, a try/except block that captures `RecursionError` can be added around calls if accepting untrusted user input is allowed.\n\n## Note\n\nThis issue was fixed in version 3.0.0, which has been yanked from the PyPI registry. Use versions 3.0.2 and above to upgrade.\n\n---\n\nReported by zx (GitHub: @manus-pi).",
+    "aliases": [
+      "CVE-2026-126193"
+    ],
+    "modified": "2026-11-13T16:45:03.468864320Z",
+    "published": "2026-11-13T16:34:59Z",
+    "database_specific": {
+      "cwe_ids": [
+        "CWE-674"
+      ],
+      "severity": "MODERATE",
+      "github_reviewed": true,
+      "github_reviewed_at": "2026-11-13T16:34:59Z",
+      "nvd_published_at": "2026-11-12T17:17:32Z"
+    },
+    "references": [
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/security/advisories/GHSA-7g44-g9rc-x53w"
+      },
+      {
+        "type": "ADVISORY",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-126193"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/pull/306"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/commit/52de12f157a373614ad0f486d434551c5a4378ee"
+      },
+      {
+        "type": "PACKAGE",
+        "url": "https://github.com/facelessuser/soupsieve"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/releases/tag/3.0"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "name": "soupsieve",
+          "ecosystem": "PyPI",
+          "purl": "pkg:pypi/soupsieve"
+        },
+        "ranges": [
+          {
+            "type": "ECOSYSTEM",
+            "events": [
+              {
+                "introduced": "0.4"
+              },
+              {
+                "fixed": "3.0.2"
+              }
+            ]
+          }
+        ],
+        "versions": [
+          "0.4",
+          "0.5",
+          "0.5.1",
+          "0.5.2",
+          "0.5.3",
+          "0.6",
+          "1.0",
+          "1.0.1",
+          "1.0.2",
+          "1.0b1",
+          "1.0b2",
+          "1.1",
+          "1.2",
+          "1.2.1",
+          "1.3",
+          "1.3.1",
+          "1.4",
+          "1.5",
+          "1.6",
+          "1.6.1",
+          "1.6.2",
+          "1.7",
+          "1.7.1",
+          "1.7.2",
+          "1.7.3",
+          "1.8",
+          "1.9",
+          "1.9.1",
+          "1.9.2",
+          "1.9.3",
+          "1.9.4",
+          "1.9.5",
+          "1.9.6",
+          "2.0",
+          "2.0.1",
+          "2.1",
+          "2.10",
+          "2.2",
+          "2.2.1",
+          "2.3",
+          "2.3.1",
+          "2.3.2",
+          "2.3.2.post1",
+          "2.4",
+          "2.4.1",
+          "2.5",
+          "2.6",
+          "2.7",
+          "2.8",
+          "2.8.1",
+          "2.8.2",
+          "2.8.3",
+          "2.8.4",
+          "2.9",
+          "2.9.1",
+          "2.9.2",
+          "3.0",
+          "3.0.1"
+        ],
+        "database_specific": {
+          "last_known_affected_version_range": "<= 2.10",
+          "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/11/GHSA-7g44-g9rc-x53w/GHSA-7g44-g9rc-x53w.json"
+        }
+      }
+    ],
+    "schema_version": "1.9.2",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      }
+    ]
+  },
+  {
+    "id": "GHSA-mmhr-3c5m-f64f",
+    "summary": "Soup Sieve: Polynomial-time denial of service in the descendant combinator",
+    "details": "## Summary\n\nMatching a selector that uses the descendant combinator (`a b`) takes time that grows polynomially with how deeply the document is nested, and each extra descendant combinator in the selector raises the degree by one. A selector with `k` descendant combinators takes `O(n^(k+1))` time on a chain of `n` nested elements.\n\nAn attacker who controls the HTML or XML that an application passes to Soup Sieve (directly, or through Beautiful Soup's `select()`, `select_one()`, `css.select()`, etc.) can send a very small, deeply nested document that keeps a CPU busy for seconds to minutes against an ordinary selector such as `section div div`.\n\n## Details\n\nTo match `a b`, Soup Sieve checks each element against `b` and then walks up through its ancestors looking for one that matches `a`. When the selector has more descendant combinators, the rest of the selector is tried again from each ancestor on that walk, and so on for every combinator. Nothing was reused between walks, so the same ancestors were matched against the same part of the selector over and over.\n\nThe worst case is when the leftmost part of the selector never matches, as in `section div div` against a document of nested `<div>` with no `<section>`: every walk goes all the way to the root and no search can stop early.\n\n### Timings\n\nExample timings with `html.parser` on Soup Sieve 3.0.4 and 4.0, using a document of nested `<div>` (5 bytes each) and no matches:\n\n| Nesting depth | Input size | Selector | 3.0.4 | 4.0 |\n| --- | --- | --- | --- | --- |\n| 2,000 | 10 KB | `section div` | 1.6 s | 0.05 s |\n| 4,000 | 20 KB | `section div` | 5.1 s | 0.01 s |\n| 400 | 2 KB | `section div div` | 6.7 s | < 0.01 s |\n| 800 | 4 KB | `section div div` | 53.0 s | < 0.01 s |\n| 100 | 0.5 KB | `section div div div` | 2.5 s | < 0.01 s |\n| 200 | 1 KB | `section div div div` | 40.9 s | < 0.01 s |\n\nNone of these selectors use unusual syntax.\n\n## Proof of concept\n\n```py\nimport time\nimport bs4\nimport soupsieve as sv\n\nsoup = bs4.BeautifulSoup('<div>' * 200, 'html.parser')\nt = time.process_time()\nsv.select('section div div div', soup)\nprint(time.process_time() - t)\n```\n\nOn affected versions, doubling the nesting depth multiplies the time by about 2^(k+1), where `k` is the number of descendant combinators: about 4x for `section div`, 8x for `section div div`, and 16x for `section div div div`.\n\n## Impact\n\nApplications are affected if they run selectors with descendant combinators against documents that untrusted users can influence, such as scrapers, HTML sanitizers or filters, and services that process uploaded or fetched markup. Descendant combinators are among the most common parts of CSS selectors, and a document of about 1 KB is enough to tie up a worker for close to a minute. Applications that only run selectors against trusted documents are not affected.\n\n## Patches\n\nFixed in 4.0 by [facelessuser/soupsieve#351](https://github.com/facelessuser/soupsieve/pull/351). Whether an element is, or has an ancestor that is, a match for part of a selector depends only on its parent, so Soup Sieve now caches that result per element and relation for every element visited on the walk. Each descendant combinator is then linear in the size of the document. Results are unchanged, and ordinary documents are no slower.\n\nCaching is enabled by default, so no changes are needed beyond upgrading. The `NOCACHE` flag is a temporary fallback for users who run into problems with caching, and it is planned for removal. It uses the old uncached matching, so selectors compiled with `NOCACHE` are still subject to polynomial time and shouldn't be used with descendant combinators on untrusted input.\n\n## Workarounds\n\nIf users can't upgrade:\n\n- Use as few descendant combinators as they can in selectors that run on untrusted documents. Where the structure of the\n  document is known, the child combinator (`a > b`) only looks at the parent and is not affected.\n- Limit the size and nesting depth of untrusted documents before selecting on them.\n- Run selection on untrusted input with a time limit, for example in a worker process that can be stopped.",
+    "aliases": [
+      "CVE-2026-126190"
+    ],
+    "modified": "2026-11-13T01:00:06.052455117Z",
+    "published": "2026-11-13T00:49:46Z",
+    "database_specific": {
+      "github_reviewed_at": "2026-11-13T00:49:46Z",
+      "nvd_published_at": "2026-11-12T17:17:32Z",
+      "cwe_ids": [
+        "CWE-407"
+      ],
+      "severity": "HIGH",
+      "github_reviewed": true
+    },
+    "references": [
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/security/advisories/GHSA-mmhr-3c5m-f64f"
+      },
+      {
+        "type": "ADVISORY",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-126190"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/pull/351"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/commit/ff1a5ce7e5addc31626d7b6053511fecdb4f6320"
+      },
+      {
+        "type": "PACKAGE",
+        "url": "https://github.com/facelessuser/soupsieve"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/facelessuser/soupsieve/releases/tag/4.0"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "name": "soupsieve",
+          "ecosystem": "PyPI",
+          "purl": "pkg:pypi/soupsieve"
+        },
+        "ranges": [
+          {
+            "type": "ECOSYSTEM",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "4.0.0"
+              }
+            ]
+          }
+        ],
+        "versions": [
+          "0.4",
+          "0.5",
+          "0.5.1",
+          "0.5.2",
+          "0.5.3",
+          "0.6",
+          "1.0",
+          "1.0.1",
+          "1.0.2",
+          "1.0b1",
+          "1.0b2",
+          "1.1",
+          "1.2",
+          "1.2.1",
+          "1.3",
+          "1.3.1",
+          "1.4",
+          "1.5",
+          "1.6",
+          "1.6.1",
+          "1.6.2",
+          "1.7",
+          "1.7.1",
+          "1.7.2",
+          "1.7.3",
+          "1.8",
+          "1.9",
+          "1.9.1",
+          "1.9.2",
+          "1.9.3",
+          "1.9.4",
+          "1.9.5",
+          "1.9.6",
+          "2.0",
+          "2.0.1",
+          "2.1",
+          "2.10",
+          "2.2",
+          "2.2.1",
+          "2.3",
+          "2.3.1",
+          "2.3.2",
+          "2.3.2.post1",
+          "2.4",
+          "2.4.1",
+          "2.5",
+          "2.6",
+          "2.7",
+          "2.8",
+          "2.8.1",
+          "2.8.2",
+          "2.8.3",
+          "2.8.4",
+          "2.9",
+          "2.9.1",
+          "2.9.2",
+          "3.0",
+          "3.0.1",
+          "3.0.2",
+          "3.0.3",
+          "3.0.4"
+        ],
+        "database_specific": {
+          "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/11/GHSA-mmhr-3c5m-f64f/GHSA-mmhr-3c5m-f64f.json"
+        }
+      }
+    ],
+    "schema_version": "1.9.2",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      }
+    ]
+  }
+]

@@ -1,0 +1,89 @@
+[
+  {
+    "width": 800,
+    "height": 600,
+    "catalogModal": {
+      "top": 0,
+      "bottom": 600,
+      "clientHeight": 600,
+      "scrollHeight": 600,
+      "scrollTop": 0,
+      "overflow": "visible"
+    },
+    "catalogModalGrid": {
+      "top": 98,
+      "bottom": 578,
+      "clientHeight": 480,
+      "scrollHeight": 1551,
+      "scrollTop": 0,
+      "overflow": "hidden"
+    },
+    "catalogContentColumn": {
+      "top": 98,
+      "bottom": 1649.421875,
+      "clientHeight": 1551,
+      "scrollHeight": 1551,
+      "scrollTop": 0,
+      "overflow": "auto"
+    },
+    "links": 32,
+    "below": [
+      "⌨️\n                  Клавиатуры и мыши\n                \n                (1471)",
+      "🧩\n                  Комплектующие для ПК\n                \n                (3107)",
+      "🔌\n                  Блоки питания\n                \n                (32)",
+      "🖥\n                  Корпуса\n                \n                (1019)",
+      "❄️\n                  Охлаждение и кулеры\n                \n                (2)",
+      "🎮\n                  Видеокарты\n                \n                (213)",
+      "⚙️\n                  Процессоры\n                \n                (157)",
+      "🔌\n                  Материнские платы\n                \n                (361)",
+      "🧠\n                  Оперативная память\n                \n                (648)",
+      "💾\n                  SSD накопители\n                \n                (522)",
+      "💽\n                  Жесткие диски HDD\n                \n                (149)",
+      "💾\n                  Флешки и карты памяти\n                \n                (1)",
+      "📡\n                  Сетевое оборудование\n                \n                (834)",
+      "🖨\n                  Принтеры и МФУ\n                \n                (479)",
+      "🔋\n                  ИБП и питание\n                \n                (55)",
+      "💿\n                  Программы\n                \n                (3)",
+      "📺\n                  Телевизоры\n                \n                (1623)",
+      "🕹\n                  Игровые приставки\n                \n                (408)",
+      "🔊\n                  Аудиотехника\n                \n                (13)",
+      "📷\n                  Фото и видео\n                \n                (3)",
+      "📱\n                  Чехлы и бамперы\n                \n                (518)",
+      "🛡\n                  Защитные стекла и пленки\n                \n                (3)",
+      "🔌\n                  Кабели и зарядные устройства\n                \n                (246)",
+      "🖨\n                  Картриджи и чернила\n                \n                (29)"
+    ]
+  },
+  {
+    "width": 1366,
+    "height": 768,
+    "catalogModal": {
+      "top": 0,
+      "bottom": 768,
+      "clientHeight": 768,
+      "scrollHeight": 768,
+      "scrollTop": 0,
+      "overflow": "visible"
+    },
+    "catalogModalGrid": {
+      "top": 131,
+      "bottom": 729,
+      "clientHeight": 598,
+      "scrollHeight": 664,
+      "scrollTop": 0,
+      "overflow": "hidden"
+    },
+    "catalogContentColumn": {
+      "top": 131,
+      "bottom": 795.296875,
+      "clientHeight": 664,
+      "scrollHeight": 664,
+      "scrollTop": 0,
+      "overflow": "auto"
+    },
+    "links": 32,
+    "below": [
+      "💿\n                  Программы\n                \n                (3)"
+    ]
+  }
+]

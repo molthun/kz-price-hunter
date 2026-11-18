@@ -1,0 +1,46 @@
+{
+  "version.py": {
+    "sha256": "5eeb9ecdffeaf2bfb9ebe29e89f86e69807436160c39d9c192a15b9575514073",
+    "matches_audit_source": true
+  },
+  "daily_digest.py": {
+    "sha256": "4bbb4a9da3ee7dc387fe38ceb47f7153b2efe7f47ac2a41917028f9760c17fbe",
+    "matches_audit_source": true
+  },
+  "notifier.py": {
+    "sha256": "a83663842c047097764ed0211cffa2540af458fa4d3e2831243c72747b6a98f1",
+    "matches_audit_source": true
+  },
+  "database.py": {
+    "sha256": "d5086f257f427482540d60322b9565a4ce279031e39a8c3cb2e8b957177bed97",
+    "matches_audit_source": true
+  },
+  "local_search.py": {
+    "sha256": "3af04603ffc848aca7fc8550466bdff9272bf9ec19e115c377b91008423f1d65",
+    "matches_audit_source": true
+  },
+  "repositories/search_repo.py": {
+    "sha256": "ef2337fb656a8a96d204e3de23e8f807826010703ad8a3b72b74b62296616263",
+    "matches_audit_source": true
+  },
+  "web/templates/search_first.html": {
+    "sha256": "7fbba55601e6a6cb6199c45fd989038d84e3e99ed4058a31873e8260bcb8c4a4",
+    "matches_audit_source": true
+  },
+  "web/templates/closed_login.html": {
+    "sha256": "09380e873c3aafa862d12d954598179e25b750cf3c8195af09445cadecaba410",
+    "matches_audit_source": true
+  },
+  "tests/frontend/test_frontend_closed_gate.cjs": {
+    "sha256": "7a76deab072ec80cc6151a12d6beae16ab72c43e3e9406c4b03fdcee03a8fc68",
+    "matches_audit_source": true
+  },
+  "constraints.txt": {
+    "sha256": "2f9d70024e277d671466d4c4971b5f849447ac77441efb1946ddaffb81576e93",
+    "matches_audit_source": true
+  },
+  ".github/workflows/docker-publish.yml": {
+    "sha256": "79dddda9ab7bd3b7c3a9843b56beb1132f8ac3d5e021d07a719b1ae98563c06c",
+    "matches_audit_source": true
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "head": "58154809b53c3233d216a02c87f24128c027c570",
+  "stand_version": "6.40.15",
+  "prod_version": "6.37.0",
+  "origin_main": "10a10084444fe34f9e4b2cca461edd549494fc2d",
+  "stand_image": "sha256:9a0ac224b509931b1d851e675e92a41704e9dc35acdc32796c4da11e1321d4db",
+  "unittest": {
+    "tests": 3093,
+    "seconds": 426.457,
+    "result": "OK",
+    "environment": "Linux Python 3.14.4; docker --network none --cpus 2 --tmpfs /app/data"
+  },
+  "targeted": {
+    "tests": 80,
+    "result": "OK",
+    "environment": "macOS Python 3.14.7"
+  },
+  "frontend": {
+    "suites": 40,
+    "passed": 39,
+    "failed": [
+      "test_frontend_closed_gate.cjs"
+    ]
+  },
+  "secret_scan": {
+    "findings": 0,
+    "image": "kzph-stand:local"
+  },
+  "card_filter_reproduction": {
+    "scope": [
+      "prod_44437bd4d610ad5e"
+    ],
+    "title": "Смартфон Apple iPhone 16 128GB (Black)",
+    "attributes": {
+      "color": "Белый",
+      "storage": "128 ГБ"
+    },
+    "before": 1,
+    "after_storage_128": 0,
+    "sql_mode": "mode=ro; pragma query_only=on"
+  },
+  "soupsieve_bounded_probe": {
+    "image": "kzph-stand:local",
+    "version": "2.10",
+    "selector": "section div div div",
+    "measurements": [
+      {
+        "depth": 100,
+        "seconds": 2.775
+      },
+      {
+        "depth": 150,
+        "seconds": 13.268
+      }
+    ],
+    "notes": "Separate disposable container; network none; synthetic HTML; not sent to application"
+  },
+  "limitations": [
+    "CI pip-audit not completed locally: environment import/pip subprocess hung; stopped. Independent OSV querybatch covered all 25 pins.",
+    "First rollback probe used a nonexistent helper and failed in audit harness; corrected rerun through official CLI passed. No product failure attributed.",
+    "Physical iOS Telegram/PWA and actual automatic digest after deployment not observed."
+  ]
+}

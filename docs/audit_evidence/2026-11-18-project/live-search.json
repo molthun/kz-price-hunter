@@ -1,0 +1,386 @@
+[
+  {
+    "q": "iPhone 15",
+    "seconds": 6.33,
+    "total": 4,
+    "outcome": "FOUND",
+    "local_ai": {
+      "status": "ok",
+      "model": "qwen3-vl:8b-instruct",
+      "cached": false,
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": "phones",
+      "category_name": "Смартфоны",
+      "clarification": "Укажите объем памяти или цвет модели для точного подбора.",
+      "expansion": {
+        "id": "23c41e7750fe8112c865fdf5",
+        "status": "approved",
+        "message": ""
+      },
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": \"Apple\", \"category\": \"phones\", \"inferred_attributes\": {}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"iPhone 15\", \"query\": \"iPhone 15\"}",
+      "watch_city": "Астана",
+      "watch_conditions": []
+    },
+    "applied_filters": null,
+    "titles": [
+      "Смартфон Apple iPhone 15 Pro 128Gb Blue Titanium",
+      "Смартфон Apple iPhone 15 Pro Max 512Gb Black Titanium",
+      "Смартфон Apple iPhone 15 Plus 128GB Blue (3M465ZF/A) Demo"
+    ],
+    "attribute_facets": [
+      {
+        "key": "storage",
+        "label": "Встроенная память",
+        "values": [
+          {
+            "value": "128 ГБ",
+            "count": 2
+          },
+          {
+            "value": "256 ГБ",
+            "count": 3
+          },
+          {
+            "value": "512 ГБ",
+            "count": 3
+          },
+          {
+            "value": "1 ТБ",
+            "count": 2
+          }
+        ]
+      },
+      {
+        "key": "ram",
+        "label": "Оперативная память",
+        "values": [
+          {
+            "value": "6 ГБ",
+            "count": 1
+          },
+          {
+            "value": "16 ГБ",
+            "count": 1
+          },
+          {
+            "value": "128 ГБ",
+            "count": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "q": "айфон 15",
+    "seconds": 6.55,
+    "total": 4,
+    "outcome": "FOUND",
+    "local_ai": {
+      "status": "ok",
+      "model": "qwen3-vl:8b-instruct",
+      "cached": false,
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": "phones",
+      "category_name": "Смартфоны",
+      "clarification": "Укажите объем памяти или цвет модели для точного подбора.",
+      "expansion": {
+        "id": "ba97c0b2148522b5c04fdba7",
+        "status": "approved",
+        "message": ""
+      },
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": \"Apple\", \"category\": \"phones\", \"inferred_attributes\": {}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"айфон 15\", \"query\": \"iphone 15\"}",
+      "watch_city": "Астана",
+      "watch_conditions": []
+    },
+    "applied_filters": null,
+    "titles": [
+      "Смартфон Apple iPhone 15 6/128GB Green (3M426ZF/A) Demo",
+      "Смартфон Apple iPhone 15 Pro 128Gb Blue Titanium",
+      "Смартфон Apple iPhone 15 Pro Max 512Gb Black Titanium"
+    ],
+    "attribute_facets": [
+      {
+        "key": "storage",
+        "label": "Встроенная память",
+        "values": [
+          {
+            "value": "128 ГБ",
+            "count": 2
+          },
+          {
+            "value": "256 ГБ",
+            "count": 3
+          },
+          {
+            "value": "512 ГБ",
+            "count": 3
+          },
+          {
+            "value": "1 ТБ",
+            "count": 2
+          }
+        ]
+      },
+      {
+        "key": "ram",
+        "label": "Оперативная память",
+        "values": [
+          {
+            "value": "6 ГБ",
+            "count": 1
+          },
+          {
+            "value": "16 ГБ",
+            "count": 1
+          },
+          {
+            "value": "128 ГБ",
+            "count": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "q": "iphnoe 15",
+    "seconds": 5.17,
+    "total": 4,
+    "outcome": "FOUND",
+    "local_ai": {
+      "status": "ok",
+      "model": "qwen3-vl:8b-instruct",
+      "cached": false,
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": "phones",
+      "category_name": "Смартфоны",
+      "clarification": "Укажите объем памяти или цвет модели для точного подбора.",
+      "expansion": {
+        "id": "beca03a42e4f34235ba62710",
+        "status": "approved",
+        "message": ""
+      },
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"phones\", \"inferred_attributes\": {}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"iphnoe 15\", \"query\": \"iphone 15\"}",
+      "watch_city": "Астана",
+      "watch_conditions": []
+    },
+    "applied_filters": null,
+    "titles": [
+      "Смартфон Apple iPhone 15 6/128GB Green (3M426ZF/A) Demo",
+      "Смартфон Apple iPhone 15 Pro 128Gb Blue Titanium",
+      "Смартфон Apple iPhone 15 Plus 128GB Blue (3M465ZF/A) Demo"
+    ],
+    "attribute_facets": [
+      {
+        "key": "storage",
+        "label": "Встроенная память",
+        "values": [
+          {
+            "value": "128 ГБ",
+            "count": 2
+          },
+          {
+            "value": "256 ГБ",
+            "count": 3
+          },
+          {
+            "value": "512 ГБ",
+            "count": 3
+          },
+          {
+            "value": "1 ТБ",
+            "count": 2
+          }
+        ]
+      },
+      {
+        "key": "ram",
+        "label": "Оперативная память",
+        "values": [
+          {
+            "value": "6 ГБ",
+            "count": 1
+          },
+          {
+            "value": "16 ГБ",
+            "count": 1
+          },
+          {
+            "value": "128 ГБ",
+            "count": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "q": "зимняя резина 205/55 R16",
+    "seconds": 10.12,
+    "total": 0,
+    "outcome": "NOT_FOUND",
+    "local_ai": {
+      "status": "ok",
+      "model": "qwen3-vl:8b-instruct",
+      "cached": false,
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": "tires",
+      "category_name": "Шины и диски",
+      "clarification": "Укажите размер, например 205/55 R16, — это поможет точнее подобрать варианты.",
+      "expansion": {
+        "id": "a50a209b5b62aba7b38b536a",
+        "status": "approved",
+        "message": ""
+      },
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"tires\", \"inferred_attributes\": {\"diameter\": \"16\", \"profile\": \"55\", \"season\": \"Зимние\", \"studs\": \"Да\", \"width\": \"205\"}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"зимняя резина 205/55 R16\", \"query\": \"зимн 205/55 R16\"}",
+      "watch_city": "Астана",
+      "watch_conditions": []
+    },
+    "applied_filters": null,
+    "titles": [],
+    "attribute_facets": []
+  },
+  {
+    "q": "ноутбук до 300000",
+    "seconds": 7.3,
+    "total": 475,
+    "outcome": "FOUND",
+    "local_ai": {
+      "status": "ok",
+      "model": "qwen3-vl:8b-instruct",
+      "cached": false,
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": "laptops",
+      "category_name": "Ноутбуки",
+      "clarification": "Укажите диагональ экрана, процессор или объем памяти для точного подбора.",
+      "expansion": null,
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"laptops\", \"inferred_attributes\": {}, \"kind\": null, \"max_price\": 300000.0, \"min_price\": null, \"model\": null, \"original_query\": \"ноутбук до 300000\", \"query\": \"ноутбук до 300000\"}",
+      "watch_city": "Астана",
+      "watch_conditions": []
+    },
+    "applied_filters": null,
+    "titles": [
+      "15.6\" Ноутбук HP Laptop 15-fc0252ci серебристый",
+      "15.6\" Ноутбук HP Laptop 15-fc0271ci серебристый",
+      "Ноутбук Dell Vostro Notebook 3500 210-AXUD_12 15.6\" Grey"
+    ],
+    "attribute_facets": [
+      {
+        "key": "cpu",
+        "label": "Процессор",
+        "values": [
+          {
+            "value": "AMD Ryzen 5",
+            "count": 31
+          },
+          {
+            "value": "Intel Pentium / Celeron",
+            "count": 20
+          },
+          {
+            "value": "AMD Ryzen 3",
+            "count": 17
+          },
+          {
+            "value": "Intel Core i3",
+            "count": 17
+          },
+          {
+            "value": "Intel Core i7",
+            "count": 7
+          },
+          {
+            "value": "Intel Core i5",
+            "count": 3
+          },
+          {
+            "value": "10750H",
+            "count": 1
+          },
+          {
+            "value": "Ci3 1215U-16-512-W",
+            "count": 1
+          },
+          {
+            "value": "Core 5 315",
+            "count": 1
+          },
+          {
+            "value": "Intel Celeron J3455",
+            "count": 1
+          },
+          {
+            "value": "Intel Core Ultra",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "key": "ram",
+        "label": "Оперативная память",
+        "values": [
+          {
+            "value": "4 ГБ",
+            "count": 12
+          },
+          {
+            "value": "6 ГБ",
+            "count": 9
+          },
+          {
+            "value": "8 ГБ",
+            "count": 127
+          },
+          {
+            "value": "12 ГБ",
+            "count": 25
+          },
+          {
+            "value": "16 ГБ",
+            "count": 62
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "q": "несуществующийтоварzxq771",
+    "seconds": 3.54,
+    "total": 0,
+    "outcome": "NOT_FOUND",
+    "local_ai": {
+      "status": "unclear",
+      "cached_plan": false
+    },
+    "search_help": {
+      "category_id": null,
+      "category_name": null,
+      "clarification": "",
+      "expansion": {
+        "id": "e87a4de2fad1952e13cf0786",
+        "status": "approved",
+        "message": ""
+      },
+      "is_fallback": false,
+      "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": null, \"inferred_attributes\": {}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"несуществующийтоварzxq771\", \"query\": \"несуществующийтоварzxq771\"}",
+      "watch_city": "Астана",
+      "watch_conditions": []
+    },
+    "applied_filters": null,
+    "titles": [],
+    "attribute_facets": []
+  }
+]

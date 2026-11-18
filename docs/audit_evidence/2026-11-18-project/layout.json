@@ -1,0 +1,218 @@
+[
+  {
+    "theme": "light",
+    "width": 390,
+    "root": "electronics",
+    "pane": {
+      "client": 390,
+      "scroll": 390,
+      "clientHeight": 731,
+      "scrollHeight": 1539
+    },
+    "groups": {
+      "client": 358,
+      "scroll": 358,
+      "clientHeight": 1357,
+      "scrollHeight": 1357
+    },
+    "outside": 0
+  },
+  {
+    "theme": "dark",
+    "width": 390,
+    "root": "electronics",
+    "pane": {
+      "client": 390,
+      "scroll": 390,
+      "clientHeight": 731,
+      "scrollHeight": 1539
+    },
+    "groups": {
+      "client": 358,
+      "scroll": 358,
+      "clientHeight": 1357,
+      "scrollHeight": 1357
+    },
+    "outside": 0
+  },
+  {
+    "theme": "light",
+    "width": 768,
+    "root": "electronics",
+    "pane": {
+      "client": 768,
+      "scroll": 768,
+      "clientHeight": 837,
+      "scrollHeight": 1526
+    },
+    "groups": {
+      "client": 736,
+      "scroll": 736,
+      "clientHeight": 1357,
+      "scrollHeight": 1357
+    },
+    "outside": 0
+  },
+  {
+    "theme": "dark",
+    "width": 768,
+    "root": "electronics",
+    "pane": {
+      "client": 768,
+      "scroll": 768,
+      "clientHeight": 837,
+      "scrollHeight": 1526
+    },
+    "groups": {
+      "client": 736,
+      "scroll": 736,
+      "clientHeight": 1357,
+      "scrollHeight": 1357
+    },
+    "outside": 0
+  },
+  {
+    "theme": "light",
+    "width": 800,
+    "root": "electronics",
+    "pane": {
+      "client": 460,
+      "scroll": 460,
+      "clientHeight": 1475,
+      "scrollHeight": 1475
+    },
+    "groups": {
+      "client": 404,
+      "scroll": 404,
+      "clientHeight": 1357,
+      "scrollHeight": 1357
+    },
+    "outside": 0
+  },
+  {
+    "theme": "dark",
+    "width": 800,
+    "root": "electronics",
+    "pane": {
+      "client": 460,
+      "scroll": 460,
+      "clientHeight": 1475,
+      "scrollHeight": 1475
+    },
+    "groups": {
+      "client": 404,
+      "scroll": 404,
+      "clientHeight": 1357,
+      "scrollHeight": 1357
+    },
+    "outside": 0
+  },
+  {
+    "theme": "light",
+    "width": 1024,
+    "root": "electronics",
+    "pane": {
+      "client": 673,
+      "scroll": 673,
+      "clientHeight": 1031,
+      "scrollHeight": 1031
+    },
+    "groups": {
+      "client": 617,
+      "scroll": 617,
+      "clientHeight": 913,
+      "scrollHeight": 913
+    },
+    "outside": 0
+  },
+  {
+    "theme": "dark",
+    "width": 1024,
+    "root": "electronics",
+    "pane": {
+      "client": 673,
+      "scroll": 673,
+      "clientHeight": 1031,
+      "scrollHeight": 1031
+    },
+    "groups": {
+      "client": 617,
+      "scroll": 617,
+      "clientHeight": 913,
+      "scrollHeight": 913
+    },
+    "outside": 0
+  },
+  {
+    "theme": "light",
+    "width": 1366,
+    "root": "electronics",
+    "pane": {
+      "client": 998,
+      "scroll": 998,
+      "clientHeight": 643,
+      "scrollHeight": 643
+    },
+    "groups": {
+      "client": 942,
+      "scroll": 942,
+      "clientHeight": 525,
+      "scrollHeight": 525
+    },
+    "outside": 0
+  },
+  {
+    "theme": "dark",
+    "width": 1366,
+    "root": "electronics",
+    "pane": {
+      "client": 998,
+      "scroll": 998,
+      "clientHeight": 643,
+      "scrollHeight": 643
+    },
+    "groups": {
+      "client": 942,
+      "scroll": 942,
+      "clientHeight": 525,
+      "scrollHeight": 525
+    },
+    "outside": 0
+  },
+  {
+    "theme": "light",
+    "width": 1920,
+    "root": "electronics",
+    "pane": {
+      "client": 1080,
+      "scroll": 1080,
+      "clientHeight": 643,
+      "scrollHeight": 643
+    },
+    "groups": {
+      "client": 1024,
+      "scroll": 1024,
+      "clientHeight": 525,
+      "scrollHeight": 525
+    },
+    "outside": 0
+  },
+  {
+    "theme": "dark",
+    "width": 1920,
+    "root": "electronics",
+    "pane": {
+      "client": 1080,
+      "scroll": 1080,
+      "clientHeight": 643,
+      "scrollHeight": 643
+    },
+    "groups": {
+      "client": 1024,
+      "scroll": 1024,
+      "clientHeight": 525,
+      "scrollHeight": 525
+    },
+    "outside": 0
+  }
+]
