@@ -72,27 +72,33 @@ def split_added_product(title: Any) -> Tuple[str, Optional[str]]:
 
 # Значение, подпись, образец цвета, основы русских и английских написаний
 _COLORS: List[Tuple[str, str, str, str]] = [
-    ("black", "Чёрный", "#1f2328", r"ч[её]рн\w*|black|onyx|midnight black"),
-    ("white", "Белый", "#ffffff", r"бел(?:ый|ая|ое|ые|ого|ую)|white|icy white"),
-    ("gray", "Серый", "#8a8f98", r"сер(?:ый|ая|ое|ые|ого|ую)|gr[ae]y|графит\w*|graphite"),
-    ("silver", "Серебристый", "#c4c8cf", r"серебр\w*|silver"),
+    ("black", "Чёрный", "#1f2328", r"ч[её]рн\w*|black|jet\s*black|jetblack|onyx|obsidian|midnight\s*black|charcoal"),
+    ("white", "Белый", "#ffffff", r"бел(?:ый|ая|ое|ые|ого|ую)|white|icy\s*white"),
+    ("gray", "Серый", "#8a8f98", r"сер(?:ый|ая|ое|ые|ого|ую)|light\s*gr[ae]y|lightgr[ae]y|space\s*gr[ae]y|gr[ae]y|графит\w*|graphite"),
+    ("silver", "Серебристый", "#c4c8cf", r"серебр\w*|silver|platinum"),
     ("gold", "Золотой", "#d4af37", r"золот\w*|gold"),
-    ("blue", "Синий", "#2563eb", r"син(?:ий|яя|ее|ие|его|юю)|blue"),
-    ("lightblue", "Голубой", "#7cc4ef", r"голуб\w*|light blue|sky blue"),
-    ("green", "Зелёный", "#2e9e5b", r"зел[её]н\w*|green|мятн\w*|mint"),
+    ("blue", "Синий", "#2563eb", r"син(?:ий|яя|ее|ие|его|юю)|blue|navy|ultramarine"),
+    ("lightblue", "Голубой", "#7cc4ef", r"голуб\w*|light\s*blue|sky\s*blue|ice\s*blue|icy\s*blue|icyblue|mist\s*blue|glacier(?:\s+blue)?"),
+    ("turquoise", "Бирюзовый", "#14b8a6", r"бирюзов\w*|turquoise|teal|cyan"),
+    ("green", "Зелёный", "#2e9e5b", r"зел[её]н\w*|green|мятн\w*|mint|sage|olive|lime"),
     ("red", "Красный", "#d92d20", r"красн\w*|red"),
+    ("burgundy", "Бордовый", "#722f37", r"бордов\w*|вишн[её]в\w*|burgundy|maroon|bordeaux|wine"),
     ("pink", "Розовый", "#f29ac0", r"розов\w*|pink"),
-    ("purple", "Фиолетовый", "#7c4dbd", r"фиолет\w*|лилов\w*|лавандов\w*|purple|violet|lavender"),
+    ("purple", "Фиолетовый", "#7c4dbd", r"фиолет\w*|лилов\w*|лавандов\w*|сиренев\w*|purple|violet|lavender|lilac"),
     ("yellow", "Жёлтый", "#f5c518", r"ж[её]лт\w*|yellow"),
     ("orange", "Оранжевый", "#f27a1a", r"оранж\w*|orange"),
-    ("brown", "Коричневый", "#7a4f2c", r"коричн\w*|brown|мокко|mocha"),
-    ("beige", "Бежевый", "#e0cfb1", r"бежев\w*|beige|латте|кремов\w*|cream"),
+    ("brown", "Коричневый", "#7a4f2c", r"коричн\w*|бронзов\w*|brown|bronze|copper|мокко|mocha"),
+    ("beige", "Бежевый", "#e0cfb1", r"бежев\w*|beige|латте|кремов\w*|cream|ivory"),
     ("titanium", "Титановый", "#9c9a94", r"титанов\w*|titanium"),
     ("starlight", "Сияющая звезда", "#efe6d8", r"starlight|сияющ\w* звезд\w*"),
     ("midnight", "Тёмная ночь", "#1d2733", r"midnight|т[её]мн\w* ноч\w*"),
 ]
 _COLOR_INFO = {value: (label, swatch) for value, label, swatch, _ in _COLORS}
-_COLOR_RES = [(value, re.compile(rf"(?<![\w-])(?:{words})(?![\w])", re.I)) for value, _, _, words in _COLORS]
+_SHADE_PREFIX_RE = r"(?:(?:темно|тёмно|светло|ярко|нежно|бледно|глубоко|матово|насыщенно|небесно)-)?"
+_COLOR_RES = [
+    (value, re.compile(rf"(?<![\w-]){_SHADE_PREFIX_RE}(?:{words})(?![\w])", re.I))
+    for value, _, _, words in _COLORS
+]
 # «черно-оранжевый»: первая часть составного цвета
 _COMPOUND_PARTS = {"черно": "black", "чёрно": "black", "бело": "white", "серо": "gray", "сине": "blue",
                    "красно": "red", "зелено": "green", "золотисто": "gold", "розово": "pink"}
@@ -103,13 +109,7 @@ _COMPOUND_RE = re.compile(r"(?<![\w-])(" + "|".join(_COMPOUND_PARTS) + r")-(\w+)
 _WATCH_CASE_RE = re.compile(r"\b(?:case|корпус\w*)\b", re.I)
 
 
-def title_color(title: Any) -> Optional[str]:
-    """Цвет из названия: "black" или составной "black+orange"; None, если цвета нет.
-
-    Магазины пишут цвет в конце, поэтому берётся последний: в «Black Shark GT3 серый» он серый.
-    Слова подряд — один оттенок («Blue Black», «Sky Blue»), через дефис или косую черту — два цвета.
-    """
-    text = _BRACKETS_RE.sub(" ", split_added_product(title)[0])
+def _extract_color(text: str) -> Optional[str]:
     case = _WATCH_CASE_RE.search(text)
     if case:
         text = text[:case.start()]
@@ -138,6 +138,17 @@ def title_color(title: Any) -> Optional[str]:
             break
         found.append(current[2])
     return "+".join(sorted(set(found)))
+
+
+def title_color(title: Any) -> Optional[str]:
+    """Цвет из названия: "black" или составной "black+orange"; None, если цвета нет.
+
+    Магазины пишут цвет в конце, поэтому берётся последний: в «Black Shark GT3 серый» он серый.
+    Слова подряд — один оттенок («Blue Black», «Sky Blue»), через дефис или косую черту — два цвета.
+    Если вне скобок цвет не указан, проверяется содержимое скобок («iPhone 18 Pro (Burgundy)»).
+    """
+    main = split_added_product(title)[0]
+    return _extract_color(_BRACKETS_RE.sub(" ", main)) or _extract_color(main)
 
 
 def _color_label(value: str) -> str:

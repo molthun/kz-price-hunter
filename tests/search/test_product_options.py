@@ -30,6 +30,18 @@ class ProductOptionsTest(unittest.TestCase):
             ("Смартфон Apple iPhone Air 256Gb Sky Blue", "lightblue"),
             ("Смартфон Apple iPhone 16 Pro 256Gb Black Titanium", "black"),
             ("Смартфон Apple iPhone 16 Pro 256Gb Natural Titanium", "titanium"),
+            ("Смартфон APPLE iPhone 18 PRO 256GB (Burgundy)", "burgundy"),
+            ("Смартфон APPLE iPhone 18 PRO 256GB (Black)", "black"),
+            ("Смартфон APPLE iPhone 18 PRO 256GB (Glacier)", "lightblue"),
+            ("Смартфон Apple iPhone 18 Pro 12/256GB Burgundy", "burgundy"),
+            ("Смартфон Apple iPhone 17 512GB Sage", "green"),
+            ("Смартфон Apple iPhone 16 128GB Ultramarine", "blue"),
+            ("Смартфон Apple iPhone 16 256Gb Teal", "turquoise"),
+            ("Смартфон Google Pixel 9 12/128Gb Obsidian", "black"),
+            ("Смартфон Samsung Galaxy S25 5G 12/128GB Navy + подарок", "blue"),
+            ("Смартфон Samsung Galaxy A55 5G 8/256GB Lilac", "purple"),
+            ("Смартфон Xiaomi Redmi 14C 4/128GB темно-синий", "blue"),
+            ("Смартфон Xiaomi Redmi 14C 4/128GB светло-голубой", "lightblue"),
             ("Серия Redmi Note", None),
             ("Интернет-магазин Белый Ветер", "white"),
         ):
@@ -53,6 +65,19 @@ class ProductOptionsTest(unittest.TestCase):
 
     def test_single_color_gives_no_choice(self):
         self.assertEqual(build_options([self._offer("X Black", 100), self._offer("X", 90)]), [])
+
+    def test_build_options_includes_burgundy_glacier_and_bracket_colors(self):
+        options = build_options([
+            self._offer("Смартфон APPLE iPhone 18 PRO 256GB (Burgundy)", 815547),
+            self._offer("Смартфон APPLE iPhone 18 PRO 256GB (Glacier)", 820000),
+            self._offer("Смартфон APPLE iPhone 18 PRO 256GB (Silver)", 825000),
+            self._offer("Смартфон APPLE iPhone 18 PRO 256GB (Black)", 830000),
+        ])
+        self.assertEqual(options[0]["id"], "color")
+        self.assertEqual(
+            [v["label"] for v in options[0]["values"]],
+            ["Бордовый", "Голубой", "Серебристый", "Чёрный"],
+        )
 
     def test_family_params(self):
         self.assertEqual(family_params("Смартфоны", "Смартфон Redmi 10 4/128Gb Sea"), {"storage": "128", "ram": "4"})
