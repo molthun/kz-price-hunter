@@ -1,0 +1,18 @@
+[
+  {
+    "model_attributes": {},
+    "accepted_attributes": {},
+    "total": 1,
+    "selected_attributes": {},
+    "watch_target": "@local-search:{\"attributes\": {}, \"brand\": \"Apple\", \"category\": \"phones\", \"inferred_attributes\": {}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"iPhone 16\", \"query\": \"iPhone 16\"}"
+  },
+  {
+    "model_attributes": {
+      "ram": "16 ГБ"
+    },
+    "accepted_attributes": {},
+    "total": 1,
+    "selected_attributes": {},
+    "watch_target": "@local-search:{\"attributes\": {}, \"brand\": \"Apple\", \"category\": \"phones\", \"inferred_attributes\": {}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"iPhone 16\", \"query\": \"iPhone 16\"}"
+  }
+]

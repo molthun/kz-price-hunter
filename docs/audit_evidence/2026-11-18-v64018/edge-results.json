@@ -1,0 +1,76 @@
+{
+  "grounding": [
+    {
+      "query": "ноутбук оперативная память 64 ГБ",
+      "answer": {
+        "ram": "64 ГБ",
+        "storage": "64 ГБ"
+      },
+      "accepted": {
+        "storage": "64 ГБ"
+      }
+    },
+    {
+      "query": "ноутбук оперативная память 16 ГБ",
+      "answer": {
+        "ram": "16 ГБ"
+      },
+      "accepted": {}
+    },
+    {
+      "query": "iPhone 16 128GB",
+      "answer": {
+        "storage": "128GB"
+      },
+      "accepted": {}
+    },
+    {
+      "query": "Xiaomi 14 8/256",
+      "answer": {
+        "ram": "8 ТБ",
+        "storage": "256 ТБ"
+      },
+      "accepted": {
+        "ram": "8 ТБ",
+        "storage": "256 ТБ"
+      }
+    },
+    {
+      "query": "ноутбук ОЗУ 32GB SSD 1TB",
+      "answer": {
+        "ram": "32 ГБ",
+        "storage": "1 ТБ"
+      },
+      "accepted": {
+        "storage": "1 ТБ"
+      }
+    }
+  ],
+  "colors": [
+    {
+      "title": "Black Shark GT3 Neo 51 мм (Black)",
+      "color": "black"
+    },
+    {
+      "title": "Black Shark GT3 Neo 51 мм (Burgundy)",
+      "color": "black"
+    },
+    {
+      "title": "Black Shark GT3 Neo 51 мм (Glacier)",
+      "color": "black"
+    },
+    {
+      "title": "Смартфон APPLE iPhone 18 PRO 256GB (Black)",
+      "color": "black"
+    },
+    {
+      "title": "Смартфон APPLE iPhone 18 PRO 256GB (Burgundy)",
+      "color": "burgundy"
+    },
+    {
+      "title": "Смартфон APPLE iPhone 18 PRO 256GB (Glacier)",
+      "color": "lightblue"
+    }
+  ],
+  "color_options": []
+}

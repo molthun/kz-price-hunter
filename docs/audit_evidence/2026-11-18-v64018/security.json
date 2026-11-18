@@ -1,0 +1,12 @@
+{
+  "secrets": {
+    "root": "isolated source snapshot",
+    "ok": true,
+    "findings": 0
+  },
+  "osv": {
+    "pins": 25,
+    "flagged_packages": 0
+  },
+  "pip_audit_repeated": false
+}

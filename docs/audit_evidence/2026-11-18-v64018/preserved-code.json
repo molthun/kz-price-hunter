@@ -1,0 +1,26 @@
+{
+  "CHANGELOG.md": {
+    "initial": "3b440225849fa76aa196fb694ca7b24d9e31f564a39770b14a3393c469b8d78b",
+    "final": "3b440225849fa76aa196fb694ca7b24d9e31f564a39770b14a3393c469b8d78b"
+  },
+  "domain/product_options.py": {
+    "initial": "f6d4a146133c52e094d2222fec97956f055f329e5a6729f6513e8e4455237a97",
+    "final": "f6d4a146133c52e094d2222fec97956f055f329e5a6729f6513e8e4455237a97"
+  },
+  "local_search.py": {
+    "initial": "f6e5666c2aaa4109dba44b0d4e31219e56d9f280bb284aee85e7092f63fdbc1a",
+    "final": "f6e5666c2aaa4109dba44b0d4e31219e56d9f280bb284aee85e7092f63fdbc1a"
+  },
+  "tests/search/test_local_search_grounding.py": {
+    "initial": "48fb524c532c30ce36d9edae96c82c07dd628ec48242e203b126d92dd0bd8ef9",
+    "final": "48fb524c532c30ce36d9edae96c82c07dd628ec48242e203b126d92dd0bd8ef9"
+  },
+  "tests/search/test_product_options.py": {
+    "initial": "2f2a76eb71103df77467c45c08f6c73fae38e9d7776f3b3e6f945a34cdfc9bf1",
+    "final": "2f2a76eb71103df77467c45c08f6c73fae38e9d7776f3b3e6f945a34cdfc9bf1"
+  },
+  "version.py": {
+    "initial": "fbe70b3979fb33aa76c49f1e238627eda7d44837f950b7ffd6ae25bd5616139e",
+    "final": "fbe70b3979fb33aa76c49f1e238627eda7d44837f950b7ffd6ae25bd5616139e"
+  }
+}

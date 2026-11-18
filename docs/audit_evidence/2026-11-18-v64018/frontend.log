@@ -1,0 +1,165 @@
+
+test_frontend.cjs
+{"guest_hidden":true,"authenticated_card_rendered":true,"logout_hidden":true,"page_errors":[]}
+
+test_frontend_admin_navigation.cjs
+PASS admin navigation 390/light: panels/history/preserved fields/settings deep link/no mutations
+PASS admin navigation 390/dark: panels/history/preserved fields/settings deep link/no mutations
+PASS admin navigation 1366/light: panels/history/preserved fields/settings deep link/no mutations
+PASS admin navigation 1366/dark: panels/history/preserved fields/settings deep link/no mutations
+
+test_frontend_admin_sellers.cjs
+test_frontend_admin_sellers PASS
+
+test_frontend_admin_shops.cjs
+OK 1280
+OK 360
+admin shops: passed
+
+test_frontend_ai_models.cjs
+PASS: выбор модели из списка провайдера, цены к ней, отказ провайдера словами
+
+test_frontend_auth.cjs
+PASS: real browser dev login, session, settings POST Origin, logout, my data export/delete, privacy page; isolated DB
+
+test_frontend_barcode_scanner.cjs
+✓ Barcode scanner camera lifecycle (A04) passed
+
+test_frontend_catalog_menu.cjs
+PASS catalog menu 800x600/light: 11 разделов, 33 пунктов, колонка 430/1475px
+PASS catalog menu 800x600/dark: 11 разделов, 33 пунктов, колонка 430/1475px
+PASS catalog menu 1024x768/light: 11 разделов, 33 пунктов, колонка 598/1031px
+PASS catalog menu 1024x768/dark: 11 разделов, 33 пунктов, колонка 598/1031px
+PASS catalog menu 1366x768/light: 11 разделов, 33 пунктов, колонка 598/643px
+PASS catalog menu 1366x768/dark: 11 разделов, 33 пунктов, колонка 598/643px
+PASS catalog menu 390x844/light: 11 разделов, 33 пунктов, колонка 731/1539px
+PASS catalog menu 390x844/dark: 11 разделов, 33 пунктов, колонка 731/1539px
+
+test_frontend_changelog.cjs
+PASS: changelog modal — current version, order, escaping, load error
+
+test_frontend_classification_tags.cjs
+PASS classification tags 390/light
+PASS classification tags 390/dark
+PASS classification tags 1366/light
+PASS classification tags 1366/dark
+
+test_frontend_closed_gate.cjs
+PASS closed login 390/light
+PASS closed login 390/dark
+PASS closed login 1366/light
+PASS closed login 1366/dark
+
+test_frontend_closed_gate_auth.cjs
+PASS real closed gate → dev session → application → logout → gate; temporary DB, no Telegram send
+
+test_frontend_deals_watches.cjs
+test_frontend_deals_watches PASS
+
+test_frontend_discovery.cjs
+Discovery monitoring PASS
+
+test_frontend_expansion_delete.cjs
+PASS delete rejected/running request 390/light; cancel confirmation and stale poll
+PASS delete rejected/running request 390/dark; cancel confirmation and stale poll
+PASS delete rejected/running request 1366/light; cancel confirmation and stale poll
+PASS delete rejected/running request 1366/dark; cancel confirmation and stale poll
+
+test_frontend_format.cjs
+PASS: format module — escaping, prices, freshness badges
+
+test_frontend_local_catalog_growth.cjs
+PASS local catalog growth 390/light
+PASS local catalog growth 390/dark
+PASS local catalog growth 1366/light
+PASS local catalog growth 1366/dark
+
+test_frontend_local_connection.cjs
+PASS local connection 390/light: scope/check/save/secret preservation/409/draft navigation/reload
+PASS local connection 390/dark: scope/check/save/secret preservation/409/draft navigation/reload
+PASS local connection 1366/light: scope/check/save/secret preservation/409/draft navigation/reload
+PASS local connection 1366/dark: scope/check/save/secret preservation/409/draft navigation/reload
+
+test_frontend_matching_moderation.cjs
+PASS: ручная модерация — отказ с участниками группы, сбой записи и успешное решение
+
+test_frontend_modal_image.cjs
+PASS: modal photo recovers after a broken image, placeholder on error
+
+test_frontend_notices.cjs
+PASS: раздел обращений магазинов, ссылка на выгрузку, чужой текст экранирован
+
+test_frontend_offer_details.cjs
+PASS own seller offer 390/light: selection/source isolation/late generic reply/failure/404
+PASS own seller offer 390/dark: selection/source isolation/late generic reply/failure/404
+PASS own seller offer 1366/light: selection/source isolation/late generic reply/failure/404
+PASS own seller offer 1366/dark: selection/source isolation/late generic reply/failure/404
+
+test_frontend_p04.cjs
+PASS: P04 counters single writer + city scope, API error states (incl. version/users), shop icons collapse, tile/tab structure
+
+test_frontend_p05.cjs
+PASS: P05 settings — role navigation, shop status moved to monitoring, modes vs levels, custom indicator, advanced collapsed, reset
+
+test_frontend_p06.cjs
+PASS: P06 search analytics — точные доли, формула, таблицы запросов, экранирование, состояние ошибки
+
+test_frontend_p07.cjs
+PASS: P07 наблюдения — раздел после входа, создание, ошибка сервера, включение, удаление, экранирование
+
+test_frontend_p07_v2.cjs
+PASS: P07 V2 кнопка «следить» — состояние, создание, отмена, отказ сервера, гость
+
+test_frontend_p09_ai.cjs
+PASS: P09 AI-часть — режим, согласованные пороги, решения модели, экранирование
+
+test_frontend_p10.cjs
+PASS: P10 теневой планировщик — предложения с причинами, сравнение стратегий, без кнопок действий
+
+test_frontend_p12.cjs
+PASS: P12 помощник администратора — факты всегда видны, выдуманные числа не показываются
+
+test_frontend_p13.cjs
+PASS: P13 суточная сводка — цифры без AI, отклонённый пересказ, неполные сутки, отправка в Telegram
+
+test_frontend_product_evidence.cjs
+PASS product facts/description/gallery/feed 390/light
+PASS product facts/description/gallery/feed 390/dark
+PASS product facts/description/gallery/feed 1366/light
+PASS product facts/description/gallery/feed 1366/dark
+
+test_frontend_scan_settings.cjs
+PASS scan settings 390/light: exact interval/dynamic shops/filter bulk/hidden choices/preserved draft/409
+PASS scan settings 390/dark: exact interval/dynamic shops/filter bulk/hidden choices/preserved draft/409
+PASS scan settings 1366/light: exact interval/dynamic shops/filter bulk/hidden choices/preserved draft/409
+PASS scan settings 1366/dark: exact interval/dynamic shops/filter bulk/hidden choices/preserved draft/409
+
+test_frontend_search_first.cjs
+test_frontend_search_first PASS
+
+test_frontend_security.cjs
+PASS: catalog/AI/log XSS, поисковый запрос как данные, URL schemes, роли, действия карточки
+
+test_frontend_seller_modal.cjs
+OK: Витрина продавца (Seller Modal) успешно проверена
+
+test_frontend_service_monitor.cjs
+PASS service overview 390/light: isolated failure/no false zeros/local diagnosis/late AI ignored/read-only/XSS safe/navigation/recovery
+PASS service overview 390/dark: isolated failure/no false zeros/local diagnosis/late AI ignored/read-only/XSS safe/navigation/recovery
+PASS service overview 1366/light: isolated failure/no false zeros/local diagnosis/late AI ignored/read-only/XSS safe/navigation/recovery
+PASS service overview 1366/dark: isolated failure/no false zeros/local diagnosis/late AI ignored/read-only/XSS safe/navigation/recovery
+
+test_frontend_social_no_permalink.cjs
+OK: предложения без permalink не показывают кнопку магазина
+
+test_frontend_telegram_admin.cjs
+PASS Telegram admin 390/light: no sends/auto local diagnosis/scoped save/zero hour/drafts/check/409/late AI ignored
+PASS Telegram admin 390/dark: no sends/auto local diagnosis/scoped save/zero hour/drafts/check/409/late AI ignored
+PASS Telegram admin 1366/light: no sends/auto local diagnosis/scoped save/zero hour/drafts/check/409/late AI ignored
+PASS Telegram admin 1366/dark: no sends/auto local diagnosis/scoped save/zero hour/drafts/check/409/late AI ignored
+
+test_frontend_telegram_webapp.cjs
+✓ Telegram Mini App (TG-10) Playwright verification passed successfully!
+
+test_frontend_timed_access.cjs
+test_frontend_timed_access PASS

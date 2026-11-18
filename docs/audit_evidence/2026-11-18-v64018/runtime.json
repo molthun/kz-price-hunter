@@ -1,0 +1,65 @@
+{
+  "time_utc": "2026-11-18T06:43:58.637000+00:00",
+  "environments": [
+    {
+      "container": "kzph-stand",
+      "returncode": 0,
+      "data": {
+        "problems": [],
+        "service": {
+          "version": "6.40.16",
+          "release_date": "2026-11-18",
+          "uptime_seconds": 3941.5,
+          "started_at": "2026-11-18T05:38:17.557466+00:00"
+        },
+        "runtime": {
+          "python": "3.14.4",
+          "platform": "linux",
+          "cpu_count": 16,
+          "thread_pool_size": 16,
+          "threads_alive": 17,
+          "rss_mb": 497.2,
+          "event_loop_lag_ms": 0.7
+        },
+        "queue": {
+          "size": 6,
+          "failures": 0,
+          "redis_active": true,
+          "worker_running": true
+        },
+        "journal_mode": "wal",
+        "soupsieve": "4.1.1"
+      }
+    },
+    {
+      "container": "kz-price-hunter",
+      "returncode": 0,
+      "data": {
+        "problems": [],
+        "service": {
+          "version": "6.37.0",
+          "release_date": "2026-11-12",
+          "uptime_seconds": 55077.6,
+          "started_at": "2026-11-17T15:26:01.982603+00:00"
+        },
+        "runtime": {
+          "python": "3.14.4",
+          "platform": "linux",
+          "cpu_count": 16,
+          "thread_pool_size": 32,
+          "threads_alive": 23,
+          "rss_mb": 1130.1,
+          "event_loop_lag_ms": 85.0
+        },
+        "queue": {
+          "size": 0,
+          "failures": 0,
+          "redis_active": true,
+          "worker_running": true
+        },
+        "journal_mode": "wal",
+        "soupsieve": "2.10"
+      }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "version": "6.40.18",
+  "base_head": "68dc873e38348aa41af3787fc6ce4e0bdb7e5005",
+  "candidate_uncommitted": true,
+  "decision": "returned",
+  "findings": {
+    "R18-01": "P1 memory role lost for operative memory phrase",
+    "R18-02": "P1 memory-pair units not grounded",
+    "R18-03": "P2 brand color masks bracket color"
+  },
+  "python": {
+    "tests": 3119,
+    "seconds": 425.15,
+    "result": "OK",
+    "environment": "Linux image v6.40.16 with 7 read-only candidate file overlays; temporary DB; network none; 2 CPUs"
+  },
+  "targeted": {
+    "tests": 97,
+    "seconds": 3.821,
+    "result": "OK"
+  },
+  "frontend": {
+    "suites": 41,
+    "passed": 41,
+    "failed": 0
+  },
+  "security": {
+    "secrets": 0,
+    "osv_pins_checked": 25,
+    "osv_flagged": 0,
+    "pip_audit_repeated": false
+  },
+  "stand_version": "6.40.16",
+  "production_version": "6.37.0",
+  "code_mutations": false,
+  "commits_created": false,
+  "deployments": false,
+  "D04_in_scope": false
+}

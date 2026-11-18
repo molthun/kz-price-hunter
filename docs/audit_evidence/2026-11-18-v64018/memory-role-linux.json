@@ -1,0 +1,77 @@
+[
+  {
+    "query": "ноутбук оперативная память 64 ГБ",
+    "model_attributes": {},
+    "accepted_attributes": {},
+    "total": 1,
+    "selected_attributes": {},
+    "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"laptops\", \"inferred_attributes\": {}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"ноутбук оперативная память 64 ГБ\", \"query\": \"ноутбук оперативная память 64 ГБ\"}"
+  },
+  {
+    "query": "ноутбук оперативная память 64 ГБ",
+    "model_attributes": {
+      "ram": "64 ГБ"
+    },
+    "accepted_attributes": {},
+    "total": 1,
+    "selected_attributes": {},
+    "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"laptops\", \"inferred_attributes\": {}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"ноутбук оперативная память 64 ГБ\", \"query\": \"ноутбук оперативная память 64 ГБ\"}"
+  },
+  {
+    "query": "ноутбук оперативная память 64 ГБ",
+    "model_attributes": {
+      "ram": "64 ГБ",
+      "storage": "64 ГБ"
+    },
+    "accepted_attributes": {
+      "storage": "64 ГБ"
+    },
+    "total": 0,
+    "selected_attributes": {
+      "storage": "64 ГБ"
+    },
+    "watch_target": "@local-search:{\"attributes\": {}, \"brand\": null, \"category\": \"laptops\", \"inferred_attributes\": {\"storage\": \"64 ГБ\"}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"ноутбук оперативная память 64 ГБ\", \"query\": \"ноутбук оперативная память 64 ГБ\"}"
+  },
+  {
+    "query": "Xiaomi 14 8/256",
+    "model_attributes": {},
+    "accepted_attributes": {},
+    "total": 1,
+    "selected_attributes": {},
+    "watch_target": "@local-search:{\"attributes\": {}, \"brand\": \"Xiaomi\", \"category\": \"phones\", \"inferred_attributes\": {}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"Xiaomi 14 8/256\", \"query\": \"Xiaomi 14 8/256\"}"
+  },
+  {
+    "query": "Xiaomi 14 8/256",
+    "model_attributes": {
+      "ram": "8 ГБ",
+      "storage": "256 ГБ"
+    },
+    "accepted_attributes": {
+      "ram": "8 ГБ",
+      "storage": "256 ГБ"
+    },
+    "total": 1,
+    "selected_attributes": {
+      "ram": "8 ГБ",
+      "storage": "256 ГБ"
+    },
+    "watch_target": "@local-search:{\"attributes\": {}, \"brand\": \"Xiaomi\", \"category\": \"phones\", \"inferred_attributes\": {\"ram\": \"8 ГБ\", \"storage\": \"256 ГБ\"}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"Xiaomi 14 8/256\", \"query\": \"Xiaomi 14 8/256\"}"
+  },
+  {
+    "query": "Xiaomi 14 8/256",
+    "model_attributes": {
+      "ram": "8 ТБ",
+      "storage": "256 ТБ"
+    },
+    "accepted_attributes": {
+      "ram": "8 ТБ",
+      "storage": "256 ТБ"
+    },
+    "total": 0,
+    "selected_attributes": {
+      "ram": "8 ТБ",
+      "storage": "256 ТБ"
+    },
+    "watch_target": "@local-search:{\"attributes\": {}, \"brand\": \"Xiaomi\", \"category\": \"phones\", \"inferred_attributes\": {\"ram\": \"8 ТБ\", \"storage\": \"256 ТБ\"}, \"kind\": null, \"max_price\": null, \"min_price\": null, \"model\": null, \"original_query\": \"Xiaomi 14 8/256\", \"query\": \"Xiaomi 14 8/256\"}"
+  }
+]
