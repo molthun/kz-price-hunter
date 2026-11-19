@@ -11,7 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlsplit, parse_qs
 
 from scrapers import http as requests
-from scrapers.base import ScanResult, merge_city_results, price_value, validate_product_item
+from scrapers.base import CityControl, ScanResult, merge_city_results, price_value, validate_product_item
 
 CITY_SLUG_MAP = {
     "алматы": "almaty",
@@ -75,10 +75,31 @@ class MagnumScraper:
             return self._scrape_city(category_name, category_url, cities[0])
 
         results: List[Tuple[str, Any]] = []
-        for city in cities:
+        for idx, city in enumerate(cities):
+            if idx:
+                ok, reason = CityControl.check(self.SHOP_NAME, cities[0], city, self._city_control_snapshot)
+                if not ok:
+                    results.append((city, CityControl.skipped(reason)))
+                    continue
+            # Сессия не переносит cookies одного города в запросы другого
+            self.close()
             res = self._scrape_city(category_name, category_url, city)
             results.append((city, res))
         return merge_city_results(results)
+
+    # Город в ответе Magnum не возвращается (только ?city=). Контрольная категория:
+    # живьём 19.11.2026 наборы товаров Алматы и Астаны не пересекались.
+    CITY_CONTROL_URL = "https://magnum.kz/catalog?category=bakaleia"
+
+    def _city_control_snapshot(self, city: str) -> Dict[str, Any]:
+        probe = MagnumScraper(city=city)
+        try:
+            res = probe._scrape_city("контроль города", self.CITY_CONTROL_URL, city)
+        finally:
+            probe.close()
+        if getattr(res, "error", None):
+            raise RuntimeError(res.error)
+        return {item["id"]: item["price"] for item in res}
 
     def _scrape_city(self, category_name: str, category_url: str, city_display: str) -> ScanResult:
         products: List[Dict[str, Any]] = []

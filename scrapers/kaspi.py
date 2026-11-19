@@ -9,7 +9,7 @@ import urllib.parse
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from scrapers import http as requests
-from scrapers.base import ScanResult, PagedScraper, merge_city_results, price_value
+from scrapers.base import CityControl, ScanResult, PagedScraper, merge_city_results, price_value
 
 class KaspiScraper(PagedScraper):
     SHOP_NAME = "Kaspi Магазин"
@@ -149,8 +149,14 @@ class KaspiScraper(PagedScraper):
         results: List[Tuple[str, Any]] = []
         orig_code, orig_name = self.CITY_CODE, self.city_name
         try:
-            for city in cities:
+            primary = self._resolve_city(cities[0])[1]
+            for idx, city in enumerate(cities):
                 code, name = self._resolve_city(city)
+                if idx:
+                    ok, reason = CityControl.check(self.SHOP_NAME, primary, name, self._city_control_snapshot)
+                    if not ok:
+                        results.append((name, CityControl.skipped(reason)))
+                        continue
                 self.CITY_CODE = code
                 self.city_name = name
                 self.headers["X-KS-City"] = code
@@ -161,6 +167,19 @@ class KaspiScraper(PagedScraper):
             self.city_name = orig_name
             self.headers["X-KS-City"] = orig_code
         return merge_city_results(results)
+
+    # Город в ответе Kaspi не возвращается (только параметр c + X-KS-City). Контрольная категория:
+    # живьём 19.11.2026 цены части смартфонов в Астане и Алматы различались.
+    CITY_CONTROL_URL = "https://kaspi.kz/shop/c/smartphones/"
+    CITY_CONTROL_PAGES = 3
+
+    def _city_control_snapshot(self, city: str) -> Dict[str, Any]:
+        probe = KaspiScraper(cities=(city,))
+        out: Dict[str, Any] = {}
+        for page in range(1, self.CITY_CONTROL_PAGES + 1):
+            for item in probe._fetch_page("контроль города", self.CITY_CONTROL_URL, page):
+                out[item["id"]] = item["price"]
+        return out
 
     async def search(self, query: str, max_items: int = 15):
         if not query.strip() or max_items <= 0:

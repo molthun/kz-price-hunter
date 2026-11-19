@@ -9,6 +9,7 @@ from scrapers.base import (
     parse_price,
     price_value,
     ScanResult,
+    CityControl,
     merge_city_results,
     validate_product_item,
 )
@@ -37,6 +38,19 @@ class SulpakScraper(PagedScraper):
             "Accept-Language": "ru-RU,ru;q=0.9",
         }
         self.cookies = {"city_id": self.CITY_IDS.get(self._active_city, "1"), "language_id": "3"}
+
+    # Контрольная категория для JSON распродажи (город в ответе не возвращается):
+    # живьём 19.11.2026 у Алматы и Астаны было по 13 собственных товаров из 44.
+    CITY_CONTROL_URL = "https://www.sulpak.kz/sale/1"
+    CITY_CONTROL_PAGES = 2
+
+    def _city_control_snapshot(self, city: str) -> Dict[str, Any]:
+        probe = SulpakScraper(cities=(city,))
+        out: Dict[str, Any] = {}
+        for page in range(1, self.CITY_CONTROL_PAGES + 1):
+            for item in probe._fetch_page("контроль города", self.CITY_CONTROL_URL, page):
+                out[item["id"]] = item["price"]
+        return out
 
     def _confirm_city(self, soup: Any, has_cards: bool) -> None:
         """R1-A01: HTML-страница каталога должна сама подтвердить город (атрибуты data-city-id).
@@ -219,7 +233,14 @@ class SulpakScraper(PagedScraper):
         results: List[Tuple[str, Any]] = []
         orig_city, orig_cookies = self._active_city, dict(self.cookies)
         try:
-            for city in cities:
+            is_sale = "/sale" in category_url.lower()
+            for idx, city in enumerate(cities):
+                if idx and is_sale:
+                    # JSON распродажи город не возвращает — нужен контроль различия городов
+                    ok, reason = CityControl.check(self.SHOP_NAME, cities[0], city, self._city_control_snapshot)
+                    if not ok:
+                        results.append((city, CityControl.skipped(reason)))
+                        continue
                 self._active_city = city
                 self.cookies = {"city_id": self.CITY_IDS.get(city, "1"), "language_id": "3"}
                 res = super()._scrape_sync(category_name, category_url, max_pages=max_pages)

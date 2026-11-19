@@ -13,7 +13,9 @@ class MechtaScraper(PagedScraper):
         "Шымкент": "shymkent",
         "Караганда": "karaganda",
     }
-    DEFAULT_CITIES: Tuple[str, ...] = ("Астана", "Алматы")
+    # Один город, пока Mechta не ответит успешно и способ подтверждения города не будет проверен:
+    # 19.11.2026 API отвечал 403 и с Mac, и с сервера стенда (политика владельца по источникам без маркера).
+    DEFAULT_CITIES: Tuple[str, ...] = ("Астана",)
 
     def __init__(self, cities: Optional[Iterable[str]] = None):
         self.base_url = "https://www.mechta.kz"

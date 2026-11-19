@@ -175,6 +175,61 @@ def merge_city_results(results: Iterable[Tuple[str, Any]]) -> ScanResult:
                       limited=limited, unparsed=unparsed, error_info=first_failure)
 
 
+class CityControl:
+    """Контроль различия городов для источников, чей ответ не называет город (R1, политика владельца 19.11.2026).
+
+    Город у таких источников только «запрошен» (параметр, заголовок, cookie), а не подтверждён
+    ответом. Перед обходом дополнительного города адаптер сравнивает контрольную категорию,
+    в которой различие городов наблюдалось живьём, в основном и дополнительном городе.
+    Контроль пройден, если у городов различается набор товаров или цена хотя бы одного общего
+    товара. Совпадение, слишком малая выборка или сбой — не пройден: дополнительный город не
+    обходится, а обход категории неполный, поэтому сверка ничего не снимает.
+    Вердикт кэшируется на TTL_SECONDS для пары (магазин, город, основной город).
+    """
+    TTL_SECONDS = 6 * 3600
+    MIN_ITEMS = 3
+    _cache: Dict[Tuple[str, str, str], Tuple[float, bool, str]] = {}
+
+    @classmethod
+    def reset(cls) -> None:
+        cls._cache.clear()
+
+    @staticmethod
+    def differs(primary: Dict[str, Any], other: Dict[str, Any]) -> bool:
+        if set(primary) != set(other):
+            return True
+        return any(primary[k] != other[k] for k in primary)
+
+    @classmethod
+    def check(cls, shop: str, primary_city: str, city: str, snapshot) -> Tuple[bool, str]:
+        """snapshot(city) -> {id: price} контрольной категории. Возвращает (пройден, причина)."""
+        key = (shop, city, primary_city)
+        cached = cls._cache.get(key)
+        now = time.monotonic()
+        if cached and now - cached[0] < cls.TTL_SECONDS:
+            return cached[1], cached[2]
+        try:
+            base = snapshot(primary_city)
+            other = snapshot(city)
+        except Exception as e:
+            verdict = (False, f"контроль города не выполнен: {type(e).__name__}")
+        else:
+            if len(base) < cls.MIN_ITEMS or len(other) < cls.MIN_ITEMS:
+                verdict = (False, "контроль города: мало товаров для сравнения")
+            elif cls.differs(base, other):
+                verdict = (True, "контроль города пройден")
+            else:
+                verdict = (False, f"контроль города не пройден: ответ «{city}» совпал с «{primary_city}»")
+        cls._cache[key] = (now, verdict[0], verdict[1])
+        return verdict
+
+    @classmethod
+    def skipped(cls, reason: str) -> "ScanResult":
+        import source_failure
+        return ScanResult([], limited=True, error=reason,
+                          error_info=source_failure.make("city_unconfirmed", phase="category"))
+
+
 @runtime_checkable
 class Scraper(Protocol):
     """Формальный контракт парсера магазина для KZ Price Hunter."""

@@ -74,7 +74,7 @@ SHOP_REGIONAL_POLICY = {
     "technodom": {"mode": "multi_city_price", "scan_cities": ("Астана", "Алматы"), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "url_slug+cookie:city"},
     "forcecom": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},
     "sulpak": {"mode": "multi_city_price", "scan_cities": ("Алматы", "Астана"), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:city_id (1=Алматы,3=Астана)"},
-    "mechta": {"mode": "multi_city_price", "scan_cities": ("Астана", "Алматы"), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "header:x-city-code"},
+    "mechta": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "header:x-city-code"},
     "alser": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:city"},
     "evrika": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "url_slug"},
     "moon": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},

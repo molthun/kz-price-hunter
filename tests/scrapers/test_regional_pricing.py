@@ -190,6 +190,13 @@ class ShopKzNationwideYmlTest(unittest.TestCase):
 
 
 class KaspiAndMagnumMultiCityTest(unittest.TestCase):
+    def setUp(self):
+        # Механику обхода проверяем при пройденном контроле города; сам контроль — в test_city_control.py
+        from scrapers.base import CityControl
+        patcher = patch.object(CityControl, "check", return_value=(True, "контроль города пройден"))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_kaspi_default_scans_astana_and_almaty_separately(self):
         scraper = KaspiScraper()
         self.assertEqual(scraper.cities, ("Астана", "Алматы"))
@@ -248,7 +255,10 @@ class KaspiAndMagnumMultiCityTest(unittest.TestCase):
 
         fake_session = MagicMock()
         fake_session.get.side_effect = fake_get
-        scraper.session = fake_session
+        # Сессия сбрасывается между городами, поэтому подменяется её фабрика
+        session_patch = patch.object(MagnumScraper, "_get_session", return_value=fake_session)
+        session_patch.start()
+        self.addCleanup(session_patch.stop)
         res = scraper._scrape_sync("Молочка", "https://magnum.kz/catalog?category=milk")
         self.assertTrue(res.complete)
         self.assertIsNone(res.error)
@@ -328,8 +338,12 @@ class TechnodomSulpakMechtaMultiCityTest(unittest.TestCase):
         self.assertEqual(by_id["sulpak_888@almaty"]["price"], 150000)
         self.assertEqual(by_id["sulpak_888@astana"]["price"], 165000)
 
+    def test_mechta_default_is_single_city_until_confirmed(self):
+        self.assertEqual(MechtaScraper().cities, ("Астана",))
+        self.assertEqual(config.SHOP_REGIONAL_POLICY["mechta"]["scan_cities"], ("Астана",))
+
     def test_mechta_scans_astana_and_almaty_headers(self):
-        scraper = MechtaScraper()
+        scraper = MechtaScraper(cities=("Астана", "Алматы"))
         seen_codes = []
 
         def fake_get(url, headers=None, params=None, **kw):
