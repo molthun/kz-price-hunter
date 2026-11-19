@@ -917,7 +917,7 @@ class NewSourcesEndProofTest(unittest.TestCase):
         from unittest.mock import Mock
         from scrapers.magnum import MagnumScraper
 
-        s = MagnumScraper()
+        s = MagnumScraper(city="Алматы")
         # Первый запрос 502, второй 200 с товарами
         resp502 = Mock(status_code=502)
         resp200 = Mock(status_code=200, json=Mock(return_value=[

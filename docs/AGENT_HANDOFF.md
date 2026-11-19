@@ -9,6 +9,11 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## READY_FOR_STAND v6.41.2: исправление теста MagnumScraper под мультигородской режим v6.41.1 — Antigravity (2026-11-19, Asia/Almaty)
+
+- **Основание:** полный прогон в чистом контейнере стенда `v6.41.1` дал 3 188 OK / 1 FAIL (`test_magnum_retry_on_transient_error` ожидал 1 город при `MagnumScraper()`).
+- **Изменено:** `tests/scrapers/test_scraper_reliability.py` (`MagnumScraper(city="Алматы")`), `version.py` (`6.41.2`), `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`. Код приложения не менялся.
+
 ## READY_FOR_STAND v6.41.1: R1-02 (часть 1) — мультигородской обход Алматы + Астана для Kaspi и Magnum — Antigravity (2026-11-19, Asia/Almaty)
 
 - **Основание:** продолжение этапа R1 (`docs/REGIONAL_PRICING.md`, `docs/DEVELOPMENT_PLAN.md`) после `v6.41.0`.

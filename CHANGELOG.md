@@ -3,6 +3,14 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.41.2] - 2026-11-19
+
+### Для пользователей
+- Изменений в работе сайта нет: обновлён тест повтора `MagnumScraper` под мультигородской режим `v6.41.1`.
+
+### Исправления тестов (полный прогон стенда v6.41.1)
+- **`tests/scrapers/test_scraper_reliability.py`:** в `test_magnum_retry_on_transient_error` явно задан один город `MagnumScraper(city="Алматы")` (ранее тест создавал `MagnumScraper()` с 2 ответами в `side_effect`, тогда как с `v6.41.1` дефолтный `MagnumScraper()` обходит 2 города — Алматы и Астану; мультигородской режим проверяется в `tests/scrapers/test_regional_pricing.py`).
+
 ## [6.41.1] - 2026-11-19
 
 ### Для пользователей
