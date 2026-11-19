@@ -9,6 +9,17 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## READY_FOR_STAND v6.41.1: R1-02 (часть 1) — мультигородской обход Алматы + Астана для Kaspi и Magnum — Antigravity (2026-11-19, Asia/Almaty)
+
+- **Основание:** продолжение этапа R1 (`docs/REGIONAL_PRICING.md`, `docs/DEVELOPMENT_PLAN.md`) после `v6.41.0`.
+- **Изменённые файлы:** `scrapers/kaspi.py`, `scrapers/magnum.py`, `config.py`, `docs/REGIONAL_PRICING.md`, `tests/scrapers/test_regional_pricing.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- **Что сделано:**
+  1. `scrapers/kaspi.py`: фоновый обход `KaspiScraper()` проходит `Астана` (`710000000`) + `Алматы` (`750000000`) с раздельными `kaspi_<id>@astana` / `@almaty` и безопасным `complete`; `search_live` учитывает переданный `city`; явный `city_code` сохраняет прежний режим.
+  2. `scrapers/magnum.py`: фоновый обход `MagnumScraper()` проходит `Алматы` (`almaty`) + `Астана` (`astana`) с раздельными `magnum_<id>@almaty` / `@astana`, безопасным `complete`, повторами `520/522/524` и пробросом `HostCooldown`.
+  3. `config.py` и `docs/REGIONAL_PRICING.md`: актуализированы `scan_cities` для `kaspi`, `magnum`, а `komfort.kz` уточнён по живой проверке 19.11 (`fixed:almaty`).
+- **Проверено локально (macOS `venv/bin/python`):** `py_compile` OK, `release_gate.py secrets` OK (0 findings), `test_regional_pricing` + `test_scraper_contract` — **42 OK** (1.1 с).
+- **Следующий точный шаг:** доставить `v6.41.0–1` на стенд `kzph-stand` через `git bundle` при доступности хоста `192.168.28.25:2222`, пересобрать образ и прогнать полный Python-набор в чистом контейнере. Прод (`6.40.33`) не трогается, push не выполняется.
+
 ## READY_FOR_STAND v6.41.0: R1-01 — Региональные цены и мультигородские обходы (пилот 12.kz + Белый Ветер + реестр и документация) — Antigravity (2026-11-19, Asia/Almaty)
 
 - **Основание:** прямое поручение владельца (19.11.2026) — учесть региональные цены в РК (12.kz: 27 300 ₸ Алматы vs 35 000 ₸ Астана), доставку по РК («Белый Ветер») и всё задокументировать.

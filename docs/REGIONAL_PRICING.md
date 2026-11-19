@@ -49,18 +49,17 @@
 
 | Ключ | Магазин | Класс (`mode`) | Текущий обход (`scan_cities`) | Целевые города (`target_cities`) | Доставка РК | Механизм города |
 |---|---|---|---|---|---|---|
-| `twelve_months` | 12 Месяцев | `multi_city_price` | **Алматы, Астана** (пилот `v6.41.0`) | Алматы, Астана | Да | `cookie:current_region` (`471567` / `471565`) |
+| `twelve_months` | 12 Месяцев | `multi_city_price` | **Алматы, Астана** (`v6.41.0`) | Алматы, Астана | Да | `cookie:current_region` (`471567` / `471565`) |
+| `kaspi` | Kaspi Магазин | `multi_city_price` | **Астана, Алматы** (`v6.41.1`) | Алматы, Астана | Да | `header:X-KS-City` (`710000000` / `750000000`) |
+| `magnum` | Магнум | `multi_city_price` | **Алматы, Астана** (`v6.41.1`) | Алматы, Астана | Нет | `url_slug` (`?city=almaty` / `astana`) |
 | `shopkz` | Белый Ветер | `delivery_kz_multi_stock` | **Казахстан** (YML, `v6.41.0`) | Казахстан | Да | `yml_feed+cookie:BITRIX_SM_CITY` |
-| `kaspi` | Kaspi Магазин | `multi_city_price` | Астана | Алматы, Астана | Да | `header:X-KS-City` |
 | `technodom` | Технодом | `multi_city_price` | Астана | Алматы, Астана | Да | `api:city_id` |
 | `sulpak` | Sulpak | `multi_city_price` | Астана | Алматы, Астана | Да | `cookie:city` |
 | `mechta` | Мечта | `multi_city_price` | Астана | Алматы, Астана | Да | `header:city` |
 | `dns` | DNS Казахстан | `multi_city_price` | Астана | Алматы, Астана | Да | `cookie:city_path` |
 | `fortemarket` | Forte Market | `multi_city_price` | Астана | Алматы, Астана | Да | `api:locations` |
 | `halyk` | Halyk Market | `multi_city_price` | Астана | Алматы, Астана | Да | `api:city` |
-| `komfort` | Комфорт | `multi_city_price` | Алматы | Алматы, Астана | Да | `cookie:current_region` |
 | `lemanapro` | Лемана ПРО | `multi_city_price` | Алматы | Алматы, Астана | Да | `cookie:region` |
-| `magnum` | Магнум | `multi_city_price` | Алматы | Алматы, Астана | Нет | `url_slug` |
 | `arbuz` | Arbuz | `multi_city_price` | Алматы | Алматы, Астана | Нет | `url_slug` |
 | `detmir` | Детский мир | `multi_city_price` | Алматы | Алматы, Астана | Да | `cookie:region` |
 | `iteka` | i-Teka | `multi_city_price` | Алматы | Алматы, Астана | Нет | `url_slug` |
@@ -70,7 +69,7 @@
 | `evrika` | Эврика | `delivery_kz_multi_stock` | Астана | Алматы, Астана | Да | `url_slug` |
 | `planeta` | Планета Электроники | `delivery_kz_multi_stock` | Алматы | Алматы, Астана | Да | `cookie:city` |
 | `zeta`, `kari` | Zeta, Kari | `delivery_kz_multi_stock` | Казахстан | Казахстан | Да | `none` |
-| Остальные 16 магазинов | `forcecom`, `moon`, `fourmobile`, `flip`, `tgrad`, `ants`, `itmag`, `ispace`, `masterok`, `intertop`, `marwin`, `mebel`, `askona`, `zoomarket`, `kimex`, `french_house` | `single_price_kz` | Алматы / Казахстан | Алматы / Казахстан | Да | `none` |
+| Остальные 17 магазинов | `komfort` (живая проверка 19.11: переключения города на сайте нет), `forcecom`, `moon`, `fourmobile`, `flip`, `tgrad`, `ants`, `itmag`, `ispace`, `masterok`, `intertop`, `marwin`, `mebel`, `askona`, `zoomarket`, `kimex`, `french_house` | `single_price_kz` | Алматы / Казахстан | Алматы / Казахстан | Да | `none` / `fixed:almaty` |
 
 ## 5. План поэтапного развития (R1)
 

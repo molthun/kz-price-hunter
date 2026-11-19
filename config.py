@@ -68,7 +68,7 @@ SHOP_KEYS = {
 REGIONAL_MODES = ("multi_city_price", "delivery_kz_multi_stock", "single_price_kz")
 
 SHOP_REGIONAL_POLICY = {
-    "kaspi": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "header:X-KS-City"},
+    "kaspi": {"mode": "multi_city_price", "scan_cities": ("Астана", "Алматы"), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "header:X-KS-City"},
     "dns": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:city_path"},
     "shopkz": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "yml_feed+cookie:BITRIX_SM_CITY"},
     "technodom": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "api:city_id"},
@@ -89,11 +89,11 @@ SHOP_REGIONAL_POLICY = {
     "vkusmart": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Астана",), "delivery_kz": False, "city_mechanism": "fixed:astana"},
     "twelve_months": {"mode": "multi_city_price", "scan_cities": ("Алматы", "Астана"), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:current_region"},
     "zeta": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
-    "komfort": {"mode": "multi_city_price", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:current_region"},
+    "komfort": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "fixed:almaty"},
     "lemanapro": {"mode": "multi_city_price", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:region"},
     "arbuz": {"mode": "multi_city_price", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": False, "city_mechanism": "url_slug"},
     "masterok": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},
-    "magnum": {"mode": "multi_city_price", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": False, "city_mechanism": "url_slug"},
+    "magnum": {"mode": "multi_city_price", "scan_cities": ("Алматы", "Астана"), "target_cities": ("Алматы", "Астана"), "delivery_kz": False, "city_mechanism": "url_slug"},
     "intertop": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
     "kari": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
     "marwin": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},

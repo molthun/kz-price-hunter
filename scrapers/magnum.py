@@ -7,7 +7,7 @@
 """
 import asyncio
 import time
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlsplit, parse_qs
 
 from scrapers import http as requests
@@ -31,12 +31,23 @@ class MagnumScraper:
     SHOP_NAME = "Магнум"
     SHOP_EMOJI = "🔴"
     PAGE_DELAY_SECONDS = 0.3
+    DEFAULT_CITIES: Tuple[str, ...] = ("Алматы", "Астана")
 
-    def __init__(self, city: str = "Алматы"):
+    def __init__(self, city: Optional[str] = None, cities: Optional[Iterable[str]] = None):
         self.base_url = "https://magnum.kz"
         self.api_url = "https://magnum.kz:1337/api/new-product"
-        self.city_display = city or "Алматы"
-        norm_city = (city or "Алматы").strip().lower()
+        if cities is not None:
+            self.cities: Tuple[str, ...] = tuple(cities)
+            primary_city = self.cities[0] if self.cities else "Алматы"
+        elif city is not None:
+            primary_city = city or "Алматы"
+            self.cities = (primary_city,)
+        else:
+            # Фоновый обход каталога (SHOP_REGISTRY): Алматы + Астана (docs/REGIONAL_PRICING.md, R1-02)
+            self.cities = self.DEFAULT_CITIES
+            primary_city = self.cities[0]
+        self.city_display = primary_city
+        norm_city = primary_city.strip().lower()
         self.city_slug = CITY_SLUG_MAP.get(norm_city, "almaty")
         self.session: Optional[requests.Session] = None
         self.headers = {
@@ -59,7 +70,26 @@ class MagnumScraper:
         return await asyncio.to_thread(self._scrape_sync, category_name, category_url, max_pages)
 
     def _scrape_sync(self, category_name: str, category_url: str, max_pages: Optional[int] = None) -> List[Dict[str, Any]]:
+        cities = self.cities or (self.city_display,)
+        if len(cities) == 1:
+            return self._scrape_city(category_name, category_url, cities[0])
+
+        all_items: List[Dict[str, Any]] = []
+        all_complete = True
+        errors: List[str] = []
+        for city in cities:
+            res = self._scrape_city(category_name, category_url, city)
+            all_items.extend(res)
+            if not getattr(res, "complete", False):
+                all_complete = False
+            err = getattr(res, "error", None)
+            if err:
+                errors.append(f"{city}: {err}")
+        return ScanResult(all_items, complete=all_complete and not errors, error="; ".join(errors) if errors else None)
+
+    def _scrape_city(self, category_name: str, category_url: str, city_display: str) -> ScanResult:
         products: List[Dict[str, Any]] = []
+        city_slug = CITY_SLUG_MAP.get((city_display or "Алматы").strip().lower(), self.city_slug)
 
         # Извлекаем slug категории из URL (например, ?category=bakaleia)
         slug = None
@@ -70,7 +100,7 @@ class MagnumScraper:
             if cat_vals and cat_vals[0]:
                 slug = cat_vals[0].strip()
 
-        api_url = f"{self.api_url}?city={self.city_slug}&cunt=500"
+        api_url = f"{self.api_url}?city={city_slug}&cunt=500"
         if slug:
             api_url += f"&category={slug}"
 
@@ -80,13 +110,15 @@ class MagnumScraper:
         for attempt in range(2):
             try:
                 resp = session.get(api_url, headers=self.headers, timeout=20)
-                if resp.status_code in (500, 502, 503, 504) and attempt == 0:
+                if resp.status_code in (500, 502, 503, 504, 520, 522, 524) and attempt == 0:
                     time.sleep(1.0)
                     continue
                 if resp.status_code != 200:
                     return ScanResult(products, error=f"HTTP {resp.status_code}")
                 data = resp.json()
                 break
+            except requests.HostCooldown:
+                raise
             except Exception as e:
                 last_err = e
                 if attempt == 0:
@@ -138,7 +170,7 @@ class MagnumScraper:
                 "description": description,
                 "price": price,
                 "old_price_on_site": old_price if old_price > price else 0,
-                "city": self.city_display,
+                "city": city_display,
             }
 
             validated = validate_product_item(item, default_shop=self.SHOP_NAME)

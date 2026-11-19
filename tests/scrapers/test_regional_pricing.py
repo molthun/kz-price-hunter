@@ -9,6 +9,8 @@ import config
 import data_quality
 import offer_identity
 from scrapers import http as scraper_http
+from scrapers.kaspi import KaspiScraper
+from scrapers.magnum import MagnumScraper
 from scrapers.shopkz import ShopKzScraper
 from scrapers.twelve_months import TwelveMonthsScraper
 
@@ -175,6 +177,88 @@ class ShopKzNationwideYmlTest(unittest.TestCase):
         self.assertEqual(items[0]["city"], "Астана / Казахстан")
         offer_identity.assign_offer_ids(items)
         self.assertEqual(items[0]["id"], "shopkz_99911@kz")
+
+
+class KaspiAndMagnumMultiCityTest(unittest.TestCase):
+    def test_kaspi_default_scans_astana_and_almaty_separately(self):
+        scraper = KaspiScraper()
+        self.assertEqual(scraper.cities, ("Астана", "Алматы"))
+        seen_cities = []
+
+        def fake_get(url, params=None, headers=None, **kw):
+            code = (params or {}).get("c")
+            seen_cities.append((code, (headers or {}).get("X-KS-City")))
+            page = (params or {}).get("page", 0)
+            if page > 0:
+                return SimpleNamespace(status_code=200, json=lambda: {"data": []})
+            price = 520000 if code == "710000000" else 495000
+            return SimpleNamespace(
+                status_code=200,
+                json=lambda p=price: {
+                    "data": [{
+                        "id": "1001",
+                        "title": "Apple iPhone 16 128GB",
+                        "unitSalePrice": p,
+                        "unitPrice": p,
+                        "shopLink": "/p/iphone-16-1001/",
+                        "stock": 5,
+                    }]
+                },
+            )
+
+        with patch("scrapers.kaspi.requests.get", side_effect=fake_get), patch("time.sleep"):
+            res = scraper._scrape_sync("Смартфоны", "https://kaspi.kz/shop/c/smartphones/", max_pages=2)
+
+        self.assertTrue(res.complete)
+        self.assertIsNone(res.error)
+        self.assertIn(("710000000", "710000000"), seen_cities)
+        self.assertIn(("750000000", "750000000"), seen_cities)
+        offer_identity.assign_offer_ids(res)
+        by_id = {x["id"]: x for x in data_quality.dedupe(res)}
+        self.assertEqual(by_id["kaspi_1001@astana"]["price"], 520000)
+        self.assertEqual(by_id["kaspi_1001@almaty"]["price"], 495000)
+
+    def test_kaspi_explicit_city_code_stays_single_city(self):
+        scraper = KaspiScraper(city_code="750000000")
+        self.assertEqual(scraper.cities, ("Алматы",))
+        self.assertEqual(scraper.city_name, "Алматы")
+
+    def test_magnum_default_scans_almaty_and_astana_and_protects_complete_on_partial_error(self):
+        scraper = MagnumScraper()
+        self.assertEqual(scraper.cities, ("Алматы", "Астана"))
+        seen_urls = []
+
+        def fake_get(url, **kw):
+            seen_urls.append(url)
+            if "city=almaty" in url:
+                return SimpleNamespace(status_code=200, json=lambda: [{"id": 77, "name": "Молоко 1л", "final_price": 550, "start_price": 650}])
+            if "city=astana" in url:
+                return SimpleNamespace(status_code=200, json=lambda: [{"id": 77, "name": "Молоко 1л", "final_price": 590, "start_price": 690}])
+            raise AssertionError(url)
+
+        fake_session = MagicMock()
+        fake_session.get.side_effect = fake_get
+        scraper.session = fake_session
+        res = scraper._scrape_sync("Молочка", "https://magnum.kz/catalog?category=milk")
+        self.assertTrue(res.complete)
+        self.assertIsNone(res.error)
+        offer_identity.assign_offer_ids(res)
+        by_id = {x["id"]: x for x in data_quality.dedupe(res)}
+        self.assertEqual(by_id["magnum_77@almaty"]["price"], 550)
+        self.assertEqual(by_id["magnum_77@astana"]["price"], 590)
+
+        # Частичный сбой Астаны → общий complete=False
+        def fake_get_fail(url, **kw):
+            if "city=almaty" in url:
+                return SimpleNamespace(status_code=200, json=lambda: [{"id": 77, "name": "Молоко 1л", "final_price": 550, "start_price": 650}])
+            return SimpleNamespace(status_code=503, json=lambda: [])
+
+        fake_session.get.side_effect = fake_get_fail
+        with patch("time.sleep"):
+            res_partial = scraper._scrape_sync("Молочка", "https://magnum.kz/catalog?category=milk")
+        self.assertFalse(res_partial.complete)
+        self.assertIn("Астана", res_partial.error or "")
+        self.assertEqual([x["city"] for x in res_partial], ["Алматы"])
 
 
 if __name__ == "__main__":

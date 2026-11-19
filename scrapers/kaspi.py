@@ -6,7 +6,7 @@
 """
 import asyncio
 import urllib.parse
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from scrapers import http as requests
 from scrapers.base import ScanResult, PagedScraper, price_value
@@ -18,11 +18,30 @@ class KaspiScraper(PagedScraper):
 
     API_URL = "https://kaspi.kz/yml/product-view/pl/results"
     CITY_CODE = "710000000"  # Астана
+    DEFAULT_CITIES: Tuple[str, ...] = ("Астана", "Алматы")
 
-    def __init__(self, city_code="710000000"):
+    @staticmethod
+    def _resolve_city(city_or_code: str) -> Tuple[str, str]:
         from config import CITIES_KZ
-        self.CITY_CODE = str(city_code)
-        self.city_name = next((c["name"] for c in CITIES_KZ.values() if c["kaspi_code"] == self.CITY_CODE), "Астана")
+        val = str(city_or_code).strip()
+        for c in CITIES_KZ.values():
+            if val in (c["kaspi_code"], c["name"], c["id"]):
+                return str(c["kaspi_code"]), str(c["name"])
+        return val if val.isdigit() else "710000000", "Астана"
+
+    def __init__(self, city_code: Optional[str] = None, cities: Optional[Iterable[str]] = None):
+        if cities is not None:
+            self.cities: Tuple[str, ...] = tuple(cities)
+            code, name = self._resolve_city(self.cities[0] if self.cities else "Астана")
+        elif city_code is not None:
+            code, name = self._resolve_city(city_code)
+            self.cities = (name,)
+        else:
+            # Фоновый обход каталога (SHOP_REGISTRY): Астана + Алматы (docs/REGIONAL_PRICING.md, R1-02)
+            self.cities = self.DEFAULT_CITIES
+            code, name = self._resolve_city(self.cities[0])
+        self.CITY_CODE = code
+        self.city_name = name
         self.base_url = "https://kaspi.kz"
         self.headers = {
             "User-Agent": (
@@ -121,6 +140,34 @@ class KaspiScraper(PagedScraper):
             })
         return ScanResult(products, complete=not cards)
 
+    def _scrape_sync(self, category_name: str, category_url: str, max_pages: Optional[int] = None) -> ScanResult:
+        """Обходит категорию по городам из self.cities; complete=True только если все города завершились полностью."""
+        cities = self.cities or (self.city_name,)
+        if len(cities) == 1:
+            return super()._scrape_sync(category_name, category_url, max_pages=max_pages)
+
+        all_items: List[Dict[str, Any]] = []
+        all_complete = True
+        errors: List[str] = []
+        orig_code, orig_name = self.CITY_CODE, self.city_name
+        try:
+            for city in cities:
+                code, name = self._resolve_city(city)
+                self.CITY_CODE = code
+                self.city_name = name
+                self.headers["X-KS-City"] = code
+                res = super()._scrape_sync(category_name, category_url, max_pages=max_pages)
+                all_items.extend(res)
+                if not getattr(res, "complete", False):
+                    all_complete = False
+                err = getattr(res, "error", None)
+                if err:
+                    errors.append(f"{name}: {err}")
+        finally:
+            self.CITY_CODE = orig_code
+            self.city_name = orig_name
+            self.headers["X-KS-City"] = orig_code
+        return ScanResult(all_items, complete=all_complete and not errors, error="; ".join(errors) if errors else None)
 
     async def search(self, query: str, max_items: int = 15):
         if not query.strip() or max_items <= 0:
@@ -141,4 +188,8 @@ class KaspiScraper(PagedScraper):
 
     async def search_live(self, query: str, city: Optional[str] = None, max_items: int = 15):
         """Unified live-search contract alias for search_engine."""
+        if city:
+            code, _ = self._resolve_city(city)
+            if code != self.CITY_CODE:
+                return await KaspiScraper(city_code=code).search(query, max_items=max_items)
         return await self.search(query, max_items=max_items)

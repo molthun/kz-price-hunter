@@ -3,6 +3,17 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.41.1] - 2026-11-19
+
+### Для пользователей
+- 🏙️ **Kaspi Магазин и Магнум** теперь обходятся раздельно для **Алматы и Астаны** — пользователи в обоих городах получают актуальные локальные цены и наличие, без смешивания городов.
+
+### R1-02 (часть 1): мультигородской обход Kaspi и Magnum
+- **`scrapers/kaspi.py`:** при фоновом обходе каталога (`KaspiScraper()`) обходятся оба города `Астана` (`710000000`) и `Алматы` (`750000000`) с раздельными предложениями `kaspi_<id>@astana` и `kaspi_<id>@almaty` и безопасным `complete` (при сбое одного города `reconcile_source` не снимает другой). Явный `KaspiScraper(city_code=...)` сохраняет прежний одногородской режим; `search_live(..., city=...)` учитывает запрошенный город.
+- **`scrapers/magnum.py`:** при фоновом обходе каталога (`MagnumScraper()`) обходятся `Алматы` (`?city=almaty`) и `Астана` (`?city=astana`) с раздельными `magnum_<id>@almaty` и `magnum_<id>@astana`, безопасным `complete`, повторами `520/522/524` и пробросом `HostCooldown`. Явный `MagnumScraper(city=...)` сохраняет одногородской режим.
+- **`config.py`, `docs/REGIONAL_PRICING.md`:** обновлены `scan_cities` для `kaspi` и `magnum`; для `komfort` зафиксирован результат живой проверки (`komfort.kz` не имеет переключения на Астану — `fixed:almaty`).
+- **Тесты:** расширен `tests/scrapers/test_regional_pricing.py` (мультигородские прогоны Kaspi и Magnum, частичный сбой города → `complete=False`, single-city режим); `test_regional_pricing` + `test_scraper_contract` — 42 OK.
+
 ## [6.41.0] - 2026-11-19
 
 ### Для пользователей
