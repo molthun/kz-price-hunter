@@ -9,7 +9,7 @@ import urllib.parse
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from scrapers import http as requests
-from scrapers.base import ScanResult, PagedScraper, price_value
+from scrapers.base import ScanResult, PagedScraper, merge_city_results, price_value
 
 class KaspiScraper(PagedScraper):
     SHOP_NAME = "Kaspi Магазин"
@@ -146,9 +146,7 @@ class KaspiScraper(PagedScraper):
         if len(cities) == 1:
             return super()._scrape_sync(category_name, category_url, max_pages=max_pages)
 
-        all_items: List[Dict[str, Any]] = []
-        all_complete = True
-        errors: List[str] = []
+        results: List[Tuple[str, Any]] = []
         orig_code, orig_name = self.CITY_CODE, self.city_name
         try:
             for city in cities:
@@ -157,17 +155,12 @@ class KaspiScraper(PagedScraper):
                 self.city_name = name
                 self.headers["X-KS-City"] = code
                 res = super()._scrape_sync(category_name, category_url, max_pages=max_pages)
-                all_items.extend(res)
-                if not getattr(res, "complete", False):
-                    all_complete = False
-                err = getattr(res, "error", None)
-                if err:
-                    errors.append(f"{name}: {err}")
+                results.append((name, res))
         finally:
             self.CITY_CODE = orig_code
             self.city_name = orig_name
             self.headers["X-KS-City"] = orig_code
-        return ScanResult(all_items, complete=all_complete and not errors, error="; ".join(errors) if errors else None)
+        return merge_city_results(results)
 
     async def search(self, query: str, max_items: int = 15):
         if not query.strip() or max_items <= 0:

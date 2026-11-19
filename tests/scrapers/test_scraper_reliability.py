@@ -890,6 +890,7 @@ class NewSourcesEndProofTest(unittest.TestCase):
         s = SulpakScraper()
         html_p1 = '''
         <html><body>
+        <button class="subscribe-btn" data-city-id="1"></button>
         <div class="product__item" data-code="123" data-name="Ноутбук Asus" data-price="250000">
             <a href="/g/asus-123">Ноутбук Asus</a>
         </div>
@@ -898,6 +899,7 @@ class NewSourcesEndProofTest(unittest.TestCase):
         '''
         html_p2 = '''
         <html><body>
+        <button class="subscribe-btn" data-city-id="1"></button>
         <div class="product__item" data-code="456" data-name="Ноутбук Lenovo" data-price="280000">
             <a href="/g/lenovo-456">Ноутбук Lenovo</a>
         </div>

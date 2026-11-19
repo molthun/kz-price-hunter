@@ -46,6 +46,13 @@ def _aspro_page_html(city_label: str, price_text: str, old_price_text: str = "")
     """
 
 
+def _technodom_html(items, city_slug=None):
+    state = {"productList": {"items": items}}
+    if city_slug is not None:
+        state["core"] = {"currentCity": {"slug": city_slug, "city_code": "KZ"}}
+    return f'<script id="__NEXT_DATA__">{json.dumps({"props": {"pageProps": {"initialState": state}}})}</script>'
+
+
 class RegionalPolicyRegistryTest(unittest.TestCase):
     def test_every_active_shop_has_valid_regional_policy(self):
         self.assertEqual(set(config.SHOP_REGIONAL_POLICY), set(config.SHOP_KEYS))
@@ -276,7 +283,7 @@ class TechnodomSulpakMechtaMultiCityTest(unittest.TestCase):
             else:
                 price = 199990 if "/astana/" in url else 189990
                 items = [{"sku": "302075", "title": "Смартфон Тест", "price": price, "uri": "smartfon-test"}]
-            html = f'<script id="__NEXT_DATA__">{json.dumps({"props": {"pageProps": {"initialState": {"productList": {"items": items}}}}})}</script>'
+            html = _technodom_html(items, (cookies or {}).get("city"))
             return SimpleNamespace(status_code=200, text=html)
 
         with patch("scrapers.technodom.requests.get", side_effect=fake_get), patch("time.sleep"):
@@ -302,6 +309,7 @@ class TechnodomSulpakMechtaMultiCityTest(unittest.TestCase):
             seen_cids.append(cid)
             price = "150 000 ₸" if cid == "1" else "165 000 ₸"
             html = f"""
+            <button class="subscribe-btn" data-city-id="{cid}"></button>
             <div class="product__item product__item-js" data-code="888">
               <div class="product__item-name"><a href="/g/phone-888">Смартфон Sulpak 888</a></div>
               <div class="product__item-price">{price}</div>

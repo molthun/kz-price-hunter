@@ -2,7 +2,7 @@ import re
 import uuid
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from scrapers import http as requests
-from scrapers.base import ScanResult, PagedScraper, price_value
+from scrapers.base import ScanResult, PagedScraper, merge_city_results, price_value
 
 class MechtaScraper(PagedScraper):
     SHOP_NAME = "Мечта"
@@ -136,20 +136,13 @@ class MechtaScraper(PagedScraper):
             self._active_city = cities[0]
             return super()._scrape_sync(category_name, category_url, max_pages=max_pages)
 
-        all_items: List[Dict[str, Any]] = []
-        all_complete = True
-        errors: List[str] = []
+        results: List[Tuple[str, Any]] = []
         orig_city = self._active_city
         try:
             for city in cities:
                 self._active_city = city
                 res = super()._scrape_sync(category_name, category_url, max_pages=max_pages)
-                all_items.extend(res)
-                if not getattr(res, "complete", False):
-                    all_complete = False
-                err = getattr(res, "error", None)
-                if err:
-                    errors.append(f"{city}: {err}")
+                results.append((city, res))
         finally:
             self._active_city = orig_city
-        return ScanResult(all_items, complete=all_complete and not errors, error="; ".join(errors) if errors else None)
+        return merge_city_results(results)

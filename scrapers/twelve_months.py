@@ -19,6 +19,7 @@ from scrapers import http as requests
 from scrapers.base import (
     PagedScraper,
     ScanResult,
+    merge_city_results,
     UnconfirmedEnd,
     pagination_last_page,
     price_value,
@@ -79,10 +80,13 @@ class TwelveMonthsScraper(PagedScraper):
         name = re.sub(r"\s+", " ", el.get_text(" ", strip=True)).strip()
         return name or None
 
+    @staticmethod
+    def _is_out_of_stock(card: Any) -> bool:
+        """Магазин сам пометил карточку отсутствующей — это не ошибка разбора (R1-A02)."""
+        return "нет в наличии" in card.get_text(separator=" ", strip=True).lower()
+
     def _parse_aspro_card(self, card: Any, category_name: str, city: str) -> Optional[Dict[str, Any]]:
         card_text = card.get_text(separator=" ", strip=True).lower()
-        if "нет в наличии" in card_text:
-            return None
 
         data_item: Dict[str, Any] = {}
         data_el = card.select_one("[data-item]")
@@ -166,8 +170,6 @@ class TwelveMonthsScraper(PagedScraper):
     def _parse_legacy_advantshop_card(self, card: Any, category_name: str, city: str) -> Optional[Dict[str, Any]]:
         """Обратная совместимость со старой разметкой AdvantShop (используется в контрактных фикстурах)."""
         card_text = card.get_text(separator=" ", strip=True).lower()
-        if "нет в наличии" in card_text:
-            return None
 
         pid = card.get("data-product-id") or card.get("data-offer-id") or ""
         name_el = card.select_one(".products-view-name a, a.products-view-name-link") or card.select_one("a[href*='/products/']")
@@ -260,35 +262,50 @@ class TwelveMonthsScraper(PagedScraper):
                 raise RuntimeError(f"HTTP {r.status_code} on {url}")
 
             soup = make_soup(r.text)
-            active_region = self._extract_active_region(soup)
-            if active_region and target_city and active_region.lower() != target_city.lower():
-                raise RuntimeError(
-                    f"12 Месяцев отдал регион «{active_region}» вместо запрошенного «{target_city}»"
-                )
-
             aspro_cards = soup.select(".catalog-block__item")
             legacy_cards = [] if aspro_cards else soup.select(".products-view-item, .js-products-view-item")
+
+            # R1-A01: цена записывается под городом только при положительном подтверждении региона.
+            # Отсутствующий или пустой маркер — не доказательство, а ошибка разбора ответа.
+            active_region = self._extract_active_region(soup)
+            if aspro_cards or active_region:
+                if not active_region:
+                    raise ValueError(f"12 Месяцев не подтвердил регион «{target_city}» в ответе")
+                if active_region.lower() != target_city.lower():
+                    raise ValueError(
+                        f"12 Месяцев отдал регион «{active_region}» вместо запрошенного «{target_city}»"
+                    )
+
             if not aspro_cards and not legacy_cards:
                 raise UnconfirmedEnd("карточки не найдены")
 
             products: List[Dict[str, Any]] = []
             seen_ids = set()
+            unparsed = 0  # R1-A02: карточка видна, но не разобрана — обход не может быть полным
             if aspro_cards:
                 for c in aspro_cards:
+                    if self._is_out_of_stock(c):
+                        continue
                     item = self._parse_aspro_card(c, category_name, target_city)
-                    if item and item["id"] not in seen_ids:
+                    if item is None:
+                        unparsed += 1
+                    elif item["id"] not in seen_ids:
                         seen_ids.add(item["id"])
                         products.append(item)
                 last_page = pagination_last_page(r.text, category_url, param="PAGEN_1")
                 is_complete = (last_page is None) or (page_num >= last_page)
-                return ScanResult(products, complete=is_complete)
+                return ScanResult(products, complete=is_complete, unparsed=unparsed)
 
             for c in legacy_cards:
+                if self._is_out_of_stock(c):
+                    continue
                 item = self._parse_legacy_advantshop_card(c, category_name, target_city)
-                if item and item["id"] not in seen_ids:
+                if item is None:
+                    unparsed += 1
+                elif item["id"] not in seen_ids:
                     seen_ids.add(item["id"])
                     products.append(item)
-            return ScanResult(products, complete=False)
+            return ScanResult(products, complete=False, unparsed=unparsed)
 
         except Exception as e:
             if isinstance(e, RuntimeError):
@@ -302,23 +319,16 @@ class TwelveMonthsScraper(PagedScraper):
         при частичном сбое одного города reconcile_source не снимет с продажи предложения остальных городов.
         """
         cities = self.cities or ("Алматы",)
-        all_items: List[Dict[str, Any]] = []
-        all_complete = True
-        errors: List[str] = []
+        results: List[Tuple[str, Any]] = []
 
         for city in cities:
             self._active_city = city
             # Сбрасываем сессию между городами, чтобы cookie PHPSESSID/current_region не смешивались
             self.close()
             res = super()._scrape_sync(category_name, category_url, max_pages=max_pages)
-            all_items.extend(res)
-            if not getattr(res, "complete", False):
-                all_complete = False
-            err = getattr(res, "error", None)
-            if err:
-                errors.append(f"{city}: {err}")
+            results.append((city, res))
 
-        return ScanResult(all_items, complete=all_complete and not errors, error="; ".join(errors) if errors else None)
+        return merge_city_results(results)
 
     async def scrape(self, category_name: str, category_url: str, max_pages: Optional[int] = None) -> ScanResult:
         return await asyncio.to_thread(self._scrape_sync, category_name, category_url, max_pages)

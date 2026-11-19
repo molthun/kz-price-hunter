@@ -9,7 +9,7 @@ import json
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from scrapers import http as requests
-from scrapers.base import ScanResult, PagedScraper, price_value
+from scrapers.base import ScanResult, PagedScraper, merge_city_results, price_value
 
 class TechnodomScraper(PagedScraper):
     SHOP_NAME = "Технодом"
@@ -55,6 +55,20 @@ class TechnodomScraper(PagedScraper):
         # 199990.0 — тенге с тиынами, а не 1999900
         return price_value(value)
 
+    @staticmethod
+    def _confirm_city(data: Dict[str, Any], city: str, slug: str) -> None:
+        """R1-A01: цена записывается под городом, только если страница сама подтвердила этот город.
+
+        Отсутствие initialState.core.currentCity.slug или чужой город — ошибка разбора.
+        """
+        state = ((data.get("props") or {}).get("pageProps") or {}).get("initialState") or {}
+        current = (state.get("core") or {}).get("currentCity") if isinstance(state, dict) else None
+        actual = str(current.get("slug") or "").strip().lower() if isinstance(current, dict) else ""
+        if not actual:
+            raise ValueError(f"Технодом не подтвердил город «{city}» в ответе")
+        if actual != slug:
+            raise ValueError(f"Технодом отдал город «{actual}» вместо запрошенного «{slug}»")
+
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:
         city = self._active_city
         slug = self.CITY_SLUGS.get(city, "astana")
@@ -75,6 +89,9 @@ class TechnodomScraper(PagedScraper):
         except (KeyError, ValueError) as e:
             print(f"[{self.SHOP_NAME}] Неожиданная структура данных ({e}) на странице {url}")
             raise ValueError("Не найдены данные каталога Технодом")
+
+        if product_list.get("items"):
+            self._confirm_city(data, city, slug)
 
         products: List[Dict[str, Any]] = []
         for item in product_list["items"] or []:
@@ -108,20 +125,13 @@ class TechnodomScraper(PagedScraper):
             self._active_city = cities[0]
             return super()._scrape_sync(category_name, category_url, max_pages=max_pages)
 
-        all_items: List[Dict[str, Any]] = []
-        all_complete = True
-        errors: List[str] = []
+        results: List[Tuple[str, Any]] = []
         orig_city = self._active_city
         try:
             for city in cities:
                 self._active_city = city
                 res = super()._scrape_sync(category_name, category_url, max_pages=max_pages)
-                all_items.extend(res)
-                if not getattr(res, "complete", False):
-                    all_complete = False
-                err = getattr(res, "error", None)
-                if err:
-                    errors.append(f"{city}: {err}")
+                results.append((city, res))
         finally:
             self._active_city = orig_city
-        return ScanResult(all_items, complete=all_complete and not errors, error="; ".join(errors) if errors else None)
+        return merge_city_results(results)

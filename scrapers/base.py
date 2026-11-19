@@ -6,7 +6,7 @@ import time
 import asyncio
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlsplit
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, Iterable, List, Optional, Protocol, Tuple, runtime_checkable
 
 # Глубина обхода категории по умолчанию (страниц)
 DEFAULT_MAX_PAGES = 50
@@ -141,6 +141,38 @@ class ScanResult(list):
         self.unparsed = unparsed
         import source_failure
         self.error_info = source_failure.clean(error_info)
+
+
+def merge_city_results(results: Iterable[Tuple[str, Any]]) -> ScanResult:
+    """Объединяет обходы одной категории по городам (R1-A03).
+
+    complete=True — только если каждый город завершился полностью, без ошибки и без
+    неразобранных карточек. unparsed суммируется, limited наследуется от любого города.
+    error_info — структурированная причина первого сбойного города (текст error
+    перечисляет все города), поэтому HTTP-код, фаза и страница не теряются.
+    """
+    import source_failure
+    items: List[Dict[str, Any]] = []
+    all_complete = True
+    limited = False
+    unparsed = 0
+    errors: List[str] = []
+    first_failure = None
+    for city, res in results:
+        items.extend(res)
+        complete = bool(getattr(res, "complete", False))
+        if not complete:
+            all_complete = False
+        limited = limited or bool(getattr(res, "limited", False))
+        unparsed += int(getattr(res, "unparsed", 0) or 0)
+        err = getattr(res, "error", None)
+        if err:
+            errors.append(f"{city}: {err}")
+        if first_failure is None and (err or not complete):
+            first_failure = source_failure.clean(getattr(res, "error_info", None))
+    return ScanResult(items, complete=all_complete and not errors and not unparsed,
+                      error="; ".join(errors) if errors else None,
+                      limited=limited, unparsed=unparsed, error_info=first_failure)
 
 
 @runtime_checkable

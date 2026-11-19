@@ -9,6 +9,7 @@ from scrapers.base import (
     parse_price,
     price_value,
     ScanResult,
+    merge_city_results,
     validate_product_item,
 )
 from html_soup import make_soup
@@ -36,6 +37,20 @@ class SulpakScraper(PagedScraper):
             "Accept-Language": "ru-RU,ru;q=0.9",
         }
         self.cookies = {"city_id": self.CITY_IDS.get(self._active_city, "1"), "language_id": "3"}
+
+    def _confirm_city(self, soup: Any) -> None:
+        """R1-A01: HTML-страница каталога должна сама подтвердить город (атрибуты data-city-id).
+
+        Отсутствие маркера или чужой город — ошибка разбора, а не цена в запрошенном городе.
+        JSON-выдача распродажи город не возвращает и проверяется только по cookie запроса.
+        """
+        expected = str(self.cookies.get("city_id") or "")
+        seen = {str(e.get("data-city-id") or "").strip() for e in soup.select("[data-city-id]")}
+        seen.discard("")
+        if not seen:
+            raise ValueError(f"Sulpak не подтвердил город «{self._active_city}» в ответе")
+        if seen != {expected}:
+            raise ValueError(f"Sulpak отдал город {sorted(seen)} вместо запрошенного {expected}")
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> ScanResult:
         is_sale = "/sale" in category_url.lower()
@@ -105,6 +120,9 @@ class SulpakScraper(PagedScraper):
                 if page_num > 1:
                     return ScanResult([], complete=True)
                 raise UnconfirmedEnd("Не найдены карточки: конец выдачи не подтвержден")
+
+            if not is_sale:
+                self._confirm_city(soup)
 
             products: List[Dict[str, Any]] = []
             seen_codes = set()
@@ -195,22 +213,15 @@ class SulpakScraper(PagedScraper):
             self.cookies = {"city_id": self.CITY_IDS.get(self._active_city, "1"), "language_id": "3"}
             return super()._scrape_sync(category_name, category_url, max_pages=max_pages)
 
-        all_items: List[Dict[str, Any]] = []
-        all_complete = True
-        errors: List[str] = []
+        results: List[Tuple[str, Any]] = []
         orig_city, orig_cookies = self._active_city, dict(self.cookies)
         try:
             for city in cities:
                 self._active_city = city
                 self.cookies = {"city_id": self.CITY_IDS.get(city, "1"), "language_id": "3"}
                 res = super()._scrape_sync(category_name, category_url, max_pages=max_pages)
-                all_items.extend(res)
-                if not getattr(res, "complete", False):
-                    all_complete = False
-                err = getattr(res, "error", None)
-                if err:
-                    errors.append(f"{city}: {err}")
+                results.append((city, res))
         finally:
             self._active_city = orig_city
             self.cookies = orig_cookies
-        return ScanResult(all_items, complete=all_complete and not errors, error="; ".join(errors) if errors else None)
+        return merge_city_results(results)
