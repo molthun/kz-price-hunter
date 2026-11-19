@@ -11,7 +11,10 @@ import offer_identity
 from scrapers import http as scraper_http
 from scrapers.kaspi import KaspiScraper
 from scrapers.magnum import MagnumScraper
+from scrapers.mechta import MechtaScraper
 from scrapers.shopkz import ShopKzScraper
+from scrapers.sulpak import SulpakScraper
+from scrapers.technodom import TechnodomScraper
 from scrapers.twelve_months import TwelveMonthsScraper
 
 
@@ -259,6 +262,94 @@ class KaspiAndMagnumMultiCityTest(unittest.TestCase):
         self.assertFalse(res_partial.complete)
         self.assertIn("Астана", res_partial.error or "")
         self.assertEqual([x["city"] for x in res_partial], ["Алматы"])
+
+
+class TechnodomSulpakMechtaMultiCityTest(unittest.TestCase):
+    def test_technodom_scans_astana_and_almaty_with_slug_urls(self):
+        scraper = TechnodomScraper()
+        seen = []
+
+        def fake_get(url, cookies=None, **kw):
+            seen.append((url, (cookies or {}).get("city")))
+            if "page=2" in url:
+                items = []
+            else:
+                price = 199990 if "/astana/" in url else 189990
+                items = [{"sku": "302075", "title": "Смартфон Тест", "price": price, "uri": "smartfon-test"}]
+            html = f'<script id="__NEXT_DATA__">{json.dumps({"props": {"pageProps": {"initialState": {"productList": {"items": items}}}}})}</script>'
+            return SimpleNamespace(status_code=200, text=html)
+
+        with patch("scrapers.technodom.requests.get", side_effect=fake_get), patch("time.sleep"):
+            res = scraper._scrape_sync("Смартфоны", "https://www.technodom.kz/astana/catalog/smartfony", max_pages=2)
+
+        self.assertTrue(res.complete)
+        self.assertTrue(any("/almaty/catalog/smartfony" in u and c == "almaty" for u, c in seen))
+        self.assertTrue(any("/astana/catalog/smartfony" in u and c == "astana" for u, c in seen))
+        offer_identity.assign_offer_ids(res)
+        by_id = {x["id"]: x for x in data_quality.dedupe(res)}
+        self.assertEqual(by_id["td_302075@astana"]["price"], 199990)
+        self.assertEqual(by_id["td_302075@almaty"]["price"], 189990)
+        self.assertIn("/almaty/p/smartfon-test", by_id["td_302075@almaty"]["url"])
+
+    def test_sulpak_uses_verified_city_ids_1_almaty_and_3_astana(self):
+        self.assertEqual(config.CITIES_KZ["almaty"]["sulpak_id"], 1)
+        self.assertEqual(config.CITIES_KZ["astana"]["sulpak_id"], 3)
+        scraper = SulpakScraper()
+        seen_cids = []
+
+        def fake_get(url, cookies=None, **kw):
+            cid = (cookies or {}).get("city_id")
+            seen_cids.append(cid)
+            price = "150 000 ₸" if cid == "1" else "165 000 ₸"
+            html = f"""
+            <div class="product__item product__item-js" data-code="888">
+              <div class="product__item-name"><a href="/g/phone-888">Смартфон Sulpak 888</a></div>
+              <div class="product__item-price">{price}</div>
+            </div>
+            <div id="paginator" data-pagescount="1"></div>
+            """
+            return SimpleNamespace(status_code=200, text=html)
+
+        with patch("scrapers.sulpak.requests.get", side_effect=fake_get), patch("time.sleep"):
+            res = scraper._scrape_sync("Смартфоны", "https://www.sulpak.kz/f/smartfoniy", max_pages=1)
+
+        self.assertTrue(res.complete)
+        self.assertEqual(seen_cids, ["1", "3"])
+        offer_identity.assign_offer_ids(res)
+        by_id = {x["id"]: x for x in data_quality.dedupe(res)}
+        self.assertEqual(by_id["sulpak_888@almaty"]["price"], 150000)
+        self.assertEqual(by_id["sulpak_888@astana"]["price"], 165000)
+
+    def test_mechta_scans_astana_and_almaty_headers(self):
+        scraper = MechtaScraper()
+        seen_codes = []
+
+        def fake_get(url, headers=None, params=None, **kw):
+            code = (headers or {}).get("x-city-code")
+            seen_codes.append(code)
+            if (params or {}).get("page", 1) > 1:
+                return SimpleNamespace(status_code=204)
+            price = 210000 if code == "astana" else 199000
+            return SimpleNamespace(
+                status_code=200,
+                json=lambda p=price: {
+                    "products": [{"id": 505, "name": "Планшет Тест", "slug": "planshet-505", "prices": {"finalPrice": p, "basePrice": p}}]
+                },
+            )
+
+        fake_session = MagicMock()
+        fake_session.get.side_effect = fake_get
+        scraper.session = fake_session
+        with patch("time.sleep"):
+            res = scraper._scrape_sync("Планшеты", "https://www.mechta.kz/section/planshety/", max_pages=2)
+
+        self.assertTrue(res.complete)
+        self.assertIn("astana", seen_codes)
+        self.assertIn("almaty", seen_codes)
+        offer_identity.assign_offer_ids(res)
+        by_id = {x["id"]: x for x in data_quality.dedupe(res)}
+        self.assertEqual(by_id["mechta_505@astana"]["price"], 210000)
+        self.assertEqual(by_id["mechta_505@almaty"]["price"], 199000)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,16 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## READY_FOR_STAND v6.41.3: R1-02 (часть 2) — мультигородской обход Алматы + Астана для Technodom, Sulpak и Mechta — Antigravity (2026-11-19, Asia/Almaty)
+
+- **Основание:** продолжение этапа R1-02 (`docs/REGIONAL_PRICING.md`) по поручению владельца.
+- **Изменённые файлы:** `config.py`, `scrapers/technodom.py`, `scrapers/sulpak.py`, `scrapers/mechta.py`, `docs/REGIONAL_PRICING.md`, `tests/scrapers/test_regional_pricing.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- **Что сделано:**
+  1. Живой проверкой `sulpak.kz` выявлена и исправлена путаница `sulpak_id` в `config.CITIES_KZ` и `scrapers/sulpak.py`: `city_id=1` — Алматы, `city_id=3` — Астана (ранее `1` считался Астаной, а `2` — это Актобе).
+  2. Мультигородской обход **Алматы + Астана** с безопасным `complete` добавлен в `TechnodomScraper` (подмена slug в URL + cookie `city`), `SulpakScraper` (`city_id` `1`/`3`) и `MechtaScraper` (`x-city-code` `astana`/`almaty`).
+  3. Обновлены `SHOP_REGIONAL_POLICY` в `config.py` и таблица в `docs/REGIONAL_PRICING.md`.
+- **Проверено локально (macOS `venv/bin/python`):** `py_compile` OK, `release_gate.py secrets` OK (0 findings), `test_regional_pricing` + `test_scraper_reliability` — **91 OK** (4.7 с).
+
 ## STAND_DEPLOYED v6.41.2 (v6.41.0–2): R1-01 / R1-02 — Региональные цены, мультигородские обходы и документация — Antigravity (2026-11-19, Asia/Almaty)
 
 - **Статус:** развёрнуто и проверено на стенде `kzph-stand`, **готово к выкату / независимой приёмке Codex**. В `origin/main` не пушилось, прод (`6.40.33`) не трогался.

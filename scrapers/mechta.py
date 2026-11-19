@@ -1,18 +1,27 @@
 import re
 import uuid
-from typing import List, Dict, Any
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 from scrapers import http as requests
 from scrapers.base import ScanResult, PagedScraper, price_value
 
 class MechtaScraper(PagedScraper):
     SHOP_NAME = "Мечта"
     SHOP_EMOJI = "🟣"
+    CITY_CODES: Dict[str, str] = {
+        "Астана": "astana",
+        "Алматы": "almaty",
+        "Шымкент": "shymkent",
+        "Караганда": "karaganda",
+    }
+    DEFAULT_CITIES: Tuple[str, ...] = ("Астана", "Алматы")
 
-    def __init__(self):
+    def __init__(self, cities: Optional[Iterable[str]] = None):
         self.base_url = "https://www.mechta.kz"
         self.api_url = "https://www.mechta.kz/api/v3/catalog/products"
         self.device_id = str(uuid.uuid4())
         self.session = None
+        self.cities: Tuple[str, ...] = tuple(cities) if cities is not None else self.DEFAULT_CITIES
+        self._active_city: str = self.cities[0] if self.cities else "Астана"
 
     def _get_session(self) -> requests.Session:
         if self.session is None:
@@ -39,6 +48,8 @@ class MechtaScraper(PagedScraper):
         slug = self._extract_slug(category_url)
         session = self._get_session()
 
+        city = self._active_city
+        city_code = self.CITY_CODES.get(city, "astana")
         headers = {
             "Accept": "application/json, text/plain, */*",
             "Referer": f"{self.base_url}/section/{slug}/",
@@ -46,7 +57,7 @@ class MechtaScraper(PagedScraper):
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
             "X-Mechta-Device-Id": self.device_id,
-            "x-city-code": "astana",
+            "x-city-code": city_code,
             "Accept-Language": "ru",
         }
 
@@ -109,7 +120,7 @@ class MechtaScraper(PagedScraper):
                     "image_url": image_url,
                     "price": final_price,
                     "old_price_on_site": base_price if base_price > final_price else 0,
-                    "city": "Астана"
+                    "city": city,
                 })
 
         except Exception as e:
@@ -117,3 +128,28 @@ class MechtaScraper(PagedScraper):
             raise
 
         return products
+
+    def _scrape_sync(self, category_name: str, category_url: str, max_pages: Optional[int] = None) -> ScanResult:
+        """Обходит категорию по городам из self.cities; complete=True только если все города завершились полностью."""
+        cities = self.cities or ("Астана",)
+        if len(cities) == 1:
+            self._active_city = cities[0]
+            return super()._scrape_sync(category_name, category_url, max_pages=max_pages)
+
+        all_items: List[Dict[str, Any]] = []
+        all_complete = True
+        errors: List[str] = []
+        orig_city = self._active_city
+        try:
+            for city in cities:
+                self._active_city = city
+                res = super()._scrape_sync(category_name, category_url, max_pages=max_pages)
+                all_items.extend(res)
+                if not getattr(res, "complete", False):
+                    all_complete = False
+                err = getattr(res, "error", None)
+                if err:
+                    errors.append(f"{city}: {err}")
+        finally:
+            self._active_city = orig_city
+        return ScanResult(all_items, complete=all_complete and not errors, error="; ".join(errors) if errors else None)

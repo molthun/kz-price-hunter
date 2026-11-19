@@ -3,6 +3,19 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.41.3] - 2026-11-19
+
+### Для пользователей
+- 🏙️ **Технодом, Sulpak и Мечта** теперь обходятся раздельно для **Алматы и Астаны** с точными региональными ценами и наличием.
+- 🔧 В **Sulpak** исправлена путаница кодов городов (`city_id=1` — это Алматы, `city_id=3` — Астана; ранее цены Алматы записывались под видом Астаны).
+
+### R1-02 (часть 2): мультигородской обход Technodom, Sulpak и Mechta
+- **`config.py`:** в `CITIES_KZ` исправлены реальные `sulpak_id` (подтверждено на живом `sulpak.kz`: `almaty=1`, `astana=3`; `2` — это Актобе); в `SHOP_REGIONAL_POLICY` обновлены `scan_cities` для `technodom`, `sulpak`, `mechta`.
+- **`scrapers/technodom.py`:** мультигородской обход `DEFAULT_CITIES = ("Астана", "Алматы")` с подменой `/astana/` ↔ `/almaty/` в URL категории и карточки, cookie `city` и безопасным `complete` для `reconcile_source`.
+- **`scrapers/sulpak.py`:** мультигородской обход `DEFAULT_CITIES = ("Алматы", "Астана")` с `CITY_IDS = {"Алматы": "1", "Актобе": "2", "Астана": "3"}` и безопасным `complete`.
+- **`scrapers/mechta.py`:** мультигородской обход `DEFAULT_CITIES = ("Астана", "Алматы")` через заголовок `x-city-code` (`astana` / `almaty`) и безопасным `complete`.
+- **Документация и тесты:** обновлена таблица в `docs/REGIONAL_PRICING.md`; добавлены тесты `TechnodomSulpakMechtaMultiCityTest` в `tests/scrapers/test_regional_pricing.py` (91 OK в `test_regional_pricing` + `test_scraper_reliability`).
+
 ## [6.41.2] - 2026-11-19
 
 ### Для пользователей

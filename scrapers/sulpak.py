@@ -1,7 +1,7 @@
 import re
 import hashlib
 import time
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Iterable, Optional, Tuple
 from scrapers import http as requests
 from scrapers.base import (
     UnconfirmedEnd,
@@ -15,9 +15,18 @@ from html_soup import make_soup
 class SulpakScraper(PagedScraper):
     SHOP_NAME = "Sulpak"
     SHOP_EMOJI = "🟢"
+    # Подтверждено на живом sulpak.kz 19.11.2026: city_id=1 -> Алматы, city_id=2 -> Актобе, city_id=3 -> Астана
+    CITY_IDS: Dict[str, str] = {
+        "Алматы": "1",
+        "Актобе": "2",
+        "Астана": "3",
+    }
+    DEFAULT_CITIES: Tuple[str, ...] = ("Алматы", "Астана")
 
-    def __init__(self):
+    def __init__(self, cities: Optional[Iterable[str]] = None):
         self.base_url = "https://www.sulpak.kz"
+        self.cities: Tuple[str, ...] = tuple(cities) if cities is not None else self.DEFAULT_CITIES
+        self._active_city: str = self.cities[0] if self.cities else "Алматы"
         self.headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -26,8 +35,7 @@ class SulpakScraper(PagedScraper):
             ),
             "Accept-Language": "ru-RU,ru;q=0.9",
         }
-        # city_id=1 — Астана в Sulpak
-        self.cookies = {"city_id": "1", "language_id": "3"}
+        self.cookies = {"city_id": self.CITY_IDS.get(self._active_city, "1"), "language_id": "3"}
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> ScanResult:
         is_sale = "/sale" in category_url.lower()
@@ -158,7 +166,7 @@ class SulpakScraper(PagedScraper):
                     "image_url": image_url,
                     "price": current_price,
                     "old_price_on_site": old_price if old_price > current_price else 0,
-                    "city": "Астана",
+                    "city": self._active_city,
                 }
                 if validate_product_item(item):
                     products.append(item)
@@ -178,3 +186,31 @@ class SulpakScraper(PagedScraper):
             raise
         except Exception:
             raise
+
+    def _scrape_sync(self, category_name: str, category_url: str, max_pages: Optional[int] = None) -> ScanResult:
+        """Обходит категорию по городам из self.cities; complete=True только если все города завершились полностью."""
+        cities = self.cities or ("Алматы",)
+        if len(cities) == 1:
+            self._active_city = cities[0]
+            self.cookies = {"city_id": self.CITY_IDS.get(self._active_city, "1"), "language_id": "3"}
+            return super()._scrape_sync(category_name, category_url, max_pages=max_pages)
+
+        all_items: List[Dict[str, Any]] = []
+        all_complete = True
+        errors: List[str] = []
+        orig_city, orig_cookies = self._active_city, dict(self.cookies)
+        try:
+            for city in cities:
+                self._active_city = city
+                self.cookies = {"city_id": self.CITY_IDS.get(city, "1"), "language_id": "3"}
+                res = super()._scrape_sync(category_name, category_url, max_pages=max_pages)
+                all_items.extend(res)
+                if not getattr(res, "complete", False):
+                    all_complete = False
+                err = getattr(res, "error", None)
+                if err:
+                    errors.append(f"{city}: {err}")
+        finally:
+            self._active_city = orig_city
+            self.cookies = orig_cookies
+        return ScanResult(all_items, complete=all_complete and not errors, error="; ".join(errors) if errors else None)

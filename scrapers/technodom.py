@@ -6,7 +6,7 @@
 """
 import re
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from scrapers import http as requests
 from scrapers.base import ScanResult, PagedScraper, price_value
@@ -17,10 +17,19 @@ class TechnodomScraper(PagedScraper):
     PAGE_PARAM = "page"
 
     IMAGE_URL = "https://api.technodom.kz/f3/api/v1/images/800/800/{}.jpg"
-    PRODUCT_URL = "https://www.technodom.kz/astana/p/{}"
+    PRODUCT_URL = "https://www.technodom.kz/{}/p/{}"
+    CITY_SLUGS: Dict[str, str] = {
+        "Астана": "astana",
+        "Алматы": "almaty",
+        "Шымкент": "shymkent",
+        "Караганда": "karaganda",
+    }
+    DEFAULT_CITIES: Tuple[str, ...] = ("Астана", "Алматы")
 
-    def __init__(self):
+    def __init__(self, cities: Optional[Iterable[str]] = None):
         self.base_url = "https://www.technodom.kz"
+        self.cities: Tuple[str, ...] = tuple(cities) if cities is not None else self.DEFAULT_CITIES
+        self._active_city: str = self.cities[0] if self.cities else "Астана"
         self.headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -29,7 +38,17 @@ class TechnodomScraper(PagedScraper):
             ),
             "Accept-Language": "ru-RU,ru;q=0.9",
         }
-        self.cookies = {"city": "astana", "city_id": "1"}
+        slug = self.CITY_SLUGS.get(self._active_city, "astana")
+        self.cookies = {"city": slug, "city_id": "1"}
+
+    @staticmethod
+    def _city_url(category_url: str, slug: str) -> str:
+        return re.sub(
+            r"(https?://(?:www\.)?technodom\.kz/)(?:astana|almaty|shymkent|karaganda)(/)",
+            rf"\g<1>{slug}\g<2>",
+            category_url,
+            count=1,
+        )
 
     @staticmethod
     def _price(value: Any) -> int:
@@ -37,8 +56,11 @@ class TechnodomScraper(PagedScraper):
         return price_value(value)
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:
-        url = self.page_url(category_url, page_num)
-        r = requests.get(url, headers=self.headers, cookies=self.cookies, impersonate="chrome124", timeout=30)
+        city = self._active_city
+        slug = self.CITY_SLUGS.get(city, "astana")
+        url = self.page_url(self._city_url(category_url, slug), page_num)
+        cookies = {**self.cookies, "city": slug}
+        r = requests.get(url, headers=self.headers, cookies=cookies, impersonate="chrome124", timeout=30)
         if r.status_code != 200:
             raise RuntimeError(f"HTTP {r.status_code}")
 
@@ -71,10 +93,35 @@ class TechnodomScraper(PagedScraper):
                 "id": f"td_{sku}",
                 "title": title,
                 "category": category_name,
-                "url": self.PRODUCT_URL.format(uri) if uri else f"{self.base_url}/astana/search?text={sku}",
+                "url": self.PRODUCT_URL.format(slug, uri) if uri else f"{self.base_url}/{slug}/search?text={sku}",
                 "image_url": self.IMAGE_URL.format(images[0]) if images else "",
                 "price": price,
                 "old_price_on_site": old_price if old_price > price else 0,
-                "city": "Астана"
+                "city": city,
             })
         return ScanResult(products, complete=not product_list["items"])
+
+    def _scrape_sync(self, category_name: str, category_url: str, max_pages: Optional[int] = None) -> ScanResult:
+        """Обходит категорию по городам из self.cities; complete=True только если все города завершились полностью."""
+        cities = self.cities or ("Астана",)
+        if len(cities) == 1:
+            self._active_city = cities[0]
+            return super()._scrape_sync(category_name, category_url, max_pages=max_pages)
+
+        all_items: List[Dict[str, Any]] = []
+        all_complete = True
+        errors: List[str] = []
+        orig_city = self._active_city
+        try:
+            for city in cities:
+                self._active_city = city
+                res = super()._scrape_sync(category_name, category_url, max_pages=max_pages)
+                all_items.extend(res)
+                if not getattr(res, "complete", False):
+                    all_complete = False
+                err = getattr(res, "error", None)
+                if err:
+                    errors.append(f"{city}: {err}")
+        finally:
+            self._active_city = orig_city
+        return ScanResult(all_items, complete=all_complete and not errors, error="; ".join(errors) if errors else None)

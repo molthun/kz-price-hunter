@@ -53,9 +53,9 @@
 | `kaspi` | Kaspi Магазин | `multi_city_price` | **Астана, Алматы** (`v6.41.1`) | Алматы, Астана | Да | `header:X-KS-City` (`710000000` / `750000000`) |
 | `magnum` | Магнум | `multi_city_price` | **Алматы, Астана** (`v6.41.1`) | Алматы, Астана | Нет | `url_slug` (`?city=almaty` / `astana`) |
 | `shopkz` | Белый Ветер | `delivery_kz_multi_stock` | **Казахстан** (YML, `v6.41.0`) | Казахстан | Да | `yml_feed+cookie:BITRIX_SM_CITY` |
-| `technodom` | Технодом | `multi_city_price` | Астана | Алматы, Астана | Да | `api:city_id` |
-| `sulpak` | Sulpak | `multi_city_price` | Астана | Алматы, Астана | Да | `cookie:city` |
-| `mechta` | Мечта | `multi_city_price` | Астана | Алматы, Астана | Да | `header:city` |
+| `technodom` | Технодом | `multi_city_price` | **Астана, Алматы** (`v6.41.3`) | Алматы, Астана | Да | `url_slug+cookie:city` |
+| `sulpak` | Sulpak | `multi_city_price` | **Алматы, Астана** (`v6.41.3`) | Алматы, Астана | Да | `cookie:city_id` (`1`=Алматы, `3`=Астана; исправлена путаница `1`/`2` 19.11) |
+| `mechta` | Мечта | `multi_city_price` | **Астана, Алматы** (`v6.41.3`) | Алматы, Астана | Да | `header:x-city-code` (`astana` / `almaty`) |
 | `dns` | DNS Казахстан | `multi_city_price` | Астана | Алматы, Астана | Да | `cookie:city_path` |
 | `fortemarket` | Forte Market | `multi_city_price` | Астана | Алматы, Астана | Да | `api:locations` |
 | `halyk` | Halyk Market | `multi_city_price` | Астана | Алматы, Астана | Да | `api:city` |
