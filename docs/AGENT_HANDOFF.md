@@ -9,13 +9,27 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
-## IN_PROGRESS v6.42.4 — R1: Sulpak конец каталога + базовый срез 6.42.3 — Antigravity (2026-11-19 22:29, Asia/Almaty)
+## STAND_DEPLOYED v6.42.4 — R1: Sulpak конец каталога + URL города Астаны — Antigravity (2026-11-19 22:46, Asia/Almaty)
 
-- **Исполнитель:** Antigravity (локально + стенд через git bundle; прод не трогается).
-- **Область файлов:** `scrapers/sulpak.py`, `tests/scrapers/test_sulpak_pagination.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
-- **Промежуточный срез стенда 6.42.3 (только чтение, до перезапуска):** на `2026-11-19T17:27Z` стенд отработал ~51 мин с `2026-11-19T16:37:05Z` (`healthy`, `queue_size=0`, `dead_letters=0`, `cpu=69.38%`, `mem=444.7MiB / 15GiB`). За этот интервал из 6 мультигородских источников обход прошёл `technodom` (2/2 `complete`, `ok`, 1 107 товаров по Алматы и Астане, 0 снятых предложений); остальные 5 (`kaspi`, `magnum`, `sulpak`, `twelve_months`, `mechta`) ещё не успели устареть. Полный 24-часовой цикл волн (`docs/STAND_WAVE_CYCLE_<дата>.md`) будет собран по итогам суток после выката 6.42.4, чтобы в него сразу вошло исправление Sulpak.
-- **Находка по живому `sulpak.kz` (проверено на 4 категориях: `planshetiy`, `noutbuki`, `smart_chasiy`, `led_oled_televizoriy`):** элемент `<div id="paginator" class="pagination" data-currentpage="X" data-pagescount="Y">` на сайте присутствует (на странице также есть ~28 `.swiper-pagination`). Причина `complete=False`: `data-pagescount` завышен относительно фактического числа страниц (например, у `planshetiy` `pagescount=9`, последняя фактическая страница 6). При запросе `?page=7` сервер отдаёт `HTTP 301` → `Location: /f/planshetiy?page=6` (`r.url` оканчивается на `?page=6`, `data-currentpage="6"`).
-- **План 6.42.4:** распознавать подтверждённый сервером конец каталога Sulpak только после `_confirm_city` (R1-A01), когда `page_num > 1`, `data-currentpage == page_num - 1`, `pages_count >= current_page` и финальный `r.url` той же категории подтверждает редирект на `page_num - 1`. Повтор без редиректа, сброс на 1-ю страницу и HTTP 404 по-прежнему не считаются `complete=True`.
+- **Статус:** `v6.42.4` развёрнута и проверена на стенде, **готово к независимой приёмке Codex**. Push в `origin main` не выполнялся, прод (`6.40.33`) не трогался.
+- **Срез:** коммит приложения `e671dde` (поверх `2608a60`, `merge --ff-only` через git bundle), образ `sha256:b5cf3cc43cf5ccaae03f39ccb7cbac6d42cc93e98a983daf2acaace3d973376f`, контейнер `kzph-stand` `running / healthy`, `StartedAt = 2026-11-19T17:38:05Z`, `/api/version` = `6.42.4`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`). Локальная правка `docker-compose.stand.yml` на стенде сохранена.
+- **Что сделано (`scrapers/sulpak.py`):**
+  - `_parse_paginator`: выбирает `#paginator, .pagination:not(.swiper-pagination)` (игнорируя ~28 каруселей `.swiper-pagination`) и читает `data-currentpage` и `data-pagescount`.
+  - Подтверждённый сервером конец каталога распознаётся **строго после `_confirm_city` (R1-A01)**: на живом `sulpak.kz` `data-pagescount` завышен относительно фактического числа страниц, и при запросе `?page=N+1` сервер отвечает `HTTP 301` → `?page=N` той же категории (`data-currentpage=N`; на одностраничных категориях без `#paginator`, например `igroviye_pristavki`, — `HTTP 301` `?page=2` → `?page=1`). Повтор без редиректа, сброс на 1-ю страницу, редирект на чужой путь и HTTP 404 по-прежнему не считаются `complete=True`.
+  - `_city_url`: для не-алматинских городов в путь `/f/<категория>` добавляется суффикс (`/astana`, `/aktobe`), так как URL без суффикса на живом сайте отдаёт Алматы (`city_id=1`) даже с cookie `city_id=3` (подтверждено и с Mac, и из образа стенда).
+- **Проверки:**
+  - Новый набор регрессий `tests/scrapers/test_sulpak_pagination.py` (13 тестов: живая фикстура с `.swiper-pagination`, редирект `page -> page-1`, одностраничная категория без `#paginator`, повтор без редиректа, сброс на стр. 1, редирект на чужой путь, HTTP 404, чужой/отсутствующий город на странице конца R1-A01, `_city_url`, отсутствие снятий в `_reconcile_source_conn`).
+  - Целевой набор парсеров (macOS): **141 OK** (4.8 с).
+  - Полный Python-набор в чистом контейнере образа стенда (`docker run --rm --network none --cpus 2 --tmpfs /app/data -e DATA_DIR=/app/data kzph-stand:local python -m unittest discover -s . -p 'test_*.py'`): **3 252 OK** (430.7 с).
+  - `release_gate.py secrets`: 0 findings; `release_gate.py pins` при сборке образа: 25/25 OK.
+  - Живой read-only обход всех **12/12 HTML-категорий Sulpak** (Алматы + Астана, с Mac, без записи в БД): **12/12 `complete=True`**, `0` ошибок, 426.6 с (Алматы 3 069 товаров, Астана 2 614 товаров; ранее в 6.42.2 было 0/12 полных).
+- **Наблюдение по суточному циклу волн (Задача 1):**
+  - До перезапуска на 6.42.4 снят промежуточный read-only срез 6.42.3 (51 мин работы с `2026-11-19T16:37:05Z` до `17:27Z`): `healthy`, `queue_size=0`, `dead_letters=0`, `cpu=69.38%`, `mem=444.7MiB / 15GiB`; из 6 мультигородских источников успел пройти `technodom` (2/2 `complete`, `ok`, 1 107 товаров, 0 снятых).
+  - Отсчёт полного 24-часового цикла волн стенда теперь идёт на `v6.42.4` с `2026-11-19T17:38:05Z` (после `2026-11-20T17:38Z` можно снять итоговый отчёт `docs/STAND_WAVE_CYCLE_2026-11-20.md` по всем 6 источникам с уже исправленными Technodom и Sulpak).
+- **Не проверено:** 24-часовой цикл волн на `v6.42.4` целиком (отсчёт начат в `17:38:05Z`), frontend (не менялся), live CI, production.
+- **Следующий точный шаг:**
+  1. Независимая приёмка Codex для `v6.42.4` (конец каталога и `_city_url` Sulpak).
+  2. После 24 ч непрерывной работы `kzph-stand` (ориентир `2026-11-20T17:38Z`) снять read-only отчёт полного суточного цикла волн `docs/STAND_WAVE_CYCLE_2026-11-20.md` (без перезапуска контейнера).
 
 ## TO_ANTIGRAVITY — R1: суточный цикл волн на стенде + Sulpak конец каталога — Claude (2026-11-19, Asia/Almaty)
 
