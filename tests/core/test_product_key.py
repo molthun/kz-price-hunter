@@ -278,6 +278,45 @@ class StandK2QualityFixesTest(unittest.TestCase):
         self.assertEqual(pk.brand_token("Роял Канин"), "royalcanin")
         self.assertEqual(pk.brand_token("Про План"), "proplan")
 
+    def test_multipack_mass_and_volume_unify_across_models(self):
+        title = "Корм Royal Canin British Shorthair Adult для взрослых кошек - 12 x 85 г"
+        f_total = {"brand": "Royal Canin", "model": "British Shorthair Adult", "variants": [{"value": 1020, "unit": "г"}]}
+        f_single = {"brand": "Royal Canin", "model": "British Shorthair Adult", "variants": [{"value": 85, "unit": "г"}]}
+        self.assertEqual(pk.build_key(f_total, title), "k2:royalcanin:britishshorthairadult:1.02kg")
+        self.assertEqual(pk.build_key(f_single, title), "k2:royalcanin:britishshorthairadult:1.02kg")
+        # Одиночный пауч 85 г не путается с мультипаком 12 x 85 г
+        self.assertEqual(
+            pk.build_key(f_single, "Корм Royal Canin British Shorthair Adult - 85 г"),
+            "k2:royalcanin:britishshorthairadult:85g",
+        )
+        # Мультипак объёма
+        drink = {"brand": "Coca-Cola", "model": "Classic", "variants": [{"value": 1.5, "unit": "л"}]}
+        self.assertEqual(pk.build_key(drink, "Напиток Coca-Cola Classic 6 × 1.5 л"), "k2:cocacola:classic:9l")
+
+    def test_strong_sku_extracted_from_title_when_model_omits_sku(self):
+        # Модель не заполнила sku, а в model записала описательную кириллицу — код берётся из названия
+        f1 = {"brand": "Kari KIDS", "model": "Игровой набор Пожарные", "sku": None, "variants": []}
+        self.assertEqual(
+            pk.build_key(f1, 'Kari KIDS Игровой набор "Пожарные" треугольник B1563841'),
+            "k2:karikids:b1563841",
+        )
+        f2 = {"brand": "Kari Land", "model": "Коржик на ПДУ", "sku": None, "variants": []}
+        self.assertEqual(
+            pk.build_key(f2, 'Kari Land Интерактивная корги "Коржик" на ПДУ JX-14507'),
+            "k2:kariland:jx14507",
+        )
+        f3 = {"brand": "Kari Kids", "model": "Игрушка мягконабивная на брелке Панда", "sku": None, "variants": []}
+        self.assertEqual(
+            pk.build_key(f3, "Kari Kids Игрушка мягконабивная на брелке Панда 14 см K11984"),
+            "k2:karikids:k11984",
+        )
+        # Единицы измерения и стандарты (1000ml, ip68, usb3) не принимаются за артикул
+        f4 = {"brand": "Wellroom", "model": "Нейтрализатор запаха", "sku": None, "variants": [{"value": 500, "unit": "мл"}]}
+        self.assertEqual(
+            pk.build_key(f4, "Wellroom Нейтрализатор запаха 500ml"),
+            "k2:wellroom:neytralizatorzapakha:500ml",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

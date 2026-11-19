@@ -171,6 +171,9 @@ def _fmt(number: float) -> str:
 # Объём памяти и диагональ код берёт из самого названия: по замеру C2 модель через раз не вписывала их в
 # variants («Kingston NV3 2 TB» → то с «2048gb», то без), и один товар расходился по двум ключам.
 _TITLE_VARIANT_RE = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*(гб|gb|тб|tb|см|cm|дюйм\w*|\"|''|”)(?![a-zа-я])(?!/s\b)")
+_MULTIPACK_RE = re.compile(
+    r"(?<![\w.])(\d{1,3})\s*[xх×*]\s*(\d+(?:[.,]\d+)?)\s*(г|гр|кг|мл|л|g|kg|ml|l)(?![a-zа-я])"
+)
 _SCREEN_RE = re.compile(
     r"телевизор|монитор|экран|дисплей|проектор|моноблок|ноутбук|планшет|"
     r"(?<![a-z])(?:tv|smart|qled|oled|miniled|uhd|fhd|monitor|display)(?![a-z])"
@@ -208,6 +211,12 @@ def title_variants(title: Any) -> List[Dict[str, Any]]:
     # «4/128Gb», «8/256 ГБ» — оперативная и встроенная память одной записью
     found = [{"value": float(first), "unit": unit}
              for first, unit in re.findall(r"(?<![\w.])(\d+)\s*/\s*\d+\s*(гб|gb|тб|tb)(?![a-zа-я])", text)]
+    # Мультипаки массы/объёма («12 x 85 г», «6 × 1.5 л»): суммарная масса/объём исключает расхождение 1020g vs 85g
+    for cnt_s, val_s, unit in _MULTIPACK_RE.findall(text):
+        cnt = int(cnt_s)
+        val = float(val_s.replace(",", "."))
+        if 2 <= cnt <= 200 and val > 0:
+            found.append({"value": round(cnt * val, 4), "unit": unit})
     for number, unit in _TITLE_VARIANT_RE.findall(text_no_dims):
         value = float(number.replace(",", "."))
         if unit in ("''", "”"):
@@ -397,6 +406,26 @@ def _class_variants(title: str, ram_without_code: bool) -> List[str]:
     return []
 
 
+_TITLE_SKU_STOP = re.compile(
+    r"^(?:\d+(?:gb|tb|mb|ml|kg|mm|cm|hz|khz|mhz|ghz|mah|wh|w|v|a|pcs|fps|mp|px|dpi|rpm|lm|btu|db|in|p|k)|"
+    r"(?:lp)?ddr\d.*|pc\d.*|usb\d.*|hdmi\d.*|wifi\d.*|bt\d.*|ip\d{2}|sata\d|nvme\d|pcie\d|"
+    r"iso\d+|din\d+|gost\d+|euro\d+)$"
+)
+_TITLE_STRONG_SKU_RE = re.compile(r"(?<![a-zа-я0-9])([a-z]{1,6}[-_]?[0-9][a-z0-9-]{3,16})(?![a-zа-я0-9])")
+
+
+def _title_strong_sku(title: str, brand: str) -> Optional[str]:
+    """Сильный латинско-цифровой код модели в названии (например B1563841, K11984, JX-14507, K1132PT-6C)."""
+    if not title:
+        return None
+    for raw in reversed(_TITLE_STRONG_SKU_RE.findall(title)):
+        tok = re.sub(r"[^a-z0-9]", "", raw)
+        if (tok and tok != brand and _STRONG_ARTICLE.match(tok)
+                and not _TITLE_SKU_STOP.match(tok) and not _RAM_SPEC_RE.match(tok)):
+            return tok
+    return None
+
+
 def _is_descriptive_cyrillic_model(model: Any, brand: Optional[str], drop: Iterable[Any] = ()) -> bool:
     """Модель состоит только из кириллических слов без латиницы и цифр («Брюки женские», «Сандалии женские»)."""
     text = _text(model)
@@ -429,11 +458,15 @@ def build_key(fields: Any, title: Any = None) -> Optional[str]:
         model, sku = (_LENGTH_IN_CODE_RE.sub("", _text(v)) if isinstance(v, str) else v for v in (model, sku))
     sku_token = model_token(sku, brand)
     model_id = model_token(model, brand, (sku, fields.get("edition")))
-    # Если модель — лишь кириллическое описание типа («Брюки женские», «Игровой набор»), а sku — сильный артикул
-    # производителя («SS25C2120», «B1187401»), ключ строится по артикулу: иначе разные товары склеятся в один.
-    if (sku_token and _STRONG_ARTICLE.match(sku_token) and not _RAM_SPEC_RE.match(sku_token)
-            and (not model_id or _is_descriptive_cyrillic_model(model, brand, (sku, fields.get("edition"))))):
-        identity = sku_token
+    descriptive_model = _is_descriptive_cyrillic_model(model, brand, (sku, fields.get("edition")))
+    strong_sku = (sku_token if (sku_token and _STRONG_ARTICLE.match(sku_token) and not _RAM_SPEC_RE.match(sku_token))
+                  else None)
+    if not strong_sku and (not model_id or descriptive_model):
+        strong_sku = _title_strong_sku(text, brand)
+    # Если модель — лишь кириллическое описание типа («Брюки женские», «Игровой набор»), а в sku или названии
+    # есть сильный артикул производителя («SS25C2120», «B1563841», «JX-14507»), ключ строится по артикулу.
+    if strong_sku and (not model_id or descriptive_model):
+        identity = strong_sku
     else:
         identity = model_id or sku_token
     if not identity:
@@ -465,6 +498,10 @@ def build_key(fields: Any, title: Any = None) -> Optional[str]:
         own = {"in"} if any(v.endswith("in") for v in from_title) else set()
         if any(v.endswith(("gb", "tb")) for v in from_title):
             own |= {"gb", "tb"}
+        if any(v.endswith(("g", "kg")) and not v.endswith("gb") for v in from_title):
+            own |= {"g", "kg"}
+        if any(v.endswith(("ml", "l")) for v in from_title):
+            own |= {"ml", "l"}
         variants = sorted({v for v in variants if re.sub(r"^[0-9.]+", "", v) not in own} | set(from_title))[:4]
     # Диагональ, которая уже есть в номере модели (65E7S, 27GP850, U11), в ключ не идёт: одни магазины
     # пишут «65"», другие нет, и один телевизор расходился по двум ключам (замер C2)
