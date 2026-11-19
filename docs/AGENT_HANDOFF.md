@@ -9,6 +9,14 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## STAND_DEPLOYED v6.41.4 — исправления R1-A01…A03 — Claude (2026-11-19, Asia/Almaty)
+
+- **Статус:** развёрнуто на стенде, **готово к повторной независимой приёмке Codex**. В `origin/main` не пушилось, прод (`6.40.33`) не трогался.
+- **Срез:** приложение `0513e5c` (поверх `0d4a64d`, доставка git bundle, `merge --ff-only`), образ `kzph-stand:local` `sha256:9c9e002143527dcffde7c6b926a508e4eae93c4e67072a329c626fd99fcb2adc`, контейнер `healthy`, `/api/version` = `6.41.4`, `/api/health` ok (очередь 0, worker работает). Локальная правка `docker-compose.stand.yml` сохранена.
+- **Проверено:** чистый контейнер образа (`docker run --rm --network none --cpus 2 --tmpfs /app/data -e DATA_DIR=/app/data kzph-stand:local python -m unittest discover -s . -p 'test_*.py'`) — **3 206 OK** (430.8 с), лог `/tmp/kzph-6414-unittest.log` на сервере; `release_gate.py pins requirements.txt constraints.txt <freeze>` — ok, checked 25.
+- **Не проверено:** полный цикл волн на стенде с живыми магазинами, frontend (не менялся), live CI.
+- **Следующий точный шаг:** Codex — повторить воспроизведения `docs/audit_evidence/2026-11-19-v6413/reproduce.py` и критерии R1-A01…A03 на стенде; решение по открытому риску подтверждения города у Kaspi/Magnum/распродажи Sulpak/Mechta (`docs/REGIONAL_PRICING.md` §3).
+
 ## READY_FOR_STAND v6.41.4 — исправления R1-A01…A03 приёмки 6.41.3 — Claude (2026-11-19, Asia/Almaty)
 
 - **Основание:** [возврат Codex 6.41.3](ACCEPTANCE_2026-11-19_V6413_CODEX.md). Исправлены все три находки; код R1 от Antigravity иначе не менялся.
