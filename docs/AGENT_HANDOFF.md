@@ -9,6 +9,21 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## STAND_DEPLOYED v6.41.2 (v6.41.0–2): R1-01 / R1-02 — Региональные цены, мультигородские обходы и документация — Antigravity (2026-11-19, Asia/Almaty)
+
+- **Статус:** развёрнуто и проверено на стенде `kzph-stand`, **готово к выкату / независимой приёмке Codex**. В `origin/main` не пушилось, прод (`6.40.33`) не трогался.
+- **Срез:** приложение `28d0346` (цепочка `b5e901a` → `3cb5010` → `28d0346`, версии `6.41.0`–`6.41.2`), образ `kzph-stand:local` (`sha256:b58015cd144faa8ad1e03d30940816ee0a7e964a9b41ce97a2ebd3d8d1299ac8`), контейнер `healthy`, `/api/version` = `6.41.2`, `/api/health` = `ok`. Локальная правка `docker-compose.stand.yml` сохранена.
+- **Что вошло в кандидата `v6.41.0–2`:**
+  1. `v6.41.0` (`b5e901a`, R1-01): документация `docs/REGIONAL_PRICING.md` (+ ссылки в `docs/README.md` и этап R1 в `docs/DEVELOPMENT_PLAN.md`); реестр `SHOP_REGIONAL_POLICY` в `config.py` (38/38 магазинов `SHOP_KEYS`); `offer_identity.py` (`Алматы / Казахстан` → `@kz`); перевод `12.kz` (`scrapers/twelve_months.py`) на актуальный Bitrix Aspro Premier + 8 живых URL `/catalog/...` + мультигородской обход Алматы (`471567`) + Астана (`471565`) с проверкой `.regions__name` и безопасным `complete`; `scrapers/shopkz.py` YML помечен `Астана / Казахстан` (`@kz`) для видимости во всех городах РК.
+  2. `v6.41.1` (`3cb5010`, R1-02 часть 1): мультигородской обход **Алматы + Астана** для `KaspiScraper` (`710000000` / `750000000`, `search_live` учитывает `city`) и `MagnumScraper` (`?city=almaty` / `astana`, retry 522 / `HostCooldown`), сохранена полная обратная совместимость при явном указании города; уточнён `komfort.kz` (`fixed:almaty` по живой проверке 19.11).
+  3. `v6.41.2` (`28d0346`): исправление `test_magnum_retry_on_transient_error` (`MagnumScraper(city="Алматы")`).
+- **Проверено исполнителем (не заменяет независимую приёмку Codex):**
+  - Чистый контейнер образа стенда (`docker run --rm --network none --cpus 2 --tmpfs /app/data -e DATA_DIR=/app/data kzph-stand:local python -m unittest discover -s . -p 'test_*.py'`): **3 189 OK** (450.3 с).
+  - Шлюз сборки `release_gate.py pins`: `ok: true`, `checked: 25`; `release_gate.py secrets`: `ok: true`, 0 findings.
+  - Живой smoke `TwelveMonthsScraper` на реальном `12.kz` (радиаторы, 1 стр./город): 14 товаров Алматы (`@almaty`) + 24 Астана (`@astana`), `error=None`.
+- **Непроведённые проверки:** браузерные наборы (frontend не менялся), полный фоновый цикл волн на стенде после обновления `12.kz`/`kaspi`/`magnum`/`shopkz`, новый live CI (push не выполнялся).
+- **Следующий точный шаг:** независимая приёмка Codex по кандидату `v6.41.2` на стенде (или продолжение R1-02: `technodom`, `sulpak`, `mechta`, `dns` + R1-03 UI бейдж доставки из другого города). Прод не трогается до приёмки и решения владельца.
+
 ## READY_FOR_STAND v6.41.2: исправление теста MagnumScraper под мультигородской режим v6.41.1 — Antigravity (2026-11-19, Asia/Almaty)
 
 - **Основание:** полный прогон в чистом контейнере стенда `v6.41.1` дал 3 188 OK / 1 FAIL (`test_magnum_retry_on_transient_error` ожидал 1 город при `MagnumScraper()`).
