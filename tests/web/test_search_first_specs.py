@@ -11,6 +11,18 @@ HTML_PATH = ROOT / "web" / "templates" / "search_first.html"
 BASE = "http://127.0.0.1:18099"
 
 
+def launch_browser(p):
+    """Встроенный Chromium Playwright (образ стенда) или системный Chrome (задача test в CI,
+    где `playwright install` не выполняется): тест браузерный и без браузера не пропускается."""
+    try:
+        return p.chromium.launch(headless=True)
+    except Exception as bundled_error:
+        try:
+            return p.chromium.launch(headless=True, channel="chrome")
+        except Exception:
+            raise bundled_error
+
+
 class SearchFirstSpecTagsTest(unittest.TestCase):
     def test_clickable_spec_tags_toggle_filters_and_handle_apostrophes(self):
         html = HTML_PATH.read_text(encoding="utf-8")
@@ -55,7 +67,7 @@ class SearchFirstSpecTagsTest(unittest.TestCase):
         }
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = launch_browser(p)
             try:
                 page = browser.new_page(viewport={"width": 1280, "height": 800})
                 page.on("pageerror", lambda e: errors.append(str(e)))

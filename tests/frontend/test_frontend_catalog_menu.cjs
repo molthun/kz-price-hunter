@@ -45,9 +45,13 @@ async function scrollToLast(page,colSel,itemSel,touch){
    return route.fulfill({contentType:'text/html',body:html});
   });
   await page.goto(BASE+'/');
+  // Старт страницы ждёт checkAuth() и затем зовёт handleRoute(), который закрывает каталог:
+  // открытое раньше меню на медленной машине CI закрывалось (1366x768, первый прогон CI 19.11)
+  await page.waitForLoadState('networkidle');
   await page.evaluate(()=>openCatalogModal());
   await page.locator('#catalogModal.open').waitFor();
   await page.waitForTimeout(250);
+  assert.ok(await page.locator('#catalogModal.open').count(),'меню закрылось само');
   const label=`${width}x${height}/${colorScheme}`;
 
   // Сетка и колонки не выходят за окно: то, что видно, — то и прокручивается
