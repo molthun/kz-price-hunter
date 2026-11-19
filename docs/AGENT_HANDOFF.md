@@ -9,6 +9,14 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## STAND_DEPLOYED v6.41.5 — остаток R1-A01 — Claude (2026-11-19, Asia/Almaty)
+
+- **Статус:** развёрнуто на стенде, **готово к повторной независимой приёмке Codex**. В `origin/main` не пушилось, прод (`6.40.33`) не трогался.
+- **Срез:** приложение `473ab0d` (поверх `6c1d933`, git bundle, `merge --ff-only`), образ `kzph-stand:local` `sha256:0dc37aa30d38128ea3831c59875a0a433c3488abdf59f375175c17e48f113de0`, контейнер `healthy`, `/api/version` = `6.41.5`, `/api/health` ok (очередь 0, worker работает). Локальная правка `docker-compose.stand.yml` сохранена.
+- **Проверено:** чистый контейнер образа (`docker run --rm --network none --cpus 2 --tmpfs /app/data -e DATA_DIR=/app/data kzph-stand:local python -m unittest discover -s . -p 'test_*.py'`) — **3 214 OK** (428.9 с), лог `/tmp/kzph-6415-unittest.log`; pins по свежему `pip freeze --exclude-editable` — ok, checked 25.
+- **Не проверено:** живой цикл волн на стенде, frontend (не менялся), live CI.
+- **Следующий точный шаг:** Codex — повторить `reproduce_empty_wrong_city.py` и пограничные сценарии R1-A01 на стенде. До выпуска остаётся решение владельца по источникам без маркера города (`docs/REGIONAL_PRICING.md` §3).
+
 ## READY_FOR_STAND v6.41.5 — остаток R1-A01 приёмки 6.41.4 — Claude (2026-11-19, Asia/Almaty)
 
 - **Основание:** [возврат Codex 6.41.4](ACCEPTANCE_2026-11-19_V6414_CODEX.md): пустая страница Technodom/Sulpak с чужим или отсутствующим городом засчитывалась концом каталога и позволяла снятие.
