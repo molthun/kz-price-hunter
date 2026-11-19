@@ -2,6 +2,7 @@ import re
 import hashlib
 import time
 from typing import List, Dict, Any, Iterable, Optional, Tuple
+from urllib.parse import parse_qs, urlsplit, urlunsplit
 from scrapers import http as requests
 from scrapers.base import (
     UnconfirmedEnd,
@@ -22,6 +23,13 @@ class SulpakScraper(PagedScraper):
         "Алматы": "1",
         "Актобе": "2",
         "Астана": "3",
+    }
+    # На живом sulpak.kz /f/<cat> без суффикса города часто отдаёт Алматы (city_id=1)
+    # даже с cookie city_id=3; канонический URL Астаны — /f/<cat>/astana.
+    CITY_SLUGS: Dict[str, str] = {
+        "Алматы": "",
+        "Актобе": "aktobe",
+        "Астана": "astana",
     }
     DEFAULT_CITIES: Tuple[str, ...] = ("Алматы", "Астана")
 
@@ -70,6 +78,68 @@ class SulpakScraper(PagedScraper):
                 raise ValueError(f"Sulpak не подтвердил город «{self._active_city}» в ответе")
             raise UnconfirmedEnd(f"Sulpak не подтвердил город «{self._active_city}» на пустой странице")
 
+    @classmethod
+    def _city_url(cls, category_url: str, city: str) -> str:
+        """Возвращает URL категории Sulpak с суффиксом города (/astana, /aktobe) для не-алматинских городов."""
+        slug = cls.CITY_SLUGS.get(city, "")
+        parts = urlsplit(category_url)
+        path = parts.path.rstrip("/")
+        if not path.startswith("/f/"):
+            return category_url
+        known_suffixes = {s for s in cls.CITY_SLUGS.values() if s} | {"almaty"}
+        segs = path.split("/")
+        if len(segs) >= 4 and segs[-1].lower() in known_suffixes:
+            segs = segs[:-1]
+        if slug:
+            segs.append(slug)
+        new_path = "/".join(segs)
+        return urlunsplit((parts.scheme, parts.netloc, new_path, parts.query, parts.fragment))
+
+    @staticmethod
+    def _parse_paginator(pag_soup: Any) -> Tuple[Optional[int], Optional[int]]:
+        """Извлекает (data-currentpage, data-pagescount) из #paginator, игнорируя .swiper-pagination."""
+        if not pag_soup:
+            return None, None
+        pag_el = pag_soup.select_one("#paginator, .pagination:not(.swiper-pagination)")
+        if not pag_el:
+            return None, None
+        cur_raw = str(pag_el.get("data-currentpage") or "").strip()
+        cnt_raw = str(pag_el.get("data-pagescount") or "").strip()
+        current_page = int(cur_raw) if cur_raw.isdigit() else None
+        pages_count = int(cnt_raw) if cnt_raw.isdigit() else None
+        return current_page, pages_count
+
+    @staticmethod
+    def _is_redirected_to_prev_page(
+        response: Any,
+        category_url: str,
+        page_num: int,
+        *,
+        require_explicit_page_param: bool = False,
+    ) -> bool:
+        """Проверяет, что сервер перенаправил запрос page_num на предыдущую страницу той же категории.
+
+        На живом sulpak.kz data-pagescount часто завышен относительно числа реальных страниц
+        (а на одностраничных категориях #paginator отсутствует); при выходе за последнюю
+        страницу N сервер возвращает HTTP 301 на ?page=N (N == page_num - 1).
+        Обычный повтор карточек без редиректа или сброс на первую страницу концом не считается.
+        """
+        if page_num <= 1:
+            return False
+        final_url = getattr(response, "url", None)
+        if not isinstance(final_url, str) or not final_url.strip():
+            return False
+        final_parts = urlsplit(final_url.strip())
+        cat_parts = urlsplit(category_url.strip())
+        if final_parts.path.rstrip("/") != cat_parts.path.rstrip("/"):
+            return False
+        if cat_parts.hostname and final_parts.hostname and final_parts.hostname.lower() != cat_parts.hostname.lower():
+            return False
+        final_pages = parse_qs(final_parts.query).get("page")
+        if page_num == 2 and not require_explicit_page_param:
+            return not final_pages or final_pages[-1] == "1"
+        return bool(final_pages) and final_pages[-1] == str(page_num - 1)
+
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> ScanResult:
         is_sale = "/sale" in category_url.lower()
 
@@ -107,7 +177,8 @@ class SulpakScraper(PagedScraper):
                 soup = make_soup(products_html)
                 pag_soup = make_soup(paginator_html) if paginator_html else None
             else:
-                url = category_url
+                request_base_url = self._city_url(category_url, self._active_city)
+                url = request_base_url
                 if page_num > 1:
                     separator = "&" if "?" in url else "?"
                     url = f"{url}{separator}page={page_num}"
@@ -140,6 +211,27 @@ class SulpakScraper(PagedScraper):
                 if page_num > 1:
                     return ScanResult([], complete=True)
                 raise UnconfirmedEnd("Не найдены карточки: конец выдачи не подтвержден")
+
+            current_page, pages_count = self._parse_paginator(pag_soup)
+            if not is_sale and page_num > 1:
+                paginated_redirect_end = (
+                    current_page == page_num - 1
+                    and pages_count is not None
+                    and pages_count >= current_page
+                    and self._is_redirected_to_prev_page(r, request_base_url, page_num)
+                )
+                single_page_redirect_end = (
+                    page_num == 2
+                    and current_page is None
+                    and pages_count is None
+                    and self._is_redirected_to_prev_page(
+                        r, request_base_url, page_num, require_explicit_page_param=True
+                    )
+                )
+                if paginated_redirect_end or single_page_redirect_end:
+                    # Сервер подтвердил конец каталога редиректом ?page=N+1 -> ?page=N
+                    # (проверка города уже пройдена выше по R1-A01).
+                    return ScanResult([], complete=True)
 
             products: List[Dict[str, Any]] = []
             seen_codes = set()
@@ -205,14 +297,6 @@ class SulpakScraper(PagedScraper):
                 }
                 if validate_product_item(item):
                     products.append(item)
-
-            pages_count = None
-            if pag_soup:
-                pag_el = pag_soup.select_one("#paginator, .pagination")
-                if pag_el:
-                    cnt = pag_el.get("data-pagescount")
-                    if cnt and cnt.isdigit():
-                        pages_count = int(cnt)
 
             complete = pages_count is not None and page_num >= pages_count
             return ScanResult(products, complete=complete)

@@ -9,6 +9,14 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## IN_PROGRESS v6.42.4 — R1: Sulpak конец каталога + базовый срез 6.42.3 — Antigravity (2026-11-19 22:29, Asia/Almaty)
+
+- **Исполнитель:** Antigravity (локально + стенд через git bundle; прод не трогается).
+- **Область файлов:** `scrapers/sulpak.py`, `tests/scrapers/test_sulpak_pagination.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- **Промежуточный срез стенда 6.42.3 (только чтение, до перезапуска):** на `2026-11-19T17:27Z` стенд отработал ~51 мин с `2026-11-19T16:37:05Z` (`healthy`, `queue_size=0`, `dead_letters=0`, `cpu=69.38%`, `mem=444.7MiB / 15GiB`). За этот интервал из 6 мультигородских источников обход прошёл `technodom` (2/2 `complete`, `ok`, 1 107 товаров по Алматы и Астане, 0 снятых предложений); остальные 5 (`kaspi`, `magnum`, `sulpak`, `twelve_months`, `mechta`) ещё не успели устареть. Полный 24-часовой цикл волн (`docs/STAND_WAVE_CYCLE_<дата>.md`) будет собран по итогам суток после выката 6.42.4, чтобы в него сразу вошло исправление Sulpak.
+- **Находка по живому `sulpak.kz` (проверено на 4 категориях: `planshetiy`, `noutbuki`, `smart_chasiy`, `led_oled_televizoriy`):** элемент `<div id="paginator" class="pagination" data-currentpage="X" data-pagescount="Y">` на сайте присутствует (на странице также есть ~28 `.swiper-pagination`). Причина `complete=False`: `data-pagescount` завышен относительно фактического числа страниц (например, у `planshetiy` `pagescount=9`, последняя фактическая страница 6). При запросе `?page=7` сервер отдаёт `HTTP 301` → `Location: /f/planshetiy?page=6` (`r.url` оканчивается на `?page=6`, `data-currentpage="6"`).
+- **План 6.42.4:** распознавать подтверждённый сервером конец каталога Sulpak только после `_confirm_city` (R1-A01), когда `page_num > 1`, `data-currentpage == page_num - 1`, `pages_count >= current_page` и финальный `r.url` той же категории подтверждает редирект на `page_num - 1`. Повтор без редиректа, сброс на 1-ю страницу и HTTP 404 по-прежнему не считаются `complete=True`.
+
 ## TO_ANTIGRAVITY — R1: суточный цикл волн на стенде + Sulpak конец каталога — Claude (2026-11-19, Asia/Almaty)
 
 - **Основание:** решение владельца 19.11.2026 передать Antigravity работу на стенде; [приёмка Codex 6.42.3](ACCEPTANCE_2026-11-19_V6423_CODEX.md) приняла CityControl и исправление Technodom, до выпуска R1 остаётся суточное расписание волн. Работать только со стендом (`~/kzph-stand`, git bundle), прод не трогать.
