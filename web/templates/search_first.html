@@ -13928,7 +13928,7 @@
       findForTarget(target) {
         if (!target) return [];
         const needle = String(target);
-        return this.items.filter(w => String(w.target) === needle && w.is_active !== false);
+        return this.items.filter(w => String(w.target) === needle && watchIsActive(w));
       },
       updateBadges() {
         const badge = document.getElementById('profileWatchesCountBadge');
@@ -13944,24 +13944,33 @@
       }
     };
 
+    // R24-01: API отдаёт is_active числом SQLite (0/1). Включённым считается только явное 1/true:
+    // выключенное вручную или после одноразового срабатывания (0) и неизвестное состояние — нет.
+    function watchIsActive(w) {
+      return !!w && (w.is_active === true || w.is_active === 1 || w.is_active === '1');
+    }
+
+    // Названия условий — как в watches.py (CONDITIONS). R24-02: best_price — минимум цены за время
+    // этого наблюдения (state.min_price), а не сравнение всего рынка.
     function formatWatchCondition(w) {
       if (!w) return '';
-      if (w.condition === 'target_price' && w.threshold) {
-        return 'Уведомить при цене ≤ ' + formatPrice(w.threshold);
-      }
+      const t = Number(w.threshold);
+      if (w.condition === 'target_price' && t > 0) return 'Уведомить при цене ≤ ' + formatPrice(t);
       if (w.condition === 'any_drop') return 'Уведомить при любом снижении';
-      if (w.condition === 'pct_drop' && w.threshold) return 'Снижение от ' + w.threshold + '%';
-      if (w.condition === 'amount_drop' && w.threshold) return 'Снижение от ' + formatPrice(w.threshold);
-      if (w.condition === 'in_stock') return 'Появление в наличии';
-      if (w.condition === 'best_price') return 'Лучшая цена на рынке';
+      if (w.condition === 'drop_pct' && t > 0) return 'Снижение от ' + t + '%';
+      if (w.condition === 'drop_kzt' && t > 0) return 'Снижение от ' + formatPrice(t);
+      if (w.condition === 'back_in_stock') return 'Снова в продаже';
+      if (w.condition === 'best_price') return 'Новый минимум цены за время наблюдения';
       return w.description || w.condition || 'Любое изменение';
     }
 
+    // R24-03: все виды из watches.KINDS; неизвестный — нейтрально, без выдуманного вида
+    const WATCH_KIND_LABELS = {
+      product: '📦 Товар', model: '📱 Модель', search: '🔍 Поиск', category: '🗂 Категория',
+      shop: '🏪 Магазин', deal: '🏷 Скидка', arbitrage: '⚖️ Разница цен', seller: '👤 Продавец'
+    };
     function watchKindLabel(kind) {
-      if (kind === 'search') return '🔍 Поиск';
-      if (kind === 'model') return '📱 Модель';
-      if (kind === 'deal') return '🏷 Скидка';
-      return '📦 Товар';
+      return Object.prototype.hasOwnProperty.call(WATCH_KIND_LABELS, kind) ? WATCH_KIND_LABELS[kind] : '🔔 Наблюдение';
     }
 
     function updateDetailWatchButton(productId) {
@@ -14295,7 +14304,7 @@
       } else {
         html = WatchManager.items.map((w, idx) => {
           const condText = formatWatchCondition(w);
-          const state = !w.is_active ? '• Выключено' : (w.fired ? '• Уже сработало' : '');
+          const state = !watchIsActive(w) ? '• Выключено' : (w.fired ? '• Уже сработало' : '');
           return `
             <div class="watch-item-card" data-index="${idx}">
               <div class="watch-item-info">
