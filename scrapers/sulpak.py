@@ -38,19 +38,23 @@ class SulpakScraper(PagedScraper):
         }
         self.cookies = {"city_id": self.CITY_IDS.get(self._active_city, "1"), "language_id": "3"}
 
-    def _confirm_city(self, soup: Any) -> None:
+    def _confirm_city(self, soup: Any, has_cards: bool) -> None:
         """R1-A01: HTML-страница каталога должна сама подтвердить город (атрибуты data-city-id).
 
-        Отсутствие маркера или чужой город — ошибка разбора, а не цена в запрошенном городе.
-        JSON-выдача распродажи город не возвращает и проверяется только по cookie запроса.
+        Проверка идёт до любого сигнала конца каталога: пустая страница управляет полнотой
+        и снятием товаров. Чужой город — всегда ошибка разбора. Страница с карточками без
+        маркера — ошибка разбора; пустая страница без маркера — неподтверждённый конец.
+        JSON-выдача распродажи город не возвращает (открытый риск R1, docs/REGIONAL_PRICING.md §3).
         """
         expected = str(self.cookies.get("city_id") or "")
         seen = {str(e.get("data-city-id") or "").strip() for e in soup.select("[data-city-id]")}
         seen.discard("")
-        if not seen:
-            raise ValueError(f"Sulpak не подтвердил город «{self._active_city}» в ответе")
-        if seen != {expected}:
+        if seen and seen != {expected}:
             raise ValueError(f"Sulpak отдал город {sorted(seen)} вместо запрошенного {expected}")
+        if not seen:
+            if has_cards:
+                raise ValueError(f"Sulpak не подтвердил город «{self._active_city}» в ответе")
+            raise UnconfirmedEnd(f"Sulpak не подтвердил город «{self._active_city}» на пустой странице")
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> ScanResult:
         is_sale = "/sale" in category_url.lower()
@@ -116,13 +120,12 @@ class SulpakScraper(PagedScraper):
                 pag_soup = soup
 
             cards = soup.select(".product__item, .goods-tiles")
+            if not is_sale:
+                self._confirm_city(soup, has_cards=bool(cards))
             if not cards:
                 if page_num > 1:
                     return ScanResult([], complete=True)
                 raise UnconfirmedEnd("Не найдены карточки: конец выдачи не подтвержден")
-
-            if not is_sale:
-                self._confirm_city(soup)
 
             products: List[Dict[str, Any]] = []
             seen_codes = set()

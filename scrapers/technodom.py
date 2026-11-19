@@ -9,7 +9,7 @@ import json
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from scrapers import http as requests
-from scrapers.base import ScanResult, PagedScraper, merge_city_results, price_value
+from scrapers.base import ScanResult, PagedScraper, UnconfirmedEnd, merge_city_results, price_value
 
 class TechnodomScraper(PagedScraper):
     SHOP_NAME = "Технодом"
@@ -56,18 +56,22 @@ class TechnodomScraper(PagedScraper):
         return price_value(value)
 
     @staticmethod
-    def _confirm_city(data: Dict[str, Any], city: str, slug: str) -> None:
-        """R1-A01: цена записывается под городом, только если страница сама подтвердила этот город.
+    def _confirm_city(data: Dict[str, Any], city: str, slug: str, has_items: bool) -> None:
+        """R1-A01: страница должна сама подтвердить город (initialState.core.currentCity.slug).
 
-        Отсутствие initialState.core.currentCity.slug или чужой город — ошибка разбора.
+        Проверка идёт до любого сигнала конца каталога: пустая страница управляет полнотой
+        и снятием товаров. Чужой город — всегда ошибка разбора. Страница с товарами без
+        маркера — ошибка разбора; пустая страница без маркера — неподтверждённый конец.
         """
         state = ((data.get("props") or {}).get("pageProps") or {}).get("initialState") or {}
         current = (state.get("core") or {}).get("currentCity") if isinstance(state, dict) else None
         actual = str(current.get("slug") or "").strip().lower() if isinstance(current, dict) else ""
-        if not actual:
-            raise ValueError(f"Технодом не подтвердил город «{city}» в ответе")
-        if actual != slug:
+        if actual and actual != slug:
             raise ValueError(f"Технодом отдал город «{actual}» вместо запрошенного «{slug}»")
+        if not actual:
+            if has_items:
+                raise ValueError(f"Технодом не подтвердил город «{city}» в ответе")
+            raise UnconfirmedEnd(f"Технодом не подтвердил город «{city}» на пустой странице")
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:
         city = self._active_city
@@ -90,8 +94,7 @@ class TechnodomScraper(PagedScraper):
             print(f"[{self.SHOP_NAME}] Неожиданная структура данных ({e}) на странице {url}")
             raise ValueError("Не найдены данные каталога Технодом")
 
-        if product_list.get("items"):
-            self._confirm_city(data, city, slug)
+        self._confirm_city(data, city, slug, has_items=bool(product_list.get("items")))
 
         products: List[Dict[str, Any]] = []
         for item in product_list["items"] or []:

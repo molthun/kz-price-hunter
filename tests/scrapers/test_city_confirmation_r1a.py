@@ -38,7 +38,7 @@ def _twelve(pages_by_region, cities):
         return TwelveMonthsScraper(cities=cities)._scrape_sync("C", URL, 1)
 
 
-def _retired_after(result, existing_ids):
+def _retired_after(result, existing_ids, shop_key="twelve_months", url=URL):
     """Настоящая сверка снятия на временной БД; зеркалирование и watch-refresh подменены."""
     offer_identity.assign_offer_ids(result)
     assessment = data_quality.assess(data_quality.measure(result), complete=result.complete,
@@ -50,10 +50,10 @@ def _retired_after(result, existing_ids):
             UNIQUE(product_id,shop_key,source_url));""")
         for pid in existing_ids:
             conn.execute("INSERT INTO products VALUES (?,1)", (pid,))
-            conn.execute("INSERT INTO product_sources VALUES (?,?,?,1)", (pid, "twelve_months", URL))
+            conn.execute("INSERT INTO product_sources VALUES (?,?,?,1)", (pid, shop_key, url))
         with patch.object(database, "_retire_mirrored_offers_conn"), \
              patch.object(database, "_queue_watch_refresh_conn"):
-            retired = database._reconcile_source_conn(conn, "twelve_months", URL,
+            retired = database._reconcile_source_conn(conn, shop_key, url,
                                                       [x["id"] for x in result], assessment["may_retire"])
         active = {r[0] for r in conn.execute("SELECT id FROM products WHERE is_active=1")}
         return retired, active, assessment
@@ -166,6 +166,100 @@ class TechnodomSulpakCityConfirmationTest(unittest.TestCase):
         res = self._sulpak('<button class="subscribe-btn" data-city-id="3"></button>')
         self.assertTrue(res.complete)
         self.assertEqual([x["city"] for x in res], ["Астана"])
+
+
+TD_URL = "https://www.technodom.kz/astana/catalog/smartfony"
+SP_URL = "https://www.sulpak.kz/f/smartfoniy"
+TD_ITEM = {"sku": "302075", "title": "Смартфон Тест", "price": 189990, "uri": "smartfon-test"}
+SULPAK_CITY = {"Алматы": "1", "Астана": "3"}
+
+
+def _technodom_crawl(cities, end_marker_for):
+    """Стр. 1 подтверждает город и отдаёт товар; пустая стр. 2 несёт маркер end_marker_for(slug)."""
+    def get(url, cookies=None, **kw):
+        slug = (cookies or {}).get("city")
+        if "page=2" in url:
+            return SimpleNamespace(status_code=200, text=_technodom_html([], end_marker_for(slug)))
+        return SimpleNamespace(status_code=200, text=_technodom_html([TD_ITEM], slug))
+    with patch("scrapers.technodom.requests.get", side_effect=get), patch("time.sleep"):
+        return TechnodomScraper(cities=cities)._scrape_sync("C", TD_URL, 2)
+
+
+def _sulpak_crawl(cities, end_marker_for):
+    def get(url, cookies=None, **kw):
+        cid = (cookies or {}).get("city_id")
+        if "page=2" in url:
+            marker = end_marker_for(cid)
+            mark = f'<b data-city-id="{marker}"></b>' if marker is not None else ""
+            return SimpleNamespace(status_code=200, text=f"<html>{mark}</html>")
+        return SimpleNamespace(status_code=200, text=f"""<b data-city-id="{cid}"></b>
+            <div class="product__item" data-code="888" data-name="Смартфон" data-price="150000">
+              <a href="/g/phone-888">Смартфон</a></div>
+            <div id="paginator" data-pagescount="5"></div>""")
+    with patch("scrapers.sulpak.requests.get", side_effect=get), patch("time.sleep"):
+        return SulpakScraper(cities=cities)._scrape_sync("C", SP_URL, 2)
+
+
+class EmptyEndPageCityTest(unittest.TestCase):
+    """Остаток R1-A01 (приёмка 6.41.4): пустая последняя страница управляет полнотой и снятием."""
+    TD_IDS = ("td_302075@astana", "td_302076@astana")
+    SP_IDS = ("sulpak_888@astana", "sulpak_889@astana")
+
+    def _assert_kept(self, res, ids, shop_key, url):
+        self.assertFalse(res.complete)
+        retired, active, assessment = _retired_after(res, ids, shop_key, url)
+        self.assertFalse(assessment["may_retire"])
+        self.assertEqual(retired, [])
+        self.assertEqual(active, set(ids))
+
+    def test_technodom_empty_end_with_foreign_city_keeps_old_offers(self):
+        res = _technodom_crawl(("Астана",), lambda slug: "almaty")
+        self.assertEqual(source_failure.result_failure(res)["error_code"], "parse")
+        self._assert_kept(res, self.TD_IDS, "technodom", TD_URL)
+
+    def test_technodom_empty_end_without_city_is_unconfirmed(self):
+        for marker in (None, ""):
+            with self.subTest(marker=marker):
+                res = _technodom_crawl(("Астана",), lambda slug: marker)
+                self.assertIsNone(res.error)
+                self.assertTrue(res.limited)
+                self._assert_kept(res, self.TD_IDS, "technodom", TD_URL)
+
+    def test_technodom_empty_end_with_own_city_completes(self):
+        res = _technodom_crawl(("Астана",), lambda slug: slug)
+        self.assertTrue(res.complete)
+
+    def test_technodom_second_city_foreign_empty_end_blocks_complete(self):
+        res = _technodom_crawl(("Алматы", "Астана"), lambda slug: "almaty")
+        self.assertFalse(res.complete)
+        self.assertIn("Астана:", res.error)
+        ids = ("td_302075@almaty",) + self.TD_IDS
+        retired, active, _ = _retired_after(res, ids, "technodom", TD_URL)
+        self.assertEqual(retired, [])
+
+    def test_sulpak_empty_end_with_foreign_city_keeps_old_offers(self):
+        res = _sulpak_crawl(("Астана",), lambda cid: "1")
+        self.assertEqual(source_failure.result_failure(res)["error_code"], "parse")
+        self._assert_kept(res, self.SP_IDS, "sulpak", SP_URL)
+
+    def test_sulpak_empty_end_without_city_is_unconfirmed(self):
+        for marker in (None, ""):
+            with self.subTest(marker=marker):
+                res = _sulpak_crawl(("Астана",), lambda cid: marker)
+                self.assertIsNone(res.error)
+                self._assert_kept(res, self.SP_IDS, "sulpak", SP_URL)
+
+    def test_sulpak_empty_end_with_own_city_completes(self):
+        res = _sulpak_crawl(("Астана",), lambda cid: cid)
+        self.assertTrue(res.complete)
+
+    def test_sulpak_second_city_foreign_empty_end_blocks_complete(self):
+        res = _sulpak_crawl(("Алматы", "Астана"), lambda cid: "1")
+        self.assertFalse(res.complete)
+        self.assertIn("Астана:", res.error)
+        ids = ("sulpak_888@almaty",) + self.SP_IDS
+        retired, _, _ = _retired_after(res, ids, "sulpak", SP_URL)
+        self.assertEqual(retired, [])
 
 
 class MergeCityResultsTest(unittest.TestCase):
