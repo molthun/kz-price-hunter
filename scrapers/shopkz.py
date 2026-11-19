@@ -106,7 +106,7 @@ class ShopKzScraper:
                             "description": desc_clean,
                             "price": p_val,
                             "old_price_on_site": old_p_val,
-                            "city": "Астана"
+                            "city": "Астана / Казахстан"
                         })
                     elem.clear()
 

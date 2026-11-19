@@ -334,6 +334,14 @@ RTX 4070 12 ГБ, 16 потоков, 61 ГБ ОЗУ, NVMe 915 ГБ, Ubuntu 26.04
   - Регламентный аудит в фоне (`local_matching_monitor.py`, раз в 6 часов), регистрация событий дрейфа в телеметрии (`matching_drift`), индикация в `service_monitor.py` (`local_matching_drift`) и отчет в AI-ассистенте администратора (`admin_assistant.py`).
   - Статус: **ВЫПОЛНЕНО (v6.39.0)**, покрыто тестами `tests/ai/test_local_matching_monitor.py`.
 
+## Поколение R1: Региональные цены, наличие по городам и доставка по РК
+
+Поручение владельца (19.11.2026): учесть, что в Казахстане на одном URL у сетей (`12.kz`, `Комфорт`, `Technodom`, `Sulpak`, `Kaspi` и др.) цены и наличие различаются по городам, а у ритейлеров вроде «Белого Ветра» (`shop.kz`) есть доставка по РК со складов в разных городах. Подробная архитектура и реестр всех 38 источников — в [REGIONAL_PRICING.md](REGIONAL_PRICING.md).
+
+- **R1-01 (v6.41.0, пилот):** реестр `SHOP_REGIONAL_POLICY` в `config.py` (3 класса: `multi_city_price`, `delivery_kz_multi_stock`, `single_price_kz`); `offer_identity.py` (`Алматы / Казахстан` → `@kz`); перевод `12.kz` (`scrapers/twelve_months.py`) на актуальный Bitrix Aspro Premier с мультигородским обходом **Алматы + Астана** (`cookie:current_region`, проверка `.regions__name`, безопасный `complete` для `reconcile_source`); YML «Белого Ветра» (`scrapers/shopkz.py`) помечается `Астана / Казахстан` (`@kz`) для видимости во всех городах РК.
+- **R1-02:** поэтапное подключение обхода **Алматы + Астана** для `komfort`, `technodom`, `sulpak`, `mechta`, `dns`, `kaspi` с контролем времени волн.
+- **R1-03 (UI):** явный бейдж/блок «Доставка из другого города» в карточке товара, если в соседнем городе цена выгоднее и магазин доставляет по РК.
+
 ## Релизы и общая готовность
 
 Предварительные группы исходного плана: foundation → telemetry → quality → monitoring → UI/settings → analytics → watches → router → catalog AI → scheduler shadow → rollout → admin AI/daily → system hardening. Номера 5.7.1–6.6 из обсуждения ориентировочные: сначала сверить текущие version.py, коммиты и теги, не занимать уже выпущенную версию.

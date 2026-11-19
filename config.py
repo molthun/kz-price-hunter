@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Any, Dict, Optional
 import json
 import tempfile
 import threading
@@ -60,6 +60,61 @@ SHOP_KEYS = {
     "europharma": "Europharma",
     "french_house": "Французский Дом",
 }
+
+# Региональная политика источников (docs/REGIONAL_PRICING.md):
+# - multi_city_price: разные цены и/или наличие по городам РК (обход по приоритетным городам, раздельные id@city)
+# - delivery_kz_multi_stock: единая федеральная цена/фид, наличие по филиалам в городах + доставка по РК
+# - single_price_kz: единая цена по РК с доставкой из центрального склада
+REGIONAL_MODES = ("multi_city_price", "delivery_kz_multi_stock", "single_price_kz")
+
+SHOP_REGIONAL_POLICY = {
+    "kaspi": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "header:X-KS-City"},
+    "dns": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:city_path"},
+    "shopkz": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "yml_feed+cookie:BITRIX_SM_CITY"},
+    "technodom": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "api:city_id"},
+    "forcecom": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},
+    "sulpak": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:city"},
+    "mechta": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "header:city"},
+    "alser": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:city"},
+    "evrika": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "url_slug"},
+    "moon": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},
+    "fourmobile": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},
+    "flip": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+    "halyk": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "api:city"},
+    "tgrad": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},
+    "ants": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},
+    "itmag": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},
+    "ispace": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+    "fortemarket": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "api:locations"},
+    "vkusmart": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Астана",), "delivery_kz": False, "city_mechanism": "fixed:astana"},
+    "twelve_months": {"mode": "multi_city_price", "scan_cities": ("Алматы", "Астана"), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:current_region"},
+    "zeta": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+    "komfort": {"mode": "multi_city_price", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:current_region"},
+    "lemanapro": {"mode": "multi_city_price", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:region"},
+    "arbuz": {"mode": "multi_city_price", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": False, "city_mechanism": "url_slug"},
+    "masterok": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},
+    "magnum": {"mode": "multi_city_price", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": False, "city_mechanism": "url_slug"},
+    "intertop": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+    "kari": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+    "marwin": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+    "iteka": {"mode": "multi_city_price", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": False, "city_mechanism": "url_slug"},
+    "mebel": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+    "detmir": {"mode": "multi_city_price", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:region"},
+    "askona": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+    "zoomarket": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+    "planeta": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:city"},
+    "kimex": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+    "europharma": {"mode": "multi_city_price", "scan_cities": ("Алматы",), "target_cities": ("Алматы", "Астана"), "delivery_kz": False, "city_mechanism": "api:city"},
+    "french_house": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+}
+
+
+def get_shop_regional_policy(shop_key: str) -> Dict[str, Any]:
+    """Возвращает региональную политику магазина по ключу из SHOP_KEYS."""
+    return SHOP_REGIONAL_POLICY.get(
+        shop_key,
+        {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
+    )
 
 
 MASTER_CATEGORIES = {
@@ -1369,14 +1424,14 @@ VKUSMART_CATEGORIES = [
 
 # 12 Месяцев (12.kz): гипермаркет стройматериалов, инструментов и ремонта
 TWELVE_MONTHS_CATEGORIES = [
-    {"name": "12 Месяцев: 🔌 Электроинструменты", "url": "https://12.kz/categories/elektroinstrumenty", "master": "diy", "max_pages": 15},
-    {"name": "12 Месяцев: 🪛 Дрели и шуруповерты", "url": "https://12.kz/categories/dreli-shurupoverty", "master": "diy", "max_pages": 15},
-    {"name": "12 Месяцев: 🔨 Перфораторы", "url": "https://12.kz/categories/perforatory", "master": "diy", "max_pages": 10},
-    {"name": "12 Месяцев: 🔧 Ручной инструмент", "url": "https://12.kz/categories/ruchnoi-instrument", "master": "diy", "max_pages": 15},
-    {"name": "12 Месяцев: 🚰 Смесители и сантехника", "url": "https://12.kz/categories/smesiteli", "master": "diy", "max_pages": 15},
-    {"name": "12 Месяцев: 🧑‍🏭 Сварочные аппараты", "url": "https://12.kz/categories/svarochnye-apparaty", "master": "diy", "max_pages": 10},
-    {"name": "12 Месяцев: 🌿 Садовая техника", "url": "https://12.kz/categories/sadovaya-tekhnika", "master": "diy", "max_pages": 15},
-    {"name": "12 Месяцев: 🧼 Бытовая химия", "url": "https://12.kz/categories/bytovaya-khimiya", "master": "household", "max_pages": 15},
+    {"name": "12 Месяцев: 🔌 Инструменты", "url": "https://12.kz/catalog/instrumenty/", "master": "diy", "max_pages": 12},
+    {"name": "12 Месяцев: 🚰 Сантехника", "url": "https://12.kz/catalog/santekhnika/", "master": "diy", "max_pages": 12},
+    {"name": "12 Месяцев: 🔥 Отопление и вентиляция", "url": "https://12.kz/catalog/vodosnabzhenie-otoplenie-i-ventilyatsiya/", "master": "diy", "max_pages": 12},
+    {"name": "12 Месяцев: 💡 Электротовары", "url": "https://12.kz/catalog/elektrotovary/", "master": "diy", "max_pages": 12},
+    {"name": "12 Месяцев: 🧱 Стройматериалы", "url": "https://12.kz/catalog/stroitelnye-materialy/", "master": "diy", "max_pages": 12},
+    {"name": "12 Месяцев: 🎨 Лаки, краски, клей", "url": "https://12.kz/catalog/laki-kraski-kley/", "master": "diy", "max_pages": 10},
+    {"name": "12 Месяцев: 🌿 Дом, сад и огород", "url": "https://12.kz/catalog/vsye-dlya-doma-sada-i-ogoroda/", "master": "household", "max_pages": 12},
+    {"name": "12 Месяцев: 🧹 Бытовая техника", "url": "https://12.kz/catalog/bytovaya-tekhnika/", "master": "appliances_small", "max_pages": 10},
 ]
 
 # Zeta (zeta.kz): производитель и ритейлер товаров для дома, быта, пластика и мебели

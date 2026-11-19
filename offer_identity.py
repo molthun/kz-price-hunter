@@ -12,7 +12,7 @@ from config import CITIES_KZ, SHOP_KEYS
 NATIONWIDE = "Казахстан"
 UNKNOWN_LOCATION = "Регион не подтверждён"
 
-_NATIONWIDE_LABELS = {NATIONWIDE, "Астана / Казахстан", "Все регионы"}
+_NATIONWIDE_LABELS = {NATIONWIDE, "Астана / Казахстан", "Алматы / Казахстан", "Все регионы"}
 _SLUG_BY_NAME = {c["name"]: c["id"] for c in CITIES_KZ.values()}
 
 

@@ -9,6 +9,19 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## READY_FOR_STAND v6.41.0: R1-01 — Региональные цены и мультигородские обходы (пилот 12.kz + Белый Ветер + реестр и документация) — Antigravity (2026-11-19, Asia/Almaty)
+
+- **Основание:** прямое поручение владельца (19.11.2026) — учесть региональные цены в РК (12.kz: 27 300 ₸ Алматы vs 35 000 ₸ Астана), доставку по РК («Белый Ветер») и всё задокументировать.
+- **Изменённые файлы:** `config.py`, `offer_identity.py`, `scrapers/twelve_months.py`, `scrapers/shopkz.py`, `tests/scrapers/test_regional_pricing.py`, `docs/REGIONAL_PRICING.md`, `docs/README.md`, `docs/DEVELOPMENT_PLAN.md`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`. Схема БД, frontend, Dockerfile, workflow и зависимости не менялись.
+- **Что сделано:**
+  1. Документация `docs/REGIONAL_PRICING.md` (+ ссылки в `docs/README.md` и этап R1 в `docs/DEVELOPMENT_PLAN.md`): 3 класса региональности (`multi_city_price`, `delivery_kz_multi_stock`, `single_price_kz`), инварианты `id@city`, полная таблица всех 38 магазинов, план R1-01…R1-03.
+  2. `config.py`: реестр `SHOP_REGIONAL_POLICY` (38/38 магазинов `SHOP_KEYS`), `get_shop_regional_policy`; обновлены 8 URL `TWELVE_MONTHS_CATEGORIES` со старого AdvantShop на живой Bitrix Aspro Premier (`/catalog/...`).
+  3. `offer_identity.py`: `"Алматы / Казахстан"` → `@kz` (ранее `@unknown`).
+  4. `scrapers/twelve_months.py`: поддержка актуального Bitrix Aspro Premier на `12.kz` (с fallback на legacy-фикстуры), мультигородской обход Алматы (`471567`) + Астана (`471565`) через `cookie:current_region`, проверка `.regions__name` против подмены города, безопасный `complete` для `reconcile_source`, retry 522 / проброс `HostCooldown`.
+  5. `scrapers/shopkz.py`: `scrape_yml` проставляет `"city": "Астана / Казахстан"` (`shopkz_<id>@kz`), чтобы фид с доставкой по РК был виден во всех городах.
+- **Проверено локально (macOS `venv/bin/python`):** `py_compile` OK, `release_gate.py secrets` OK (0 findings), целевые тесты (`test_regional_pricing`, `test_scraper_contract`, `test_offer_identity`, `test_offer_namespace`, `test_bitrix_retry_stability`) — **69 OK** (1.9 с); живой smoke `TwelveMonthsScraper` на реальном `12.kz` — 14 товаров Алматы (`@almaty`) + 24 Астана (`@astana`), `error=None`.
+- **Следующий точный шаг:** коммит `v6.41.0`, доставка на стенд `kzph-stand` через `git bundle`, пересборка контейнера, проверка `/api/version`, `/api/health` и полный прогон Python-тестов в чистом контейнере образа стенда. Прод (`6.40.33`) не трогается, push не выполняется.
+
 ## RELEASED v6.40.33 — Claude (2026-11-19, Asia/Almaty)
 
 - **Прод = 6.40.33:** https://shop.molthun.ru/api/version — 6.40.33; `/api/live` и `/api/v2/search` — 200; контейнер `kz-price-hunter` healthy, образ `sha256:42f5cd657ab5…`. Только чтение API и конфигурации контейнера; ничего в проде не менялось.

@@ -10,7 +10,7 @@
 
 - [Архитектура](ARCHITECTURE.md) · [контекст проекта](../PROJECT_CONTEXT.md)
 - [Веб-интерфейс и API](../web/README.md) · [доменные модели](../domain/README.md) · [тесты](../tests/README.md)
-- [Подключение магазина](SCRAPER_GUIDE.md) · [стандарт адаптеров](../SCRAPER_STANDARD.md) · [реестр источников](../SOURCES.md)
+- [Подключение магазина](SCRAPER_GUIDE.md) · [стандарт адаптеров](../SCRAPER_STANDARD.md) · [реестр источников](../SOURCES.md) · [региональные цены и города](REGIONAL_PRICING.md)
 - [Сопоставление товаров и цены](MATCHING_AND_ARBITRAGE.md) · [политика локального ИИ](AI_LOCAL_POLICY.md) · [критерии поиска с ИИ](LOCAL_AI_SEARCH_REQUIREMENTS.md)
 
 ## Администраторам
