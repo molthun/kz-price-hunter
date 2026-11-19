@@ -1323,10 +1323,86 @@ class SearchRepository(BaseRepository):
         for offer in offers:
             offer["offer_title"] = titles.get(str(offer["id"])[4:])
 
+    OTHER_CITY_LIMIT = 5
+    OTHER_CITY_BATCH = 50
+    OTHER_CITY_MAX_BATCHES = 20
+
+    def _other_city_offers(self, product_ids, city: str, now=None) -> List[Dict[str, Any]]:
+        """Доступные предложения товара в других подтверждённых городах РК (R103-A01…A03).
+
+        До LIMIT в SQL применяются те же правила покупки и свежести, что у основной выдачи
+        (sql_purchasable_conditions с тем же now), город — только из известных CITIES_KZ,
+        кроме выбранного (UNKNOWN_LOCATION и произвольные строки исключены), продавец — только
+        с delivery_kz. Кандидаты читаются порциями по цене, пока не наберётся OTHER_CITY_LIMIT
+        уникальных пар продавец+город или строки не закончатся.
+        """
+        from config import CITIES_KZ, SHOP_KEYS, get_shop_regional_policy
+        from domain.purchasability import offer_purchasable, sql_purchasable_conditions, utc_now
+
+        moment = utc_now(now)
+        selected = (city or "").strip()
+        cities = sorted({c["name"] for c in CITIES_KZ.values()
+                         if c["name"] != selected and c["name"] not in selected})
+        delivery_keys = [k for k in SHOP_KEYS if get_shop_regional_policy(k).get("delivery_kz", False)]
+        if not cities or not delivery_keys or not product_ids:
+            return []
+        delivery_names = [SHOP_KEYS[k] for k in delivery_keys]
+        key_by_name = {name.lower(): k for k, name in SHOP_KEYS.items()}
+
+        purch_sql, purch_params = sql_purchasable_conditions(moment, offer="o", channel="c")
+        sql = f"""
+            SELECT o.*,
+                   s.name as seller_name,
+                   s.slug as seller_slug,
+                   s.domain as seller_domain,
+                   c.channel_type,
+                   c.name as channel_name,
+                   c.is_active as channel_is_active,
+                   s.is_active as seller_is_active
+            FROM offers o
+            JOIN sellers s ON o.seller_id = s.id
+            JOIN channels c ON o.channel_id = c.id
+            WHERE o.product_id IN ({','.join('?' * len(product_ids))})
+              AND o.is_active = 1
+              AND s.is_active = 1
+              AND c.is_active = 1
+              AND o.city IN ({','.join('?' * len(cities))})
+              AND (s.slug IN ({','.join('?' * len(delivery_keys))})
+                   OR s.name IN ({','.join('?' * len(delivery_names))}))
+              AND {' AND '.join(purch_sql)}
+            ORDER BY o.price ASC, o.id ASC
+            LIMIT ? OFFSET ?
+        """
+        base_params = list(product_ids) + cities + delivery_keys + delivery_names + list(purch_params)
+        result: List[Dict[str, Any]] = []
+        seen = set()
+        for batch in range(self.OTHER_CITY_MAX_BATCHES):
+            rows = self.fetchall(sql, base_params + [self.OTHER_CITY_BATCH, batch * self.OTHER_CITY_BATCH])
+            for r in rows:
+                od = dict(r)
+                sname = str(od.get("seller_name") or "").strip().lower()
+                sslug = str(od.get("seller_slug") or "").strip().lower()
+                skey = key_by_name.get(sname) or (sslug if sslug in SHOP_KEYS else "")
+                if not skey or not get_shop_regional_policy(skey).get("delivery_kz", False):
+                    continue
+                if not offer_purchasable(od, now=moment):
+                    continue
+                key = (od.get("seller_id"), od.get("city"))
+                if key in seen:
+                    continue
+                seen.add(key)
+                result.append(od)
+                if len(result) >= self.OTHER_CITY_LIMIT:
+                    return result
+            if len(rows) < self.OTHER_CITY_BATCH:
+                break
+        return result
+
     def get_canonical_product_detail(
         self,
         product_id: str,
         city: Optional[str] = None,
+        now=None,
     ) -> Optional[Dict[str, Any]]:
         """
         Retrieves canonical product and its active offers joined with sellers and channels.
@@ -1389,45 +1465,10 @@ class SearchRepository(BaseRepository):
 
         # R1-03: предложения этого же товара из других городов РК (только у магазинов с доставкой по РК).
         # Не смешиваются с offers текущего города и не влияют на min_price выбранного города.
-        other_city_offers = []
-        if city and city not in ("Все", "Казахстан"):
-            from config import SHOP_KEYS, get_shop_regional_policy
-            key_by_name = {name.lower(): k for k, name in SHOP_KEYS.items()}
-            other_sql = f"""
-            SELECT o.*,
-                   s.name as seller_name,
-                   s.slug as seller_slug,
-                   s.domain as seller_domain,
-                   c.channel_type,
-                   c.name as channel_name
-            FROM offers o
-            JOIN sellers s ON o.seller_id = s.id
-            JOIN channels c ON o.channel_id = c.id
-            WHERE o.product_id IN ({','.join('?' * len(product_ids))})
-              AND o.is_active = 1
-              AND s.is_active = 1
-              AND c.is_active = 1
-              AND o.price > 0
-              AND o.city IS NOT NULL AND o.city != ''
-              AND o.city != 'Все'
-              AND o.city NOT LIKE '%Казахстан%'
-              AND o.city != ?
-              AND o.city NOT LIKE ?
-            ORDER BY o.price ASC
-            LIMIT 25
-            """
-            other_rows = self.fetchall(other_sql, list(product_ids) + [city, f"%{city}%"])
-            for r in other_rows:
-                od = dict(r)
-                sname = str(od.get("seller_name") or "").strip().lower()
-                sslug = str(od.get("seller_slug") or "").strip().lower()
-                skey = key_by_name.get(sname) or (sslug if sslug in SHOP_KEYS else "")
-                # Разрешаем только явно подтверждённую доставку по РК (магазины вроде Магнум/Arbuz исключаются)
-                if skey and not get_shop_regional_policy(skey).get("delivery_kz", False):
-                    continue
-                if not skey:
-                    continue
-                other_city_offers.append(od)
+        other_city_offers = (
+            self._other_city_offers(product_ids, city, now=now)
+            if city and city not in ("Все", "Казахстан") else []
+        )
 
         # Прикрепляем штрихкод из product_barcodes, если есть
         try:

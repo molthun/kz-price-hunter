@@ -909,6 +909,19 @@ class SearchCore:
         siblings = self.search_repo.get_family_products(current_family, city=city)
         return build_family_options(product.id, product.category, product.title, siblings)
 
+    def _load_canonical_detail(self, product_id: str, city: Optional[str], now: datetime.datetime):
+        """Репозиторий получает тот же now для отбора межгородских кандидатов до LIMIT (R103-A01).
+        Подмены репозитория без параметра now в тестах вызываются по-старому."""
+        import inspect
+        fetch = self.search_repo.get_canonical_product_detail
+        try:
+            accepts_now = "now" in inspect.signature(fetch).parameters
+        except (TypeError, ValueError):
+            accepts_now = False
+        if accepts_now:
+            return fetch(product_id, city=city, now=now)
+        return fetch(product_id, city=city)
+
     def get_canonical_product(
         self,
         product_id: str,
@@ -923,7 +936,7 @@ class SearchCore:
         if not hasattr(self.search_repo, "get_canonical_product_detail"):
             return None
 
-        detail = self.search_repo.get_canonical_product_detail(product_id, city=city)
+        detail = self._load_canonical_detail(product_id, city, now)
         if not detail or not detail.get("product"):
             return None
 
@@ -1144,18 +1157,23 @@ class SearchCore:
 
         # R1-03: предложения из других городов РК (только у магазинов с delivery_kz=True, строго дешевле min_p
         # либо любые доступные, если в выбранном городе 0 предложений). Не влияют на min_price и offers_count.
+        # R103-A01/A02: те же правила покупки/свежести с тем же now, что у основной выдачи, и только
+        # подтверждённый известный город РК, отличный от выбранного.
+        from offer_identity import location_slug
+        selected_slug = location_slug(city)
         other_city_out: List[Dict[str, Any]] = []
         seen_other_keys = set()
         for od in detail.get("other_city_offers") or []:
+            if not offer_purchasable(od, now=now):
+                continue
+            od_city = str(od.get("city") or "").strip()
+            od_slug = location_slug(od_city)
+            if od_slug in ("kz", "unknown") or od_slug == selected_slug:
+                continue
             price_val = float(od.get("price") or 0)
-            if price_val <= 0:
-                continue
-            avail = od.get("availability") or "in_stock"
-            if not bool(od.get("is_active", 1)) or avail == "out_of_stock":
-                continue
             if min_p is not None and price_val >= min_p:
                 continue
-            dedupe_key = (od.get("seller_id"), od.get("city"))
+            dedupe_key = (od.get("seller_id"), od_city)
             if dedupe_key in seen_other_keys:
                 continue
             seen_other_keys.add(dedupe_key)
@@ -1165,9 +1183,11 @@ class SearchCore:
                 "seller_name": od.get("seller_name") or "Магазин",
                 "seller_domain": od.get("seller_domain") or "",
                 "channel_name": od.get("channel_name") or od.get("channel_type") or "Web",
-                "city": od.get("city") or "",
+                "city": od_city,
                 "price": price_val,
                 "url": od.get("url") or "",
+                "observed_at": od.get("observed_at") or od.get("updated_at"),
+                "freshness": offer_freshness(od, now=now).legacy_freshness,
                 "savings_kzt": int(round(min_p - price_val)) if min_p is not None else None,
                 "delivery_kz": True,
             })
