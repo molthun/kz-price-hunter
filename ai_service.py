@@ -1651,10 +1651,13 @@ async def normalize_product_titles_batch(
         if new_cached:
             await asyncio.to_thread(save_cached_canonical_keys_batch, new_cached)
 
-        # Теневой режим на проде (P17-C5): если основная модель — платная (Gemini/OpenAI),
-        # а локальная доступна и не отключена, параллельно в фоне запрашиваем поля у локальной модели,
-        # сравниваем с ключом основной и пишем в normalize_shadow; расхождения ставим в очередь спорных пар.
-        if (provider != ai_router.LOCAL and creds.get("has_local") and creds.get("local_api_base")
+        # Теневой режим на проде (P17-C5): если основная модель — платная (Gemini/OpenAI, local_normalize_enabled=False),
+        # основная модель действительно ответила (provider не None), а локальная доступна и не отключена,
+        # параллельно в фоне запрашиваем поля у локальной модели, сравниваем с ключом основной и пишем в normalize_shadow.
+        # При отказе основной (provider=None) сравнивать не с чем; при local_normalize_enabled=True fallback на платную
+        # означает, что локальная только что не ответила — повторный удар в неё лишь плодит failed/missing.
+        if (provider and provider != ai_router.LOCAL and not creds.get("local_normalize_enabled")
+                and creds.get("has_local") and creds.get("local_api_base")
                 and creds.get("local_model")):
             import local_ai
             if not local_ai.pause_reason():
@@ -1730,7 +1733,9 @@ K2_NORMALIZE_PROMPT = (
     "Поля:\n"
     "- brand: бренд производителя как на упаковке (латиницей, если он так пишется); null, если бренда нет;\n"
     "- model: серия и номер модели производителя БЕЗ бренда, цвета, типа товара, исполнения, артикула и "
-    "маркетинга («Galaxy S24 Ultra», «RTX 4060», «Ryzen 5 3500X», «B850 Pro RS»); null, если модели нет;\n"
+    "маркетинга («Galaxy S24 Ultra», «RTX 4060», «Ryzen 5 3500X», «B850 Pro RS»); если у товара нет названия модели, "
+    "а есть только тип/описание («Брюки женские», «Сандалии», «Туалет», «Коврик», «Игровой набор») и артикул — "
+    "в model пиши null, а код — в sku;\n"
     "- sku: артикул или код модели производителя (не артикул магазина в скобках); null, если нет;\n"
     "- edition: исполнение внутри модели — Gaming, Dual, OC, Edition, ревизия V2/V3 и т. п.; null, если нет;\n"
     "- variants: только характеристики, отличающие варианты одной модели: память, объём, диагональ экрана, "

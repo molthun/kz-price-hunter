@@ -623,6 +623,65 @@ class ShadowMetricsTest(_DbCase):
             asyncio.run(ai_service._run_shadow_normalize(["a", "b"], CREDS, {}, "k2"))
         self.assertEqual(database.normalize_shadow_summary()["by_kind"]["failed"], 2)
 
+    def test_shadow_not_started_when_primary_failed_or_local_enabled(self):
+        """Теневой режим P17-C5 не запускается при отказе основной модели (provider=None) и при local_normalize_enabled=True."""
+        import ai_router
+        title = "Неизвестный Комплект ZxQwErTy"
+        base_creds = {
+            "enabled": True, "has_ai": True, "ai_search_enabled": True,
+            "ai_provider": "auto", "ai_key_standard": "k2",
+            "has_local": True, "local_api_base": "http://fake/v1", "local_model": "qwen3-vl:8b-instruct",
+            "gemini_api_key": "fake", "openai_api_key": "",
+        }
+        shadow_calls = []
+
+        async def fake_shadow(*args, **kwargs):
+            shadow_calls.append(args)
+
+        async def run_case(title_i, creds, router_side_effect):
+            shadow_calls.clear()
+            with patch("config.get_ai_config", return_value=creds), \
+                 patch.object(ai_router, "run", side_effect=router_side_effect), \
+                 patch.object(ai_service, "_run_shadow_normalize", side_effect=fake_shadow), \
+                 patch("local_ai.pause_reason", return_value=None):
+                await ai_service.normalize_product_titles_batch([title_i])
+                await asyncio.sleep(0)
+            return len(shadow_calls)
+
+        # 1. Основная модель упала (provider=None) — тень не запускается (иначе 20 primary_empty)
+        n_fail = asyncio.run(run_case(
+            f"{title} Case1",
+            {**base_creds, "local_normalize_enabled": False},
+            ai_router.AIUnavailable("down"),
+        ))
+        self.assertEqual(n_fail, 0)
+
+        # 2. local_normalize_enabled=True, роутер сделал fallback на gemini — тень не бьёт обратно в занятую локальную
+        t2 = f"{title} Case2"
+        ok_reply_2 = {"provider": "gemini", "model": "gemini-flash",
+                      "result": {"items": [{"title": t2, "brand": "Samsung", "model": "Galaxy S24 Ultra",
+                                            "sku": None, "edition": None, "variants": [{"value": 256, "unit": "гб"}],
+                                            "unbranded": False}]}}
+        n_fallback = asyncio.run(run_case(
+            t2,
+            {**base_creds, "local_normalize_enabled": True},
+            lambda *a, **kw: ok_reply_2,
+        ))
+        self.assertEqual(n_fallback, 0)
+
+        # 3. Штатный C5 (local_normalize_enabled=False, gemini ответил) — тень запускается
+        t3 = f"{title} Case3"
+        ok_reply_3 = {"provider": "gemini", "model": "gemini-flash",
+                      "result": {"items": [{"title": t3, "brand": "Samsung", "model": "Galaxy S24 Ultra",
+                                            "sku": None, "edition": None, "variants": [{"value": 256, "unit": "гб"}],
+                                            "unbranded": False}]}}
+        n_c5 = asyncio.run(run_case(
+            t3,
+            {**base_creds, "local_normalize_enabled": False},
+            lambda *a, **kw: ok_reply_3,
+        ))
+        self.assertEqual(n_c5, 1)
+
 
 class MigrationIdentityAndBaselineTest(_DbCase):
     OLD = "unknown:chechevitsa krasnaya:1kg"

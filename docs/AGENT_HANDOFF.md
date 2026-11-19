@@ -9,6 +9,20 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## READY_FOR_STAND v6.40.29: P17-C4/C5/C8 — исправление дефектов k2 и запуска теневой нормализации — Antigravity (2026-11-19, Asia/Almaty)
+
+- **Основание:** поручение владельца (19.11.2026) — разобраться, почему на стенде `normalize_shadow` показывает низкое совпадение и охват, и довести локальную нормализацию (`k2`, P17-C4/C5/C8) до готовности к приёмке.
+- **Изменённые файлы:** `product_key.py`, `ai_service.py`, `tests/core/test_product_key.py`, `tests/ai/test_shadow_normalize.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`. Backend API, схема БД, frontend, Dockerfile, workflow и зависимости не менялись.
+- **Что исправлено:**
+  1. `ai_service.py`: `_run_shadow_normalize` не запускается при отказе основной модели (`provider is None`, ранее давало 20 `primary_empty` за пачку) и при `local_normalize_enabled=True` после fallback на платную модель (ранее повторно било в занятую локальную модель → `failed`/`missing`). Уточнён `K2_NORMALIZE_PROMPT` для описательных категорий с артикулом.
+  2. `product_key.py`: отключена ложная конвертация `см → in` для 2D/3D габаритов (`60 × 45 cm`, `45х21х54 см`) и не-экранов (коврики, туалеты, лотки, ошейники и др.); экраны/диагонали сохранены.
+  3. `product_key.py`: масса (`0.5kg` → `500g`, `1000g` → `1kg`) и объём (`>=1000ml` → `l`) канонизируются в `variant_tokens`; `compare_keys` для `k2` vs `k2` сравнивает эквивалентные единицы через `_key_variants`/`_unit_class`.
+  4. `product_key.py`: при наличии сильного артикула `sku` (`SS25C2120`, `K1132PT-6C`, `B1187401`) и чисто описательной кириллической `model` («Брюки женские», «Сандалии женские», «Игровой набор») ключ строится по артикулу. Расширен `BRAND_ALIASES` для кириллических брендов (`фронтлайн`, `щенячий патруль`, `роял канин`, `про план`, `трикси` и др.).
+- **Проверки (локально и read-only стенд):**
+  - Read-only бенчмарк на 3 316 перекрывающихся парах `title_fields` ↔ `title_fields_shadow` БД стенда: совпадение `k2` выросло с **58.16%** (`1030/1771`) до **69.28%** (`1227/1771`, +11.12 п.п. без повторных вызовов моделей), ложных конвертаций `см → in` у не-экранов — **0**.
+  - Локально (macOS `venv/bin/python`): `py_compile` OK, `release_gate.py secrets` OK (0 findings), целевые наборы (`test_product_key`, `test_shadow_normalize`, `test_local_matching_monitor`, `test_local_ai`, `test_matching_precision`, `test_release_gate`, `test_disputed_matching_moderation`) — **248 OK** (32.1 с).
+- **Следующий точный шаг:** коммит v6.40.29, доставка на стенд `kzph-stand` через `git bundle`, пересборка контейнера стенда, проверка `/api/version`, `/api/health` и прогон полного Python-набора в чистом контейнере образа стенда. Прод не трогается, push не выполняется.
+
 ## RELEASED v6.40.28 — Claude (2026-11-19, Asia/Almaty)
 
 - **Прод = 6.40.28:** https://shop.molthun.ru/api/version сообщил 6.40.28 примерно через 3 минуты после публикации; `/api/live` — 200, страница отдаёт `handleRoute({ initial: true })`. Только read-only запросы; контейнер прода не трогался.

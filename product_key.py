@@ -53,6 +53,9 @@ BRAND_ALIASES = {
     "one plus": "oneplus", "текно": "tecno", "инфиникс": "infinix", "моторола": "motorola", "нокиа": "nokia",
     "яндекс": "yandex", "yandeks": "yandex", "сбер": "sber", "асрок": "asrock",
     "patriot memory": "patriot", "patriotmemory": "patriot", "team group": "teamgroup",
+    "фронтлайн": "frontline", "щенячий патруль": "pawpatrol", "про план": "proplan",
+    "роял канин": "royalcanin", "трикси": "trixie", "хиллс": "hills", "пурина": "purina",
+    "вискас": "whiskas", "феликс": "felix", "педигри": "pedigree",
 }
 
 # Заглушки «нет значения» в полях
@@ -84,7 +87,7 @@ _UNITS = {
     "мб": ("mb", 1), "mb": ("mb", 1),
     "мм": ("mm", 1), "mm": ("mm", 1), "см": ("mm", 10), "cm": ("mm", 10), "м": ("m", 1), "m": ("m", 1),
     "л": ("l", 1), "l": ("l", 1), "литр": ("l", 1), "мл": ("ml", 1), "ml": ("ml", 1),
-    "г": ("g", 1), "гр": ("g", 1), "g": ("g", 1), "кг": ("kg", 1), "kg": ("kg", 1),
+    "г": ("g", 1), "гр": ("g", 1), "g": ("g", 1), "кг": ("g", 1000), "kg": ("g", 1000),
     "дюйм": ("in", 1), "дюйма": ("in", 1), "дюймов": ("in", 1), '"': ("in", 1), "in": ("in", 1), "inch": ("in", 1),
     "вт": ("w", 1), "w": ("w", 1), "квт": ("w", 1000), "kw": ("w", 1000),
     "мач": ("mah", 1), "mah": ("mah", 1), "шт": ("pcs", 1), "pcs": ("pcs", 1),
@@ -167,16 +170,45 @@ def _fmt(number: float) -> str:
 
 # Объём памяти и диагональ код берёт из самого названия: по замеру C2 модель через раз не вписывала их в
 # variants («Kingston NV3 2 TB» → то с «2048gb», то без), и один товар расходился по двум ключам.
-_TITLE_VARIANT_RE = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*(гб|gb|тб|tb|см|дюйм\w*|\"|''|”)(?![a-zа-я])(?!/s\b)")
+_TITLE_VARIANT_RE = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*(гб|gb|тб|tb|см|cm|дюйм\w*|\"|''|”)(?![a-zа-я])(?!/s\b)")
+_SCREEN_RE = re.compile(
+    r"телевизор|монитор|экран|дисплей|проектор|моноблок|ноутбук|планшет|"
+    r"(?<![a-z])(?:tv|smart|qled|oled|miniled|uhd|fhd|monitor|display)(?![a-z])"
+)
+_NON_SCREEN_RE = re.compile(
+    r"коврик|туалет|лоток|ошейник|поводок|лежанк|домик|когтеточк|игрушк|кукл|набор|"
+    r"брюки|куртк|платье|свитшот|рубашк|обув|кроссовк|туфл|ботинк|сандали|слипон|"
+    r"сумк|рюкзак|чемодан|подушк|одеял|матрас|плед|полотенц|обои|штор|"
+    r"стол\b|стул\b|шкаф|полк|стремянк|шланг|рулетк|елка|елк|велосипед|самокат|"
+    r"кастрюл|сковород|нож\b|лопат|мяч\b|бассейн|батут|кабел|шнур|удлинител"
+)
+_DIM_MULTI_RE = re.compile(
+    r"(?:\d+(?:[.,]\d+)?\s*[xх×*]\s*)+\d+(?:[.,]\d+)?\s*(?:см|cm|мм|mm)?(?![a-zа-я])"
+)
+
+
+def _allow_cm_diagonal(title: Any) -> bool:
+    """Разрешать перевод сантиметров 50–250 в диагональ в дюймах только для экранов, а не для габаритов."""
+    text = _text(title)
+    if not text:
+        return True
+    if _SCREEN_RE.search(text):
+        return True
+    if _NON_SCREEN_RE.search(text) or _DIM_MULTI_RE.search(text):
+        return False
+    return True
 
 
 def title_variants(title: Any) -> List[Dict[str, Any]]:
-    """Объём (ГБ/ТБ) и диагональ (дюймы от 10, сантиметры 50–250) из названия в виде variants модели."""
+    """Объём (ГБ/ТБ) и диагональ (дюймы от 10, сантиметры 50–250 для экранов) из названия в виде variants модели."""
     text = _text(title)
+    allow_cm = _allow_cm_diagonal(text)
+    # Габариты вида «60 × 45 см» или «45х21х54 см» никогда не являются диагональю экрана
+    text_no_dims = _DIM_MULTI_RE.sub(" ", text)
     # «4/128Gb», «8/256 ГБ» — оперативная и встроенная память одной записью
     found = [{"value": float(first), "unit": unit}
              for first, unit in re.findall(r"(?<![\w.])(\d+)\s*/\s*\d+\s*(гб|gb|тб|tb)(?![a-zа-я])", text)]
-    for number, unit in _TITLE_VARIANT_RE.findall(text):
+    for number, unit in _TITLE_VARIANT_RE.findall(text_no_dims):
         value = float(number.replace(",", "."))
         if unit in ("''", "”"):
             unit = '"'
@@ -184,8 +216,10 @@ def title_variants(title: Any) -> List[Dict[str, Any]]:
             unit = "дюйм"
         if unit in ('"', "дюйм") and value < 10:
             continue                                    # 2.5" и 3.5" у дисков — форм-фактор, не вариант
-        if unit == "см" and not 50 <= value <= 250:
-            continue                                    # габарит, а не диагональ
+        if unit in ("см", "cm"):
+            if not allow_cm or not 50 <= value <= 250:
+                continue                                # габарит или не экран, а не диагональ
+            unit = "см"
         found.append({"value": value, "unit": unit})
     return found
 
@@ -198,7 +232,14 @@ def _storage(value_gb: float) -> str:
     return _fmt(round(tb, 1)) + "tb"
 
 
-def variant_tokens(variants: Any) -> List[str]:
+def _mass(value_g: float) -> str:
+    """500 г и 0.5 кг — одна масса: до 1000 г в граммах, от 1000 г — в килограммах."""
+    if value_g < 1000:
+        return _fmt(round(value_g, 3)) + "g"
+    return _fmt(round(value_g / 1000, 3)) + "kg"
+
+
+def variant_tokens(variants: Any, allow_cm_diagonal: bool = True) -> List[str]:
     """Варианты к виду «число+единица»: 128gb, 2tb, 0.96l, 55in. Неизвестная единица или нет числа — пропуск."""
     out = set()
     for item in variants if isinstance(variants, list) else []:
@@ -213,11 +254,18 @@ def variant_tokens(variants: Any) -> List[str]:
             continue
         canon, mult = _UNITS[unit]
         value_c = number * mult
-        if canon == "mm" and 500 <= value_c <= 2500:
+        if canon == "mm" and allow_cm_diagonal and 500 <= value_c <= 2500:
             canon, value_c = "in", round(value_c / 25.4)       # диагональ экрана в сантиметрах
+        if canon == "ml" and value_c >= 1000:
+            canon, value_c = "l", round(value_c / 1000, 3)
         if canon not in KEY_UNITS or (canon == "in" and value_c < 10):
             continue                                        # экран телефона (6.78") не отличает его варианты
-        out.add(_storage(value_c) if canon == "gb" else _fmt(value_c) + canon)
+        if canon == "gb":
+            out.add(_storage(value_c))
+        elif canon == "g":
+            out.add(_mass(value_c))
+        else:
+            out.add(_fmt(value_c) + canon)
     return sorted(out)[:4]
 
 
@@ -349,6 +397,21 @@ def _class_variants(title: str, ram_without_code: bool) -> List[str]:
     return []
 
 
+def _is_descriptive_cyrillic_model(model: Any, brand: Optional[str], drop: Iterable[Any] = ()) -> bool:
+    """Модель состоит только из кириллических слов без латиницы и цифр («Брюки женские», «Сандалии женские»)."""
+    text = _text(model)
+    if not text or text in _EMPTY:
+        return False
+    for extra in drop:
+        extra_text = _text(extra)
+        if extra_text and extra_text not in _EMPTY and extra_text != text:
+            text = text.replace(extra_text, " ")
+    words = [w for w in re.findall(r"[a-zа-я0-9]+", text) if w not in _NOISE and (not brand or _latin(w) != brand)]
+    if not words:
+        return False
+    return bool(re.fullmatch(r"[а-я]+", "".join(words)))
+
+
 def build_key(fields: Any, title: Any = None) -> Optional[str]:
     """Ключ по стандарту из полей модели или None (без бренда, без модели и артикула, мусор).
 
@@ -364,7 +427,15 @@ def build_key(fields: Any, title: Any = None) -> Optional[str]:
     if _CABLE_RE.search(text):
         # Длина и цвет в коде кабеля (PP12-3M/B) — не другая модель: длина уйдёт в варианты
         model, sku = (_LENGTH_IN_CODE_RE.sub("", _text(v)) if isinstance(v, str) else v for v in (model, sku))
-    identity = model_token(model, brand, (sku, fields.get("edition"))) or model_token(sku, brand)
+    sku_token = model_token(sku, brand)
+    model_id = model_token(model, brand, (sku, fields.get("edition")))
+    # Если модель — лишь кириллическое описание типа («Брюки женские», «Игровой набор»), а sku — сильный артикул
+    # производителя («SS25C2120», «B1187401»), ключ строится по артикулу: иначе разные товары склеятся в один.
+    if (sku_token and _STRONG_ARTICLE.match(sku_token) and not _RAM_SPEC_RE.match(sku_token)
+            and (not model_id or _is_descriptive_cyrillic_model(model, brand, (sku, fields.get("edition"))))):
+        identity = sku_token
+    else:
+        identity = model_id or sku_token
     if not identity:
         return None
     is_ram = bool(_RAM_RE.search(text)) and not _BOARD_RE.search(text) and not _CHIPSET_RE.match(identity)
@@ -387,8 +458,9 @@ def build_key(fields: Any, title: Any = None) -> Optional[str]:
         identity += f".{revision}"
     if _is_system(plain_identity, title):
         identity += SYSTEM_MARK
-    variants = variant_tokens(fields.get("variants"))
-    from_title = variant_tokens(title_variants(title)) if title else []
+    allow_cm = _allow_cm_diagonal(text)
+    variants = variant_tokens(fields.get("variants"), allow_cm_diagonal=allow_cm)
+    from_title = variant_tokens(title_variants(title), allow_cm_diagonal=allow_cm) if title else []
     if from_title:
         own = {"in"} if any(v.endswith("in") for v in from_title) else set()
         if any(v.endswith(("gb", "tb")) for v in from_title):
@@ -541,7 +613,8 @@ def _title_sizes(title: str) -> frozenset:
     """Объём, диагональ и классовые размеры, известные из самого названия."""
     text = _text(title)
     ram = bool(_RAM_RE.search(text)) and not _BOARD_RE.search(text) and not _CHIPSET_IN_TITLE_RE.search(text)
-    return frozenset(variant_tokens(title_variants(title))) | frozenset(_class_variants(text, ram))
+    allow_cm = _allow_cm_diagonal(text)
+    return frozenset(variant_tokens(title_variants(title), allow_cm_diagonal=allow_cm)) | frozenset(_class_variants(text, ram))
 
 
 def _size_class(token: str) -> str:
@@ -603,6 +676,10 @@ def compare_keys(primary: str, shadow: str) -> str:
     if primary == shadow:
         return "matched"
     if primary.startswith(f"{KEY_VERSION}:"):
+        if (shadow.startswith(f"{KEY_VERSION}:")
+                and primary.split(":", 3)[:3] == shadow.split(":", 3)[:3]
+                and _key_variants(primary) == _key_variants(shadow)):
+            return "matched"
         return "mismatch"
     parts = primary.split(":")
     if len(parts) < 2 or parts[0] in ("norm", "unknown"):

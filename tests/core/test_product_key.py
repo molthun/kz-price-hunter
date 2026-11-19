@@ -211,5 +211,73 @@ class LinkGroupSafetyTest(unittest.TestCase):
         self.assertEqual(disputed, [("A", "B", "incompatible_article:samsung:abc123456")])
 
 
+class StandK2QualityFixesTest(unittest.TestCase):
+    """P17-C4/C5/C8: регрессии на реальные расхождения k2 со стенда (v6.40.29)."""
+
+    def test_cm_dimensions_and_non_screens_not_converted_to_inches(self):
+        mat = {"brand": "Trixie", "model": "в форме лапки", "variants": [{"value": 60, "unit": "см"}]}
+        self.assertEqual(
+            pk.build_key(mat, "Коврик Trixie в форме лапки для кошачьего туалета - 60 × 45 cm"),
+            "k2:trixie:vformelapki",
+        )
+        litter = {"brand": "Trixie", "model": "Cleany Cat", "variants": [{"value": 54, "unit": "см"}]}
+        self.assertEqual(
+            pk.build_key(litter, "Туалет Trixie Cleany Cat для кошек с высоким бортиком, синий, 45х21х54 см"),
+            "k2:trixie:cleanycat",
+        )
+        collar = {"brand": "Flea&Tick", "model": "Ошейник", "variants": [{"value": 65, "unit": "см"}]}
+        self.assertEqual(
+            pk.build_key(collar, "Ошейник Flea&Tick от блох и клещей для собак красный - 65 см"),
+            "k2:fleatick:osheynik",
+        )
+        # Экраны с диагональю в см и/или дюймах сохраняют диагональ, но 2D/3D габариты корпуса игнорируются
+        tv = {"brand": "Samsung", "model": "CU7100", "variants": []}
+        self.assertEqual(
+            pk.build_key(tv, 'Телевизор Samsung CU7100 55" 123x71x8 см'),
+            "k2:samsung:cu7100:55in",
+        )
+        tv_cm = {"brand": "Konka", "model": "KT-Q682WB", "variants": []}
+        self.assertEqual(
+            pk.build_key(tv_cm, "Konka KT-Q682WB 140 см черный"),
+            "k2:konka:ktq682wb:55in",
+        )
+
+    def test_mass_and_volume_units_canonicalized_and_compared(self):
+        f_g = {"brand": "Royal Canin", "model": "Yorkshire Terrier Puppy", "variants": [{"value": 500, "unit": "г"}]}
+        f_kg = {"brand": "Royal Canin", "model": "Yorkshire Terrier Puppy", "variants": [{"value": 0.5, "unit": "кг"}]}
+        self.assertEqual(pk.build_key(f_g), "k2:royalcanin:yorkshireterrierpuppy:500g")
+        self.assertEqual(pk.build_key(f_kg), "k2:royalcanin:yorkshireterrierpuppy:500g")
+        self.assertEqual(pk.variant_tokens([{"value": 1000, "unit": "г"}]), ["1kg"])
+        self.assertEqual(pk.variant_tokens([{"value": 1500, "unit": "г"}]), ["1.5kg"])
+        self.assertEqual(pk.variant_tokens([{"value": 1000, "unit": "мл"}]), ["1l"])
+        self.assertEqual(pk.variant_tokens([{"value": 1500, "unit": "мл"}]), ["1.5l"])
+        # compare_keys для k2 vs k2 приравнивает эквивалентные единицы массы/объёма
+        self.assertEqual(pk.compare_keys("k2:royalcanin:puppy:500g", "k2:royalcanin:puppy:0.5kg"), "matched")
+        self.assertEqual(pk.compare_keys("k2:brand:drink:0.5l", "k2:brand:drink:500ml"), "matched")
+        self.assertEqual(pk.compare_keys("k2:brand:drink:0.5l", "k2:brand:drink:1l"), "mismatch")
+
+    def test_strong_sku_wins_over_descriptive_cyrillic_model(self):
+        g_pants = {"brand": "kari", "model": "Брюки женские", "sku": "SS25C2120", "variants": []}
+        q_pants = {"brand": "kari", "model": None, "sku": "SS25C2120", "variants": []}
+        self.assertEqual(pk.build_key(g_pants, "kari Брюки женские SS25C2120"), "k2:kari:ss25c2120")
+        self.assertEqual(pk.build_key(q_pants, "kari Брюки женские SS25C2120"), "k2:kari:ss25c2120")
+
+        g_sandals = {"brand": "T.TACCARDI", "model": "Сандалии женские", "sku": "K1132PT-6C", "variants": []}
+        self.assertEqual(pk.build_key(g_sandals, "T.TACCARDI Сандалии женские K1132PT-6C"), "k2:ttaccardi:k1132pt6c")
+
+        g_toy = {"brand": "Max&Jessi", "model": "Игровой набор с модельной куклой и торшером", "sku": "B1187401", "variants": []}
+        self.assertEqual(pk.build_key(g_toy, "Max&Jessi Игровой набор с модельной куклой и торшером B1187401"), "k2:maxjessi:b1187401")
+
+        # Техника с настоящей моделью (латиница/цифры) не теряет имя модели
+        ssd = {"brand": "Transcend", "model": "MTE110S", "sku": "TS128GMTE110S", "variants": [{"value": 128, "unit": "гб"}]}
+        self.assertEqual(pk.build_key(ssd, "SSD 128GB Transcend MTE110S (TS128GMTE110S)"), "k2:transcend:mte110s:128gb")
+
+    def test_brand_aliases_cyrillic_pet_and_toy_brands(self):
+        self.assertEqual(pk.brand_token("Фронтлайн"), "frontline")
+        self.assertEqual(pk.brand_token("Щенячий патруль"), "pawpatrol")
+        self.assertEqual(pk.brand_token("Роял Канин"), "royalcanin")
+        self.assertEqual(pk.brand_token("Про План"), "proplan")
+
+
 if __name__ == "__main__":
     unittest.main()
