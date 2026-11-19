@@ -174,10 +174,15 @@ _TITLE_VARIANT_RE = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*(гб|gb|тб|tb|
 _MULTIPACK_RE = re.compile(
     r"(?<![\w.])(\d{1,3})\s*[xх×*]\s*(\d+(?:[.,]\d+)?)\s*(г|гр|кг|мл|л|g|kg|ml|l)(?![a-zа-я])"
 )
+# Комплект памяти «2x16GB», «4 × 16 ГБ»: в ключе — общий объём и число модулей (R31-01)
+_MEMKIT_RE = re.compile(r"(?<![\w.,])(\d{1,2})\s*[xх×*]\s*(\d+(?:[.,]\d+)?)\s*(гб|gb|тб|tb)(?![a-zа-я])")
+# «Smart» — маркетинговое слово (полотенце «Beach smart»), а не признак экрана (R31-03)
 _SCREEN_RE = re.compile(
     r"телевизор|монитор|экран|дисплей|проектор|моноблок|ноутбук|планшет|"
-    r"(?<![a-z])(?:tv|smart|qled|oled|miniled|uhd|fhd|monitor|display)(?![a-z])"
+    r"(?<![a-z])(?:tv|qled|oled|miniled|uhd|fhd|monitor|display)(?![a-z])"
 )
+# «Кабель для монитора», «подставка под телевизор»: экран — назначение товара, а не сам товар
+_FOR_SCREEN_RE = re.compile(r"(?:для|под|к|for)\s+(?:\w+\s+){0,2}?(?:" + _SCREEN_RE.pattern + r")\w*")
 _NON_SCREEN_RE = re.compile(
     r"коврик|туалет|лоток|ошейник|поводок|лежанк|домик|когтеточк|игрушк|кукл|набор|"
     r"брюки|куртк|платье|свитшот|рубашк|обув|кроссовк|туфл|ботинк|сандали|слипон|"
@@ -185,8 +190,11 @@ _NON_SCREEN_RE = re.compile(
     r"стол\b|стул\b|шкаф|полк|стремянк|шланг|рулетк|елка|елк|велосипед|самокат|"
     r"кастрюл|сковород|нож\b|лопат|мяч\b|бассейн|батут|кабел|шнур|удлинител"
 )
+# Габариты «60 × 45 см», «45х21х54 см». Число не обрезается: «2x16GB» не превращается в «2x1» + «6GB»
+# (R31-01); без единицы длины за последним числом не должна стоять другая единица («12 x 85 г» — фасовка)
 _DIM_MULTI_RE = re.compile(
-    r"(?:\d+(?:[.,]\d+)?\s*[xх×*]\s*)+\d+(?:[.,]\d+)?\s*(?:см|cm|мм|mm)?(?![a-zа-я])"
+    r"(?<![\w.,])(?:\d+(?:[.,]\d+)?\s*[xх×*]\s*)+\d+(?:[.,]\d+)?(?![\d.,])"
+    r"(?:\s*(?:см|cm|мм|mm)(?![a-zа-я])|(?!\s*[a-zа-я]))"
 )
 
 
@@ -195,9 +203,13 @@ def _allow_cm_diagonal(title: Any) -> bool:
     text = _text(title)
     if not text:
         return True
-    if _SCREEN_RE.search(text):
+    # Решает вид товара, а не любое слово: экран засчитывается, только если назван раньше не-экранного
+    # предмета и не как назначение («кабель для монитора») — R31-03
+    own = _FOR_SCREEN_RE.sub(" ", text)
+    screen, other = _SCREEN_RE.search(own), _NON_SCREEN_RE.search(own)
+    if screen and (not other or screen.start() < other.start()):
         return True
-    if _NON_SCREEN_RE.search(text) or _DIM_MULTI_RE.search(text):
+    if other or own != text or _DIM_MULTI_RE.search(text):      # товар «для экрана» сам экраном не является
         return False
     return True
 
@@ -206,17 +218,26 @@ def title_variants(title: Any) -> List[Dict[str, Any]]:
     """Объём (ГБ/ТБ) и диагональ (дюймы от 10, сантиметры 50–250 для экранов) из названия в виде variants модели."""
     text = _text(title)
     allow_cm = _allow_cm_diagonal(text)
-    # Габариты вида «60 × 45 см» или «45х21х54 см» никогда не являются диагональю экрана
-    text_no_dims = _DIM_MULTI_RE.sub(" ", text)
+    # Габариты вида «60 × 45 см» или «45х21х54 см» никогда не являются диагональю экрана; комплект памяти
+    # и фасовка разбираются ниже целиком, их части не читаются как отдельный объём
+    text_no_dims = _MULTIPACK_RE.sub(" ", _MEMKIT_RE.sub(" ", _DIM_MULTI_RE.sub(" ", text)))
     # «4/128Gb», «8/256 ГБ» — оперативная и встроенная память одной записью
     found = [{"value": float(first), "unit": unit}
              for first, unit in re.findall(r"(?<![\w.])(\d+)\s*/\s*\d+\s*(гб|gb|тб|tb)(?![a-zа-я])", text)]
-    # Мультипаки массы/объёма («12 x 85 г», «6 × 1.5 л»): суммарная масса/объём исключает расхождение 1020g vs 85g
+    # Мультипак массы/объёма («12 x 85 г», «6 × 1.5 л»): состав — величина одной упаковки и их число.
+    # Одна только сумма склеивала 12×85 г, 6×170 г и одиночные 1020 г (R31-02); ответ модели с поштучной
+    # или общей массой перекрывается названием одинаково
     for cnt_s, val_s, unit in _MULTIPACK_RE.findall(text):
         cnt = int(cnt_s)
         val = float(val_s.replace(",", "."))
         if 2 <= cnt <= 200 and val > 0:
-            found.append({"value": round(cnt * val, 4), "unit": unit})
+            found += [{"value": val, "unit": unit}, {"value": cnt, "unit": "шт"}]
+    # Комплект памяти: общий объём и число модулей — 2x16GB и одиночный модуль 32GB разные товары
+    for cnt_s, val_s, unit in _MEMKIT_RE.findall(text):
+        cnt = int(cnt_s)
+        val = float(val_s.replace(",", "."))
+        if 2 <= cnt <= 16 and val > 0:
+            found += [{"value": round(cnt * val, 4), "unit": unit}, {"value": cnt, "unit": "шт"}]
     for number, unit in _TITLE_VARIANT_RE.findall(text_no_dims):
         value = float(number.replace(",", "."))
         if unit in ("''", "”"):
@@ -502,6 +523,8 @@ def build_key(fields: Any, title: Any = None) -> Optional[str]:
             own |= {"g", "kg"}
         if any(v.endswith(("ml", "l")) for v in from_title):
             own |= {"ml", "l"}
+        if any(v.endswith("pcs") for v in from_title):
+            own |= {"pcs"}
         variants = sorted({v for v in variants if re.sub(r"^[0-9.]+", "", v) not in own} | set(from_title))[:4]
     # Диагональ, которая уже есть в номере модели (65E7S, 27GP850, U11), в ключ не идёт: одни магазины
     # пишут «65"», другие нет, и один телевизор расходился по двум ключам (замер C2)

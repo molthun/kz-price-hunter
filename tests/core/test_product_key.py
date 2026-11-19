@@ -282,8 +282,10 @@ class StandK2QualityFixesTest(unittest.TestCase):
         title = "Корм Royal Canin British Shorthair Adult для взрослых кошек - 12 x 85 г"
         f_total = {"brand": "Royal Canin", "model": "British Shorthair Adult", "variants": [{"value": 1020, "unit": "г"}]}
         f_single = {"brand": "Royal Canin", "model": "British Shorthair Adult", "variants": [{"value": 85, "unit": "г"}]}
-        self.assertEqual(pk.build_key(f_total, title), "k2:royalcanin:britishshorthairadult:1.02kg")
-        self.assertEqual(pk.build_key(f_single, title), "k2:royalcanin:britishshorthairadult:1.02kg")
+        # R31-02: в ключе состав упаковки (85 г × 12), а не только сумма; ответы с общей и поштучной
+        # массой по-прежнему дают один ключ
+        self.assertEqual(pk.build_key(f_total, title), "k2:royalcanin:britishshorthairadult:12pcs+85g")
+        self.assertEqual(pk.build_key(f_single, title), "k2:royalcanin:britishshorthairadult:12pcs+85g")
         # Одиночный пауч 85 г не путается с мультипаком 12 x 85 г
         self.assertEqual(
             pk.build_key(f_single, "Корм Royal Canin British Shorthair Adult - 85 г"),
@@ -291,7 +293,7 @@ class StandK2QualityFixesTest(unittest.TestCase):
         )
         # Мультипак объёма
         drink = {"brand": "Coca-Cola", "model": "Classic", "variants": [{"value": 1.5, "unit": "л"}]}
-        self.assertEqual(pk.build_key(drink, "Напиток Coca-Cola Classic 6 × 1.5 л"), "k2:cocacola:classic:9l")
+        self.assertEqual(pk.build_key(drink, "Напиток Coca-Cola Classic 6 × 1.5 л"), "k2:cocacola:classic:1.5l+6pcs")
 
     def test_strong_sku_extracted_from_title_when_model_omits_sku(self):
         # Модель не заполнила sku, а в model записала описательную кириллицу — код берётся из названия
