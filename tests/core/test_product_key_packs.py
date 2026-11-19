@@ -95,6 +95,55 @@ class MemoryKitTest(unittest.TestCase):
         self.assertEqual(groups, 1)
 
 
+class SingleModuleRecordTest(unittest.TestCase):
+    """R32-01: «1x16GB» — один модуль 16 ГБ; объём не стирается, даже если модель не вернула variants."""
+    RAM = ('Kingston', 'Fury Beast')
+    PREFIX = 'Оперативная память Kingston Fury Beast DDR5 '
+
+    def key(self, record, variants=None):
+        return pk.build_key(dict(fields(*self.RAM), variants=variants or []), self.PREFIX + record)
+
+    def test_single_module_records_equal_plain_size(self):
+        for variants in ([], [dict(value=16, unit='GB')]):
+            plain = self.key('16GB', variants)
+            self.assertEqual(plain, 'k2:kingston:furybeast:16gb+ddr5')
+            for record in ('1x16GB', '1 x 16 ГБ', '1×16GB', '1х16GB', '1*16 GB'):
+                with self.subTest(record=record, variants=variants):
+                    self.assertEqual(self.key(record, variants), plain)
+
+    def test_single_modules_of_different_size_stay_apart(self):
+        k16, k32 = self.key('1x16GB'), self.key('1x32GB')
+        self.assertEqual(k32, 'k2:kingston:furybeast:32gb+ddr5')
+        self.assertNotEqual(k16, k32)
+        self.assertTrue(pk.keys_conflict(k16, k32))
+
+    def test_rejected_count_does_not_erase_the_size(self):
+        k16, k32 = self.key('20x16GB'), self.key('20x32GB')
+        self.assertIn('16gb', k16)
+        self.assertNotEqual(k16, k32)
+
+    def test_full_path_with_empty_and_filled_variants(self):
+        for variants in ([], None):
+            with self.subTest(variants=variants):
+                def item(record, size):
+                    return (self.PREFIX + record,
+                            dict(fields(*self.RAM), variants=[] if variants == [] else [dict(value=size, unit='GB')]))
+                _, groups, offers = canonical_groups([item('1x16GB', 16), item('1x32GB', 32)])
+                self.assertEqual((groups, offers), (2, 2))
+                keys, groups, offers = canonical_groups([item('1x16GB', 16), item('16GB', 16)])
+                self.assertEqual(len(set(keys.values())), 1, keys)
+                self.assertEqual((groups, offers), (1, 1))
+
+    def test_single_pack_record_behaves_like_plain_pack(self):
+        food = ('Royal Canin', 'Adult')
+        for variants in ([], [dict(value=85, unit='г')]):
+            with self.subTest(variants=variants):
+                one = pk.build_key(dict(fields(*food), variants=variants), 'Корм Royal Canin Adult 1 x 85 г')
+                plain = pk.build_key(dict(fields(*food), variants=variants), 'Корм Royal Canin Adult 85 г')
+                self.assertEqual(one, plain)
+                self.assertNotIn('pcs', one)
+
+
 class PackCompositionTest(unittest.TestCase):
     """R31-02: состав упаковки (число × величина одной) остаётся в ключе наряду с её разбором."""
     FOOD = ('Royal Canin', 'British Shorthair Adult')

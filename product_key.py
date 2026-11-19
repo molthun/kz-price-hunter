@@ -214,13 +214,23 @@ def _allow_cm_diagonal(title: Any) -> bool:
     return True
 
 
+def _pack_count(count: str, limit: int) -> int:
+    """Число модулей/упаковок в записи «N x …»: 1…limit, иначе 0 — запись не разбирается."""
+    n = int(count)
+    return n if 1 <= n <= limit else 0
+
+
 def title_variants(title: Any) -> List[Dict[str, Any]]:
     """Объём (ГБ/ТБ) и диагональ (дюймы от 10, сантиметры 50–250 для экранов) из названия в виде variants модели."""
     text = _text(title)
     allow_cm = _allow_cm_diagonal(text)
     # Габариты вида «60 × 45 см» или «45х21х54 см» никогда не являются диагональю экрана; комплект памяти
     # и фасовка разбираются ниже целиком, их части не читаются как отдельный объём
-    text_no_dims = _MULTIPACK_RE.sub(" ", _MEMKIT_RE.sub(" ", _DIM_MULTI_RE.sub(" ", text)))
+    # Вырезается только то, что ниже действительно возвращается в варианты: отклонённая запись (счётчик вне
+    # диапазона) не стирает данные названия молча (R32-01)
+    text_no_dims = _MULTIPACK_RE.sub(lambda m: " " if _pack_count(m.group(1), 200) else m.group(0),
+                                     _MEMKIT_RE.sub(lambda m: " " if _pack_count(m.group(1), 16) else m.group(0),
+                                                    _DIM_MULTI_RE.sub(" ", text)))
     # «4/128Gb», «8/256 ГБ» — оперативная и встроенная память одной записью
     found = [{"value": float(first), "unit": unit}
              for first, unit in re.findall(r"(?<![\w.])(\d+)\s*/\s*\d+\s*(гб|gb|тб|tb)(?![a-zа-я])", text)]
@@ -228,16 +238,22 @@ def title_variants(title: Any) -> List[Dict[str, Any]]:
     # Одна только сумма склеивала 12×85 г, 6×170 г и одиночные 1020 г (R31-02); ответ модели с поштучной
     # или общей массой перекрывается названием одинаково
     for cnt_s, val_s, unit in _MULTIPACK_RE.findall(text):
-        cnt = int(cnt_s)
+        cnt = _pack_count(cnt_s, 200)
         val = float(val_s.replace(",", "."))
-        if 2 <= cnt <= 200 and val > 0:
-            found += [{"value": val, "unit": unit}, {"value": cnt, "unit": "шт"}]
+        # «1 x 85 г» — одна упаковка: как и просто «85 г», масса берётся из ответа модели, а не из названия
+        if val > 0 and cnt != 1:
+            found.append({"value": val, "unit": unit})  # при отклонённом счётчике — хотя бы величина единицы
+            if cnt > 1:
+                found.append({"value": cnt, "unit": "шт"})
     # Комплект памяти: общий объём и число модулей — 2x16GB и одиночный модуль 32GB разные товары
     for cnt_s, val_s, unit in _MEMKIT_RE.findall(text):
-        cnt = int(cnt_s)
+        cnt = _pack_count(cnt_s, 16)
         val = float(val_s.replace(",", "."))
-        if 2 <= cnt <= 16 and val > 0:
-            found += [{"value": round(cnt * val, 4), "unit": unit}, {"value": cnt, "unit": "шт"}]
+        if val > 0:
+            # Отклонённый счётчик («20x16GB») — хотя бы объём модуля, а не пустота: иначе 20x16 и 20x32 склеятся
+            found.append({"value": round(cnt * val, 4) if cnt else val, "unit": unit})
+            if cnt > 1:                                 # «1x16GB» — один модуль, тот же товар, что «16GB»
+                found.append({"value": cnt, "unit": "шт"})
     for number, unit in _TITLE_VARIANT_RE.findall(text_no_dims):
         value = float(number.replace(",", "."))
         if unit in ("''", "”"):
