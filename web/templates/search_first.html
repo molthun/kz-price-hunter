@@ -9707,16 +9707,21 @@
       handleRoute();
     });
 
-    function handleRoute() {
+    // R26-UI01: стартовый маршрут (после ожидания checkAuth) показывает ту же страницу, на которой
+    // пользователь уже находится, — каталог, открытый им до окончания старта, не закрывается.
+    // Настоящий переход (navigateTo, popstate, вход) по-прежнему закрывает каталог.
+    function handleRoute(options) {
+      const initial = !!(options && options.initial);
       closeProductPhotos();
       const pathname = window.location.pathname;
       const params = new URLSearchParams(window.location.search);
 
       closeMobileFilters(false);
-      if (typeof closeCatalogModal === 'function') closeCatalogModal();
+      if (!initial && typeof closeCatalogModal === 'function') closeCatalogModal();
 
       // Режим закрытой разработки: только авторизованные и подтверждённые пользователи
       if (isMaintenanceMode && (!currentUser || !currentUser.is_confirmed)) {
+        if (typeof closeCatalogModal === 'function') closeCatalogModal();
         showView('viewClosedDev');
         updateNavState('');
         renderTelegramWidget('closedDevTgWidget');
@@ -14976,7 +14981,7 @@
       if (currentUser) {
         Favorites.syncWithServer();
       }
-      handleRoute();
+      handleRoute({ initial: true });
     });
   </script>
 </body>
