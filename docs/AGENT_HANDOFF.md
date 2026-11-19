@@ -9,6 +9,27 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## STAND_DEPLOYED v6.41.3 (v6.41.0–3): R1-01 / R1-02 — Региональные цены и мультигородские обходы (6 сетей Алматы+Астана + Белый Ветер РК) — Antigravity (2026-11-19, Asia/Almaty)
+
+- **Статус:** развёрнуто и проверено на стенде `kzph-stand`, **готово к выкату / независимой приёмке Codex**. В `origin/main` не пушилось, прод (`6.40.33`) не трогался.
+- **Срез:** приложение `75bc931` (цепочка `b5e901a` → `3cb5010` → `28d0346` → `75bc931`, версии `6.41.0`–`6.41.3`), образ `kzph-stand:local` (`sha256:e2ac31493bf045b3bda3e519b11b87d9edfe3f8c2c9fbd8bcf9933bec1f096fb`), контейнер `healthy`, `/api/version` = `6.41.3`, `/api/health` = `ok`. Локальная правка `docker-compose.stand.yml` сохранена.
+- **Полный состав кандидата `v6.41.0–3` (поколение R1):**
+  1. Документация и реестр: `docs/REGIONAL_PRICING.md`, ссылки в `docs/README.md`, раздел R1 в `docs/DEVELOPMENT_PLAN.md`; `SHOP_REGIONAL_POLICY` (38/38 магазинов `SHOP_KEYS`) в `config.py`; `"Алматы / Казахстан"` → `@kz` в `offer_identity.py`.
+  2. Мультигородской обход **Алматы + Астана** (раздельные `id@almaty` и `id@astana`, безопасный `complete` для `reconcile_source` при частичном сбое):
+     - `scrapers/twelve_months.py` (`12.kz`: перевод на актуальный Bitrix Aspro Premier + 8 живых URL `/catalog/...` + `cookie:current_region` `471567`/`471565` + проверка `.regions__name`);
+     - `scrapers/kaspi.py` (`X-KS-City` `710000000`/`750000000`, `search_live` учитывает `city`);
+     - `scrapers/magnum.py` (`?city=almaty`/`astana`, retry 522 / `HostCooldown`);
+     - `scrapers/technodom.py` (подмена `/astana/` ↔ `/almaty/` в URL + `cookie:city`);
+     - `scrapers/sulpak.py` + `config.CITIES_KZ` (исправлена путаница `sulpak_id`: живой проверкой подтверждено `1`=Алматы, `3`=Астана, `2`=Актобе);
+     - `scrapers/mechta.py` (`x-city-code` `astana`/`almaty`).
+  3. Доставка по РК: `scrapers/shopkz.py` YML-фид Белого Ветра помечен `"Астана / Казахстан"` (`shopkz_<id>@kz`) для видимости во всех городах РК; для `komfort.kz` зафиксировано отсутствие переключения города (`fixed:almaty`).
+- **Проверено исполнителем (не заменяет независимую приёмку Codex):**
+  - Чистый контейнер образа стенда (`docker run --rm --network none --cpus 2 --tmpfs /app/data -e DATA_DIR=/app/data kzph-stand:local python -m unittest discover -s . -p 'test_*.py'`): **3 192 OK** (439.9 с, +12 новых тестов).
+  - Шлюз сборки `release_gate.py pins`: `ok: true`, `checked: 25`; `release_gate.py secrets`: `ok: true`, 0 findings.
+  - Живые проверки: `12.kz` (14 Алматы + 24 Астана, 27 300 ₸ vs 35 000 ₸), `sulpak.kz` (`city_id=1` Алматы, `city_id=3` Астана), `technodom.kz` (`/astana/` и `/almaty/` HTTP 200), `komfort.kz` (нет переключения региона).
+- **Непроведённые проверки:** браузерные наборы (frontend не менялся), полный фоновый цикл волн на стенде после обновления 6 мультигородских скраперов, новый live CI (push не выполнялся).
+- **Следующий точный шаг:** независимая приёмка Codex по кандидату `v6.41.3` на стенде (прод `6.40.33` не трогается до приёмки и решения владельца).
+
 ## READY_FOR_STAND v6.41.3: R1-02 (часть 2) — мультигородской обход Алматы + Астана для Technodom, Sulpak и Mechta — Antigravity (2026-11-19, Asia/Almaty)
 
 - **Основание:** продолжение этапа R1-02 (`docs/REGIONAL_PRICING.md`) по поручению владельца.
