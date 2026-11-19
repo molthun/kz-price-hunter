@@ -67,8 +67,14 @@ async function scrollToLast(page,colSel,itemSel,touch){
    await page.locator('#catalogModalGrid.mobile-subcats').waitFor();
   }else{
    // На компьютере раздел открывается наведением (mouseenter перерисовывает колонку, поэтому мышью, а не click())
+   // Мышь уводится с колонки: после прокрутки колёсиком она стоит над пунктами, сброс scrollTop
+   // подводит под неё другой пункт, наведение перерисовывает колонку и найденный элемент исчезает
+   // (boundingBox() === null, CI тега v6.40.26)
+   await page.mouse.move(1,1);
    await page.evaluate(()=>{document.getElementById('catalogL1Column').scrollTop=0;});
-   const b=await page.locator('#catalogL1Column .catalog-l1-item').first().boundingBox();
+   let b=null;
+   for(let i=0;i<20&&!b;i++){b=await page.locator('#catalogL1Column .catalog-l1-item').first().boundingBox();if(!b)await page.waitForTimeout(50);}
+   assert.ok(b,`${label}: первый раздел не найден`);
    await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.waitForTimeout(150);
   }
   const heading=await page.locator('#catalogContentColumn .catalog-content-heading').innerText();
