@@ -60,6 +60,11 @@ class SulpakScraper(PagedScraper):
                 out[item["id"]] = item["price"]
         return out
 
+    @staticmethod
+    def _is_out_of_stock(card: Any) -> bool:
+        """Магазин сам пометил карточку отсутствующей (живьём: data-price="0" и «Нет в наличии»)."""
+        return "нет в наличии" in card.get_text(" ", strip=True).lower()
+
     def _confirm_city(self, soup: Any, has_cards: bool) -> None:
         """R1-A01: HTML-страница каталога должна сама подтвердить город (атрибуты data-city-id).
 
@@ -236,18 +241,30 @@ class SulpakScraper(PagedScraper):
             products: List[Dict[str, Any]] = []
             seen_codes = set()
 
+            # SULPAK-A01: видимая карточка товара, не разобранная по технической причине (сломана
+            # разметка цены/названия/ссылки), учитывается в unparsed и запрещает complete/снятие.
+            # Не ошибки: рекламные вставки сетки (.product__item без кода, названия и ссылки)
+            # и подтверждённое отсутствие («нет в наличии»).
+            unparsed = 0
             for c in cards:
                 pid = c.get("data-code") or c.get("data-product-id") or ""
                 title = c.get("data-name") or ""
                 data_price = c.get("data-price") or ""
+                link_el = c.find("a", href=lambda h: h and ("/g/" in h or "/p/" in h))
+
+                if not (pid or title or link_el):
+                    continue  # рекламная вставка сетки, не товар
 
                 if pid and pid in seen_codes:
                     continue
                 if pid:
                     seen_codes.add(pid)
 
-                link_el = c.find("a", href=lambda h: h and ("/g/" in h or "/p/" in h))
+                if self._is_out_of_stock(c):
+                    continue  # подтверждённое отсутствие товара, не ошибка разбора
+
                 if not link_el:
+                    unparsed += 1
                     continue
 
                 rel_link = link_el.get("href", "")
@@ -256,6 +273,7 @@ class SulpakScraper(PagedScraper):
                 if not title:
                     title = link_el.text.strip()
                 if not title:
+                    unparsed += 1
                     continue
 
                 img_el = c.find("img")
@@ -272,6 +290,7 @@ class SulpakScraper(PagedScraper):
                     current_price = parse_price(price_el.text) if price_el else 0
 
                 if current_price <= 0:
+                    unparsed += 1
                     continue
 
                 old_price_el = c.select_one(".product__item-price-old, .old-price")
@@ -297,9 +316,11 @@ class SulpakScraper(PagedScraper):
                 }
                 if validate_product_item(item):
                     products.append(item)
+                else:
+                    unparsed += 1
 
             complete = pages_count is not None and page_num >= pages_count
-            return ScanResult(products, complete=complete)
+            return ScanResult(products, complete=complete, unparsed=unparsed)
 
         except UnconfirmedEnd:
             raise
