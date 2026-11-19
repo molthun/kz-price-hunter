@@ -1142,6 +1142,38 @@ class SearchCore:
             if product.category:
                 cat_breadcrumbs = [{"id": product.category, "name": product.category, "icon": "📦"}]
 
+        # R1-03: предложения из других городов РК (только у магазинов с delivery_kz=True, строго дешевле min_p
+        # либо любые доступные, если в выбранном городе 0 предложений). Не влияют на min_price и offers_count.
+        other_city_out: List[Dict[str, Any]] = []
+        seen_other_keys = set()
+        for od in detail.get("other_city_offers") or []:
+            price_val = float(od.get("price") or 0)
+            if price_val <= 0:
+                continue
+            avail = od.get("availability") or "in_stock"
+            if not bool(od.get("is_active", 1)) or avail == "out_of_stock":
+                continue
+            if min_p is not None and price_val >= min_p:
+                continue
+            dedupe_key = (od.get("seller_id"), od.get("city"))
+            if dedupe_key in seen_other_keys:
+                continue
+            seen_other_keys.add(dedupe_key)
+            other_city_out.append({
+                "id": od["id"],
+                "seller_id": od["seller_id"],
+                "seller_name": od.get("seller_name") or "Магазин",
+                "seller_domain": od.get("seller_domain") or "",
+                "channel_name": od.get("channel_name") or od.get("channel_type") or "Web",
+                "city": od.get("city") or "",
+                "price": price_val,
+                "url": od.get("url") or "",
+                "savings_kzt": int(round(min_p - price_val)) if min_p is not None else None,
+                "delivery_kz": True,
+            })
+            if len(other_city_out) >= 5:
+                break
+
         return {
             "ok": True,
             "product": product.to_dict(),
@@ -1156,6 +1188,7 @@ class SearchCore:
             "best_offer": best_off.to_dict() if best_off else None,
             "sellers": [s.to_dict() for s in seller_groups],
             "offers": [o.to_dict() for o in aggregated_offers],
+            "other_city_offers": other_city_out,
             "has_gift": any(o.gift is not None for o in aggregated_offers),
             "options": self._family_options(product, city) + build_options(aggregated_offers),
             "condition_breakdown": cond_breakdown,

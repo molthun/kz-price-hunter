@@ -1387,6 +1387,48 @@ class SearchRepository(BaseRepository):
 
         self._attach_offer_titles(offers)
 
+        # R1-03: предложения этого же товара из других городов РК (только у магазинов с доставкой по РК).
+        # Не смешиваются с offers текущего города и не влияют на min_price выбранного города.
+        other_city_offers = []
+        if city and city not in ("Все", "Казахстан"):
+            from config import SHOP_KEYS, get_shop_regional_policy
+            key_by_name = {name.lower(): k for k, name in SHOP_KEYS.items()}
+            other_sql = f"""
+            SELECT o.*,
+                   s.name as seller_name,
+                   s.slug as seller_slug,
+                   s.domain as seller_domain,
+                   c.channel_type,
+                   c.name as channel_name
+            FROM offers o
+            JOIN sellers s ON o.seller_id = s.id
+            JOIN channels c ON o.channel_id = c.id
+            WHERE o.product_id IN ({','.join('?' * len(product_ids))})
+              AND o.is_active = 1
+              AND s.is_active = 1
+              AND c.is_active = 1
+              AND o.price > 0
+              AND o.city IS NOT NULL AND o.city != ''
+              AND o.city != 'Все'
+              AND o.city NOT LIKE '%Казахстан%'
+              AND o.city != ?
+              AND o.city NOT LIKE ?
+            ORDER BY o.price ASC
+            LIMIT 25
+            """
+            other_rows = self.fetchall(other_sql, list(product_ids) + [city, f"%{city}%"])
+            for r in other_rows:
+                od = dict(r)
+                sname = str(od.get("seller_name") or "").strip().lower()
+                sslug = str(od.get("seller_slug") or "").strip().lower()
+                skey = key_by_name.get(sname) or (sslug if sslug in SHOP_KEYS else "")
+                # Разрешаем только явно подтверждённую доставку по РК (магазины вроде Магнум/Arbuz исключаются)
+                if skey and not get_shop_regional_policy(skey).get("delivery_kz", False):
+                    continue
+                if not skey:
+                    continue
+                other_city_offers.append(od)
+
         # Прикрепляем штрихкод из product_barcodes, если есть
         try:
             if not product.attributes.get("barcode"):
@@ -1402,4 +1444,5 @@ class SearchRepository(BaseRepository):
         return {
             "product": product,
             "offers": offers,
+            "other_city_offers": other_city_offers,
         }

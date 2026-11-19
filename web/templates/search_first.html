@@ -2038,6 +2038,99 @@
       background: var(--table-hover);
     }
 
+    .delivery-kz-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--bg-subtle);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    .other-city-box {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+    }
+
+    .other-city-header {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .other-city-note {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .other-city-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .other-city-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+    }
+
+    .other-city-info {
+      min-width: 0;
+      flex: 1 1 180px;
+    }
+
+    .other-city-seller {
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: var(--text-main);
+      word-break: break-word;
+    }
+
+    .other-city-meta {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .other-city-price-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .other-city-price {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .other-city-savings {
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--badge-discount);
+      white-space: nowrap;
+    }
+
     .seller-cell-title {
       font-weight: 700;
       color: var(--text-main);
@@ -6675,6 +6768,7 @@
             <tbody id="offersTableBody"></tbody>
           </table>
         </div>
+        <div id="otherCityOffersBox" class="other-city-box" style="display:none;"></div>
         <div id="detailWebOffersWrap" style="margin-top:16px; display:flex; justify-content:center;">
           <button type="button" id="detailWebOffersBtn" onclick="triggerDetailWebSearch()" style="display:inline-flex; align-items:center; gap:6px; background:var(--bg-subtle); border:1px solid var(--border-color); color:var(--text-main); border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.15s;">
             🌐 Найти в других магазинах Казахстана (SearXNG)
@@ -12184,6 +12278,55 @@
       const sellerCount = new Set(offers.map(off => off.seller_id)).size;
       document.getElementById('detailSellersCountBadge').textContent = data.selected_offer?[data.selected_offer.seller_name,data.selected_offer.city].filter(Boolean).join(' · '):'Доступно у ' + sellerCount + ' ' + pluralizeSellers(sellerCount);
       renderOffersTable(offers);
+      renderOtherCityOffers(data.selected_offer ? [] : (data.other_city_offers || []), offers.length > 0);
+    }
+
+    function isNationwideDeliveryCity(city) {
+      const c = String(city || '').toLowerCase();
+      return c.includes('казахстан') || c === 'все';
+    }
+
+    function renderOtherCityOffers(otherOffers, hasLocalOffers) {
+      const box = document.getElementById('otherCityOffersBox');
+      if (!box) return;
+      if (!Array.isArray(otherOffers) || otherOffers.length === 0) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        return;
+      }
+      const title = hasLocalOffers
+        ? '🚚 Выгоднее в другом городе (доставка по РК)'
+        : '🚚 Есть в других городах с доставкой по РК';
+      const rowsHtml = otherOffers.map(off => {
+        const validUrl = isValidOfferUrl(off.url);
+        const savingsHtml = (off.savings_kzt && off.savings_kzt > 0)
+          ? '<span class="other-city-savings">−' + formatPrice(off.savings_kzt) + '</span>'
+          : '';
+        const actionHtml = validUrl
+          ? `<a href="${escapeHtml(off.url)}" target="_blank" rel="noopener noreferrer" class="btn-to-seller" style="padding:6px 12px; font-size:0.8rem;"><span>К продавцу</span> <span>↗</span></a>`
+          : '';
+        return `
+          <div class="other-city-row">
+            <div class="other-city-info">
+              <div class="other-city-seller">${escapeHtml(off.seller_name || 'Магазин')}</div>
+              <div class="other-city-meta">📍 ${escapeHtml(off.city || '')} · ${escapeHtml(off.channel_name || 'Web')}</div>
+            </div>
+            <div class="other-city-price-wrap">
+              <div>
+                <div class="other-city-price">${formatPrice(off.price)}</div>
+                ${savingsHtml}
+              </div>
+              ${actionHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+      box.innerHTML = `
+        <div class="other-city-header">${title}</div>
+        <div class="other-city-note">Цена указана для другого города без учёта стоимости доставки по Казахстану.</div>
+        <div class="other-city-list">${rowsHtml}</div>
+      `;
+      box.style.display = 'block';
     }
 
     function renderOffersTable(offers) {
@@ -12200,7 +12343,12 @@
 
         let factsHtml = '';
         if (off.seller_domain) factsHtml += '<span>🌐 ' + escapeHtml(off.seller_domain) + '</span> ';
-        if (off.city) factsHtml += '<span>📍 ' + escapeHtml(off.city) + '</span>';
+        if (off.city) {
+          factsHtml += '<span>📍 ' + escapeHtml(off.city) + '</span>';
+          if (isNationwideDeliveryCity(off.city)) {
+            factsHtml += ' <span class="delivery-kz-badge" title="Доставка по всему Казахстану">🚚 Доставка по РК</span>';
+          }
+        }
         factsHtml += '<div>' + escapeHtml(offerObservationText(off)) + '</div>';
 
         if (off.warranty) factsHtml += '<div>Гарантия: ' + escapeHtml(off.warranty) + '</div>';
