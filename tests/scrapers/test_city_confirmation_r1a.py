@@ -262,6 +262,33 @@ class EmptyEndPageCityTest(unittest.TestCase):
         self.assertEqual(retired, [])
 
 
+class TechnodomCityUrlTest(unittest.TestCase):
+    """Живой обход 6.42.2: ссылки категорий config без города давали Алматы и для Астаны."""
+
+    def test_city_inserted_when_category_url_has_no_city(self):
+        self.assertEqual(TechnodomScraper._city_url("https://www.technodom.kz/catalog/a/b", "astana"),
+                         "https://www.technodom.kz/astana/catalog/a/b")
+        self.assertEqual(TechnodomScraper._city_url("https://www.technodom.kz/almaty/catalog/a", "astana"),
+                         "https://www.technodom.kz/astana/catalog/a")
+
+    def test_config_urls_without_city_crawl_both_cities(self):
+        import config
+        seen = []
+
+        def get(url, cookies=None, **kw):
+            seen.append(url)
+            slug = "astana" if "/astana/" in url else "almaty" if "/almaty/" in url else "almaty"
+            items = [] if "page=2" in url else [TD_ITEM]
+            return SimpleNamespace(status_code=200, text=_technodom_html(items, slug))
+        url = config.TECHNODOM_CATEGORIES[0]["url"]
+        self.assertNotIn("/astana/", url)
+        with patch("scrapers.technodom.requests.get", side_effect=get), patch("time.sleep"):
+            res = TechnodomScraper()._scrape_sync("C", url, 2)
+        self.assertTrue(res.complete, res.error)
+        self.assertEqual({x["city"] for x in res}, {"Астана", "Алматы"})
+        self.assertTrue(any("/astana/catalog/" in u for u in seen))
+
+
 class MergeCityResultsTest(unittest.TestCase):
     def test_preserves_failure_metadata_unparsed_and_limited(self):
         failure = source_failure.make("http_403", phase="fetch", page=2, http_status=403)

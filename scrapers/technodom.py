@@ -43,12 +43,20 @@ class TechnodomScraper(PagedScraper):
 
     @staticmethod
     def _city_url(category_url: str, slug: str) -> str:
-        return re.sub(
+        """Ссылка категории для города: заменяет город в пути или вставляет его, если города нет.
+
+        Ссылки категорий в config заданы без города (technodom.kz/catalog/...): без вставки сайт
+        отдавал Алматы и для Астаны (выявлено живым обходом 6.42.2 по проверке currentCity).
+        """
+        replaced, n = re.subn(
             r"(https?://(?:www\.)?technodom\.kz/)(?:astana|almaty|shymkent|karaganda)(/)",
             rf"\g<1>{slug}\g<2>",
             category_url,
             count=1,
         )
+        if n:
+            return replaced
+        return re.sub(r"(https?://(?:www\.)?technodom\.kz/)(?=catalog/)", rf"\g<1>{slug}/", category_url, count=1)
 
     @staticmethod
     def _price(value: Any) -> int:
