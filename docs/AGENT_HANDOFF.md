@@ -9,6 +9,15 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## READY_FOR_STAND v6.40.31: стабилизация источников kimex.kz, french-house.kz, komfort.kz (error_rate) — Antigravity (2026-11-19, Asia/Almaty)
+
+- **Основание:** аудит Codex (`docs/PROJECT_AUDIT_2026-11-18_CODEX.md`) — фоновые HTTP-ошибки `error_rate` на стенде и проде относятся к `kimex.kz`, `french-house.kz`, `komfort.kz` (таймауты, 500/522).
+- **Изменённые файлы:** `scrapers/kimex.py`, `scrapers/french_house.py`, `scrapers/komfort.py`, `tests/scrapers/test_bitrix_retry_stability.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- **Что сделано:**
+  - Для всех трёх тяжёлых Bitrix-источников (живой замер: 357 КБ – 1.16 МБ, 2.2–4.4 с на страницу): `PAGE_DELAY_SECONDS` повышен с `0.4` до `1.0` с, `REQUEST_TIMEOUT_SECONDS` с `20` до `30` с, добавлены Cloudflare-коды `520/522/524` в `RETRY_STATUS_CODES` с паузой `2.0` с; в `komfort.py` добавлен отсутствовавший retry-цикл; при `HostCooldown` повтор не выполняется.
+- **Проверено локально (macOS `venv/bin/python`):** `py_compile` OK, `release_gate.py secrets` OK (0 findings), `test_bitrix_retry_stability` + `test_scraper_contract` — **37 OK** (1.1 с).
+- **Следующий точный шаг:** как только восстановится доступ к хосту стенда `192.168.28.25:2222`, доставить `v6.40.30–31` через `git bundle`, пересобрать `kzph-stand` и прогнать полный Python-набор + бенчмарк `k2` на стенде. В `origin/main` не пушилось, прод (`6.40.28`) не трогался.
+
 ## READY_FOR_STAND v6.40.30: P17-C (k2 итерация 2) — мультипаки и извлечение сильного артикула из названия — Antigravity (2026-11-19, Asia/Almaty)
 
 - **Основание:** поручение владельца «Делаем дальше» — продолжение стабилизации `k2` (P17-C4/C5/C8) после `v6.40.29`.

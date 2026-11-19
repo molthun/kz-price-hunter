@@ -26,7 +26,10 @@ from scrapers.base import (
 
 class FrenchHouseScraper(PagedScraper):
     SHOP_NAME = "Французский Дом"
-    PAGE_DELAY_SECONDS = 0.4
+    PAGE_DELAY_SECONDS = 1.0
+    RETRY_STATUS_CODES = (500, 502, 503, 504, 520, 522, 524)
+    REQUEST_TIMEOUT_SECONDS = 30
+    RETRY_DELAY_SECONDS = 2.0
 
     def __init__(self, base_url: str = "https://french-house.kz"):
         self.base_url = base_url.rstrip("/")
@@ -141,14 +144,16 @@ class FrenchHouseScraper(PagedScraper):
         resp = None
         for attempt in range(2):
             try:
-                resp = session.get(url, headers=self.headers, timeout=20)
-                if resp.status_code in (500, 502, 503, 504) and attempt == 0:
-                    time.sleep(1.0)
+                resp = session.get(url, headers=self.headers, timeout=self.REQUEST_TIMEOUT_SECONDS)
+                if resp.status_code in self.RETRY_STATUS_CODES and attempt == 0:
+                    time.sleep(self.RETRY_DELAY_SECONDS)
                     continue
                 break
+            except requests.HostCooldown:
+                raise
             except Exception:
                 if attempt == 0:
-                    time.sleep(1.0)
+                    time.sleep(self.RETRY_DELAY_SECONDS)
                     continue
                 raise
 

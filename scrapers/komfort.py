@@ -4,6 +4,7 @@
 Категории: электроинструменты, стройматериалы, отделка, сантехника, сад, товары для дома, мелкая бытовая техника.
 Пагинация: ?PAGEN_1=N.
 """
+import time
 from typing import List, Dict, Any
 from urllib.parse import urljoin
 from html_soup import make_soup
@@ -14,7 +15,10 @@ from scrapers.base import PagedScraper, price_value, validate_product_item, Unco
 class KomfortScraper(PagedScraper):
     SHOP_NAME = "Комфорт"
     SHOP_EMOJI = "🛋"
-    PAGE_DELAY_SECONDS = 0.4
+    PAGE_DELAY_SECONDS = 1.0
+    RETRY_STATUS_CODES = (500, 502, 503, 504, 520, 522, 524)
+    REQUEST_TIMEOUT_SECONDS = 30
+    RETRY_DELAY_SECONDS = 2.0
 
     def __init__(self):
         self.base_url = "https://komfort.kz"
@@ -43,7 +47,23 @@ class KomfortScraper(PagedScraper):
 
         session = self._get_session()
         try:
-            r = session.get(url, headers=self.headers, timeout=20)
+            r = None
+            for attempt in range(2):
+                try:
+                    r = session.get(url, headers=self.headers, timeout=self.REQUEST_TIMEOUT_SECONDS)
+                    if r.status_code in self.RETRY_STATUS_CODES and attempt == 0:
+                        time.sleep(self.RETRY_DELAY_SECONDS)
+                        continue
+                    break
+                except requests.HostCooldown:
+                    raise
+                except Exception:
+                    if attempt == 0:
+                        time.sleep(self.RETRY_DELAY_SECONDS)
+                        continue
+                    raise
+            if r is None:
+                raise RuntimeError(f"Не удалось получить ответ от {url}")
             if r.status_code == 404:
                 # За последней страницей — 404; на первой странице это ошибка категории
                 if page_num > 1:
