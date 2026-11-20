@@ -26,6 +26,23 @@ def location_slug(city: Optional[str]) -> str:
     return "unknown"
 
 
+# Суффикс id — ключ хранимой записи, а не смысл города. 6.41.0 сделал эти метки общенациональными
+# для поиска (location_slug → kz), но записи прода хранятся под прежними суффиксами; смена суффикса
+# без переноса данных создавала новые id и снимала старые, разрывая историю цен и наблюдения
+# (docs/STAND_WAVE_CYCLE_2026-11-20.md §7). Поэтому id строится с прежним суффиксом.
+_LEGACY_ID_SLUG = {"Алматы / Казахстан": "unknown"}
+# Фид Белого Ветра до 6.41.0 подписывался «Астана» — его записи хранятся как …@astana
+_LEGACY_SHOP_ID_SLUG = {("Белый Ветер", "Астана / Казахстан"): "astana"}
+
+
+def id_location_slug(city: Optional[str], shop: Optional[str] = None) -> str:
+    """Суффикс места продажи в id: как location_slug, но с прежними значениями для меток,
+    смысл которых менялся после появления записей (совместимость идентичности)."""
+    name = (city or "").strip()
+    legacy = _LEGACY_SHOP_ID_SLUG.get(((shop or "").strip(), name)) or _LEGACY_ID_SLUG.get(name)
+    return legacy or location_slug(name)
+
+
 # Префикс магазина в id (R-H01): у старых адаптеров исторический префикс — их id не меняются;
 # остальные магазины получают ключ из SHOP_KEYS. Без префикса одинаковый id товара в разных
 # магазинах давал одну запись в БД.
@@ -51,7 +68,8 @@ def offer_id(product: Dict[str, Any]) -> str:
     base = str(product["id"])
     if "@" in base:
         return base
-    return f"{namespaced_id(base, product.get('shop'))}@{location_slug(product.get('city'))}"
+    shop = product.get("shop")
+    return f"{namespaced_id(base, shop)}@{id_location_slug(product.get('city'), shop)}"
 
 
 def assign_offer_ids(products: Iterable[Dict[str, Any]]):

@@ -186,7 +186,10 @@ class ShopKzNationwideYmlTest(unittest.TestCase):
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0]["city"], "Астана / Казахстан")
         offer_identity.assign_offer_ids(items)
-        self.assertEqual(items[0]["id"], "shopkz_99911@kz")
+        # Метка общенациональная (виден во всех городах), но id прежний: записи хранятся как …@astana
+        # (совместимость идентичности, docs/STAND_WAVE_CYCLE_2026-11-20.md §7)
+        self.assertEqual(offer_identity.location_slug(items[0]["city"]), "kz")
+        self.assertEqual(items[0]["id"], "shopkz_99911@astana")
 
 
 class KaspiAndMagnumMultiCityTest(unittest.TestCase):
