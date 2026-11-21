@@ -1,0 +1,208 @@
+......................................................./Users/molthun/Documents/kz-price-hunter/domain/category.py:60: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10d18fa60>
+  attributes_schema=dict(schema) if isinstance(schema, dict) else {},
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/Users/molthun/Documents/kz-price-hunter/domain/category.py:60: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10d18f6a0>
+  attributes_schema=dict(schema) if isinstance(schema, dict) else {},
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/Users/molthun/Documents/kz-price-hunter/domain/category.py:60: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10d2816c0>
+  attributes_schema=dict(schema) if isinstance(schema, dict) else {},
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+[Forte Market] Смартфоны: 2 товаров за 1 стр. (0.0с) — завершено
+[Forte Market] Смартфоны: 5 товаров за 1 стр. (0.0с) — завершено
+[Forte Market] Смартфоны: 2 товаров за 1 стр. (0.0с) — конец каталога, но не разобрано карточек: 1
+[Forte Market] Смартфоны: 2 товаров за 1 стр. (0.0с) — конец каталога, но не разобрано карточек: 1
+[Forte Market] Смартфоны: 2 товаров за 1 стр. (0.0с) — конец каталога, но не разобрано карточек: 1
+[Forte Market] Смартфоны: 2 товаров за 1 стр. (0.0с) — конец каталога, но не разобрано карточек: 1
+[Forte Market] Смартфоны: 2 товаров за 1 стр. (0.0с) — конец каталога, но не разобрано карточек: 1
+[Kaspi Магазин] Смартфоны: 1 товаров за 2 стр. (0.0с) — завершено
+[Kaspi Магазин] Смартфоны: 1 товаров за 2 стр. (0.0с) — завершено
+[Белый Ветер] ✅ Успешно выгружено 1 товаров из официального YML фида!
+[Мечта] Планшеты: 1 товаров за 2 стр. (0.0с) — завершено
+[Мечта] Планшеты: 1 товаров за 2 стр. (0.0с) — завершено
+[Sulpak] Смартфоны: 1 товаров за 1 стр. (0.0с) — завершено
+[Sulpak] Смартфоны: 1 товаров за 1 стр. (0.0с) — завершено
+[Технодом] Смартфоны: 1 товаров за 2 стр. (0.0с) — завершено
+[Технодом] Смартфоны: 1 товаров за 2 стр. (0.0с) — завершено
+[12 Месяцев] Отопление: 1 товаров за 1 стр. (0.0с) — завершено
+[12 Месяцев] Отопление: 1 товаров за 1 стр. (0.0с) — завершено
+[12 Месяцев] Отопление: 1 товаров за 1 стр. (0.0с) — завершено
+[12 Месяцев] Отопление: 0 товаров за 0 стр. (0.0с) — ошибка: RuntimeError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[Sulpak] C: 1 товаров за 1 стр. (0.0с) — ошибка: ValueError; SC02[code=parse;phase=parse;page=2;http=-] Не удалось разобрать ответ магазина
+[Sulpak] C: 1 товаров за 2 стр. (0.0с) — завершено
+[Sulpak] C: 1 товаров за 1 стр. (0.0с) — конец каталога не подтверждён
+[Sulpak] C: 1 товаров за 1 стр. (0.0с) — конец каталога не подтверждён
+[Sulpak] C: 1 товаров за 2 стр. (0.0с) — завершено
+[Sulpak] C: 1 товаров за 1 стр. (0.0с) — ошибка: ValueError; SC02[code=parse;phase=parse;page=2;http=-] Не удалось разобрать ответ магазина
+[Технодом] C: 1 товаров за 1 стр. (0.0с) — ошибка: ValueError; SC02[code=parse;phase=parse;page=2;http=-] Не удалось разобрать ответ магазина
+[Технодом] C: 1 товаров за 2 стр. (0.0с) — завершено
+[Технодом] C: 1 товаров за 1 стр. (0.0с) — конец каталога не подтверждён
+[Технодом] C: 1 товаров за 1 стр. (0.0с) — конец каталога не подтверждён
+[Технодом] C: 1 товаров за 2 стр. (0.0с) — завершено
+[Технодом] C: 1 товаров за 1 стр. (0.0с) — ошибка: ValueError; SC02[code=parse;phase=parse;page=2;http=-] Не удалось разобрать ответ магазина
+[Технодом] C: 0 товаров за 0 стр. (0.0с) — ошибка: RuntimeError; SC02[code=http_403;phase=fetch;page=1;http=403] Магазин запретил доступ
+[Технодом] C: 1 товаров за 2 стр. (0.0с) — завершено
+[Технодом] C: 0 товаров за 0 стр. (0.0с) — ошибка: RuntimeError; SC02[code=http_429;phase=fetch;page=1;http=429] Магазин ограничил частоту запросов
+[Технодом] C: 1 товаров за 2 стр. (0.0с) — завершено
+[Технодом] Повтор 1/2 для страницы 1 категории C (Timeout), пауза 1.2с
+[Технодом] Повтор 2/2 для страницы 1 категории C (Timeout), пауза 2.3с
+[Технодом] C: 0 товаров за 0 стр. (0.0с) — ошибка: Timeout; SC02[code=timeout;phase=fetch;page=1;http=-] Магазин не ответил вовремя
+[Технодом] C: 1 товаров за 2 стр. (0.0с) — завершено
+[Технодом] C: 0 товаров за 0 стр. (0.0с) — ошибка: HostCooldown; SC02[code=cooldown;phase=fetch;page=1;http=-] Действует пауза перед запросами к магазину
+[Технодом] C: 1 товаров за 2 стр. (0.0с) — завершено
+[Технодом] C: 1 товаров за 2 стр. (0.0с) — завершено
+[Технодом] C: 1 товаров за 2 стр. (0.0с) — завершено
+[Sulpak] C: 0 товаров за 0 стр. (0.0с) — ошибка: ValueError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[Sulpak] C: 0 товаров за 0 стр. (0.0с) — ошибка: ValueError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[Sulpak] C: 0 товаров за 0 стр. (0.0с) — ошибка: ValueError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[Sulpak] C: 0 товаров за 0 стр. (0.0с) — ошибка: ValueError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[Sulpak] C: 1 товаров за 1 стр. (0.0с) — завершено
+[Технодом] C: 0 товаров за 0 стр. (0.0с) — ошибка: ValueError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[Технодом] C: 0 товаров за 0 стр. (0.0с) — ошибка: ValueError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[Технодом] C: 0 товаров за 0 стр. (0.0с) — ошибка: ValueError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[Технодом] C: 1 товаров за 1 стр. (0.0с) — достигнут лимит страниц
+[12 Месяцев] C: 1 товаров за 1 стр. (0.0с) — завершено
+[12 Месяцев] C: 0 товаров за 0 стр. (0.0с) — ошибка: RuntimeError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[12 Месяцев] C: 0 товаров за 0 стр. (0.0с) — ошибка: RuntimeError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[12 Месяцев] C: 0 товаров за 0 стр. (0.0с) — ошибка: RuntimeError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[12 Месяцев] C: 1 товаров за 1 стр. (0.0с) — завершено
+[12 Месяцев] C: 0 товаров за 0 стр. (0.0с) — ошибка: RuntimeError; SC02[code=parse;phase=parse;page=1;http=-] Не удалось разобрать ответ магазина
+[12 Месяцев] C: 1 товаров за 1 стр. (0.0с) — конец каталога, но не разобрано карточек: 1
+[12 Месяцев] C: 2 товаров за 1 стр. (0.0с) — завершено
+[12 Месяцев] C: 1 товаров за 1 стр. (0.0с) — конец каталога, но не разобрано карточек: 1
+[12 Месяцев] C: 1 товаров за 1 стр. (0.0с) — завершено
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Бэкап перед миграциями 0→1: /var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/tmpdglrrf8l/backups/prices-pre-v1-20261121T094250471232Z-77778c.db
+[DB] Бэкап перед миграциями 0→5: /var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/tmpp258algg/backups/prices-pre-v5-20261121T094250579281Z-47e007.db
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Бэкап перед миграциями 0→5: /var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/tmpwwscti1p/backups/prices-pre-v5-20261121T094250699087Z-c45204.db
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[System] 📡 Модуль онлайн-логирования активирован.
+......./Users/molthun/Documents/kz-price-hunter/web/server.py:6872: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+  app["stats_cache"] = BoundedTTLCache(maxsize=128, ttl=STATS_CACHE_TTL_SECONDS)
+[Auth] ⚠️ ADMIN_TELEGRAM_IDS не задан — администраторов нет, общие настройки и логи недоступны
+[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены
+[System] Пул рабочих потоков: 32 (ядер: 10)
+E/Users/molthun/Documents/kz-price-hunter/venv/lib/python3.14/site-packages/aiohttp/client.py:527: ResourceWarning: Unclosed client session <aiohttp.client.ClientSession object at 0x10dfd81a0>
+  _warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x10dfd81a0>
+source_traceback: Object created at (most recent call last):
+  File "<frozen runpy>", line 203, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/__main__.py", line 18, in <module>
+    main(module=None)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/main.py", line 104, in __init__
+    self.runTests()
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/main.py", line 270, in runTests
+    self.result = testRunner.run(self.test)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/runner.py", line 257, in run
+    test(result)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/suite.py", line 84, in __call__
+    return self.run(*args, **kwds)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/suite.py", line 122, in run
+    test(result)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/suite.py", line 84, in __call__
+    return self.run(*args, **kwds)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/suite.py", line 122, in run
+    test(result)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/suite.py", line 84, in __call__
+    return self.run(*args, **kwds)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/suite.py", line 122, in run
+    test(result)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/case.py", line 725, in __call__
+    return self.run(*args, **kwds)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/async_case.py", line 147, in run
+    return super().run(result)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/case.py", line 669, in run
+    self._callTestMethod(testMethod)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/async_case.py", line 102, in _callTestMethod
+    result = self._callMaybeAsync(method)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/async_case.py", line 128, in _callMaybeAsync
+    return self._asyncioRunner.run(
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 707, in run_until_complete
+    self.run_forever()
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 678, in run_forever
+    self._run_once()
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 2049, in _run_once
+    handle._run()
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/events.py", line 94, in _run
+    self._context.run(self._callback, *self._args)
+  File "/Users/molthun/Documents/kz-price-hunter/tests/core/test_offer_identity.py", line 300, in test_admin_only_hot_toggle
+    async with TestClient(TestServer(app)) as client:
+  File "/Users/molthun/Documents/kz-price-hunter/venv/lib/python3.14/site-packages/aiohttp/test_utils.py", line 305, in __init__
+    self._session = ClientSession(loop=loop, cookie_jar=cookie_jar, **kwargs)
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/json/decoder.py:361: ResourceWarning: unclosed <socket.socket fd=6, family=2, type=1, proto=0, laddr=('0.0.0.0', 0)>
+  obj, end = self.scan_once(s, idx)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+......[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Бэкап перед миграциями 4→5: /var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/tmplwwvn0oj/backups/prices-pre-v5-20261121T094250940269Z-36f9b2.db
+[DB] Миграция 5: переименований 2, конфликтов 0, смешанных записей (история сброшена) 1
+[DB] Миграция 5 (offer_namespace) применена
+.[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+.[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+.[DB] Бэкап перед обновлением схемы 4→5: /var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/tmpc3kljigd/backups/prices-pre-v5-20261121T094251045152Z-26bd31.db
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+..
+======================================================================
+ERROR: test_admin_only_hot_toggle (tests.core.test_offer_identity.TrackedHotApiTest.test_admin_only_hot_toggle)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/molthun/Documents/kz-price-hunter/tests/core/test_offer_identity.py", line 300, in test_admin_only_hot_toggle
+    async with TestClient(TestServer(app)) as client:
+               ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/molthun/Documents/kz-price-hunter/venv/lib/python3.14/site-packages/aiohttp/test_utils.py", line 533, in __aenter__
+    await self.start_server()
+  File "/Users/molthun/Documents/kz-price-hunter/venv/lib/python3.14/site-packages/aiohttp/test_utils.py", line 312, in start_server
+    await self._server.start_server(loop=self._loop)
+  File "/Users/molthun/Documents/kz-price-hunter/venv/lib/python3.14/site-packages/aiohttp/test_utils.py", line 141, in start_server
+    _sock = self.socket_factory(self.host, self.port, family)
+  File "/Users/molthun/Documents/kz-price-hunter/venv/lib/python3.14/site-packages/aiohttp/test_utils.py", line 85, in get_port_socket
+    s.bind((host, port))
+    ~~~~~~^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted
+
+----------------------------------------------------------------------
+Ran 74 tests in 0.895s
+
+FAILED (errors=1)

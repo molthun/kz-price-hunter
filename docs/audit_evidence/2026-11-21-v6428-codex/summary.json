@@ -1,0 +1,25 @@
+{
+  "timestamp_utc": "2026-11-21T09:45:25.312721+00:00",
+  "head": "f7194ab732662c836f723fe8d7ba008475c12562",
+  "code_commit": "6437ffdebffe343917fbb3909f05f307d9b9c95e",
+  "environment": "macOS Python 3.14.7 venv; temporary DATA_DIR via tests.test_support",
+  "scheduler": {
+    "run": 245,
+    "errors": 3,
+    "failures": 0
+  },
+  "regional_identity": {
+    "run": 74,
+    "errors": 1,
+    "failures": 0
+  },
+  "independent": {
+    "run": 5,
+    "errors": 0,
+    "failures": 0
+  },
+  "blocked_tests_reason": "PermissionError [Errno 1] Operation not permitted on socket.bind; see logs",
+  "stand_access": "ssh 192.168.28.25:2222: Operation not permitted; no remote command executed",
+  "production_access": "not attempted; out of current scope",
+  "live_acceptance": "pending"
+}
