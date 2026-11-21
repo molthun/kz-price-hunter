@@ -1140,11 +1140,13 @@ DNS_CATEGORIES = [
     {"name": "DNS: 🖥 Мониторы", "url": "https://www.dns-shop.kz/catalog/17a8943716404e77/monitory/", "max_pages": 1, "master": "monitors"},
     {"name": "DNS: 📺 Телевизоры", "url": "https://www.dns-shop.kz/catalog/17a8ae4916404e77/televizory/", "max_pages": 1, "master": "tvs"},
     {"name": "DNS: 📱 Планшеты", "url": "https://www.dns-shop.kz/catalog/17a8a05316404e77/plansety/", "max_pages": 1, "master": "tablets_watches"},
-    {"name": "DNS: 💾 SSD накопители", "url": "https://www.dns-shop.kz/catalog/dd58148920724e77/ssd-m2-nakopiteli/", "max_pages": 1, "master": "storage"},
+    {"name": "DNS: 💾 SSD накопители 2.5\" SATA", "url": "https://www.dns-shop.kz/catalog/8a9ddfba20724e77/ssd-nakopiteli/", "max_pages": 1, "master": "storage"},
+    {"name": "DNS: 💾 SSD M.2 накопители", "url": "https://www.dns-shop.kz/catalog/dd58148920724e77/ssd-m2-nakopiteli/", "max_pages": 1, "master": "storage"},
     {"name": "DNS: 🧠 Оперативная память", "url": "https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/", "max_pages": 1, "master": "ram"},
     {"name": "DNS: 🎧 Наушники и гарнитуры", "url": "https://www.dns-shop.kz/catalog/17a9ef1716404e77/nausniki-i-garnitury/", "max_pages": 1, "master": "audio"},
     {"name": "DNS: ⌚️ Смарт-часы", "url": "https://www.dns-shop.kz/catalog/251c82c88ed24e77/smart-casy-i-braslety/", "max_pages": 1, "master": "tablets_watches"},
-    {"name": "DNS: 🎮 Игровые консоли", "url": "https://www.dns-shop.kz/catalog/17a8978216404e77/konsoli-playstation/", "max_pages": 1, "master": "consoles"},
+    {"name": "DNS: 🎮 Консоли PlayStation", "url": "https://www.dns-shop.kz/catalog/17a8978216404e77/konsoli-playstation/", "max_pages": 1, "master": "consoles"},
+    {"name": "DNS: 🎮 Консоли Xbox", "url": "https://www.dns-shop.kz/catalog/17a9f95d16404e77/konsoli-microsoft-xbox/", "max_pages": 1, "master": "consoles"},
     {"name": "DNS: 🎮 Портативные консоли", "url": "https://www.dns-shop.kz/catalog/17a8b7da16404e77/portativnye-igrovye-konsoli/", "max_pages": 1, "master": "consoles"},
 ]
 

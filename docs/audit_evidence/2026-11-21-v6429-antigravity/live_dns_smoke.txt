@@ -1,0 +1,19 @@
+timestamp_utc: 2026-11-21T10:54:57.212474+00:00
+DNS: 💾 SSD накопители 2.5" SATA | https://www.dns-shop.kz/catalog/8a9ddfba20724e77/ssd-nakopiteli/ | items=24 | complete=False | err=None
+   sample: 1000 ГБ 2.5" SATA накопитель Apacer AS350 PANTHER [AP1TBAS35 — 66790 ₸
+   sample: 256 ГБ 2.5" SATA накопитель Apacer AS350 PANTHER [AP256GAS35 — 29520 ₸
+   sample: 512 ГБ 2.5" SATA накопитель Apacer AS350 PANTHER [AP512GAS35 — 43080 ₸
+DNS: 💾 SSD M.2 накопители | https://www.dns-shop.kz/catalog/dd58148920724e77/ssd-m2-nakopiteli/ | items=24 | complete=False | err=None
+   sample: 2000 ГБ M.2 NVMe накопитель Samsung 990 PRO [MZ-V9P2T0BW] — 268090 ₸
+   sample: 1000 ГБ M.2 NVMe накопитель Samsung 990 EVO Plus [MZ-V9S1T0B — 127390 ₸
+   sample: 1000 ГБ M.2 NVMe накопитель Samsung 990 PRO [MZ-V9P1T0BW] — 141150 ₸
+DNS: 🎮 Консоли PlayStation | https://www.dns-shop.kz/catalog/17a8978216404e77/konsoli-playstation/ | items=12 | complete=False | err=None
+   sample: Игровая консоль PlayStation 5 Slim — 430790 ₸
+   sample: Игровая консоль PlayStation 5 Pro — 721990 ₸
+   sample: Игровая консоль PlayStation 5 Slim — 430790 ₸
+DNS: 🎮 Консоли Xbox | https://www.dns-shop.kz/catalog/17a9f95d16404e77/konsoli-microsoft-xbox/ | items=1 | complete=False | err=None
+   sample: Игровая консоль Xbox Series X Digital Edition — 427490 ₸
+DNS: 🎮 Портативные консоли | https://www.dns-shop.kz/catalog/17a8b7da16404e77/portativnye-igrovye-konsoli/ | items=24 | complete=False | err=None
+   sample: Портативная игровая консоль Steam Deck OLED 512 ГБ — 632490 ₸
+   sample: Портативная игровая консоль Steam Deck OLED 1024 ГБ — 757890 ₸
+   sample: Портативная игровая консоль Steam Deck 64 ГБ — 306850 ₸
