@@ -613,6 +613,8 @@ class AuditA04ScanOutcomeTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_lease_lost(self):
         import web.server as server
+        # Флаг потери аренды — общее состояние модуля: вернуть, чтобы не обрывать обходы следующих тестов
+        self.addCleanup(server._lease_state.update, lost=False)
 
         async def body(*a):
             await asyncio.sleep(3600)

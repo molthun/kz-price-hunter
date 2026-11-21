@@ -92,7 +92,8 @@ class CatchupScanDoesNotShiftRotationTest(unittest.TestCase):
              patch.object(server, "get_metadata", lambda k, d=None: d), \
              patch.object(server, "_poll_pending_demand_queries", noop), \
              patch.object(server, "_record_wave_outcome", lambda *a: meta.__setitem__("outcome", a)), \
-             patch.dict(server.scan_state, {"wave_info": None}):
+             patch.dict(server.scan_state, {"wave_info": None}), \
+             patch.dict(server._lease_state, {"lost": False}):
             asyncio.run(server._scan_task_body(["kari", "sulpak"], None, "auto", catchup))
         return calls, meta
 
@@ -138,7 +139,8 @@ class CatchupScanDoesNotShiftRotationTest(unittest.TestCase):
              patch.object(database, "get_due_tracked_categories", lambda limit, include_hot=True: [{"id": 1, "name": "Смартфоны", "query": "iphone"}]), \
              patch.object(database, "mark_tracked_category_scanned", lambda cid: None), \
              patch.object(search_engine, "search_live_stores", fake_search_live), \
-             patch.dict(server.scan_state, {"wave_info": None}):
+             patch.dict(server.scan_state, {"wave_info": None}), \
+             patch.dict(server._lease_state, {"lost": False}):
             asyncio.run(server._scan_task_body(["kari", "sulpak"], None, "auto", catchup))
         return tail_calls
 
