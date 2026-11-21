@@ -2,9 +2,9 @@
 import asyncio
 import urllib.parse
 from offer_identity import NATIONWIDE
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 from scrapers import http as requests
-from scrapers.base import PagedScraper, ScanResult, price_value
+from scrapers.base import PagedScraper, ScanResult, price_value, validate_product_item
 
 API_SEARCH_URL = "https://apigw.forte.kz/fm/v1/algolia/search/text"
 # 100 товаров на запрос: API отдаёт весь каталог категории постранично без лимита глубины
@@ -61,6 +61,23 @@ def resolve_price_for_city(hit: Dict[str, Any], city: str = "Астана") -> i
     return resolve_offer_for_city(hit, city)[0]
 
 
+def resolve_offers_for_cities(hit: Dict[str, Any], cities: Iterable[str]) -> List[Tuple[int, str]]:
+    """Извлекает подтверждённые предложения по всем запрошенным городам из одного hit Algolia.
+
+    Для каждого города из cities берётся его явная цена из Locations.Location (KZ-AST / KZ-ALA ...),
+    иначе общая цена по Казахстану (NATIONWIDE). Повторные записи с одинаковой итоговой меткой
+    города (например, если оба города откатились к NATIONWIDE) не дублируются.
+    """
+    emitted: List[Tuple[int, str]] = []
+    seen_cities = set()
+    for city in cities:
+        price, offer_city = resolve_offer_for_city(hit, city)
+        if price > 0 and offer_city not in seen_cities:
+            seen_cities.add(offer_city)
+            emitted.append((price, offer_city))
+    return emitted
+
+
 def build_description_from_params(hit: Dict[str, Any]) -> str:
     """Формирует текстовое описание из параметров товара (ParamMap или Param), исключая служебные поля."""
     param_map = hit.get("ParamMap")
@@ -93,10 +110,18 @@ def build_description_from_params(hit: Dict[str, Any]) -> str:
 class ForteMarketScraper(PagedScraper):
     SHOP_NAME = "Forte Market"
     PAGE_DELAY_SECONDS = 0.4
+    DEFAULT_CITIES: Tuple[str, ...] = ("Астана", "Алматы")
 
-    def __init__(self, city: str = "Астана"):
+    def __init__(self, city: Optional[str] = None, cities: Optional[Iterable[str]] = None):
         super().__init__()
-        self.city = city
+        if cities is not None:
+            resolved = tuple(c for c in cities if c)
+            self.cities: Tuple[str, ...] = resolved or self.DEFAULT_CITIES
+        elif city is not None:
+            self.cities = (city,)
+        else:
+            self.cities = self.DEFAULT_CITIES
+        self.city: str = self.cities[0]
         self._session = None
 
     def _get_session(self) -> requests.Session:
@@ -141,50 +166,77 @@ class ForteMarketScraper(PagedScraper):
             raise RuntimeError(f"Forte Market API returned HTTP {resp.status_code}")
 
         data = resp.json()
-        return self.parse_response(data, category_name, page, city=self.city)
+        return self.parse_response(data, category_name, page, cities=self.cities)
 
     @classmethod
     def parse_response(
-        cls, data: Dict[str, Any], category_name: str, page: int, city: str = "Астана"
+        cls,
+        data: Dict[str, Any],
+        category_name: str,
+        page: int,
+        city: str = "Астана",
+        cities: Optional[Iterable[str]] = None,
     ) -> ScanResult:
         if not isinstance(data, dict) or not isinstance(data.get("hits"), list):
             raise ValueError("Неожиданная структура ответа Forte Market")
         hits = data["hits"]
         nb_hits = data.get("nbHits")
+        target_cities = tuple(c for c in cities if c) if cities is not None else (city,)
+        if not target_cities:
+            target_cities = cls.DEFAULT_CITIES
 
         products = []
+        unparsed = 0
+        seen_obj_ids = set()
         for hit in hits:
+            if not isinstance(hit, dict):
+                unparsed += 1
+                continue
             obj_id = hit.get("objectID") or hit.get("ID")
             name = (hit.get("Name") or "").strip()
-            price, offer_city = resolve_offer_for_city(hit, city)
+            if not obj_id or not name:
+                unparsed += 1
+                continue
 
-            if not obj_id or not name or price <= 0:
+            obj_key = str(obj_id)
+            if obj_key in seen_obj_ids:
+                continue
+            seen_obj_ids.add(obj_key)
+
+            city_offers = resolve_offers_for_cities(hit, target_cities)
+            if not city_offers:
+                unparsed += 1
                 continue
 
             url = hit.get("URL") or f"https://market.forte.kz/items/{obj_id}"
             image = hit.get("Picture") or ""
             desc = build_description_from_params(hit)
 
-            product = {
-                "id": f"forte_{obj_id}",
-                "shop": cls.SHOP_NAME,
-                "title": name,
-                "category": category_name,
-                "url": url,
-                "image_url": image,
-                "price": price,
-                "old_price_on_site": 0,
-                "city": offer_city,
-            }
-            if desc:
-                product["description"] = desc
+            for price, offer_city in city_offers:
+                product = {
+                    "id": f"forte_{obj_id}",
+                    "shop": cls.SHOP_NAME,
+                    "title": name,
+                    "category": category_name,
+                    "url": url,
+                    "image_url": image,
+                    "price": price,
+                    "old_price_on_site": 0,
+                    "city": offer_city,
+                }
+                if desc:
+                    product["description"] = desc
+                validated = validate_product_item(product)
+                if validated is None:
+                    unparsed += 1
+                    continue
+                products.append(validated)
 
-            products.append(product)
-
-        # Конец подтверждает только валидный nbHits (Algolia); без него — partial
+        # Конец подтверждает только валидный nbHits (Algolia); без него — partial.
+        # При unparsed > 0 PagedScraper._scrape_sync переводит итог в limited=True и запрещает снятие (R1-A02).
         total_known = isinstance(nb_hits, int) and not isinstance(nb_hits, bool) and nb_hits >= 0
         complete = total_known and page * PAGE_SIZE >= nb_hits
-        return ScanResult(products, complete=complete)
+        return ScanResult(products, complete=complete, unparsed=unparsed)
 
     async def search_live(self, query: str, city: str = "Астана") -> List[Dict[str, Any]]:
         """Асинхронный быстрый live-поиск в Forte Market."""

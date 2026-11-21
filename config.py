@@ -85,7 +85,7 @@ SHOP_REGIONAL_POLICY = {
     "ants": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},
     "itmag": {"mode": "single_price_kz", "scan_cities": ("Алматы",), "target_cities": ("Алматы",), "delivery_kz": True, "city_mechanism": "none"},
     "ispace": {"mode": "single_price_kz", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},
-    "fortemarket": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "api:locations"},
+    "fortemarket": {"mode": "multi_city_price", "scan_cities": ("Астана", "Алматы"), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "api:locations"},
     "vkusmart": {"mode": "multi_city_price", "scan_cities": ("Астана",), "target_cities": ("Астана",), "delivery_kz": False, "city_mechanism": "fixed:astana"},
     "twelve_months": {"mode": "multi_city_price", "scan_cities": ("Алматы", "Астана"), "target_cities": ("Алматы", "Астана"), "delivery_kz": True, "city_mechanism": "cookie:current_region"},
     "zeta": {"mode": "delivery_kz_multi_stock", "scan_cities": ("Казахстан",), "target_cities": ("Казахстан",), "delivery_kz": True, "city_mechanism": "none"},

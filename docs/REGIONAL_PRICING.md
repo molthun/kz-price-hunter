@@ -74,7 +74,7 @@
 | `sulpak` | Sulpak | `multi_city_price` | **Алматы, Астана** (`v6.41.3`) | Алматы, Астана | Да | `cookie:city_id` (`1`=Алматы, `3`=Астана; исправлена путаница `1`/`2` 19.11) |
 | `mechta` | Мечта | `multi_city_price` | **Астана, Алматы** (`v6.41.3`) | Алматы, Астана | Да | `header:x-city-code` (`astana` / `almaty`) |
 | `dns` | DNS Казахстан | `multi_city_price` | Астана | Алматы, Астана | Да | `cookie:city_path` |
-| `fortemarket` | Forte Market | `multi_city_price` | Астана | Алматы, Астана | Да | `api:locations` |
+| `fortemarket` | Forte Market | `multi_city_price` | **Астана, Алматы** (`v6.42.7`) | Алматы, Астана | Да | `api:locations` (оба города из одного ответа Algolia `Locations.Location`) |
 | `halyk` | Halyk Market | `multi_city_price` | Астана | Алматы, Астана | Да | `api:city` |
 | `lemanapro` | Лемана ПРО | `multi_city_price` | Алматы | Алматы, Астана | Да | `cookie:region` |
 | `arbuz` | Arbuz | `multi_city_price` | Алматы | Алматы, Астана | Нет | `url_slug` |
