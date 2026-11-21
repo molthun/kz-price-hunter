@@ -1,0 +1,62 @@
+[
+  {
+    "file": "config.py",
+    "accepted_ref": "e2c3a31",
+    "exact_match": true,
+    "sha256": "08d6df46faf3c52d557ab2c18d7240c254b20f3ddb4107309d7a79c88ee5b3f4"
+  },
+  {
+    "file": "scrapers/marwin.py",
+    "accepted_ref": "e2c3a31",
+    "exact_match": true,
+    "sha256": "ec07906bebfd5efdf964125f397635840802ae72459baf370a3fdf80f496dd39"
+  },
+  {
+    "file": "tests/core/test_catalog_urls_hygiene.py",
+    "accepted_ref": "e2c3a31",
+    "exact_match": true,
+    "sha256": "83115e07b61b1534056ae532101a8663009f20448b60a39ed69928cc9e276dfc"
+  },
+  {
+    "file": "tests/scrapers/test_marwin_v1_api.py",
+    "accepted_ref": "e2c3a31",
+    "exact_match": true,
+    "sha256": "b1d15f29fca01ef1d8bd14a855e8394e00db0ef8609f94ab4d594d1f1902a5cd"
+  },
+  {
+    "file": "tests/scrapers/test_scraper_contract.py",
+    "accepted_ref": "e2c3a31",
+    "exact_match": true,
+    "sha256": "43ef932d0ecaab16acea985ba62a25c8faff9268a37e3301d4fa0ecd2359da4e"
+  },
+  {
+    "file": "tests/scrapers/test_scraper_reliability.py",
+    "accepted_ref": "e2c3a31",
+    "exact_match": true,
+    "sha256": "7ddcebf1009c90f0bb5ed8a8b059b536cbd2ecce3bae00507579c0ea170e9b4b"
+  },
+  {
+    "file": "docs/MARWIN_V2_TRANSITION_PLAN.md",
+    "accepted_ref": "e2c3a31",
+    "exact_match": true,
+    "sha256": "4a0e0c9dd9a08eeb5015a984e65ee151e601343b50e86220946715918ac72bd1"
+  },
+  {
+    "file": "web/server.py",
+    "accepted_ref": "cd4e5ab",
+    "exact_match": true,
+    "sha256": "147d9acbe8c3c9473a24f77a7de70d7b864ea11fb0d67a2f6bbf71d0702e5586"
+  },
+  {
+    "file": "tests/scheduler/test_catchup_plan.py",
+    "accepted_ref": "cd4e5ab",
+    "exact_match": true,
+    "sha256": "d9f016e36fcb418cfa3fc4d102d492f453638cbfa541ae196d31411ebfe41cdf"
+  },
+  {
+    "file": "version.py",
+    "accepted_ref": "cd4e5ab",
+    "exact_match": true,
+    "sha256": "5e4e20330da0b4db59264af6e7fa7ebf2a4202e83cef7fc24ef01cb4834cf801"
+  }
+]

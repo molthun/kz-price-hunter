@@ -1,0 +1,12 @@
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ID_AND_SOURCE_UPGRADE={"products": [{"id": "marwin_221538@unknown", "current_price": 9000, "first_seen_price": 9000, "is_active": 1}, {"id": "marwin_3495958@unknown", "current_price": 10000, "first_seen_price": 10000, "is_active": 1}], "history": [["marwin_221538@unknown", 1], ["marwin_3495958@unknown", 1]], "favorite_targets": ["marwin_3495958@unknown"], "retired": [], "source_links": [["marwin_221538@unknown", "https://www.marwin.kz/knigi-32627", 1], ["marwin_3495958@unknown", "https://www.marwin.kz/books/", 1]]}
+UNCHANGED_ID_OLD_SOURCE_STILL_ACTIVE=1
+[Меломан] Synthetic: 1 товаров за 1 стр. (0.0с) — завершено
+INVALID_PAGINATION={"pages": true, "complete": true, "unparsed": 0, "may_retire": true, "retired": ["marwin_102@unknown"]}
+[Меломан] Synthetic: 1 товаров за 1 стр. (0.0с) — завершено
+INVALID_PAGINATION={"pages": 1.9, "complete": true, "unparsed": 0, "may_retire": true, "retired": ["marwin_102@unknown"]}

@@ -1,0 +1,41 @@
+{
+  "head": "66fe892badc869b09f626838bb7dee41d42a88c5",
+  "review_type": "independent review of supplied live evidence; no new SSH/DB connection",
+  "acceptance": "v6.42.7-6.42.8 accepted within stated scope with limitations",
+  "wave_start_interval_seconds": 9613.477161,
+  "kari": {
+    "sources_covered": 26,
+    "coverage_since_utc": "2026-11-20T19:00:35",
+    "active_kz_remaining": 11700,
+    "remaining_limited_sources": [
+      [
+        "https://kz.kari.com/catalog/muzhchinam/muzhskaya-obuv/",
+        3600,
+        3687,
+        "limited/ok/3600//2026-11-21T14:05:38.233072+00:00"
+      ],
+      [
+        "https://kz.kari.com/catalog/zhenschinam/zhenskaya-obuv/",
+        8100,
+        9149,
+        "limited/ok/8100//2026-11-21T13:57:37.966548+00:00"
+      ]
+    ],
+    "written_unknown_since_coverage_cutoff": 41134,
+    "active_updated_unknown_with_any_history": 41128,
+    "history_rows": 41538,
+    "retired_kz": 27400,
+    "retired_kz_with_active_unknown_twin": 27354,
+    "retired_kz_without_active_twin": 46,
+    "retired_unknown": 18,
+    "actual_market_disappearance_proven": false,
+    "history_continuity_for_every_item_proven": false
+  },
+  "limitations": [
+    "two page-capped Kari footwear sources",
+    "four shop failures in first timer wave",
+    "P3 tracked/demand tail fixed only in locally accepted 6.42.11",
+    "source freshness remains incomplete",
+    "independent production state and cleanup not checked"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "source": "docs/audit_evidence/2026-11-21-v6428-claude-live/planned_wave_1153Z.txt",
+  "start_log": "2026-11-21T11:53:47.760528826Z [AutoScan] 🌊 Запуск волны: время очередной волны (шаг: 160м, круговой лимит: 24ч)",
+  "wave_log": "2026-11-21T11:53:47.792415354Z [Wave] 🌊 Круг #1491 | Волна #3/9 (интервал: 160м, лимит круга: 24ч): Hot=['actions'], Wave=['tvs', 'audio']",
+  "wave_last_result": {
+    "cycle": 1491,
+    "wave_index": 2,
+    "total_waves": 9,
+    "is_last": false,
+    "finished_at": 1795262349.9192598,
+    "shops": 38,
+    "failed_shops": [
+      "flip",
+      "lemanapro",
+      "marwin",
+      "mechta"
+    ]
+  },
+  "finished_at_utc": "2026-11-21T11:59:09.919260+00:00",
+  "review_type": "saved evidence review; no new remote access",
+  "kari": "pending final source/identity snapshot"
+}

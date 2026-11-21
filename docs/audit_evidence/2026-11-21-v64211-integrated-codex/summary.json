@@ -1,0 +1,19 @@
+{
+  "commit": "85ab1ac988e8ad5dbe12abf7155db934912913bf",
+  "base": "cf0861f",
+  "isolated_archive": "/tmp/kzph-64211-integrated-codex",
+  "tests": 339,
+  "result": "OK",
+  "seconds": 15.591,
+  "independent_pagination": {
+    "cases": 6,
+    "passed": 6
+  },
+  "manual_tail_control": "passed",
+  "exact_file_matches": 10,
+  "secrets_findings": 0,
+  "stand_access": "SSH blocked by environment: Operation not permitted",
+  "kari_final_snapshot": "not available as of 20:42 Asia/Almaty; deadline has passed, no inference about collector completion",
+  "linux_full": "not run",
+  "deployment": "not performed"
+}
