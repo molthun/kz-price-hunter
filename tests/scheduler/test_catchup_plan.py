@@ -110,6 +110,48 @@ class CatchupScanDoesNotShiftRotationTest(unittest.TestCase):
         self.assertEqual({c[0] for c in calls}, {"kari", "sulpak"})
         self.assertTrue(all(c[2] is None and c[1] for c in calls))
 
+    def _run_with_tail_spies(self, catchup):
+        import database
+        import search_engine
+        import web.server as server
+
+        tail_calls = {"tracked_queries": [], "demand_polls": 0}
+
+        async def fake_scan_shop(key, candidate_settings, semaphore, target_categories=None, only_urls=None):
+            return 0
+
+        async def fake_search_live(query, city="Астана"):
+            tail_calls["tracked_queries"].append((query, city))
+            return []
+
+        async def fake_demand_poll(max_queries=5):
+            tail_calls["demand_polls"] += 1
+
+        database.init_db()
+        with patch.object(server, "_scan_shop", fake_scan_shop), \
+             patch.object(server, "set_metadata", lambda k, v: None), \
+             patch.object(server, "get_metadata", lambda k, d=None: d), \
+             patch.object(server, "_failed_shop_keys", lambda ks: []), \
+             patch.object(server, "_record_wave_outcome", lambda *a: None), \
+             patch.object(server, "_poll_pending_demand_queries", fake_demand_poll), \
+             patch.object(database, "get_tracked_categories_counts", lambda: {"rolling": 10, "hot": 0}), \
+             patch.object(database, "get_due_tracked_categories", lambda limit, include_hot=True: [{"id": 1, "name": "Смартфоны", "query": "iphone"}]), \
+             patch.object(database, "mark_tracked_category_scanned", lambda cid: None), \
+             patch.object(search_engine, "search_live_stores", fake_search_live), \
+             patch.dict(server.scan_state, {"wave_info": None}):
+            asyncio.run(server._scan_task_body(["kari", "sulpak"], None, "auto", catchup))
+        return tail_calls
+
+    def test_catchup_skips_tracked_categories_and_demand_poll(self):
+        tail = self._run_with_tail_spies({"kari": [KARI[1]["url"]]})
+        self.assertEqual(tail["tracked_queries"], [])
+        self.assertEqual(tail["demand_polls"], 0)
+
+    def test_planned_wave_runs_tracked_categories_and_demand_poll(self):
+        tail = self._run_with_tail_spies(None)
+        self.assertEqual(tail["tracked_queries"], [("iphone", "Астана")])
+        self.assertEqual(tail["demand_polls"], 1)
+
     def test_only_urls_filters_shop_categories(self):
         import web.server as server
         seen = []
