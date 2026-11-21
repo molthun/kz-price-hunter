@@ -1,0 +1,21 @@
+# 16:25Z, только чтение
+{"version": "6.42.11", "app_name": "KZ Price Hunter", "release_date": "2026-11-21", "author": "Advanced Agentic Coding"}
+{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}
+StartedAt=2026-11-21T16:02:40.273627732Z health=healthy restarts=0 image=sha256:5a108d642fcf0f8fa9e8d0682d4636514173b0541932c77c777caef7a769be3b
+f47f5fbe5b test(v6.42.11): isolate scheduler lease flag between tests; add user section to 6.42.11 changelog
+container checkout file
+08d6df46faf3c52d557ab2c18d7240c254b20f3ddb4107309d7a79c88ee5b3f4 08d6df46faf3c52d557ab2c18d7240c254b20f3ddb4107309d7a79c88ee5b3f4 config.py
+ec07906bebfd5efdf964125f397635840802ae72459baf370a3fdf80f496dd39 ec07906bebfd5efdf964125f397635840802ae72459baf370a3fdf80f496dd39 scrapers/marwin.py
+147d9acbe8c3c9473a24f77a7de70d7b864ea11fb0d67a2f6bbf71d0702e5586 147d9acbe8c3c9473a24f77a7de70d7b864ea11fb0d67a2f6bbf71d0702e5586 web/server.py
+7064b5d53357a10fb7e2e79f27630fb9e11f6a898f142a8549a55edb273f0c6f 7064b5d53357a10fb7e2e79f27630fb9e11f6a898f142a8549a55edb273f0c6f catchup_plan.py
+cdfea7c81904a5fec507e6543089c58c1cf136b45814a0ba770ca2290084ee7e cdfea7c81904a5fec507e6543089c58c1cf136b45814a0ba770ca2290084ee7e database.py
+5e4e20330da0b4db59264af6e7fa7ebf2a4202e83cef7fc24ef01cb4834cf801 5e4e20330da0b4db59264af6e7fa7ebf2a4202e83cef7fc24ef01cb4834cf801 version.py
+e88ae9902b33439710e93d1cfaaad075f350f6efe3c61e018d91c808c51bd08a e88ae9902b33439710e93d1cfaaad075f350f6efe3c61e018d91c808c51bd08a CHANGELOG.md
+# local
+08d6df46faf3c52d557ab2c18d7240c254b20f3ddb4107309d7a79c88ee5b3f4  config.py
+ec07906bebfd5efdf964125f397635840802ae72459baf370a3fdf80f496dd39  scrapers/marwin.py
+147d9acbe8c3c9473a24f77a7de70d7b864ea11fb0d67a2f6bbf71d0702e5586  web/server.py
+7064b5d53357a10fb7e2e79f27630fb9e11f6a898f142a8549a55edb273f0c6f  catchup_plan.py
+cdfea7c81904a5fec507e6543089c58c1cf136b45814a0ba770ca2290084ee7e  database.py
+5e4e20330da0b4db59264af6e7fa7ebf2a4202e83cef7fc24ef01cb4834cf801  version.py
+e88ae9902b33439710e93d1cfaaad075f350f6efe3c61e018d91c808c51bd08a  CHANGELOG.md

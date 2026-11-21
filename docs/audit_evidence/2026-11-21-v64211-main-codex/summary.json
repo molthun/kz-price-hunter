@@ -1,0 +1,27 @@
+{
+  "head": "f47f5fbe5b343490d401ee36d16c62cb3be82899",
+  "accepted_code_ref": "85ab1ac",
+  "unchanged_runtime_files": [
+    "config.py",
+    "database.py",
+    "catchup_plan.py",
+    "scrapers/marwin.py",
+    "web/server.py",
+    "version.py"
+  ],
+  "test_isolation": {
+    "forward": {
+      "tests": 14,
+      "result": "OK",
+      "seconds": 1.3
+    },
+    "reverse": {
+      "tests": 14,
+      "result": "OK",
+      "seconds": 1.148
+    },
+    "lease_lost_restored": true
+  },
+  "deployment_by_auditor": false,
+  "working_db_used": false
+}
