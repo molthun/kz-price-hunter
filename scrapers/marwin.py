@@ -76,8 +76,15 @@ def parse_marwin_pagination(
         min_pages = math.ceil(total / limit)
         if pages < min_pages:
             return None, False
-
-    if total is not None and pages == 1 and page_num == 1 and total > raw_count:
+        if page_num < pages:
+            # Промежуточная страница не может быть усечена относительно limit
+            if raw_count < limit:
+                return None, False
+        elif page_num == pages:
+            expected_tail = total - (pages - 1) * limit
+            if expected_tail < 1 or raw_count < expected_tail:
+                return None, False
+    elif total is not None and pages == 1 and page_num == 1 and total > raw_count:
         return None, False
 
     return pages, True
@@ -105,6 +112,7 @@ class MarwinScraper(PagedScraper):
         self.base_url = "https://www.marwin.kz"
         self.session: Optional[requests.Session] = None
         self._slug_to_id: Dict[str, int] = {}
+        self._pagination_broken: bool = False
         self.headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -282,16 +290,26 @@ class MarwinScraper(PagedScraper):
         if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
             raise RuntimeError(f"Неожиданная структура ответа API {category_url}")
 
+        if page_num == 1:
+            self._pagination_broken = False
+
         raw_items = payload["items"]
         pagination = payload.get("pagination")
         total_pages, pagination_valid = parse_marwin_pagination(
             pagination, page_num=page_num, raw_count=len(raw_items)
         )
+        if not pagination_valid:
+            self._pagination_broken = True
 
         if not raw_items:
             if page_num == 1:
                 raise RuntimeError(f"Карточки товаров не найдены на первой странице {category_url}")
-            if pagination_valid and total_pages is not None and page_num > total_pages:
+            if (
+                not self._pagination_broken
+                and pagination_valid
+                and total_pages is not None
+                and page_num > total_pages
+            ):
                 return ScanResult([], complete=True)
             raise UnconfirmedEnd("карточки не найдены на следующей странице")
 
@@ -305,8 +323,13 @@ class MarwinScraper(PagedScraper):
                 products.append(parsed)
 
         # PagedScraper._scrape_sync сам запрещает complete=True при unparsed > 0;
-        # при невалидной/противоречивой пагинации конец каталога не подтверждается (MW-03).
-        is_complete = bool(pagination_valid and total_pages is not None and page_num >= total_pages)
+        # при невалидной/усечённой пагинации на любой странице конец каталога не подтверждается (MW-03).
+        is_complete = bool(
+            not self._pagination_broken
+            and pagination_valid
+            and total_pages is not None
+            and page_num >= total_pages
+        )
         return ScanResult(products, complete=is_complete, unparsed=unparsed)
 
     def search_live(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:

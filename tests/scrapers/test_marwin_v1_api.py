@@ -141,6 +141,51 @@ class MarwinV1ApiTest(unittest.TestCase):
                 self.assertEqual(retired, [])
                 self.assertEqual(active, set(existing))
 
+    def test_multipage_truncated_tail_or_middle_blocks_complete_and_retirement(self):
+        """MW-03 остаток: 20+1 при total=40, pages=2, limit=20 (и усечённая 1-я стр. 15+20) не разрешают снятие."""
+        src_url = "https://www.marwin.kz/knigi-32627"
+        existing = tuple(f"marwin_v2_{i}@unknown" for i in range(1, 41))
+
+        # Сценарий 1 (воспроизведение Codex): стр.1 = 20 шт., стр.2 = 1 шт. при total=40, pages=2, limit=20
+        s1 = MarwinScraper()
+        s1._slug_to_id["knigi-32627"] = 33
+        r1 = Mock(status_code=200, json=Mock(return_value={
+            "items": [_raw_item(i, name=f"Книга {i}") for i in range(1, 21)],
+            "pagination": {"total": 40, "page": 1, "pages": 2, "limit": 20},
+        }))
+        r2 = Mock(status_code=200, json=Mock(return_value={
+            "items": [_raw_item(21, name="Книга 21")],
+            "pagination": {"total": 40, "page": 2, "pages": 2, "limit": 20},
+        }))
+        r3 = Mock(status_code=200, json=Mock(return_value={"items": [], "pagination": {"total": 40, "page": 3, "pages": 2, "limit": 20}}))
+        s1.session = Mock(get=Mock(side_effect=[r1, r2, r3]))
+        res1 = s1._scrape_sync("Книги", src_url, max_pages=5)
+        self.assertFalse(res1.complete)
+        retired1, active1, assessment1 = _retired_after(res1, existing, "marwin", src_url)
+        self.assertFalse(assessment1["may_retire"])
+        self.assertEqual(retired1, [])
+        self.assertEqual(active1, set(existing))
+
+        # Сценарий 2: усечённая промежуточная стр.1 (15 шт. < limit=20), затем полная стр.2 (20 шт.)
+        s2 = MarwinScraper()
+        s2._slug_to_id["knigi-32627"] = 33
+        m1 = Mock(status_code=200, json=Mock(return_value={
+            "items": [_raw_item(i, name=f"Книга {i}") for i in range(1, 16)],
+            "pagination": {"total": 40, "page": 1, "pages": 2, "limit": 20},
+        }))
+        m2 = Mock(status_code=200, json=Mock(return_value={
+            "items": [_raw_item(i, name=f"Книга {i}") for i in range(21, 41)],
+            "pagination": {"total": 40, "page": 2, "pages": 2, "limit": 20},
+        }))
+        m3 = Mock(status_code=200, json=Mock(return_value={"items": [], "pagination": {"total": 40, "page": 3, "pages": 2, "limit": 20}}))
+        s2.session = Mock(get=Mock(side_effect=[m1, m2, m3]))
+        res2 = s2._scrape_sync("Книги", src_url, max_pages=5)
+        self.assertFalse(res2.complete)
+        retired2, active2, assessment2 = _retired_after(res2, existing, "marwin", src_url)
+        self.assertFalse(assessment2["may_retire"])
+        self.assertEqual(retired2, [])
+        self.assertEqual(active2, set(existing))
+
     def test_valid_multipage_complete_scan_retires_only_missing_v2_item(self):
         """Положительный контроль MW-03: валидная двухстраничная выдача завершается и снимает отсутствующий товар."""
         src_url = "https://www.marwin.kz/knigi-32627"
