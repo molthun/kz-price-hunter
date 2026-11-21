@@ -5272,31 +5272,32 @@ async def _scan_task_body(shop_keys, target_categories, scan_type, catchup_sourc
         if wave_plan_info:
             await asyncio.to_thread(_record_wave_outcome, wave_plan_info, keys, sorted(set(crashed) | set(failed)))
 
-        # Дополнительный этап волны: фоновое обновление порции отслеживаемых категорий из поиска
-        try:
-            from database import get_due_tracked_categories, mark_tracked_category_scanned, get_tracked_categories_counts
-            tracked_counts = await asyncio.to_thread(get_tracked_categories_counts)
-            rolling_tracked_count = tracked_counts.get("rolling", 0)
-            total_waves_count = max(1, scan_state.get("wave_info", {}).get("total_waves", 1) if scan_state.get("wave_info") else 1)
-            tracked_rolling_batch_size = max(1, -(-rolling_tracked_count // total_waves_count)) if rolling_tracked_count > 0 else 3
-            due_tracked = await asyncio.to_thread(get_due_tracked_categories, tracked_rolling_batch_size, True)
-            if due_tracked:
-                print(f"[Wave] 🔍 Обновление {len(due_tracked)} категорий из поиска в текущей волне: {', '.join(c['name'] for c in due_tracked)}")
-                from search_engine import search_live_stores
-                for cat in due_tracked:
-                    try:
-                        await search_live_stores(cat["query"], city="Астана")
-                        await asyncio.to_thread(mark_tracked_category_scanned, cat["id"])
-                    except Exception as ex:
-                        print(f"[Wave] Ошибка обновления категории {cat['name']}: {ex}")
-        except Exception as e:
-            print(f"[Wave] Ошибка обновления tracked categories: {e}")
+        if not catchup_sources:
+            # Дополнительный этап волны: фоновое обновление порции отслеживаемых категорий из поиска
+            try:
+                from database import get_due_tracked_categories, mark_tracked_category_scanned, get_tracked_categories_counts
+                tracked_counts = await asyncio.to_thread(get_tracked_categories_counts)
+                rolling_tracked_count = tracked_counts.get("rolling", 0)
+                total_waves_count = max(1, scan_state.get("wave_info", {}).get("total_waves", 1) if scan_state.get("wave_info") else 1)
+                tracked_rolling_batch_size = max(1, -(-rolling_tracked_count // total_waves_count)) if rolling_tracked_count > 0 else 3
+                due_tracked = await asyncio.to_thread(get_due_tracked_categories, tracked_rolling_batch_size, True)
+                if due_tracked:
+                    print(f"[Wave] 🔍 Обновление {len(due_tracked)} категорий из поиска в текущей волне: {', '.join(c['name'] for c in due_tracked)}")
+                    from search_engine import search_live_stores
+                    for cat in due_tracked:
+                        try:
+                            await search_live_stores(cat["query"], city="Астана")
+                            await asyncio.to_thread(mark_tracked_category_scanned, cat["id"])
+                        except Exception as ex:
+                            print(f"[Wave] Ошибка обновления категории {cat['name']}: {ex}")
+            except Exception as e:
+                print(f"[Wave] Ошибка обновления tracked categories: {e}")
 
-        # Автоматический опрос поискового спроса покупателей при обходе (не теряя поиск)
-        try:
-            await _poll_pending_demand_queries(max_queries=5)
-        except Exception as e:
-            print(f"[DemandPoll] Ошибка опроса поискового спроса: {e}")
+            # Автоматический опрос поискового спроса покупателей при обходе (не теряя поиск)
+            try:
+                await _poll_pending_demand_queries(max_queries=5)
+            except Exception as e:
+                print(f"[DemandPoll] Ошибка опроса поискового спроса: {e}")
 
         # Сроки хранения: история цен — 180 дней, завершённые уведомления — 30 дней
         try:

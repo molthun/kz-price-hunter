@@ -1139,12 +1139,15 @@ DNS_CATEGORIES = [
     {"name": "DNS: ⚙️ Процессоры", "url": "https://www.dns-shop.kz/catalog/17a899cd16404e77/processory/", "max_pages": 1, "master": "cpus"},
     {"name": "DNS: 🖥 Мониторы", "url": "https://www.dns-shop.kz/catalog/17a8943716404e77/monitory/", "max_pages": 1, "master": "monitors"},
     {"name": "DNS: 📺 Телевизоры", "url": "https://www.dns-shop.kz/catalog/17a8ae4916404e77/televizory/", "max_pages": 1, "master": "tvs"},
-    {"name": "DNS: 📱 Планшеты", "url": "https://www.dns-shop.kz/catalog/17a890dc16404e77/planshety/", "max_pages": 1, "master": "tablets_watches"},
-    {"name": "DNS: 💾 SSD накопители", "url": "https://www.dns-shop.kz/catalog/8a9ddbe317404e77/nakopiteli-ssd/", "max_pages": 1, "master": "storage"},
+    {"name": "DNS: 📱 Планшеты", "url": "https://www.dns-shop.kz/catalog/17a8a05316404e77/plansety/", "max_pages": 1, "master": "tablets_watches"},
+    {"name": "DNS: 💾 SSD накопители 2.5\" SATA", "url": "https://www.dns-shop.kz/catalog/8a9ddfba20724e77/ssd-nakopiteli/", "max_pages": 1, "master": "storage"},
+    {"name": "DNS: 💾 SSD M.2 накопители", "url": "https://www.dns-shop.kz/catalog/dd58148920724e77/ssd-m2-nakopiteli/", "max_pages": 1, "master": "storage"},
     {"name": "DNS: 🧠 Оперативная память", "url": "https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/", "max_pages": 1, "master": "ram"},
-    {"name": "DNS: 🎧 Наушники и гарнитуры", "url": "https://www.dns-shop.kz/catalog/17a8f3cd16404e77/naushniki-i-garnitury/", "max_pages": 1, "master": "audio"},
-    {"name": "DNS: ⌚️ Смарт-часы", "url": "https://www.dns-shop.kz/catalog/17a9e70116404e77/smart-chasy-i-braslety/", "max_pages": 1, "master": "tablets_watches"},
-    {"name": "DNS: 🎮 Игровые консоли", "url": "https://www.dns-shop.kz/catalog/17a8a65f16404e77/igrovye-konsoli/", "max_pages": 1, "master": "consoles"}
+    {"name": "DNS: 🎧 Наушники и гарнитуры", "url": "https://www.dns-shop.kz/catalog/17a9ef1716404e77/nausniki-i-garnitury/", "max_pages": 1, "master": "audio"},
+    {"name": "DNS: ⌚️ Смарт-часы", "url": "https://www.dns-shop.kz/catalog/251c82c88ed24e77/smart-casy-i-braslety/", "max_pages": 1, "master": "tablets_watches"},
+    {"name": "DNS: 🎮 Консоли PlayStation", "url": "https://www.dns-shop.kz/catalog/17a8978216404e77/konsoli-playstation/", "max_pages": 1, "master": "consoles"},
+    {"name": "DNS: 🎮 Консоли Xbox", "url": "https://www.dns-shop.kz/catalog/17a9f95d16404e77/konsoli-microsoft-xbox/", "max_pages": 1, "master": "consoles"},
+    {"name": "DNS: 🎮 Портативные консоли", "url": "https://www.dns-shop.kz/catalog/17a8b7da16404e77/portativnye-igrovye-konsoli/", "max_pages": 1, "master": "consoles"},
 ]
 
 # 2. Белый Ветер (shop.kz)
@@ -1314,10 +1317,8 @@ TGRAD_CATEGORIES = [
     {"name": "Tgrad: ⌚️ Смарт-часы", "url": "https://tgrad.kz/umnye-chasy/", "master": "tablets_watches"},
     {"name": "Tgrad: 📱 Планшеты", "url": "https://tgrad.kz/planshety/", "master": "tablets_watches"},
     {"name": "Tgrad: 🎧 Беспроводные наушники", "url": "https://tgrad.kz/besprovodnye-naushniki/", "master": "audio"},
-    {"name": "Tgrad: 💻 Ноутбуки", "url": "https://tgrad.kz/noutbuki/", "master": "laptops"},
     {"name": "Tgrad: 🖥 Мониторы", "url": "https://tgrad.kz/monitory/", "master": "monitors"},
     {"name": "Tgrad: 🎧 Игровые наушники", "url": "https://tgrad.kz/igrovye-naushniki/", "master": "audio"},
-    {"name": "Tgrad: 📡 Роутеры", "url": "https://tgrad.kz/routery/", "master": "office_network"},
     {"name": "Tgrad: 🧹 Пылесосы", "url": "https://tgrad.kz/pylesosy/", "master": "appliances_small"},
     {"name": "Tgrad: 🧹 Вертикальные пылесосы", "url": "https://tgrad.kz/vertikalnye-pylesosy/", "master": "appliances_small"},
     {"name": "Tgrad: 🤖 Роботы-пылесосы", "url": "https://tgrad.kz/roboty-pylesosy/", "master": "appliances_small"},
@@ -1334,7 +1335,6 @@ TGRAD_CATEGORIES = [
     {"name": "Tgrad: 🍲 Мультиварки", "url": "https://tgrad.kz/multivarki/", "master": "appliances_small"},
     {"name": "Tgrad: 🥤 Блендеры", "url": "https://tgrad.kz/blendery/", "master": "appliances_small"},
     {"name": "Tgrad: 💇 Фены", "url": "https://tgrad.kz/feny-i-fen-shhetki/", "master": "appliances_small"},
-    {"name": "Tgrad: 🪒 Электробритвы", "url": "https://tgrad.kz/elektrobritvy/", "master": "appliances_small"},
 ]
 # ANTS (ants.kz): Bitrix/Aspro, микроразметка schema.org, выдача «сначала в наличии».
 # Каталог большой (в «Ноутбуках» больше 12 страниц в наличии), поэтому глубина ограничена 25 страницами.
@@ -1498,9 +1498,9 @@ MASTEROK_CATEGORIES = [
     # названы только подразделы распродажи и уценки. Каталог устроен по видам техники.
     {"name": "MasterOK: 📦 Складское оборудование", "url": "https://masterok.kz/catalog/skladskoe-oborudovanie/", "master": "diy", "max_pages": 60},
     {"name": "MasterOK: 🔩 Запчасти", "url": "https://masterok.kz/catalog/zapchasti/", "master": "diy", "max_pages": 50},
-    {"name": "MasterOK: 🚜 Минитракторы", "url": "https://masterok.kz/catalog/minitraktory/", "master": "diy", "max_pages": 25},
+    {"name": "MasterOK: 🚜 Минитракторы", "url": "https://masterok.kz/catalog/motobloki-kultivatory-minitraktory/", "master": "diy", "max_pages": 25},
     {"name": "MasterOK: 🌱 Мотоблоки и культиваторы", "url": "https://masterok.kz/catalog/kultivatory-motobloki/", "master": "diy", "max_pages": 25},
-    {"name": "MasterOK: 🪵 Деревообрабатывающие станки", "url": "https://masterok.kz/catalog/derevoobrabatyvayushchee-oborudovanie1/", "master": "diy", "max_pages": 20},
+    {"name": "MasterOK: 🪵 Деревообрабатывающие станки", "url": "https://masterok.kz/catalog/derevoobrabatyvayushchee-oborudovanie-1/", "master": "diy", "max_pages": 20},
     {"name": "MasterOK: 🧹 Техника для уборки", "url": "https://masterok.kz/catalog/tekhnika-dlya-uborki/", "master": "diy", "max_pages": 20},
     {"name": "MasterOK: ⚡️ Генераторы и электростанции", "url": "https://masterok.kz/catalog/generatory-el-stantsii/", "master": "diy", "max_pages": 10},
     # Скидочные ветки: одна ссылка на корень заменяет восемь прежних подразделов и даёт больше
@@ -1521,7 +1521,6 @@ MAGNUM_CATEGORIES = [
     {"name": "Магнум: 🍬 Кондитерские изделия", "url": "https://magnum.kz/catalog?category=konditerskie-izdeliya", "master": "grocery", "max_pages": 5},
     {"name": "Магнум: 🐟 Консервы", "url": "https://magnum.kz/catalog?category=konservy", "master": "grocery", "max_pages": 5},
     {"name": "Магнум: 🧃 Безалкогольные напитки", "url": "https://magnum.kz/catalog?category=bezalkogolnye-napitki", "master": "grocery", "max_pages": 5},
-    {"name": "Магнум: 🧊 Замороженные продукты", "url": "https://magnum.kz/catalog?category=zamorojennye-produkty", "master": "grocery", "max_pages": 5},
     {"name": "Магнум: 🧼 Бытовая химия", "url": "https://magnum.kz/catalog?category=bytovaiya-himiya", "master": "household", "max_pages": 5},
     {"name": "Магнум: 🧴 Средства гигиены", "url": "https://magnum.kz/catalog?category=sredstva-gigieny", "master": "household", "max_pages": 5},
     {"name": "Магнум: 👶 Детские товары", "url": "https://magnum.kz/catalog?category=detskie-tovary", "master": "household", "max_pages": 5},
@@ -1571,15 +1570,15 @@ INTERTOP_CATEGORIES = [
 ]
 
 MARWIN_CATEGORIES = [
-    {"name": "Меломан: 📚 Книги", "url": "https://www.marwin.kz/books/", "master": "books", "max_pages": 10},
-    {"name": "Меломан: 🎮 Видеоигры и консоли", "url": "https://www.marwin.kz/videogames/", "master": "consoles", "max_pages": 10},
-    {"name": "Меломан: 🧸 Игрушки и развлечения", "url": "https://www.marwin.kz/toys-and-entertainment/", "master": "kids", "max_pages": 10},
-    {"name": "Меломан: 🧱 Конструкторы LEGO", "url": "https://www.marwin.kz/toys-and-entertainment/lego/", "master": "kids", "max_pages": 10},
-    {"name": "Меломан: 🎲 Настольные игры", "url": "https://www.marwin.kz/toys-and-entertainment/nastol-nye-igry/", "master": "board_games", "max_pages": 10},
-    {"name": "Меломан: 🎨 Творчество и хобби", "url": "https://www.marwin.kz/tvorchestvo-19692/", "master": "books_media", "max_pages": 10},
-    {"name": "Меломан: ✏️ Школа и канцелярия", "url": "https://www.marwin.kz/shkola-kancelyariya-19236/", "master": "books", "max_pages": 10},
-    {"name": "Меломан: 🎵 Музыка и винил", "url": "https://www.marwin.kz/music/", "master": "vinyl", "max_pages": 10},
-    {"name": "Меломан: 🍬 Сладости и подарки", "url": "https://www.marwin.kz/food-items/", "master": "food", "max_pages": 10},
+    {"name": "Меломан: 📚 Книги", "url": "https://www.marwin.kz/knigi-32627", "master": "books", "max_pages": 10},
+    {"name": "Меломан: 🎮 Видеоигры и консоли", "url": "https://www.marwin.kz/videoigry-i-konsoli-32532", "master": "consoles", "max_pages": 10},
+    {"name": "Меломан: 🧸 Игрушки и развлечения", "url": "https://www.marwin.kz/igrushki-i-igry-32632", "master": "kids", "max_pages": 10},
+    {"name": "Меломан: 🧱 Конструкторы LEGO", "url": "https://www.marwin.kz/konstruktory-32794", "master": "kids", "max_pages": 10},
+    {"name": "Меломан: 🎲 Настольные игры", "url": "https://www.marwin.kz/igry-nastolnye-32654", "master": "board_games", "max_pages": 10},
+    {"name": "Меломан: 🎨 Творчество и хобби", "url": "https://www.marwin.kz/tvorchestvo-fine-art-32491", "master": "books_media", "max_pages": 10},
+    {"name": "Меломан: ✏️ Школа и канцелярия", "url": "https://www.marwin.kz/shkola-kancelyariya-32768", "master": "books", "max_pages": 10},
+    {"name": "Меломан: 🎵 Музыка и винил", "url": "https://www.marwin.kz/vinil-i-cd-32606", "master": "vinyl", "max_pages": 10},
+    {"name": "Меломан: 🍬 Сладости и подарки", "url": "https://www.marwin.kz/sladosti-i-napitki-32693", "master": "food", "max_pages": 10},
 ]
 
 ITEKA_CATEGORIES = [

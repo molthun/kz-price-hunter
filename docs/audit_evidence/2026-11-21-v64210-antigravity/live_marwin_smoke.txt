@@ -1,0 +1,11 @@
+timestamp_utc: 2026-11-21T11:09:55.879021+00:00
+Меломан: 📚 Книги | https://www.marwin.kz/knigi-32627 | items=20 | complete=False | unparsed=0 | err=None | sample=Early Flower, Teava, Yeoseulki: Я взрастила з (8690 ₸)
+Меломан: 🎮 Видеоигры и консоли | https://www.marwin.kz/videoigry-i-konsoli-32532 | items=20 | complete=False | unparsed=0 | err=None | sample=PS5 DualSense Controller Wolverine Adamantium (36999 ₸)
+Меломан: 🧸 Игрушки и развлечения | https://www.marwin.kz/igrushki-i-igry-32632 | items=20 | complete=False | unparsed=0 | err=None | sample=LEGO: Снежные приключения CATACLAWS 30718 (2990 ₸)
+Меломан: 🧱 Конструкторы LEGO | https://www.marwin.kz/konstruktory-32794 | items=20 | complete=False | unparsed=0 | err=None | sample=LEGO: Снежные приключения CATACLAWS 30718 (2990 ₸)
+Меломан: 🎲 Настольные игры | https://www.marwin.kz/igry-nastolnye-32654 | items=20 | complete=False | unparsed=0 | err=None | sample=Mattel: Настольная игра UNO Express (3890 ₸)
+Меломан: 🎨 Творчество и хобби | https://www.marwin.kz/tvorchestvo-fine-art-32491 | items=20 | complete=False | unparsed=0 | err=None | sample=Набор для творчества ХОТ ВИЛС аппликация из г (1640 ₸)
+Меломан: ✏️ Школа и канцелярия | https://www.marwin.kz/shkola-kancelyariya-32768 | items=20 | complete=False | unparsed=0 | err=None | sample=Пенал квадро mini 210x50x50мм Black&Pink (4690 ₸)
+Меломан: 🎵 Музыка и винил | https://www.marwin.kz/vinil-i-cd-32606 | items=1 | complete=False | unparsed=0 | err=None | sample=Vamps Ten Years Of The Vamps (фирм.) (5999 ₸)
+Меломан: 🍬 Сладости и подарки | https://www.marwin.kz/sladosti-i-napitki-32693 | items=20 | complete=False | unparsed=0 | err=None | sample=ICKX Набор шоколадных фигурок Xmas trees/Snow (4990 ₸)
+search_live(LEGO): items=3 | first=LEGO: Снежные приключения CATACLAWS 30718 (2990 ₸)

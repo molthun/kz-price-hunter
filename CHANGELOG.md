@@ -3,6 +3,46 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.42.11] - 2026-11-21
+
+### Снижение фоновой нагрузки: добор пропускает хвост волны (находка P3)
+- **`web/server.py` (`_scan_task_body`):** добор отставших источников (`catchup_sources`) больше не запускает хвост плановой волны — фоновое обновление отслеживаемых категорий из поиска (`get_due_tracked_categories` / `search_live_stores`) и опрос поискового спроса (`_poll_pending_demand_queries`). Плановые волны и ручные запуски (`catchup_sources=None`) продолжают выполнять оба шага без изменений.
+- **Тесты (`tests/scheduler/test_catchup_plan.py`):** добавлены поведенческие тесты, проверяющие пропуск хвоста волны при доборе и его штатный запуск в плановой волне.
+
+## [6.42.10] - 2026-11-21
+
+### Для пользователей
+- 📚 Восстановлен сбор и живой поиск магазина «Меломан / MARWIN» (`marwin.kz`) после переезда сайта с Magento 2 на новую витрину Next.js.
+
+### Перевод `MarwinScraper` на публичный JSON API `/v1/catalog/*`
+- **`scrapers/marwin.py`:**
+  - скрапер переведён с HTML-разметки Magento 2 (`.product-item-info`) на публичный JSON REST API новой витрины: `GET /v1/catalog/categories/slug/{slug}`, `GET /v1/catalog/products` (`in_stock=true`, `locale=ru`), `GET /v1/catalog/search`;
+  - добавлен фоллбэк разрешения старых URL категорий (например `/books/`) через редирект на новый slug;
+  - конец каталога подтверждается строгой валидацией `pagination` (`parse_marwin_pagination`: отклоняет `bool`, `float`, `<= 0`, несовпадение `page`, противоречие `total/limit/pages`); битые записи инкрементируют `unparsed` и блокируют `complete` / ошибочное снятие, а товары с `in_stock=false` пропускаются штатно;
+  - используется изолированное пространство ключей **`marwin_v2_<id>`** с `city="Алматы / Казахстан"` (`@unknown`), чтобы исключить тихие числовые коллизии с прежними Magento entity_id (`marwin_<id>`, т.к. новый API не возвращает старые Magento ID);
+  - **политика перехода:** новые категории v1 собираются под новыми `source_url` с собственными baseline (старые Magento-записи `marwin_*@unknown` не перезаписываются и не снимаются автоматически; на стенде 0 избранного и 0 наблюдений на `marwin_%`).
+- **`config.py` (`MARWIN_CATEGORIES`):** все 9 категорий обновлены на актуальные slug-адреса новой витрины (`knigi-32627`, `videoigry-i-konsoli-32532`, `igrushki-i-igry-32632`, `konstruktory-32794`, `igry-nastolnye-32654`, `tvorchestvo-fine-art-32491`, `shkola-kancelyariya-32768`, `vinil-i-cd-32606`, `sladosti-i-napitki-32693`).
+- **Тесты:** обновлены мок-тесты в `tests/scrapers/test_scraper_contract.py` и `tests/scrapers/test_scraper_reliability.py`, добавлен `tests/scrapers/test_marwin_v1_api.py` (разбор JSON, `in_stock=false`, `unparsed` guard с реальным `_reconcile_source_conn` и положительным контролем снятия, фоллбэк старого URL, `search_live`).
+
+## [6.42.9] - 2026-11-21
+
+### Для пользователей
+- 🛠 Восстановлен сбор категорий планшетов, SSD, наушников, смарт-часов и игровых консолей в DNS Казахстан, а также минитракторов и деревообрабатывающих станков в MasterOK. Убраны удалённые/пустые разделы в Магнуме и Tgrad, которые вызывали повторные ошибки обхода и паузы магазинов.
+
+### Чистка мёртвых URL каталогов (DNS, MasterOK, Магнум, Tgrad)
+- **`config.py` (`DNS_CATEGORIES`):** обновлены 5 сломанных адресов на актуальные листовые категории с полным охватом семейств (подтверждены живым прогоном `DNSScraper`, все отдают товары без ошибок):
+  - `Планшеты`: `17a890dc16404e77/planshety/` (превратился в хаб-страницу) → `17a8a05316404e77/plansety/`;
+  - `SSD` (`master=storage`): `8a9ddbe317404e77/nakopiteli-ssd/` (`HTTP 410`) → раздельно `SSD накопители 2.5" SATA` (`8a9ddfba20724e77/ssd-nakopiteli/`) и `SSD M.2 накопители` (`dd58148920724e77/ssd-m2-nakopiteli/`);
+  - `Наушники и гарнитуры`: `17a8f3cd16404e77/naushniki-i-garnitury/` (`HTTP 410`) → `17a9ef1716404e77/nausniki-i-garnitury/`;
+  - `Смарт-часы`: `17a9e70116404e77/smart-chasy-i-braslety/` (`HTTP 410`) → `251c82c88ed24e77/smart-casy-i-braslety/`;
+  - `Консоли` (`master=consoles`): `17a8a65f16404e77/igrovye-konsoli/` (`HTTP 410`) → раздельно `Консоли PlayStation` (`17a8978216404e77/konsoli-playstation/`), `Консоли Xbox` (`17a9f95d16404e77/konsoli-microsoft-xbox/`) и `Портативные консоли` (`17a8b7da16404e77/portativnye-igrovye-konsoli/`).
+- **`config.py` (`MASTEROK_CATEGORIES`):** заменены 2 URL с `HTTP 404`:
+  - `/catalog/minitraktory/` → `/catalog/motobloki-kultivatory-minitraktory/`;
+  - `/catalog/derevoobrabatyvayushchee-oborudovanie1/` → `/catalog/derevoobrabatyvayushchee-oborudovanie-1/`.
+- **`config.py` (`MAGNUM_CATEGORIES`):** удалена категория `zamorojennye-produkty` (отсутствует в живом Strapi API `new-product-catalog` для Алматы и Астаны; общий `/catalog` продолжает собирать весь активный ассортимент).
+- **`config.py` (`TGRAD_CATEGORIES`):** удалены 3 пустые категории (`/noutbuki/`, `/routery/`, `/elektrobritvy/`), убраны с витрины сайта и отдававшие 0 карточек.
+- **Тесты:** добавлен `tests/core/test_catalog_urls_hygiene.py` (контракт отсутствия удалённых/битых URL, уникальности URL и валидности записей категорий).
+
 ## [6.42.8] - 2026-11-21
 
 ### Для пользователей
