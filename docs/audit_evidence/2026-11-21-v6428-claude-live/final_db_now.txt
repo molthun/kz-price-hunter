@@ -1,0 +1,16 @@
+# 15:44Z
+Kari state [('kz', 0, 27413), ('kz', 1, 11700), ('unknown', 0, 1283), ('unknown', 1, 42264)]
+Kari written since restart [('unknown', 41134)]
+Kari mirror retired since restart [('kz', 27400), ('unknown', 18)]
+Белый Ветер state [('astana', 0, 1196), ('astana', 1, 13175), ('kz', 0, 13264)]
+Белый Ветер written since restart [('astana', 13218)]
+Белый Ветер mirror retired since restart [('astana', 54), ('kz', 13159)]
+kari scans since restart [('complete', 'ok', 52, 47306), ('complete', 'unknown', 7, 62), ('limited', 'ok', 2, 11700)]
+shopkz scans since restart [('complete', 'ok', 7, 92151)]
+('https://kz.kari.com/catalog/muzhchinam/muzhskaya-obuv/', 3600, 3687, 'limited/ok/3600//2026-11-21T14:05:38.233072+00:00')
+('https://kz.kari.com/catalog/zhenschinam/zhenskaya-obuv/', 8100, 9149, 'limited/ok/8100//2026-11-21T13:57:37.966548+00:00')
+kz retired since 6.42.8 without active unknown twin (46,)
+price history on reactivated unknown (active, written since restart) (41128, 41538)
+wave meta [('wave_cycle', '1491'), ('wave_index', '4'), ('wave_last_cycle_completed_at', '1795252279.6725621'), ('wave_last_run_at', '1795271641.2694504')]
+2026-11-21T14:34:01.237689412Z [AutoScan] 🌊 Запуск волны: время очередной волны (шаг: 160м, круговой лимит: 24ч)
+2026-11-21T14:34:01.279736762Z [Wave] 🌊 Круг #1491 | Волна #4/9 (интервал: 160м, лимит круга: 24ч): Hot=['actions'], Wave=['tablets_watches', 'consoles']
