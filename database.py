@@ -368,6 +368,18 @@ def get_last_source_quality(shop_keys: List[str]) -> Dict[str, Dict[str, Any]]:
     return result
 
 
+def get_source_last_scans(shop_keys: List[str]) -> Dict[Tuple[str, str], Tuple[str, str]]:
+    """(shop_key, source_url) -> (started_at, quality) последнего обхода каждого источника (6.42.7)."""
+    if not shop_keys:
+        return {}
+    marks = ",".join("?" * len(shop_keys))
+    with get_connection() as conn:
+        rows = conn.execute(f"""SELECT s.shop_key, s.source_url, s.started_at, s.quality FROM source_scans s
+            JOIN (SELECT MAX(id) id FROM source_scans WHERE shop_key IN ({marks}) GROUP BY shop_key, source_url) m
+            ON m.id = s.id""", list(shop_keys)).fetchall()
+    return {(r[0], r[1]): (r[2], r[3]) for r in rows}
+
+
 def prune_source_scans(days: Optional[int] = None) -> int:
     from data_quality import SOURCE_SCANS_RETENTION_DAYS
     cutoff = (datetime.datetime.now(datetime.timezone.utc)

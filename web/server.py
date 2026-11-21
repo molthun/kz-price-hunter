@@ -4723,10 +4723,16 @@ def get_categories_overview():
         "tree": tree,
     }
 
-async def _scan_shop(key, candidate_settings, semaphore, target_categories=None):
-    """Обходит категории одного магазина (с фильтрацией по target_categories при наличии)."""
+async def _scan_shop(key, candidate_settings, semaphore, target_categories=None, only_urls=None):
+    """Обходит категории одного магазина (с фильтрацией по target_categories при наличии).
+
+    only_urls — внеочередной добор (6.42.7): только эти источники магазина, без фильтра волны.
+    """
     scraper_cls, all_categories, shop_name = SHOP_REGISTRY[key]
-    if target_categories is not None:
+    if only_urls is not None:
+        wanted = set(only_urls)
+        categories = [cat for cat in all_categories if cat["url"] in wanted]
+    elif target_categories is not None:
         categories = [cat for cat in all_categories if cat.get("master") == "all" or cat.get("master") in target_categories]
     else:
         categories = all_categories
@@ -4955,7 +4961,7 @@ async def _keep_scheduler_lease(work: asyncio.Task):
             return
 
 
-async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manual"):
+async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manual", catchup_sources=None):
     global scan_state, wave_state
     # Проверка и установка флага до первого await — защита от параллельного запуска двух сканирований
     if scan_state["is_running"]:
@@ -4984,7 +4990,7 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
                                  "target_categories": sorted(target_categories or [])})
     # Вся работа — отдельная задача под одним try/finally: исключение в подготовке не оставит
     # флаг «идёт обход» и продление аренды; потеря аренды отменяет работу (R-H03)
-    work = asyncio.create_task(_scan_task_body(shop_keys, target_categories, scan_type))
+    work = asyncio.create_task(_scan_task_body(shop_keys, target_categories, scan_type, catchup_sources))
     keeper = asyncio.create_task(_keep_scheduler_lease(work))
     # Исход обхода для телеметрии: отмена и потеря аренды не выдаются за успешное завершение (A04)
     outcome = "cancelled"
@@ -5130,7 +5136,7 @@ async def _poll_pending_demand_queries(max_queries: int = 5):
         await asyncio.to_thread(_finish)
 
 
-async def _scan_task_body(shop_keys, target_categories, scan_type):
+async def _scan_task_body(shop_keys, target_categories, scan_type, catchup_sources=None):
     scan_state["total_scanned"] = 0
     scan_state["anomalies_found"] = 0
     scan_state["current_step"] = 0
@@ -5144,8 +5150,12 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
     candidate_settings = get_candidate_settings(settings)
     keys = list(dict.fromkeys(k for k in (shop_keys if shop_keys is not None else enabled_shop_keys(settings)) if k in SHOP_REGISTRY))
 
+    if catchup_sources:
+        # Внеочередной добор (6.42.7): только отставшие источники; ротация волн, номер круга и
+        # таймер плановой волны не меняются
+        keys = [k for k in keys if catchup_sources.get(k)]
     # Если плановый авто-запуск: рассчитываем волну категорий
-    if scan_type == "auto" and target_categories is None:
+    if scan_type == "auto" and target_categories is None and not catchup_sources:
         wave_mode = settings.get("wave_mode", "rolling")
         if wave_mode == "rolling":
             # Номер волны и круга хранятся в БД: перезапуск (выкат) не сбивает ротацию
@@ -5228,20 +5238,24 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
     total_steps = 0
     for k in keys:
         all_cats = SHOP_REGISTRY[k][1]
-        if target_categories is not None:
+        if catchup_sources:
+            filtered = [c for c in all_cats if c["url"] in set(catchup_sources[k])]
+        elif target_categories is not None:
             filtered = [c for c in all_cats if c.get("master") == "all" or c.get("master") in target_categories]
         else:
             filtered = all_cats
         total_steps += len(filtered)
     scan_state["total_steps"] = max(1, total_steps)
 
-    cat_desc = f" [{len(target_categories)} категорий]" if target_categories else ""
+    cat_desc = (f" [добор: {total_steps} источников]" if catchup_sources
+                else f" [{len(target_categories)} категорий]" if target_categories else "")
     print(f"[Scan] Старт обхода {len(keys)} магазинов{cat_desc}: {', '.join(SHOP_REGISTRY[k][2] for k in keys)}")
 
     try:
         semaphore = asyncio.Semaphore(SHOP_CONCURRENCY)
         results = await asyncio.gather(
-            *[_scan_shop(k, candidate_settings, semaphore, target_categories=target_categories) for k in keys],
+            *[_scan_shop(k, candidate_settings, semaphore, target_categories=target_categories,
+                         only_urls=(catchup_sources or {}).get(k) if catchup_sources else None) for k in keys],
             return_exceptions=True
         )
         for key, res in zip(keys, results):
@@ -6453,6 +6467,23 @@ def apply_adaptive_order(target_shops):
         return list(target_shops), ""
 
 
+def _catchup_sources(enabled_keys, settings, wave_interval_sec):
+    """План добора по источникам (catchup_plan) для включённых магазинов и категорий."""
+    from catchup_plan import plan_catchup
+    from database import get_source_last_scans, get_shop_scans
+    enabled = set(get_wave_plan(enabled_categories=settings.get("enabled_categories"),
+                                wave_mode="all")["active_categories"])
+    hot = set(get_wave_plan(enabled_categories=settings.get("enabled_categories"),
+                            hot_categories=settings.get("hot_categories", DEFAULT_HOT_CATEGORIES),
+                            wave_size=settings.get("wave_size", 2))["hot_categories"])
+    scans = get_shop_scans()
+    blocked = [k for k in enabled_keys if (scans.get(k) or {}).get("next_retry_at")
+               and scans[k]["next_retry_at"] > time.time()]
+    return plan_catchup({k: SHOP_REGISTRY[k][1] for k in enabled_keys}, enabled, hot,
+                        get_source_last_scans(list(enabled_keys)), time.time(),
+                        wave_interval_sec, CYCLE_BUDGET_HOURS * 3600, blocked)
+
+
 async def auto_scan_background_worker(app):
     """Фоновый монитор: строгое поочередное волновое сканирование за 24 часа + контроль свежести магазинов."""
     settings = load_settings()
@@ -6497,18 +6528,24 @@ async def auto_scan_background_worker(app):
                     last_run_time = None
 
                 is_wave_due = (last_run_time is None) or ((now - last_run_time) >= wave_interval_sec)
-                stale = await run_db(get_stale_shops, enabled_keys, wave_interval_sec)
 
-                if is_wave_due or stale:
-                    target_shops = enabled_keys if is_wave_due else stale
-                    reason = f"время очередной волны (шаг: {wave_interval_sec // 60}м, круговой лимит: 24ч)" if is_wave_due else f"устарели {len(stale)} магазинов"
+                if is_wave_due:
+                    reason = f"время очередной волны (шаг: {wave_interval_sec // 60}м, круговой лимит: 24ч)"
                     # Контролируемое включение адаптивного порядка (P11): по умолчанию выключено, а
                     # включённый порядок может только переставить и сократить эту же волну
-                    target_shops, adaptive_note = apply_adaptive_order(target_shops)
+                    target_shops, adaptive_note = apply_adaptive_order(enabled_keys)
                     if adaptive_note:
                         reason += f"; {adaptive_note}"
                     print(f"[AutoScan] 🌊 Запуск волны: {reason}")
                     spawn_scan(target_shops, scan_type="auto")
+                else:
+                    # Добор (6.42.7): отставшие или упавшие источники, без сдвига ротации и таймера волны
+                    catchup = await run_db(_catchup_sources, enabled_keys, settings, wave_interval_sec)
+                    if catchup:
+                        total = sum(len(v) for v in catchup.values())
+                        names = ", ".join(SHOP_REGISTRY[k][2] for k in list(catchup)[:4]) + ("..." if len(catchup) > 4 else "")
+                        print(f"[AutoScan] 🧩 Добор отставших источников: {total} у {len(catchup)} магазинов ({names})")
+                        spawn_scan(list(catchup), scan_type="auto", catchup_sources=catchup)
             else:
                 max_age_seconds = get_scan_interval_seconds(settings)
                 stale = await run_db(get_stale_shops, enabled_keys, max_age_seconds)
