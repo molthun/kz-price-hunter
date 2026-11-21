@@ -112,7 +112,11 @@ class MarwinScraper(PagedScraper):
         self.base_url = "https://www.marwin.kz"
         self.session: Optional[requests.Session] = None
         self._slug_to_id: Dict[str, int] = {}
+        self._scan_url: Optional[str] = None
+        self._started_at_page1: bool = False
         self._pagination_broken: bool = False
+        self._scan_pagination_snapshot: Optional[Tuple[Optional[int], int, Optional[int]]] = None
+        self._seen_raw_ids: set = set()
         self.headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -131,7 +135,15 @@ class MarwinScraper(PagedScraper):
 
     def close(self):
         self._slug_to_id.clear()
+        self._reset_scan_state(None, page_num=0)
         super().close()
+
+    def _reset_scan_state(self, category_url: Optional[str], page_num: int):
+        self._scan_url = category_url
+        self._started_at_page1 = (page_num == 1)
+        self._pagination_broken = False
+        self._scan_pagination_snapshot = None
+        self._seen_raw_ids = set()
 
     def _get_with_retry(self, url: str, params: Optional[Dict[str, Any]] = None, timeout: int = 20):
         session = self._get_session()
@@ -290,16 +302,25 @@ class MarwinScraper(PagedScraper):
         if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
             raise RuntimeError(f"Неожиданная структура ответа API {category_url}")
 
-        if page_num == 1:
-            self._pagination_broken = False
+        if page_num == 1 or category_url != self._scan_url:
+            self._reset_scan_state(category_url, page_num=page_num)
 
         raw_items = payload["items"]
         pagination = payload.get("pagination")
         total_pages, pagination_valid = parse_marwin_pagination(
             pagination, page_num=page_num, raw_count=len(raw_items)
         )
-        if not pagination_valid:
+        if not pagination_valid or total_pages is None:
             self._pagination_broken = True
+        else:
+            snap_total = _strict_int(pagination.get("total")) if isinstance(pagination, dict) else None
+            snap_limit = _strict_int(pagination.get("limit")) if isinstance(pagination, dict) else None
+            current_snap = (snap_total, total_pages, snap_limit)
+            if self._scan_pagination_snapshot is None:
+                self._scan_pagination_snapshot = current_snap
+            elif current_snap != self._scan_pagination_snapshot:
+                # Изменение total/pages/limit между страницами — снимок выдачи сдвинулся (MW-03)
+                self._pagination_broken = True
 
         if not raw_items:
             if page_num == 1:
@@ -316,14 +337,40 @@ class MarwinScraper(PagedScraper):
         products: List[Dict[str, Any]] = []
         unparsed = 0
         for raw in raw_items:
+            if isinstance(raw, dict):
+                raw_key = raw.get("id")
+                if raw_key is None or not str(raw_key).strip():
+                    raw_key = raw.get("sku")
+                if raw_key is not None and str(raw_key).strip():
+                    rk = str(raw_key).strip()
+                    if rk in self._seen_raw_ids:
+                        # Повтор товара между страницами (или внутри страницы) — сдвиг пагинации (MW-03)
+                        self._pagination_broken = True
+                    else:
+                        self._seen_raw_ids.add(rk)
             parsed, is_bad = self._extract_item(raw, category_name)
             if is_bad:
                 unparsed += 1
             elif parsed is not None:
                 products.append(parsed)
 
+        # На последней странице сверяем уникальное покрытие с заявленным total снимка (MW-03)
+        expected_total = (
+            self._scan_pagination_snapshot[0]
+            if self._scan_pagination_snapshot is not None
+            else None
+        )
+        if (
+            self._started_at_page1
+            and total_pages is not None
+            and page_num >= total_pages
+            and expected_total is not None
+            and len(self._seen_raw_ids) < expected_total
+        ):
+            self._pagination_broken = True
+
         # PagedScraper._scrape_sync сам запрещает complete=True при unparsed > 0;
-        # при невалидной/усечённой пагинации на любой странице конец каталога не подтверждается (MW-03).
+        # при невалидной/сдвинутой пагинации на любой странице конец каталога не подтверждается (MW-03).
         is_complete = bool(
             not self._pagination_broken
             and pagination_valid

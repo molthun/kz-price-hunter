@@ -141,50 +141,121 @@ class MarwinV1ApiTest(unittest.TestCase):
                 self.assertEqual(retired, [])
                 self.assertEqual(active, set(existing))
 
-    def test_multipage_truncated_tail_or_middle_blocks_complete_and_retirement(self):
-        """MW-03 остаток: 20+1 при total=40, pages=2, limit=20 (и усечённая 1-я стр. 15+20) не разрешают снятие."""
+    def test_mw03_six_scenario_pagination_matrix(self):
+        """MW-03 матрица из 6 сценариев: 2 положительных (20+20/40, 20+1/21) и 4 отрицательных
+        (хвост 20+1/40, середина 15+20/40, смена total 40->21, перекрытие 1..20 + 20..39 при total=40)."""
         src_url = "https://www.marwin.kz/knigi-32627"
-        existing = tuple(f"marwin_v2_{i}@unknown" for i in range(1, 41))
 
-        # Сценарий 1 (воспроизведение Codex): стр.1 = 20 шт., стр.2 = 1 шт. при total=40, pages=2, limit=20
-        s1 = MarwinScraper()
-        s1._slug_to_id["knigi-32627"] = 33
-        r1 = Mock(status_code=200, json=Mock(return_value={
-            "items": [_raw_item(i, name=f"Книга {i}") for i in range(1, 21)],
-            "pagination": {"total": 40, "page": 1, "pages": 2, "limit": 20},
-        }))
-        r2 = Mock(status_code=200, json=Mock(return_value={
-            "items": [_raw_item(21, name="Книга 21")],
-            "pagination": {"total": 40, "page": 2, "pages": 2, "limit": 20},
-        }))
-        r3 = Mock(status_code=200, json=Mock(return_value={"items": [], "pagination": {"total": 40, "page": 3, "pages": 2, "limit": 20}}))
-        s1.session = Mock(get=Mock(side_effect=[r1, r2, r3]))
-        res1 = s1._scrape_sync("Книги", src_url, max_pages=5)
-        self.assertFalse(res1.complete)
-        retired1, active1, assessment1 = _retired_after(res1, existing, "marwin", src_url)
-        self.assertFalse(assessment1["may_retire"])
-        self.assertEqual(retired1, [])
-        self.assertEqual(active1, set(existing))
+        def _run(pages_payloads, existing_ids):
+            s = MarwinScraper()
+            s._slug_to_id["knigi-32627"] = 33
+            responses = [
+                Mock(status_code=200, json=Mock(return_value=p))
+                for p in pages_payloads
+            ]
+            # Запасной пустой ответ на случай запроса стр.3 при complete=False
+            responses.append(Mock(status_code=200, json=Mock(return_value={"items": [], "pagination": {}})))
+            s.session = Mock(get=Mock(side_effect=responses))
+            res = s._scrape_sync("Книги", src_url, max_pages=5)
+            retired, active, assessment = _retired_after(res, existing_ids, "marwin", src_url)
+            return res, retired, active, assessment
 
-        # Сценарий 2: усечённая промежуточная стр.1 (15 шт. < limit=20), затем полная стр.2 (20 шт.)
-        s2 = MarwinScraper()
-        s2._slug_to_id["knigi-32627"] = 33
-        m1 = Mock(status_code=200, json=Mock(return_value={
-            "items": [_raw_item(i, name=f"Книга {i}") for i in range(1, 16)],
-            "pagination": {"total": 40, "page": 1, "pages": 2, "limit": 20},
+        existing_40_plus_missing = tuple(f"marwin_v2_{i}@unknown" for i in range(1, 42))
+        existing_21_plus_missing = tuple(f"marwin_v2_{i}@unknown" for i in range(1, 23))
+
+        # 1. Положительный контроль: 20 + 20 при total=40, pages=2, limit=20 -> снимается только 41
+        res, retired, active, assessment = _run(
+            [
+                {"items": [_raw_item(i) for i in range(1, 21)], "pagination": {"total": 40, "page": 1, "pages": 2, "limit": 20}},
+                {"items": [_raw_item(i) for i in range(21, 41)], "pagination": {"total": 40, "page": 2, "pages": 2, "limit": 20}},
+            ],
+            existing_40_plus_missing,
+        )
+        self.assertTrue(res.complete)
+        self.assertTrue(assessment["may_retire"])
+        self.assertEqual(retired, ["marwin_v2_41@unknown"])
+
+        # 2. Положительный контроль: 20 + 1 при total=21, pages=2, limit=20 -> снимается только 22
+        res, retired, active, assessment = _run(
+            [
+                {"items": [_raw_item(i) for i in range(1, 21)], "pagination": {"total": 21, "page": 1, "pages": 2, "limit": 20}},
+                {"items": [_raw_item(21)], "pagination": {"total": 21, "page": 2, "pages": 2, "limit": 20}},
+            ],
+            existing_21_plus_missing,
+        )
+        self.assertTrue(res.complete)
+        self.assertTrue(assessment["may_retire"])
+        self.assertEqual(retired, ["marwin_v2_22@unknown"])
+
+        # 3. Отрицательный: усечение хвоста 20 + 1 при total=40, pages=2, limit=20
+        res, retired, active, assessment = _run(
+            [
+                {"items": [_raw_item(i) for i in range(1, 21)], "pagination": {"total": 40, "page": 1, "pages": 2, "limit": 20}},
+                {"items": [_raw_item(21)], "pagination": {"total": 40, "page": 2, "pages": 2, "limit": 20}},
+            ],
+            existing_40_plus_missing,
+        )
+        self.assertFalse(res.complete)
+        self.assertFalse(assessment["may_retire"])
+        self.assertEqual(retired, [])
+
+        # 4. Отрицательный: усечение середины 15 + 20 при total=40, pages=2, limit=20
+        res, retired, active, assessment = _run(
+            [
+                {"items": [_raw_item(i) for i in range(1, 16)], "pagination": {"total": 40, "page": 1, "pages": 2, "limit": 20}},
+                {"items": [_raw_item(i) for i in range(21, 41)], "pagination": {"total": 40, "page": 2, "pages": 2, "limit": 20}},
+            ],
+            existing_40_plus_missing,
+        )
+        self.assertFalse(res.complete)
+        self.assertFalse(assessment["may_retire"])
+        self.assertEqual(retired, [])
+
+        # 5. Отрицательный: меняющийся total 40 -> 21 между страницами
+        res, retired, active, assessment = _run(
+            [
+                {"items": [_raw_item(i) for i in range(1, 21)], "pagination": {"total": 40, "page": 1, "pages": 2, "limit": 20}},
+                {"items": [_raw_item(21)], "pagination": {"total": 21, "page": 2, "pages": 2, "limit": 20}},
+            ],
+            existing_40_plus_missing,
+        )
+        self.assertFalse(res.complete)
+        self.assertFalse(assessment["may_retire"])
+        self.assertEqual(retired, [])
+
+        # 6. Отрицательный: межстраничное перекрытие 1..20 и 20..39 при total=40 (ID 40 вытеснен, нельзя снимать)
+        res, retired, active, assessment = _run(
+            [
+                {"items": [_raw_item(i) for i in range(1, 21)], "pagination": {"total": 40, "page": 1, "pages": 2, "limit": 20}},
+                {"items": [_raw_item(i) for i in range(20, 40)], "pagination": {"total": 40, "page": 2, "pages": 2, "limit": 20}},
+            ],
+            existing_40_plus_missing,
+        )
+        self.assertFalse(res.complete)
+        self.assertFalse(assessment["may_retire"])
+        self.assertEqual(retired, [])
+        self.assertIn("marwin_v2_40@unknown", active)
+
+    def test_scan_state_resets_between_different_sources(self):
+        """Сломанная пагинация на одном источнике не должна отравлять следующий источник того же экземпляра скрапера."""
+        s = MarwinScraper()
+        s._slug_to_id["knigi-32627"] = 33
+        s._slug_to_id["videoigry-i-konsoli-32532"] = 28
+
+        r_bad = Mock(status_code=200, json=Mock(return_value={
+            "items": [_raw_item(1)],
+            "pagination": {"total": 10, "page": 1, "pages": 1, "limit": 20},
         }))
-        m2 = Mock(status_code=200, json=Mock(return_value={
-            "items": [_raw_item(i, name=f"Книга {i}") for i in range(21, 41)],
-            "pagination": {"total": 40, "page": 2, "pages": 2, "limit": 20},
+        r_good = Mock(status_code=200, json=Mock(return_value={
+            "items": [_raw_item(1)],
+            "pagination": {"total": 1, "page": 1, "pages": 1, "limit": 20},
         }))
-        m3 = Mock(status_code=200, json=Mock(return_value={"items": [], "pagination": {"total": 40, "page": 3, "pages": 2, "limit": 20}}))
-        s2.session = Mock(get=Mock(side_effect=[m1, m2, m3]))
-        res2 = s2._scrape_sync("Книги", src_url, max_pages=5)
-        self.assertFalse(res2.complete)
-        retired2, active2, assessment2 = _retired_after(res2, existing, "marwin", src_url)
-        self.assertFalse(assessment2["may_retire"])
-        self.assertEqual(retired2, [])
-        self.assertEqual(active2, set(existing))
+        s.session = Mock(get=Mock(side_effect=[r_bad, r_good]))
+
+        res_bad = s._fetch_page("Книги", "https://www.marwin.kz/knigi-32627", 1)
+        self.assertFalse(res_bad.complete)
+        res_good = s._fetch_page("Игры", "https://www.marwin.kz/videoigry-i-konsoli-32532", 1)
+        self.assertTrue(res_good.complete)
 
     def test_valid_multipage_complete_scan_retires_only_missing_v2_item(self):
         """Положительный контроль MW-03: валидная двухстраничная выдача завершается и снимает отсутствующий товар."""
