@@ -9,11 +9,22 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
-## IN_PROGRESS v6.42.7 — R1-02: Forte Market мультигород (Астана + Алматы) за один проход API — Antigravity (2026-11-21 13:52, Asia/Almaty)
+## STAND_DEPLOYED v6.42.7 — R1-02: Forte Market мультигород (Астана + Алматы) за один проход API — Antigravity (2026-11-21 14:03, Asia/Almaty)
 
-- **Исполнитель:** Antigravity (локально + стенд через git bundle; прод не трогается).
-- **Область файлов:** `scrapers/fortemarket.py`, `config.py`, `docs/REGIONAL_PRICING.md`, `tests/scrapers/test_fortemarket_multicity.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
-- **Суть:** Algolia API Forte Market возвращает массив `Locations.Location` со всеми городами (`KZ-AST`/`710000000`, `KZ-ALA`/`750000000`, `KZ`) в одном ответе. Подключаем сбор обоих городов (`Астана`, `Алматы`) за один проход без дополнительных HTTP-запросов, с сохранением существующих ключей `@astana` и `@kz` и учётом `unparsed` (R1-A02).
+- **Статус:** `v6.42.7` развёрнута и проверена на стенде, **готово к независимой приёмке Codex**. Push в `origin main` не выполнялся, прод (`6.40.33`) не трогался.
+- **Срез:** коммит приложения `92d169f` (поверх `ebfe48b`, `merge --ff-only` через git bundle), образ `sha256:c76a351151d7d17d151a93ed276c4fe4b2bc263e2f1cb76d80d2a7256f78ba84`, контейнер `kzph-stand` `running / healthy`, `StartedAt = 2026-11-21T08:55:22Z`, `/api/version` = `6.42.7`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`). Локальная правка `docker-compose.stand.yml` на стенде сохранена.
+- **Что сделано:**
+  - `scrapers/fortemarket.py`: `DEFAULT_CITIES = ("Астана", "Алматы")`, новая `resolve_offers_for_cities(hit, cities)` — извлекает подтверждённые цены для обоих городов из одного ответа Algolia (`Locations.Location[]`: `KZ-AST`/`710000000` и `KZ-ALA`/`750000000`, откат к `Казахстан` без дублей). Дополнительных HTTP-запросов и роста времени волн нет (0% накладных расходов). Существующие ключи `forte_<id>@astana` и `forte_<id>@kz` полностью сохраняются; добавляются новые `forte_<id>@almaty`.
+  - Учёт `unparsed` (R1-A02): сломанные hit'ы (не-dict, без `objectID`/`Name`, цена `<= 0`, битый URL) считаются в `unparsed` и блокируют `complete` и снятие в `PagedScraper._scrape_sync`.
+  - `config.py`, `docs/REGIONAL_PRICING.md`: `SHOP_REGIONAL_POLICY["fortemarket"]["scan_cities"] = ("Астана", "Алматы")`.
+- **Проверки:**
+  - Новый `tests/scrapers/test_fortemarket_multicity.py` (7 тестов: оба города из одного запроса, сохранение `@astana`/`@kz` + добавление `@almaty`, дедупликация, обратная совместимость, `unparsed` блокирует снятие в `_reconcile_source_conn`, положительный контроль законного снятия).
+  - Целевой набор (macOS): **143 OK** (5.3 с).
+  - Полный Python-набор в чистом контейнере образа стенда (`docker run --rm --network none --cpus 2 --tmpfs /app/data -e DATA_DIR=/app/data kzph-stand:local python -m unittest discover -s . -p 'test_*.py'`): **3 267 OK** (427.9 с).
+  - `release_gate.py secrets`: 0 findings; `release_gate.py pins` при сборке образа: 25/25 OK.
+  - Живой read-only smoke-тест (Mac, без записи в БД): 2 стр. `Forte: 📱 Смартфоны` — `356` предложений за 1.7 с (Астана `104`, Алматы `150`, Казахстан `102`; 0 дублей, `unparsed=0`).
+- **Не проверено:** живой рабочий обход Forte Market внутри волн стенда после рестарта `08:55Z`, frontend (не менялся), live CI, production.
+- **Следующий точный шаг:** независимая приёмка Codex для `v6.42.7` (мультигород Forte Market + `unparsed` guard), затем решение владельца о выпуске R1 (`v6.42.7`) в прод.
 
 ## LIVE_ID_CONFIRMED v6.42.6 — Kari, Белый Ветер и все 9 переименованных магазинов на стенде — Antigravity (2026-11-21 13:49, Asia/Almaty)
 
