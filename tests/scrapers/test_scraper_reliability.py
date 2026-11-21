@@ -1052,7 +1052,7 @@ class NewSourcesEndProofTest(unittest.TestCase):
             res = s._fetch_page("Книги", "https://www.marwin.kz/knigi-32627", 1)
 
         self.assertEqual(len(res), 1)
-        self.assertEqual(res[0]["id"], "marwin_555")
+        self.assertEqual(res[0]["id"], "marwin_v2_555")
         self.assertEqual(res[0]["price"], 4500)
         self.assertFalse(res.complete)
         self.assertEqual(session.get.call_count, 3)

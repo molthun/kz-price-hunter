@@ -511,7 +511,7 @@ class ScraperContractTest(unittest.TestCase):
         items = scraper._fetch_page("Видеоигры и консоли", "https://www.marwin.kz/videoigry-i-konsoli-32532", 1)
         self.assertEqual(len(items), 1)
         item = items[0]
-        self.assertEqual(item["id"], "marwin_3595999")
+        self.assertEqual(item["id"], "marwin_v2_3595999")
         self.assertEqual(item["sku"], "3595999")
         self.assertEqual(item["shop"], "Меломан")
         self.assertEqual(item["title"], "Игровая консоль PlayStation 5 Slim")

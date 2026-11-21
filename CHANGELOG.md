@@ -12,8 +12,9 @@
 - **`scrapers/marwin.py`:**
   - скрапер переведён с HTML-разметки Magento 2 (`.product-item-info`) на публичный JSON REST API новой витрины: `GET /v1/catalog/categories/slug/{slug}`, `GET /v1/catalog/products` (`in_stock=true`, `locale=ru`), `GET /v1/catalog/search`;
   - добавлен фоллбэк разрешения старых URL категорий (например `/books/`) через редирект на новый slug;
-  - конец каталога подтверждается по `pagination.pages`; битые записи инкрементируют `unparsed` и блокируют `complete` / ошибочное снятие, а товары с `in_stock=false` пропускаются штатно;
-  - сохранены префикс `marwin_<id>` и `city="Алматы / Казахстан"` (совместимость с `@unknown`).
+  - конец каталога подтверждается строгой валидацией `pagination` (`parse_marwin_pagination`: отклоняет `bool`, `float`, `<= 0`, несовпадение `page`, противоречие `total/limit/pages`); битые записи инкрементируют `unparsed` и блокируют `complete` / ошибочное снятие, а товары с `in_stock=false` пропускаются штатно;
+  - используется изолированное пространство ключей **`marwin_v2_<id>`** с `city="Алматы / Казахстан"` (`@unknown`), чтобы исключить тихие числовые коллизии с прежними Magento entity_id (`marwin_<id>`, т.к. новый API не возвращает старые Magento ID);
+  - **политика перехода:** новые категории v1 собираются под новыми `source_url` с собственными baseline (старые Magento-записи `marwin_*@unknown` не перезаписываются и не снимаются автоматически; на стенде 0 избранного и 0 наблюдений на `marwin_%`).
 - **`config.py` (`MARWIN_CATEGORIES`):** все 9 категорий обновлены на актуальные slug-адреса новой витрины (`knigi-32627`, `videoigry-i-konsoli-32532`, `igrushki-i-igry-32632`, `konstruktory-32794`, `igry-nastolnye-32654`, `tvorchestvo-fine-art-32491`, `shkola-kancelyariya-32768`, `vinil-i-cd-32606`, `sladosti-i-napitki-32693`).
 - **Тесты:** обновлены мок-тесты в `tests/scrapers/test_scraper_contract.py` и `tests/scrapers/test_scraper_reliability.py`, добавлен `tests/scrapers/test_marwin_v1_api.py` (разбор JSON, `in_stock=false`, `unparsed` guard с реальным `_reconcile_source_conn` и положительным контролем снятия, фоллбэк старого URL, `search_live`).
 

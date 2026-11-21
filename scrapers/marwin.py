@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import math
 import time
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urljoin, urlsplit
@@ -24,6 +25,62 @@ from scrapers.base import (
 
 
 _LOCALE_PREFIXES = {"ru", "en", "kk", "kz"}
+
+
+def _strict_int(value: Any) -> Optional[int]:
+    """Возвращает int только для настоящего целого (исключая bool, float и строки)."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
+def parse_marwin_pagination(
+    pagination: Any,
+    page_num: int,
+    raw_count: int,
+) -> Tuple[Optional[int], bool]:
+    """Строго валидирует метаданные пагинации `/v1/catalog/products` (MW-03).
+
+    Возвращает `(total_pages, is_valid)`:
+    - отклоняет bool, float, строки, <= 0 для `pages`;
+    - проверяет совпадение `pagination.page == page_num` (если поле передано);
+    - проверяет согласованность `total`, `limit`, `pages` и `raw_count`:
+      если `pages < ceil(total / limit)` или на единственной странице `total > raw_count`,
+      пагинация считается противоречивой и не подтверждает конец каталога.
+    """
+    if not isinstance(pagination, dict):
+        return None, False
+
+    pages = _strict_int(pagination.get("pages"))
+    if pages is None or pages < 1:
+        return None, False
+
+    if "page" in pagination and pagination.get("page") is not None:
+        resp_page = _strict_int(pagination.get("page"))
+        if resp_page is None or resp_page != page_num:
+            return None, False
+
+    total: Optional[int] = None
+    if "total" in pagination and pagination.get("total") is not None:
+        total = _strict_int(pagination.get("total"))
+        if total is None or total < 0:
+            return None, False
+
+    limit: Optional[int] = None
+    if "limit" in pagination and pagination.get("limit") is not None:
+        limit = _strict_int(pagination.get("limit"))
+        if limit is None or limit < 1:
+            return None, False
+
+    if total is not None and limit is not None and total > 0:
+        min_pages = math.ceil(total / limit)
+        if pages < min_pages:
+            return None, False
+
+    if total is not None and pages == 1 and page_num == 1 and total > raw_count:
+        return None, False
+
+    return pages, True
 
 
 def extract_category_slug(category_url: str) -> str:
@@ -177,7 +234,10 @@ class MarwinScraper(PagedScraper):
 
         item = {
             "shop": self.SHOP_NAME,
-            "id": f"marwin_{pid}",
+            # Новая витрина marwin.kz (Next.js) использует собственное пространство числовых ID,
+            # пересекающееся со старыми Magento entity_id (например 5-значные ID).
+            # Изолированный префикс marwin_v2_ исключает тихую коллизию и перезапись старых записей (MW-01).
+            "id": f"marwin_v2_{pid}",
             "sku": sku,
             "title": title,
             "category": category_name,
@@ -223,16 +283,15 @@ class MarwinScraper(PagedScraper):
             raise RuntimeError(f"Неожиданная структура ответа API {category_url}")
 
         raw_items = payload["items"]
-        pagination = payload.get("pagination") if isinstance(payload.get("pagination"), dict) else {}
-        try:
-            total_pages = int(pagination.get("pages") or 0)
-        except (ValueError, TypeError):
-            total_pages = 0
+        pagination = payload.get("pagination")
+        total_pages, pagination_valid = parse_marwin_pagination(
+            pagination, page_num=page_num, raw_count=len(raw_items)
+        )
 
         if not raw_items:
             if page_num == 1:
                 raise RuntimeError(f"Карточки товаров не найдены на первой странице {category_url}")
-            if total_pages > 0 and page_num > total_pages:
+            if pagination_valid and total_pages is not None and page_num > total_pages:
                 return ScanResult([], complete=True)
             raise UnconfirmedEnd("карточки не найдены на следующей странице")
 
@@ -246,8 +305,8 @@ class MarwinScraper(PagedScraper):
                 products.append(parsed)
 
         # PagedScraper._scrape_sync сам запрещает complete=True при unparsed > 0;
-        # здесь complete отражает факт достижения последней страницы, чтобы не делать лишний запрос.
-        is_complete = bool(total_pages > 0 and page_num >= total_pages)
+        # при невалидной/противоречивой пагинации конец каталога не подтверждается (MW-03).
+        is_complete = bool(pagination_valid and total_pages is not None and page_num >= total_pages)
         return ScanResult(products, complete=is_complete, unparsed=unparsed)
 
     def search_live(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:

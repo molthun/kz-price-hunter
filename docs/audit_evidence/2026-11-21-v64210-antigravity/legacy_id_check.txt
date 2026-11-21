@@ -1,0 +1,31 @@
+# Проверка сопоставимости legacy Magento ID и нового API marwin.kz (2026-11-21)
+
+## 1. Агрегаты БД стенда (только чтение, без персональных данных)
+- products (shop='Меломан', total): 7090 (active: 7090)
+- user_favorites (item_id LIKE 'marwin_%'): 0
+- watches / watch_state / watch_events (marwin / Меломан): 0
+- Старые Magento baselines в source_scans: 319..1433 товаров/категорию (60–150 шт/стр × 10 стр),
+  тогда как новый API /v1/catalog/products отдаёт строго 20 шт/стр (200 шт за 10 стр).
+
+## 2. Проверка 3 реальных живых пар legacy Magento -> Next.js /v1/catalog/*
+1) Legacy: marwin_3661628@unknown
+   Old URL: https://www.marwin.kz/sentimental-novel/sherri-a-ja-podarju-tebe-kryl-ja-kniga-1-1543404.html
+   Redirect: https://www.marwin.kz/product/sherri-a-ya-podaryu-tebe-krylya-kniga-1-56255 (новый id=56255)
+2) Legacy: marwin_3655783@unknown
+   Old URL: https://www.marwin.kz/architecture/lego-parizh-gorod-ljubvi-architecture-21064.html
+   New API search/detail: id=1333, sku=1528851, slug=lego-parizh-gorod-lyubvi-architecture-21064-1333
+   Detail keys: ['attributes', 'badges', 'brand', 'breadcrumbs', 'cashback', 'category', 'description',
+                 'gallery', 'id', 'image', 'images', 'in_stock', 'is_favorite', 'kim', 'name', 'price',
+                 'rating', 'reviews_preview', 'sku', 'slug', 'variants', 'videos']
+   Поля со старым Magento entity_id (3655783) в ответе API отсутствуют.
+3) Legacy: marwin_3632617@unknown
+   Old URL: https://www.marwin.kz/ninjago/lego-duga-drakona-fokusa-ninjago-71836.html
+   Redirect: https://www.marwin.kz/product/lego-duga-drakona-fokusa-ninjago-71836-1662
+   New API detail: id=1662, sku=1493496 (старого Magento ID 3632617 в API нет).
+
+## 3. Вывод и принятая политика (MW-01 / MW-02)
+- Новый API не содержит прежних Magento entity_id, а его собственные 4–6-значные id (1333, 1662, 56255, 221538)
+  пересекаются по диапазону со старыми 5-значными Magento ID (например marwin_24909@unknown).
+- Поэтому MarwinScraper использует изолированный префикс `marwin_v2_<id>` (0% риска тихой коллизии)
+  и новые source_url v1 с чистыми baseline. Старые Magento-записи `marwin_*@unknown` не перезаписываются;
+  их последующая очистка после подтверждения работы v1 — отдельное явное решение владельца.
