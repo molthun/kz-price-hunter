@@ -1,0 +1,71 @@
+# Снято 2026-11-21 04:15Z (q14) и ~04:25Z (q15/q16), стенд 6.42.6, только чтение
+## q14
+Kari mirror retired since restart [('kz', 3588)]
+Белый Ветер state [('astana', 0, 1188), ('astana', 1, 13156), ('kz', 0, 13264)]
+Белый Ветер written since restart [('astana', 13156)]
+Белый Ветер mirror retired since restart [('astana', 11), ('kz', 13159)]
+kari scans since restart [('complete', 'ok', 24, 14320), ('complete', 'unknown', 4, 32)]
+shopkz scans since restart [('complete', 'ok', 3, 39468)]
+сб 21 нояб 2026 04:15:06 UTC
+
+[exited with code 0]
+## q15
+cols ['id', 'shop_key', 'source_url', 'category', 'scan_id', 'started_at', 'finished_at', 'kind', 'quality', 'reason', 'received', 'valid', 'rejected', 'with_image', 'baseline', 'baseline_basis', 'accepted', 'duplicates']
+kari sources total 26 scanned since restart 7 not scanned 19
+scanned: active kz 0 active unknown 3588
+not scanned: active kz 35512 active unknown 14788
+unknown-quality scans [('https://kz.kari.com/catalog/dlya-mam-i-malyishey/avtokresla/', 5, '2026-11-21T06:26:17.781693+00:00', 'unknown')]
+last kari scan any ('2026-11-21T06:26:19.324925+00:00',)
+kari scans per day [('2026-11-20T00', 7), ('2026-11-20T03', 7), ('2026-11-20T05', 7), ('2026-11-20T08', 7), ('2026-11-20T11', 14), ('2026-11-20T14', 7), ('2026-11-20T16', 7), ('2026-11-20T19', 7), ('2026-11-20T22', 7), ('2026-11-21T01', 7), ('2026-11-21T03', 7), ('2026-11-21T06', 7)]
+kz retired since restart with active unknown twin (3588, 3588)
+shopkz astana retired since restart, kz twin active (11, 0)
+shopkz kz retired since restart with active astana twin (13159, 13156)
+## q16
+zhenschinam/krasota-i-zdorove/ 1253 2026-11-13T08:53:32.487625+00:00 15
+dlya-mam-i-malyishey/detskaya-komnata/ 71 2026-11-13T08:53:56.332839+00:00 15
+tovaryi-dlya-doma/dlya-doma/ 356 2026-11-13T08:53:58.449230+00:00 15
+tovaryi-dlya-doma/dlya-kukhni/ 14 2026-11-13T08:54:05.164762+00:00 15
+tovaryi-dlya-doma/dlya-prazdnika/ 320 2026-11-13T08:54:05.849080+00:00 15
+zhenschinam/zhenskaya-obuv/ 17209 2026-11-20T11:17:29.589507+00:00 18
+zhenschinam/zhenskaya-odezhda/ 1381 2026-11-20T11:20:04.456104+00:00 18
+zhenschinam/sumki-i-ryukzaki/ 3184 2026-11-20T11:20:35.132595+00:00 18
+zhenschinam/aksessuaryi/ 2051 2026-11-20T11:21:42.662458+00:00 18
+zhenschinam/yuvelirnyie-ukrasheniya/ 3169 2026-11-20T11:22:23.909339+00:00 18
+muzhchinam/muzhskaya-obuv/ 7265 2026-11-20T11:23:23.849042+00:00 18
+muzhchinam/muzhskaya-odezhda/ 622 2026-11-20T11:24:39.238009+00:00 18
+muzhchinam/aksessuaryi/ 808 2026-11-20T11:24:52.758562+00:00 18
+detyam/obuv-dlya-devochek/ 2095 2026-11-20T11:25:09.496360+00:00 18
+detyam/obuv-dlya-malchikov/ 1938 2026-11-20T11:25:51.885075+00:00 18
+detyam/odezhda-dlya-devochek/ 2818 2026-11-20T11:26:31.648525+00:00 18
+detyam/odezhda-dlya-malchikov/ 2073 2026-11-20T11:27:29.002727+00:00 18
+detyam/odezhda-dlya-mladentsev/ 938 2026-11-20T11:28:09.349654+00:00 18
+detyam/aksessuaryi/ 2735 2026-11-20T11:28:28.973219+00:00 18
+detyam/igrushki/ 2579 2026-11-21T06:25:12.197643+00:00 115
+detyam/khobbi-tvorchestvo-shkola/ 567 2026-11-21T06:26:02.331777+00:00 115
+detyam/sport-i-otdyikh/ 164 2026-11-21T06:26:13.521248+00:00 115
+dlya-mam-i-malyishey/kolyaski/ 44 2026-11-21T06:26:16.785004+00:00 115
+dlya-mam-i-malyishey/avtokresla/ 8 2026-11-21T06:26:17.781693+00:00 115
+dlya-mam-i-malyishey/ukhod-i-gigiena/ 25 2026-11-21T06:26:18.597231+00:00 115
+tovaryi-dlya-doma/tekhnika/ 201 2026-11-21T06:26:19.324925+00:00 115
+distinct kari urls in source_scans (26,)
+## wave log 20.11 19:00Z..21.11 04:30Z
+448
+448
+0
+2026-11-20T19:36:19.601621869Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
+2026-11-20T22:17:32.579108814Z [Scan] Старт обхода 2 магазинов [3 категорий]: KIMEX, Kari
+2026-11-20T22:17:52.612976988Z [Scan] Старт обхода 2 магазинов [3 категорий]: KIMEX, Kari
+2026-11-20T22:18:12.647759750Z [Scan] Старт обхода 2 магазинов [3 категорий]: KIMEX, Kari
+2026-11-20T22:18:32.683752606Z [Scan] Старт обхода 2 магазинов [3 категорий]: KIMEX, Kari
+2026-11-20T22:18:52.770575089Z [Scan] Старт обхода 2 магазинов [3 категорий]: KIMEX, Kari
+2026-11-21T01:00:05.374155228Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
+2026-11-21T01:00:25.409910853Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
+2026-11-21T03:41:38.955883523Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
+2026-11-21T03:41:59.023320436Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
+2026-11-21T03:42:19.033306908Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
+2026-11-21T06:23:31.894203377Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
+2026-11-21T06:23:51.916458354Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
+2026-11-21T06:24:11.954898179Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
+2026-11-21T06:24:32.121093229Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
+2026-11-21T06:24:52.154297171Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
+2026-11-21T06:25:12.191261238Z [Scan] Старт обхода 1 магазинов [3 категорий]: Kari
