@@ -3,6 +3,20 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.42.10] - 2026-11-21
+
+### Для пользователей
+- 📚 Восстановлен сбор и живой поиск магазина «Меломан / MARWIN» (`marwin.kz`) после переезда сайта с Magento 2 на новую витрину Next.js.
+
+### Перевод `MarwinScraper` на публичный JSON API `/v1/catalog/*`
+- **`scrapers/marwin.py`:**
+  - скрапер переведён с HTML-разметки Magento 2 (`.product-item-info`) на публичный JSON REST API новой витрины: `GET /v1/catalog/categories/slug/{slug}`, `GET /v1/catalog/products` (`in_stock=true`, `locale=ru`), `GET /v1/catalog/search`;
+  - добавлен фоллбэк разрешения старых URL категорий (например `/books/`) через редирект на новый slug;
+  - конец каталога подтверждается по `pagination.pages`; битые записи инкрементируют `unparsed` и блокируют `complete` / ошибочное снятие, а товары с `in_stock=false` пропускаются штатно;
+  - сохранены префикс `marwin_<id>` и `city="Алматы / Казахстан"` (совместимость с `@unknown`).
+- **`config.py` (`MARWIN_CATEGORIES`):** все 9 категорий обновлены на актуальные slug-адреса новой витрины (`knigi-32627`, `videoigry-i-konsoli-32532`, `igrushki-i-igry-32632`, `konstruktory-32794`, `igry-nastolnye-32654`, `tvorchestvo-fine-art-32491`, `shkola-kancelyariya-32768`, `vinil-i-cd-32606`, `sladosti-i-napitki-32693`).
+- **Тесты:** обновлены мок-тесты в `tests/scrapers/test_scraper_contract.py` и `tests/scrapers/test_scraper_reliability.py`, добавлен `tests/scrapers/test_marwin_v1_api.py` (разбор JSON, `in_stock=false`, `unparsed` guard с реальным `_reconcile_source_conn` и положительным контролем снятия, фоллбэк старого URL, `search_live`).
+
 ## [6.42.9] - 2026-11-21
 
 ### Для пользователей

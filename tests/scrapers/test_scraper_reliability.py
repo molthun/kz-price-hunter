@@ -1026,31 +1026,36 @@ class NewSourcesEndProofTest(unittest.TestCase):
         from scrapers.marwin import MarwinScraper
 
         s = MarwinScraper()
+        cat_ok = Mock(status_code=200, json=Mock(return_value={"id": 33, "slug": "knigi-32627"}))
         resp502 = Mock(status_code=502)
-        html_ok = '''
-        <html><body>
-        <div class="product-item-info" data-product-id="555">
-            <a class="product-item-link" href="/books/item555.html" data-product-name="Гарри Поттер">Гарри Поттер</a>
-            <span data-price-type="finalPrice" data-price-amount="4500"></span>
-            <img class="product-image-photo" data-src="https://simg.marwin.kz/hp.jpg" />
-        </div>
-        <div class="pages">
-            <ul class="pages-items"><li class="item"><a class="page" href="?p=2"><span>2</span></a></li></ul>
-        </div>
-        </body></html>
-        '''
-        resp200 = Mock(status_code=200, text=html_ok)
-        session = Mock(get=Mock(side_effect=[resp502, resp200]))
+        resp200 = Mock(
+            status_code=200,
+            json=Mock(return_value={
+                "items": [
+                    {
+                        "id": 555,
+                        "sku": "555",
+                        "name": "Гарри Поттер",
+                        "slug": "garri-potter-555",
+                        "image": "https://media.marwin.kz/hp.jpg",
+                        "price": {"current": 4500, "old": None},
+                        "in_stock": True,
+                    }
+                ],
+                "pagination": {"total": 40, "page": 1, "pages": 2, "limit": 20},
+            }),
+        )
+        session = Mock(get=Mock(side_effect=[cat_ok, resp502, resp200]))
         s.session = session
 
         with patch("time.sleep", return_value=None):
-            res = s._fetch_page("Книги", "https://www.marwin.kz/books/", 1)
+            res = s._fetch_page("Книги", "https://www.marwin.kz/knigi-32627", 1)
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]["id"], "marwin_555")
         self.assertEqual(res[0]["price"], 4500)
         self.assertFalse(res.complete)
-        self.assertEqual(session.get.call_count, 2)
+        self.assertEqual(session.get.call_count, 3)
 
     def test_marwin_completion_and_unconfirmed_end(self):
         from unittest.mock import Mock
@@ -1058,27 +1063,38 @@ class NewSourcesEndProofTest(unittest.TestCase):
         from scrapers.base import UnconfirmedEnd
 
         s = MarwinScraper()
-        html_p2 = '''
-        <html><body>
-        <div class="product-item-info" data-product-id="556">
-            <a class="product-item-link" href="/books/item556.html" data-product-name="Властелин Колец">Властелин Колец</a>
-            <span data-price-type="finalPrice" data-price-amount="6000"></span>
-        </div>
-        <div class="pages">
-            <ul class="pages-items"><li class="item"><a class="page" href="?p=2"><span>2</span></a></li></ul>
-        </div>
-        </body></html>
-        '''
-        session = Mock(get=Mock(return_value=Mock(status_code=200, text=html_p2)))
+        s._slug_to_id["knigi-32627"] = 33
+        resp_p2 = Mock(
+            status_code=200,
+            json=Mock(return_value={
+                "items": [
+                    {
+                        "id": 556,
+                        "sku": "556",
+                        "name": "Властелин Колец",
+                        "slug": "vlastelin-kolets-556",
+                        "image": "https://media.marwin.kz/lotr.jpg",
+                        "price": {"current": 6000, "old": None},
+                        "in_stock": True,
+                    }
+                ],
+                "pagination": {"total": 21, "page": 2, "pages": 2, "limit": 20},
+            }),
+        )
+        session = Mock(get=Mock(return_value=resp_p2))
         s.session = session
 
-        res2 = s._fetch_page("Книги", "https://www.marwin.kz/books/", 2)
+        res2 = s._fetch_page("Книги", "https://www.marwin.kz/knigi-32627", 2)
         self.assertEqual(len(res2), 1)
         self.assertTrue(res2.complete)
 
-        session.get = Mock(return_value=Mock(status_code=200, text="<html><body><div>Пусто</div></body></html>"))
+        # Пустой ответ без подтверждённого pagination.pages -> UnconfirmedEnd
+        session.get = Mock(return_value=Mock(
+            status_code=200,
+            json=Mock(return_value={"items": [], "pagination": {}}),
+        ))
         with self.assertRaises(UnconfirmedEnd):
-            s._fetch_page("Книги", "https://www.marwin.kz/books/", 3)
+            s._fetch_page("Книги", "https://www.marwin.kz/knigi-32627", 3)
 
     def test_iteka_retry_on_transient_error(self):
         from unittest.mock import Mock, patch

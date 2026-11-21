@@ -483,42 +483,32 @@ class ScraperContractTest(unittest.TestCase):
     def test_marwin_parsing_mock(self):
         from unittest.mock import MagicMock
         scraper = MarwinScraper()
-        mock_html = '''
-        <html><body>
-        <li class="product-item">
-            <div class="product-item-info" data-product-id="3595999">
-                <a class="product-item-photo" href="/press/banner.html">
-                    <img class="product-image-photo" data-src="https://simg.marwin.kz/media/catalog/product/ps5.png" alt="PS5" />
-                </a>
-                <strong class="product-item-name">
-                    <a class="product-item-link" href="https://www.marwin.kz/videogames/ps5.html" data-product-name="Игровая консоль PlayStation 5 Slim">
-                        Игровая консоль PlayStation 5 Slim
-                    </a>
-                </strong>
-                <div class="price-box">
-                    <span data-price-type="oldPrice" data-price-amount="420000"></span>
-                    <span data-price-type="finalPrice" data-price-amount="389990">
-                        <span class="price">389 990 ₸</span>
-                    </span>
-                </div>
-            </div>
-        </li>
-        <div class="pages">
-            <ul class="pages-items">
-                <li class="item"><a class="page" href="?p=2"><span>2</span></a></li>
-            </ul>
-        </div>
-        </body></html>
-        '''
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.text = mock_html
+        cat_resp = MagicMock()
+        cat_resp.status_code = 200
+        cat_resp.json.return_value = {"id": 28, "slug": "videoigry-i-konsoli-32532"}
+
+        prod_resp = MagicMock()
+        prod_resp.status_code = 200
+        prod_resp.json.return_value = {
+            "items": [
+                {
+                    "id": 3595999,
+                    "sku": "3595999",
+                    "name": "Игровая консоль PlayStation 5 Slim",
+                    "slug": "igrovaya-konsol-playstation-5-slim-3595999",
+                    "image": "https://media.marwin.kz/products/ps5.png",
+                    "price": {"current": 389990, "old": 420000},
+                    "in_stock": True,
+                }
+            ],
+            "pagination": {"total": 40, "page": 1, "pages": 2, "limit": 20},
+        }
 
         mock_session = MagicMock()
-        mock_session.get.return_value = mock_resp
+        mock_session.get.side_effect = [cat_resp, prod_resp]
         scraper.session = mock_session
 
-        items = scraper._fetch_page("Видеоигры и консоли", "https://www.marwin.kz/videogames/", 1)
+        items = scraper._fetch_page("Видеоигры и консоли", "https://www.marwin.kz/videoigry-i-konsoli-32532", 1)
         self.assertEqual(len(items), 1)
         item = items[0]
         self.assertEqual(item["id"], "marwin_3595999")
@@ -527,8 +517,8 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(item["title"], "Игровая консоль PlayStation 5 Slim")
         self.assertEqual(item["price"], 389990)
         self.assertEqual(item["old_price_on_site"], 420000)
-        self.assertEqual(item["url"], "https://www.marwin.kz/videogames/ps5.html")
-        self.assertEqual(item["image_url"], "https://simg.marwin.kz/media/catalog/product/ps5.png")
+        self.assertEqual(item["url"], "https://www.marwin.kz/product/igrovaya-konsol-playstation-5-slim-3595999")
+        self.assertEqual(item["image_url"], "https://media.marwin.kz/products/ps5.png")
         self.assertEqual(item["city"], "Алматы / Казахстан")
         self.assertFalse(items.complete)
         scraper.close()
@@ -537,18 +527,22 @@ class ScraperContractTest(unittest.TestCase):
     def test_marwin_live_search_mock(self):
         from unittest.mock import MagicMock
         scraper = MarwinScraper()
-        mock_html = '''
-        <html><body>
-        <div class="product-item-info" data-product-id="123">
-            <a class="product-item-link" href="https://www.marwin.kz/books/lego.html">Книга LEGO</a>
-            <span data-price-type="finalPrice" data-price-amount="5000"></span>
-            <img class="product-image-photo" src="https://simg.marwin.kz/img.jpg" />
-        </div>
-        </body></html>
-        '''
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.text = mock_html
+        mock_resp.json.return_value = {
+            "query": "LEGO",
+            "items": [
+                {
+                    "id": 123,
+                    "sku": "123",
+                    "name": "Книга LEGO",
+                    "slug": "kniga-lego-123",
+                    "image": "https://media.marwin.kz/products/img.jpg",
+                    "price": {"current": 5000, "old": None},
+                    "in_stock": True,
+                }
+            ],
+        }
 
         mock_session = MagicMock()
         mock_session.get.return_value = mock_resp
