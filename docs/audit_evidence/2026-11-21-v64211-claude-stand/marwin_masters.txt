@@ -1,0 +1,30 @@
+# config MARWIN_CATEGORIES masters vs MASTER_CATEGORIES
+== v6.40.33
+   1 "master": "board_games"
+   2 "master": "books"
+   1 "master": "books_media"
+   1 "master": "consoles"
+   1 "master": "food"
+   2 "master": "kids"
+   1 "master": "vinyl"
+== f47f5fb
+   1 "master": "board_games"
+   2 "master": "books"
+   1 "master": "books_media"
+   1 "master": "consoles"
+   1 "master": "food"
+   2 "master": "kids"
+   1 "master": "vinyl"
+== MASTER_CATEGORIES
+['actions', 'appliances_large', 'appliances_small', 'audio', 'beauty_health', 'clothes', 'consoles', 'diy', 'grocery', 'home_furniture', 'household', 'laptops', 'monitors', 'office_network', 'pc_components', 'pets', 'smartphones', 'tablets_watches', 'tvs']
+== stand marwin source_scans (url, last, count)
+('https://www.marwin.kz/books/', '2026-11-04T21:28:04.134763+00:00', 10)
+('https://www.marwin.kz/toys-and-entertainment/', '2026-11-04T21:28:42.160539+00:00', 10)
+('https://www.marwin.kz/toys-and-entertainment/lego/', '2026-11-04T21:29:01.293597+00:00', 9)
+('https://www.marwin.kz/toys-and-entertainment/nastol-nye-igry/', '2026-11-04T21:29:28.508508+00:00', 9)
+('https://www.marwin.kz/tvorchestvo-19692/', '2026-11-04T21:29:34.037700+00:00', 9)
+('https://www.marwin.kz/shkola-kancelyariya-19236/', '2026-11-05T05:54:33.751439+00:00', 13)
+('https://www.marwin.kz/food-items/', '2026-11-05T05:54:47.839535+00:00', 13)
+('https://www.marwin.kz/music/', '2026-11-05T06:01:14.331468+00:00', 57)
+('https://www.marwin.kz/videogames/', '2026-11-21T15:38:27.571893+00:00', 292)
+('https://www.marwin.kz/videoigry-i-konsoli-32532', '2026-11-21T16:40:04.914264+00:00', 1)
