@@ -66,9 +66,36 @@ class CatalogUrlsHygieneTest(unittest.TestCase):
                     f"{list_name}: missing master category in {entry}",
                 )
 
+    def test_all_shop_categories_use_known_master_categories(self):
+        """Каждый master в *_CATEGORIES всех магазинов должен существовать в MASTER_CATEGORIES (или быть 'all'),
+        иначе раздел молча выпадает из волн и добора (v6.42.12)."""
+        from web.server import SHOP_REGISTRY
+
+        allowed = set(config.MASTER_CATEGORIES.keys()) | {"all"}
+        missing = []
+
+        for shop_key, (_, cats, _shop_name) in SHOP_REGISTRY.items():
+            for entry in cats:
+                master = entry.get("master")
+                if master not in allowed:
+                    missing.append((shop_key, entry.get("name"), master))
+
+        for attr_name in dir(config):
+            if not attr_name.endswith("_CATEGORIES") or attr_name == "MASTER_CATEGORIES":
+                continue
+            val = getattr(config, attr_name)
+            if isinstance(val, list):
+                for entry in val:
+                    if isinstance(entry, dict) and "url" in entry:
+                        master = entry.get("master")
+                        if master not in allowed:
+                            missing.append((attr_name, entry.get("name"), master))
+
+        self.assertEqual(missing, [], f"Найдены категории с неизвестным master вне MASTER_CATEGORIES: {missing}")
+
     def test_dns_ssd_family_covers_sata_and_m2_with_distinct_names(self):
         storage_entries = [
-            entry for entry in config.DNS_CATEGORIES if entry.get("master") == "storage"
+            entry for entry in config.DNS_CATEGORIES if entry.get("master") == "pc_components"
         ]
         sata = [
             e for e in storage_entries
@@ -78,8 +105,8 @@ class CatalogUrlsHygieneTest(unittest.TestCase):
             e for e in storage_entries
             if "/ssd-m2-nakopiteli/" in e["url"] and "M.2" in e["name"].upper()
         ]
-        self.assertEqual(len(sata), 1, f"DNS storage must include 2.5\" SATA SSD: {storage_entries}")
-        self.assertEqual(len(m2), 1, f"DNS storage must include M.2 SSD: {storage_entries}")
+        self.assertEqual(len(sata), 1, f"DNS pc_components must include 2.5\" SATA SSD: {storage_entries}")
+        self.assertEqual(len(m2), 1, f"DNS pc_components must include M.2 SSD: {storage_entries}")
         self.assertNotEqual(sata[0]["name"], m2[0]["name"])
 
     def test_dns_consoles_family_covers_playstation_xbox_and_portable(self):

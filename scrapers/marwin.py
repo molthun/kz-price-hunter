@@ -3,7 +3,7 @@
 Платформа (с 21.11.2026): Next.js App Router + публичный JSON REST API `/v1/catalog/*`.
 - Разрешение slug категории -> category_id: `GET /v1/catalog/categories/slug/{slug}`
   (с фоллбэком на редирект для старых URL вида `/books/`).
-- Товары категории: `GET /v1/catalog/products?category_id={id}&page={N}&limit=20&in_stock=true&locale=ru`.
+- Товары категории: `GET /v1/catalog/products?category_id={id}&page={N}&limit=20&availability=in_stock&locale=ru`.
 - Конец каталога подтверждается по `pagination.pages` (`page >= pages` при `unparsed == 0`).
 - Живой поиск: `GET /v1/catalog/search?q={query}&limit={limit}&locale=ru`.
 """
@@ -280,7 +280,7 @@ class MarwinScraper(PagedScraper):
                 "category_id": cat_id,
                 "page": page_num,
                 "limit": self.PAGE_LIMIT,
-                "in_stock": "true",
+                "availability": "in_stock",
                 "locale": "ru",
             },
             timeout=20,

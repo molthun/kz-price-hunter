@@ -63,6 +63,9 @@ class MarwinV1ApiTest(unittest.TestCase):
         self.assertEqual(res[0]["old_price_on_site"], 5990)
         self.assertEqual(res.unparsed, 0)
         self.assertTrue(res.complete)
+        called_params = s.session.get.call_args.kwargs.get("params") or {}
+        self.assertEqual(called_params.get("availability"), "in_stock")
+        self.assertNotIn("in_stock", called_params)
 
     def test_broken_item_increments_unparsed_and_blocks_retirement(self):
         src_url = "https://www.marwin.kz/videoigry-i-konsoli-32532"

@@ -3,6 +3,20 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.42.12] - 2026-11-21
+
+### Для пользователей
+- 🔄 В обход по волнам и добор возвращены 44 ранее выпадавшие категории: 8 разделов «Меломан / MARWIN» (книги, игрушки, LEGO, настольные игры, творчество, канцелярия, музыка/винил, сладости) и 36 разделов ПК-комплектующих и системных блоков в DNS, Forcecom, Moon.kz, ANTS и ITMag. В «Меломане» исправлен серверный фильтр наличия (`availability=in_stock`), благодаря чему раздел «Видеоигры и консоли» завершается полностью без пустой 8-й страницы.
+
+### Привязка выпавших `master`-категорий к `MASTER_CATEGORIES` и фильтр наличия Marwin
+- **`scrapers/marwin.py` (`_fetch_page`):** параметр фильтрации наличия заменён с игнорируемого API `in_stock=true` на рабочий `availability=in_stock`. Для «Видеоигр и консолей» API теперь отдаёт точные `total=121, pages=7` вместо 16 страниц с 9 пустыми (out-of-stock) страницами в хвосте.
+- **`config.py`:** все 44 категории с несуществующими ключами `master` привязаны к действующим ключам `MASTER_CATEGORIES` (без увеличения числа волн):
+  - `MARWIN_CATEGORIES` (8 разделов): `books`/`kids`/`board_games`/`books_media` → `household` (аналогично `DETMIR_CATEGORIES`), `vinyl` → `audio`, `food` → `grocery`;
+  - `DNS_CATEGORIES`, `FORCECOM_CATEGORIES`, `MOON_CATEGORIES`, `ANTS_CATEGORIES`, `ITMAG_CATEGORIES` (36 разделов): `gpus`/`cpus`/`motherboards`/`ram`/`storage`/`hdd`/`pc_cases`/`psu`/`cooling`/`peripherals` → `pc_components`, `pc_desktops` → `laptops`.
+- **Тесты:**
+  - `tests/core/test_catalog_urls_hygiene.py`: добавлен сквозной контрактный тест `test_all_shop_categories_use_known_master_categories`, проверяющий каждую категорию каждого магазина в `SHOP_REGISTRY` и всех `*_CATEGORIES` в `config.py` на принадлежность `MASTER_CATEGORIES | {"all"}`;
+  - `tests/scrapers/test_marwin_v1_api.py`: добавлена проверка передачи `availability="in_stock"` в запросе `/v1/catalog/products`.
+
 ## [6.42.11] - 2026-11-21
 
 ### Для пользователей
