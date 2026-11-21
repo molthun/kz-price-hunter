@@ -9,6 +9,28 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## STAND_DEPLOYED v6.42.12 — привязка 44 выпавших разделов (`Marwin` 8 + `DNS/Forcecom/Moon/ANTS/ITMag` 36) + `availability=in_stock` в Marwin — Antigravity (2026-11-21 23:00, Asia/Almaty)
+
+- **Статус:** `v6.42.12` развёрнута и проверена на стенде, **готово к приёмке Codex** (вместе с живой проверкой `v6.42.11`). Push в `origin main` не выполнялся, прод (`6.40.33`) не трогался.
+- **Срез:** коммит приложения `67ce569` (поверх `c697239`, `merge --ff-only` через git bundle), образ `sha256:ff625f40fbb125d11767f4869ffcf95a1d227c6cd6c1c6caa3faa5593c97dc15`, контейнер `kzph-stand` `running / healthy`, `RestartCount=0`, `StartedAt=2026-11-21T17:50:35Z`, `/api/version=6.42.12`, `/api/health=ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`). SHA256 `scrapers/marwin.py`, `config.py`, `version.py` совпали локально и в контейнере.
+- **Что сделано:**
+  - `scrapers/marwin.py`: параметр `in_stock=true` (игнорировался API, отдавая 9 пустых out-of-stock страниц в хвосте «Видеоигр») заменён на рабочий серверный фильтр **`availability=in_stock`**.
+  - `config.py`: все **44** категории с несуществующими ключами `master` привязаны к действующим ключам `MASTER_CATEGORIES` без увеличения числа волн:
+    - `MARWIN_CATEGORIES` (8 разделов): `books`/`kids`/`board_games`/`books_media` → `household`, `vinyl` → `audio`, `food` → `grocery`;
+    - `DNS_CATEGORIES`, `FORCECOM_CATEGORIES`, `MOON_CATEGORIES`, `ANTS_CATEGORIES`, `ITMAG_CATEGORIES` (36 разделов): `gpus`/`cpus`/`motherboards`/`ram`/`storage`/`hdd`/`pc_cases`/`psu`/`cooling`/`peripherals` → `pc_components`, `pc_desktops` → `laptops`.
+  - `tests/core/test_catalog_urls_hygiene.py`: добавлен сквозной контрактный тест `test_all_shop_categories_use_known_master_categories` по всем магазинам `SHOP_REGISTRY` и всем `*_CATEGORIES` в `config.py`.
+  - `tests/scrapers/test_marwin_v1_api.py`: проверка передачи `availability="in_stock"`. Обновлены `version.py` (`6.42.12`) и `CHANGELOG.md` (с разделом «Для пользователей»).
+- **Проверки:**
+  - Живой полный прогон `MarwinScraper` на «Видеоигры и консоли» (`max_pages=10`, Mac, без записи в БД): **121 товар за 7 стр. за 3.0 с**, `complete=True`, `limited=False`, `unparsed=0`, `err=None`.
+  - Целевой набор (macOS): **45 OK** (`7.99 с`, включая `test_release_notes` и глобальный контракт `master`); `release_gate.py secrets`: **0 findings**.
+  - Полный Python-набор в чистом контейнере образа стенда (`--network none --cpus 2 --tmpfs /app/data`, лог `/tmp/kzph-64212-unittest.log`): **3 297 OK** (`495.9 с`); `pins`: **25/25 OK**.
+- **Наблюдение вживую на стенде (`17:50:58Z` – `17:59:41Z`):**
+  - Первый же добор после старта (`17:50:58Z`) подхватил все **36** ранее выпадавших разделов `pc_components`/`laptops` у 5 магазинов:
+    - `DNS Казахстан`: все 5 разделов (`videokarty`, `processory`, `ssd-nakopiteli` 2.5" SATA, `ssd-m2-nakopiteli` M.2, `operativnaya-pamyat-dimm`) по **24** товара (**120** всего, 0 ошибок);
+    - `ANTS`: `complete`, **1 594** товара; `ITMag`: `complete`, **3 041** товар; `Moon.kz`: `limited`, **1 620** товаров; `Forcecom`: завершает последний раздел.
+  - `Marwin` находится на паузе `next_retry_at` от прошлого `partial/failed` — после её истечения добор подхватит все 9 разделов (8 новых + `Видеоигры и консоли` `complete`).
+- **Следующий точный шаг:** **Codex** — приёмка `v6.42.12` и живая приёмка `v6.42.11`, затем решение владельца о выпуске R1 в прод.
+
 ## STAND_LIVE_CHECKED v6.42.11 — хвост волны и исправленные адреса подтверждены; у Marwin 8 из 9 разделов вне волн — Claude (2026-11-21 22:30, Asia/Almaty)
 
 - **Сырые данные:** `docs/audit_evidence/2026-11-21-v64211-claude-stand/`, всё снято только чтением:
