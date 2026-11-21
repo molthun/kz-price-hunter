@@ -1,0 +1,45 @@
+{
+  "reviewed_at_utc": "2026-11-21T10:49:28.789362+00:00",
+  "source": "saved evidence supplied by Claude; no new remote access",
+  "sha_checks": [
+    {
+      "file": "catchup_plan.py",
+      "local_sha256": "7064b5d53357a10fb7e2e79f27630fb9e11f6a898f142a8549a55edb273f0c6f",
+      "reported_container_sha256": "7064b5d53357a10fb7e2e79f27630fb9e11f6a898f142a8549a55edb273f0c6f",
+      "reported_checkout_sha256": "7064b5d53357a10fb7e2e79f27630fb9e11f6a898f142a8549a55edb273f0c6f",
+      "match": true
+    },
+    {
+      "file": "database.py",
+      "local_sha256": "cdfea7c81904a5fec507e6543089c58c1cf136b45814a0ba770ca2290084ee7e",
+      "reported_container_sha256": "cdfea7c81904a5fec507e6543089c58c1cf136b45814a0ba770ca2290084ee7e",
+      "reported_checkout_sha256": "cdfea7c81904a5fec507e6543089c58c1cf136b45814a0ba770ca2290084ee7e",
+      "match": true
+    },
+    {
+      "file": "web/server.py",
+      "local_sha256": "b002d161dd59df48d2e966f8abd0735dc59f82fc93086fe6c763b75d2db07f40",
+      "reported_container_sha256": "b002d161dd59df48d2e966f8abd0735dc59f82fc93086fe6c763b75d2db07f40",
+      "reported_checkout_sha256": "b002d161dd59df48d2e966f8abd0735dc59f82fc93086fe6c763b75d2db07f40",
+      "match": true
+    },
+    {
+      "file": "scrapers/fortemarket.py",
+      "local_sha256": "d7a42973a0b0f7daa7c50843123a22b19a9faac5cdf325b1c93d7342a2b7c76d",
+      "reported_container_sha256": "d7a42973a0b0f7daa7c50843123a22b19a9faac5cdf325b1c93d7342a2b7c76d",
+      "reported_checkout_sha256": "d7a42973a0b0f7daa7c50843123a22b19a9faac5cdf325b1c93d7342a2b7c76d",
+      "match": true
+    },
+    {
+      "file": "version.py",
+      "local_sha256": "057d799296067e14d0d7837416cb4d66a72732307393558c6401b7686b9e96e5",
+      "reported_container_sha256": "057d799296067e14d0d7837416cb4d66a72732307393558c6401b7686b9e96e5",
+      "reported_checkout_sha256": "057d799296067e14d0d7837416cb4d66a72732307393558c6401b7686b9e96e5",
+      "match": true
+    }
+  ],
+  "catchup_launches_in_saved_log": 13,
+  "planned_wave_lines_in_saved_log": 0,
+  "http4_log": "Ran 4 tests in 0.973s; OK; transcript does not list test identifiers",
+  "remaining": "planned wave and Kari observation after scheduled times"
+}

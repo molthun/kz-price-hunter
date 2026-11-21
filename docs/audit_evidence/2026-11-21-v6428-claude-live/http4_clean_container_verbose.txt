@@ -1,0 +1,8 @@
+# 4 HTTP-теста с именами, чистый контейнер kzph-stand:local (образ sha256:497b659c…), --network none --tmpfs /app/data, 10:53Z
+sha256:497b659c388c625e839105e56c69c6ff1eee23625764093dadcf8d3d0067ef43
+test_general_config_endpoint_refuses_the_staged_settings (tests.scheduler.test_scheduler_rollout.GuardedSettingsTest.test_general_config_endpoint_refuses_the_staged_settings) ... [System] 📡 Модуль онлайн-логирования активирован.
+test_endpoint_refuses_and_keeps_the_stage_off (tests.scheduler.test_scheduler_rollout.SwitchApiTest.test_endpoint_refuses_and_keeps_the_stage_off) ... [DB] Миграция 1 (legacy_identity_v2) применена
+test_failure_names_the_reason (tests.scheduler.test_scheduler_rollout.SwitchErrorMessageTest.test_failure_names_the_reason) ... [DB] Миграция 1 (legacy_identity_v2) применена
+test_admin_only_hot_toggle (tests.core.test_offer_identity.TrackedHotApiTest.test_admin_only_hot_toggle) ... [DB] Миграция 1 (legacy_identity_v2) применена
+Ran 4 tests in 1.008s
+OK

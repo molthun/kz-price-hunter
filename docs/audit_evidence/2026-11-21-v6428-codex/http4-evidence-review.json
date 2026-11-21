@@ -1,0 +1,16 @@
+{
+  "reviewed_at_utc": "2026-11-21T12:07:00Z",
+  "source": "docs/audit_evidence/2026-11-21-v6428-claude-live/http4_clean_container_verbose.txt",
+  "test_ids_match": [
+    "tests.scheduler.test_scheduler_rollout.GuardedSettingsTest.test_general_config_endpoint_refuses_the_staged_settings",
+    "tests.scheduler.test_scheduler_rollout.SwitchApiTest.test_endpoint_refuses_and_keeps_the_stage_off",
+    "tests.scheduler.test_scheduler_rollout.SwitchErrorMessageTest.test_failure_names_the_reason",
+    "tests.core.test_offer_identity.TrackedHotApiTest.test_admin_only_hot_toggle"
+  ],
+  "reported_tests": 4,
+  "reported_result": "OK",
+  "image": "sha256:497b659c388c625e839105e56c69c6ff1eee23625764093dadcf8d3d0067ef43",
+  "independent_live_run": false,
+  "stand_ssh": "Operation not permitted",
+  "planned_wave": "due since 11:53:44Z; new logs not available; outcome not established"
+}
