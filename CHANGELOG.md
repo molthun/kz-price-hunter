@@ -3,6 +3,25 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.42.9] - 2026-11-21
+
+### Для пользователей
+- 🛠 Восстановлен сбор категорий планшетов, SSD, наушников, смарт-часов и игровых консолей в DNS Казахстан, а также минитракторов и деревообрабатывающих станков в MasterOK. Убраны удалённые/пустые разделы в Магнуме и Tgrad, которые вызывали повторные ошибки обхода и паузы магазинов.
+
+### Чистка мёртвых URL каталогов (DNS, MasterOK, Магнум, Tgrad)
+- **`config.py` (`DNS_CATEGORIES`):** обновлены 5 сломанных адресов на актуальные листовые категории (подтверждены живым прогоном `DNSScraper`, все отдают товары без ошибок):
+  - `Планшеты`: `17a890dc16404e77/planshety/` (превратился в хаб-страницу) → `17a8a05316404e77/plansety/`;
+  - `SSD накопители`: `8a9ddbe317404e77/nakopiteli-ssd/` (`HTTP 410`) → `dd58148920724e77/ssd-m2-nakopiteli/`;
+  - `Наушники и гарнитуры`: `17a8f3cd16404e77/naushniki-i-garnitury/` (`HTTP 410`) → `17a9ef1716404e77/nausniki-i-garnitury/`;
+  - `Смарт-часы`: `17a9e70116404e77/smart-chasy-i-braslety/` (`HTTP 410`) → `251c82c88ed24e77/smart-casy-i-braslety/`;
+  - `Игровые консоли`: `17a8a65f16404e77/igrovye-konsoli/` (`HTTP 410`) → `17a8978216404e77/konsoli-playstation/`, плюс добавлена `Портативные консоли` (`17a8b7da16404e77/portativnye-igrovye-konsoli/`).
+- **`config.py` (`MASTEROK_CATEGORIES`):** заменены 2 URL с `HTTP 404`:
+  - `/catalog/minitraktory/` → `/catalog/motobloki-kultivatory-minitraktory/`;
+  - `/catalog/derevoobrabatyvayushchee-oborudovanie1/` → `/catalog/derevoobrabatyvayushchee-oborudovanie-1/`.
+- **`config.py` (`MAGNUM_CATEGORIES`):** удалена категория `zamorojennye-produkty` (отсутствует в живом Strapi API `new-product-catalog` для Алматы и Астаны; общий `/catalog` продолжает собирать весь активный ассортимент).
+- **`config.py` (`TGRAD_CATEGORIES`):** удалены 3 пустые категории (`/noutbuki/`, `/routery/`, `/elektrobritvy/`), убраны с витрины сайта и отдававшие 0 карточек.
+- **Тесты:** добавлен `tests/core/test_catalog_urls_hygiene.py` (контракт отсутствия удалённых/битых URL, уникальности URL и валидности записей категорий).
+
 ## [6.42.8] - 2026-11-21
 
 ### Для пользователей
