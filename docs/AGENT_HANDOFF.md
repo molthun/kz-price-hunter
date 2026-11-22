@@ -9,6 +9,49 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## STAND_DEPLOYED v6.44.5 — SZ-03: размеры доходят до наблюдений — Claude (22.11.2026, Asia/Almaty)
+
+- **Срез:** `472f014` поверх `d8188f9` (6.44.4 Antigravity); стенд — fast-forward через git bundle. Образ `sha256:6c58cddf…204d`, healthy, перезапусков 0, `/api/version=6.44.5`, `/api/health=ok`. SHA `database.py`, `tests/domain/test_sizes.py` и `version.py` совпали в git и контейнере. Push не выполнялся, прод (6.42.12) не тронут.
+- **Что сделано:** `database._attach_offer_sizes` берёт размеры из `offer_sizes` по `offer_id` этого же предложения. Вызывается в `watched_offers` и в начале `evaluate_watches`, поэтому покрывает все входы, включая `channel_sync`.
+  - Размер соседнего предложения того же товара не подставляется.
+  - Нет записей — нет `available_sizes` и совпадения.
+  - Раскупленный размер исчезает при следующем обходе (6.44.0 переписывает `offer_sizes` предложения).
+- **Регрессия по настоящему пути, без ручной подстановки:** `save_or_update_products_batch` → `watched_offers` → `evaluate_watches`, наблюдение SEARCH `size=42`, условие `target_price ≤ 25 000`.
+  - Событие только у Интертопа с 42; Kari с 36 за 10 000 не срабатывает.
+  - Повтор не дублирует событие.
+  - Цена 19 000 с размерами `["43"]` событий не даёт.
+  - На прежнем коде: 1 FAIL и 2 ERROR.
+- **Проверки:**
+  - Локально: полный набор 3 371 OK; secrets 0; браузерные наборы 45/45 PASS, включая набор 6.44.4.
+  - Стенд: чистый контейнер — 3 371 OK; pins `ok: true`, проверено 25.
+- **Не подтверждено вживую:**
+  - iSpace на темпе 6.44.3: добор в 09:44Z, итог допишу строкой.
+  - Размеры Kari и Интертопа, обувь Kari: волна «одежда», около 01:15Z 23.11.
+- **Доказательства:** `docs/audit_evidence/2026-11-22-v6445-claude-stand/`.
+- **Следующий шаг:** Codex — повторная приёмка размерного пакета 6.44.0–6.44.5 (6.44.4 — UI Antigravity, отдельно).
+
+## STAND_DEPLOYED v6.44.4 — UI подтверждения рекомендованных норм источников (`DQ-01`) в `/admin#monitoringTool` — Antigravity (2026-11-22 14:06, Asia/Almaty)
+
+- **Статус:** `v6.44.4` развёрнута и проверена на стенде, **готово к приёмке Codex** (вместе с `v6.44.1`–`v6.44.3`). Push в `origin main` не выполнялся, прод не трогался.
+- **Срез:** коммит `d8188f9` (поверх `85be69c` / `234c864`, fast-forward на стенде через git bundle), образ `sha256:0ecc78a13c619bd09ff89f5382a933afe0aadecd56a0eea2611448243f47cebd`, контейнер `kzph-stand` `running / healthy`, `RestartCount=0`, `/api/version=6.44.4`, `/api/health=ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`).
+- **Что сделано (`v6.44.4`):**
+  - `database.py` (`list_source_norm_recommendations`): возвращает список источников с активной неподтверждённой рекомендацией новой нормы объёма (в пределах `STABLE_SHIFT_MAX_SPAN_SECONDS` и без более свежего подтверждения).
+  - `web/server.py`: добавлен `@require_admin` эндпоинт `GET /api/admin/source-norm/recommendations` (+ `/api/v2/...` алиас).
+  - `web/templates/admin.html`: в `#monitoringTool` добавлена секция `#sourceNormSection` («Рекомендуемые нормы объёма источников») с кнопкой **«Подтвердить новую норму»** (`POST /api/admin/source-norm/confirm`), адаптированная под светлую/тёмную темы и мобильный экран (`390×844`) без конфликта с счётчиком `.service-block`.
+  - `tests/web/test_source_norm_ui.py`, `tests/frontend/test_frontend_admin_source_norm.cjs`, `version.py` (`6.44.4`), `CHANGELOG.md` (с разделом `### Для пользователей`).
+- **Проверки:**
+  - Локально (macOS): `test_source_norm_ui`, `test_data_quality`, `test_release_notes`, `test_config_and_ids` — **59 OK** (`7.99 с`), `release_gate.py secrets` — **0 findings**; браузерные (Deno + Playwright): `test_frontend_admin_source_norm` (**PASS**, light/dark `390×844`) и `test_frontend_service_monitor` (**4/4 PASS**: `390/1366` × `light/dark`).
+  - Стенд (чистый контейнер `kzph-stand:local`, `--network none --cpus 2 --tmpfs /app/data`): те же **59 OK** (`22.06 с`), `pins` при сборке — **25/25 OK**.
+- **Следующий точный шаг:** **Codex** — независимая приёмка `v6.44.1`–`v6.44.4` (`d8188f9`) на стенде; владельцу также стоит рассмотреть выпуск `v6.44.1+` в прод (прод `6.42.12` продолжает частую проверку `shop_notices`).
+
+## AUDIT_RETURNED v6.44.1–v6.44.3 — SZ-01/SZ-02 закрыты, SZ-03: вход наблюдений теряет размеры — Codex (22.11.2026 14:03, Asia/Almaty)
+
+- Срез234c864, отдельный архив; **65 целевых тестов OK/1.004с**, secrets0. Прежний reproduce: size42 + Астана/Kari/max15000 → пусто; без города только Алматы20000/42. Дробная запятая/футболкаM/TV исправлены. **SZ-01/SZ-02 закрыты.**
+- **SZ-03 P2:** matches_watch требует available_sizes у offer, но database.watched_offers их не читает/не формирует. Сохранённый и доступный Интертоп42 через штатный watched_offers не совпадает с watch42 (False); добавление только available_sizes42 даётTrue. Тест автора подставляет поле вручную. Нужны реальные watched_offers→evaluate_watches регрессии, без размера соседнего оффера.
+- 9 SHA git/local/container совпали; прочитаны авторские3366OK macOS/Linux и полный pins25/25. Старый pins6.43.4 также закрыт полным JSON. Frontend44PASS — авторский срез6.44.2. ro_q28 размеров0, API-часть падает наJSONDecodeError, live-фасет не подтверждён.
+- К6.44.1 cadence и локальной правке темпа6.44.3 блокирующих замечаний не выявлено в проверенном объёме; live iSpace/Kari/Intertop остаётся. Общий пакет не принят из-заSZ-03. Отдельный выпуск6.44.1 требует конкретного среза/поручения, main содержит размеры.
+- [Отчёт](REACCEPTANCE_2026-11-22_V6443_CODEX.md), evidence `2026-11-22-v6443-codex/`. **Следующий шаг:** автор/Claude исправляетSZ-03 с новой версией/стендом, прикладывает тесты и живые данные по мере плановых обходов; затем повторная приёмка. Чужая IN_PROGRESS6.44.4 сохранена, код/БД/стенд/прод не менялись, push/merge нет.
+
 ## STAND_DEPLOYED v6.44.1–v6.44.3 — шторм проверок обращений, SZ-01/SZ-02, темп iSpace — Claude (22.11.2026, Asia/Almaty)
 
 - **Срез:** `234c864` поверх `b8bf015` (6.44.0 Antigravity). Коммиты: `374abb1` + `11153d9` (6.44.1), `b399d14` (6.44.2), `234c864` (6.44.3). Стенд — fast-forward через git bundle; образ `sha256:caa9569c…2464`, healthy, перезапусков 0, `/api/version=6.44.3`, `/api/health=ok`. SHA 9 изменённых файлов совпали в git и контейнере. Push не выполнялся, прод (6.42.12) не тронут.
