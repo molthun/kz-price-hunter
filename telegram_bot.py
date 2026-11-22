@@ -1177,6 +1177,17 @@ async def handle_widget_query(session: aiohttp.ClientSession, token: str, wq: Di
     await answer_widget_query(session, token, wq_id)
 
 
+def _format_tg_sizes_summary(sizes: Any, *, max_shown: int = 6) -> str:
+    if not isinstance(sizes, (list, tuple)) or not sizes:
+        return ""
+    clean = [str(s).strip() for s in sizes if str(s or "").strip()]
+    if not clean:
+        return ""
+    shown = clean[:max_shown]
+    more = f" +{len(clean) - len(shown)}" if len(clean) > len(shown) else ""
+    return ", ".join(shown) + more
+
+
 def build_price_comparison_markdown(query: str, items: List[Dict[str, Any]]) -> str:
     """TG-03: строит Markdown таблицу сравнения цен по магазинам."""
     lines = [f"🔍 **Лучшие цены по запросу «{query}»:**\n"]
@@ -1186,6 +1197,9 @@ def build_price_comparison_markdown(query: str, items: List[Dict[str, Any]]) -> 
         shop = it.get("shop", "Магазин")
         price = format_price(it.get("current_price", 0))
         title = (it.get("title") or "")[:32].replace("|", " ")
+        sz_summary = _format_tg_sizes_summary(it.get("available_sizes"), max_shown=4)
+        if sz_summary:
+            title = f"{title} ({sz_summary})"
         lines.append(f"| {shop} | **{price}** | {title} |")
     return "\n".join(lines)
 
@@ -1226,7 +1240,9 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
         shop = it.get("shop", "Магазин")
         emoji = _shop_emoji(shop)
         title = html.escape(it.get("title", ""))
-        lines.append(f"{idx}. {emoji} <b>{price}</b> — {title} (<i>{shop}</i>)")
+        sz_summary = _format_tg_sizes_summary(it.get("available_sizes"))
+        sizes_line = f"\n   👟 Размеры: {html.escape(sz_summary)}" if sz_summary else ""
+        lines.append(f"{idx}. {emoji} <b>{price}</b> — {title} (<i>{shop}</i>){sizes_line}")
         if it.get("url") and it["url"].startswith("http"):
             row = [url_button(f"{emoji} {shop}: {price}", it["url"], style="primary")]
             c_btn = copy_button("📋", it["url"])

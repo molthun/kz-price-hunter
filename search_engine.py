@@ -1,5 +1,6 @@
 from database import active_product_clause
 import functools
+import json
 import re
 import sqlite3
 import asyncio
@@ -236,8 +237,16 @@ def search_in_database(
         limit = max(limit, 3000)
     # Порядок задаётся до LIMIT: иначе «дороже»/«релевантнее» сортировали только самых дешёвых (M06)
     order_sql = "current_price DESC" if sort_by == "price_desc" else "current_price ASC"
-    query_clean = query.strip().lower()
-    raw_tokens = [t.strip().lower() for t in query.split() if t.strip()]
+    detected_size: Optional[str] = None
+    effective_query = query.strip()
+    if effective_query:
+        from domain.sizes import extract_size_from_query
+        detected_size, cleaned_q = extract_size_from_query(effective_query)
+        if detected_size:
+            effective_query = cleaned_q.strip()
+
+    query_clean = effective_query.lower()
+    raw_tokens = [t.strip().lower() for t in effective_query.split() if t.strip()]
 
     mode = match_mode.upper() if match_mode else "AND"
     conn = get_db()
@@ -246,11 +255,15 @@ def search_in_database(
     used_fts = False
 
     # 1. Попытка высокоскоростного поиска через FTS5
-    fts_expr = build_fts_query(query, mode) if query_clean else ""
+    fts_expr = build_fts_query(effective_query, mode) if query_clean else ""
     if fts_expr:
         try:
             fts_conditions = ["products_fts MATCH ?", "p.current_price > 0", active_product_clause("p")]
             fts_params = [fts_expr]
+
+            if detected_size:
+                fts_conditions.append("EXISTS (SELECT 1 FROM offer_sizes os WHERE os.offer_id = ('off_' || p.id) AND os.size = ?)")
+                fts_params.append(detected_size)
 
             if shop and shop != "Все":
                 fts_conditions.append("p.shop = ?")
@@ -337,6 +350,10 @@ def search_in_database(
         if only_discount:
             conditions.append("(first_seen_price > current_price OR (old_price_on_site IS NOT NULL AND old_price_on_site > current_price))")
 
+        if detected_size:
+            conditions.append("EXISTS (SELECT 1 FROM offer_sizes os WHERE os.offer_id = ('off_' || id) AND os.size = ?)")
+            params.append(detected_size)
+
         where_sql = " AND ".join(conditions) if conditions else "1=1"
         sql = f"""
             SELECT * FROM products
@@ -350,8 +367,30 @@ def search_in_database(
         if not rows:
             rows = like_rows
 
+    sizes_by_pid: Dict[str, List[str]] = {}
+    if rows:
+        try:
+            offer_ids = [f"off_{r['id']}" for r in rows if r["id"]]
+            if offer_ids:
+                sz_rows = conn.execute(
+                    "SELECT offer_id, size FROM offer_sizes WHERE offer_id IN (SELECT value FROM json_each(?))",
+                    (json.dumps(offer_ids),),
+                ).fetchall()
+                from domain.sizes import sort_size_key
+                for oid, sz in sz_rows:
+                    pid_key = oid[4:] if str(oid).startswith("off_") else str(oid)
+                    sizes_by_pid.setdefault(pid_key, []).append(str(sz))
+                for pid_key, vals in sizes_by_pid.items():
+                    sizes_by_pid[pid_key] = sorted(set(vals), key=sort_size_key)
+        except Exception:
+            sizes_by_pid = {}
+
     conn.close()
     results = [dict(r) for r in rows]
+    for item in results:
+        sz = sizes_by_pid.get(item.get("id"))
+        if sz:
+            item["available_sizes"] = sz
 
     # A merchant category can be mislabeled (e.g. Fitbit under Apple Watch).
     if {'apple', 'watch'}.issubset(set(query_clean.lower().split())):

@@ -591,3 +591,90 @@ class SearchCardAvailableSizesTest(unittest.TestCase):
                     res_nosz = core.search("CardSizesNoSz")
                     self.assertEqual(len(res_nosz.items), 1)
                     self.assertEqual(res_nosz.items[0].available_sizes, [])
+
+
+class SearchInDatabaseSizesTest(unittest.TestCase):
+    """v6.51.0: search_in_database и Telegram-бот поддерживают размеры из запроса и отдают available_sizes."""
+
+    def test_search_in_database_filters_by_size_and_attaches_sizes(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import database
+        import search_engine
+        import telegram_bot
+
+        with tempfile.TemporaryDirectory() as td:
+            db_path = Path(td) / "tg_sizes.db"
+            with patch.object(database, "DB_PATH", db_path), patch.object(search_engine, "DB_PATH", db_path):
+                database.init_db()
+                database.save_or_update_products_batch([
+                    {
+                        "id": "tg_sz_42",
+                        "shop": "Kari",
+                        "title": "Кроссовки TgSizeV651 Runner",
+                        "category": "Одежда и обувь",
+                        "price": 29990,
+                        "url": "https://kari.com/kz/p/tg-sz-42",
+                        "city": "Алматы",
+                        "in_stock": True,
+                        "available_sizes": ["42", "38", "40"],
+                    },
+                    {
+                        "id": "tg_sz_36",
+                        "shop": "KIMEX",
+                        "title": "Кроссовки TgSizeV651 Classic",
+                        "category": "Одежда и обувь",
+                        "price": 35990,
+                        "url": "https://kimex.kz/p/tg-sz-36",
+                        "city": "Алматы",
+                        "in_stock": True,
+                        "available_sizes": ["36", "37"],
+                    },
+                    {
+                        "id": "tg_sz_kids",
+                        "shop": "Детский мир",
+                        "title": "Комбинезон TgSizeV651 Lassie",
+                        "category": "Одежда и обувь",
+                        "price": 44990,
+                        "url": "https://detmir.kz/p/tg-sz-kids",
+                        "city": "Алматы",
+                        "in_stock": True,
+                        "available_sizes": ["рост 98", "рост 104"],
+                    },
+                    {
+                        "id": "tg_sz_tv",
+                        "shop": "Technodom",
+                        "title": "Телевизор TgSizeV651 42 дюйма OLED",
+                        "category": "Телевизоры",
+                        "price": 499990,
+                        "url": "https://technodom.kz/p/tg-sz-tv",
+                        "city": "Алматы",
+                        "in_stock": True,
+                    },
+                ])
+
+                # 1. Запрос с размером обуви 42 находит только кроссовки с 42 и прикрепляет sorted available_sizes
+                hits_42 = search_engine.search_in_database("кроссовки TgSizeV651 42", city="Все")
+                self.assertEqual([h["id"] for h in hits_42], ["tg_sz_42"])
+                self.assertEqual(hits_42[0]["available_sizes"], ["38", "40", "42"])
+
+                # 2. Недоступный размер 45 даёт пустую выдачу
+                hits_45 = search_engine.search_in_database("кроссовки TgSizeV651 45", city="Все")
+                self.assertEqual(hits_45, [])
+
+                # 3. Запрос с детским ростом «рост 98» находит комбинезон
+                hits_kids = search_engine.search_in_database("комбинезон TgSizeV651 рост 98", city="Все")
+                self.assertEqual([h["id"] for h in hits_kids], ["tg_sz_kids"])
+                self.assertEqual(hits_kids[0]["available_sizes"], ["рост 98", "рост 104"])
+
+                # 4. «Телевизор 42 дюйма» не путается с размером обуви 42
+                hits_tv = search_engine.search_in_database("телевизор TgSizeV651 42 дюйма", city="Все")
+                self.assertEqual([h["id"] for h in hits_tv], ["tg_sz_tv"])
+                self.assertNotIn("available_sizes", hits_tv[0])
+
+                # 5. Markdown-таблица Telegram-бота показывает размеры, когда они есть
+                md = telegram_bot.build_price_comparison_markdown("кроссовки 42", hits_42)
+                self.assertIn("(38, 40, 42)", md)
+                md_tv = telegram_bot.build_price_comparison_markdown("телевизор 42 дюйма", hits_tv)
+                self.assertNotIn("(38", md_tv)

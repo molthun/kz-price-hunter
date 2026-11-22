@@ -3,6 +3,16 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.51.0] - 2026-11-22
+
+### Для пользователей
+- 🤖 Поиск в Telegram-боте (`/search`, `/price`) и AI-консультанте теперь понимает размеры в запросе (например, `/search кроссовки 42`, `/search ботинки размер 38`, `/search комбинезон рост 98`) и показывает доступные размеры прямо в выдаче бота. Запросы техники вроде «телевизор 42 дюйма» по-прежнему не путаются с обувью.
+
+### Технические изменения
+- `search_engine.py`: в `search_in_database` подключено безопасное извлечение размера `domain.sizes.extract_size_from_query`, фильтрация по `offer_sizes` (`os.offer_id = 'off_' || p.id`) в FTS5 и LIKE-ветках, а также пакетное обогащение возвращаемых записей полем `available_sizes`.
+- `telegram_bot.py`: добавлен `_format_tg_sizes_summary`, компактный вывод размеров в `build_price_comparison_markdown` и HTML-выдаче `handle_search_command`.
+- `tests/domain/test_sizes.py`: добавлен `SearchInDatabaseSizesTest` (обувь 42, отсутствующий 45, детский «рост 98», защита «телевизор 42 дюйма» и форматирование в Telegram-таблице).
+
 ## [6.50.0] - 2026-11-22
 
 ### Для пользователей
