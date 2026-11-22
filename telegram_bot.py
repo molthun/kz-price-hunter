@@ -1177,18 +1177,171 @@ async def handle_widget_query(session: aiohttp.ClientSession, token: str, wq: Di
     await answer_widget_query(session, token, wq_id)
 
 
-def _format_tg_sizes_summary(sizes: Any, *, max_shown: int = 6) -> str:
+def _user_saved_sizes_set(user_id: int) -> Set[str]:
+    user = get_user(user_id)
+    settings = (user or {}).get("settings") or {}
+    return {
+        str(settings.get(k) or "").strip()
+        for k in ("preferred_shoe_size", "preferred_clothing_size", "preferred_kids_height")
+        if str(settings.get(k) or "").strip()
+    }
+
+
+def _format_tg_sizes_summary(
+    sizes: Any,
+    *,
+    max_shown: int = 6,
+    highlight_sizes: Optional[Set[str]] = None,
+) -> str:
     if not isinstance(sizes, (list, tuple)) or not sizes:
         return ""
-    clean = [str(s).strip() for s in sizes if str(s or "").strip()]
+    clean = list(dict.fromkeys(str(s).strip() for s in sizes if str(s or "").strip()))
     if not clean:
         return ""
-    shown = clean[:max_shown]
+    hi = highlight_sizes or set()
+    keep = [s for s in clean if s in hi][:max_shown]
+    keep_set = set(keep)
+    for s in clean:
+        if len(keep_set) >= max_shown:
+            break
+        keep_set.add(s)
+    shown = [s for s in clean if s in keep_set]
     more = f" +{len(clean) - len(shown)}" if len(clean) > len(shown) else ""
-    return ", ".join(shown) + more
+    formatted = [(f"✓{s}" if s in hi else s) for s in shown]
+    return ", ".join(formatted) + more
 
 
-def build_price_comparison_markdown(query: str, items: List[Dict[str, Any]]) -> str:
+def parse_tg_sizes_command(args_text: str):
+    """Разбирает аргументы команды `/sizes` / `/размеры` (v6.53.0).
+
+    Возвращает `(updates_dict, unknown_tokens)`.
+    """
+    from domain.sizes import normalize_height_sizes, normalize_size_token
+
+    raw = str(args_text or "").strip()
+    if not raw:
+        return {}, []
+    if raw.casefold() in ("сброс", "сбросить", "очистить", "reset", "clear"):
+        return {
+            "preferred_shoe_size": "",
+            "preferred_clothing_size": "",
+            "preferred_kids_height": "",
+        }, []
+
+    updates: Dict[str, str] = {}
+    unknown: List[str] = []
+
+    # Сначала извлекаем явный «рост N [см]»
+    def _consume_height(m: re.Match) -> str:
+        heights = normalize_height_sizes(m.group(0))
+        if len(heights) == 1:
+            updates["preferred_kids_height"] = heights[0]
+            return " "
+        unknown.append(m.group(0).strip())
+        return " "
+
+    rest = re.sub(r"(?iu)\bрост\s*\d{2,3}(?:\s*см)?\b", _consume_height, raw)
+    for token in [t.strip() for t in re.split(r"[\s,;]+", rest) if t.strip()]:
+        norm = normalize_size_token(token)
+        if norm:
+            if norm[0].isdigit():
+                updates["preferred_shoe_size"] = norm
+            else:
+                updates["preferred_clothing_size"] = norm
+            continue
+        heights = normalize_height_sizes(token)
+        if len(heights) == 1:
+            updates["preferred_kids_height"] = heights[0]
+            continue
+        unknown.append(token)
+    return updates, unknown
+
+
+async def handle_sizes_command(
+    session: aiohttp.ClientSession,
+    token: str,
+    chat_id: int,
+    user_id: int,
+    args_text: str,
+    *,
+    from_user: Optional[Dict[str, Any]] = None,
+    message_thread_id: Optional[int] = None,
+):
+    """Показывает, сохраняет или сбрасывает «Мои размеры» пользователя прямо в Telegram (v6.53.0)."""
+    from database import save_user_settings, upsert_telegram_user
+
+    kwargs = {"message_thread_id": message_thread_id} if message_thread_id is not None else {}
+
+    def _format_current(settings: Dict[str, Any]) -> str:
+        shoe = str(settings.get("preferred_shoe_size") or "").strip()
+        cloth = str(settings.get("preferred_clothing_size") or "").strip()
+        kids = str(settings.get("preferred_kids_height") or "").strip()
+        parts = []
+        if shoe:
+            parts.append(f"• Обувь: <b>{html.escape(shoe)}</b>")
+        if cloth:
+            parts.append(f"• Одежда: <b>{html.escape(cloth)}</b>")
+        if kids:
+            parts.append(f"• Рост ребёнка: <b>{html.escape(kids)}</b>")
+        return "\n".join(parts) if parts else "<i>Размеры пока не заданы.</i>"
+
+    if not args_text.strip():
+        user = get_user(user_id)
+        settings = (user or {}).get("settings") or {}
+        await send_tg_message(
+            session,
+            token,
+            chat_id,
+            "👟 <b>Мои размеры (синхронизированы с сайтом)</b>\n\n"
+            f"{_format_current(settings)}\n\n"
+            "Как задать или изменить:\n"
+            "• <code>/sizes 42 L</code> — обувь и одежда\n"
+            "• <code>/sizes рост 104</code> — рост ребёнка\n"
+            "• <code>/sizes сброс</code> — очистить все размеры",
+            **kwargs,
+        )
+        return
+
+    updates, unknown = parse_tg_sizes_command(args_text)
+    if not updates:
+        bad = html.escape(", ".join(unknown[:5]))
+        await send_tg_message(
+            session,
+            token,
+            chat_id,
+            f"⚠️ Не удалось распознать размер: <code>{bad}</code>.\n"
+            "Примеры: <code>/sizes 42</code>, <code>/sizes 42 XL</code>, <code>/sizes рост 104</code>, <code>/sizes сброс</code>.",
+            **kwargs,
+        )
+        return
+
+    try:
+        clean = config.validate_user_settings(updates)
+    except ValueError as e:
+        await send_tg_message(session, token, chat_id, f"⚠️ {html.escape(str(e))}", **kwargs)
+        return
+
+    if not get_user(user_id):
+        upsert_telegram_user(from_user or {"id": user_id, "first_name": ""})
+    merged = save_user_settings(user_id, clean)
+    is_reset = all(v == "" for v in clean.values())
+    header = "👟 <b>Размеры сброшены</b>" if is_reset else "✅ <b>Мои размеры сохранены</b> (синхронизировано с сайтом)"
+    warn = f"\n\n⚠️ Пропущено нераспознанное: <code>{html.escape(', '.join(unknown[:5]))}</code>" if unknown else ""
+    await send_tg_message(
+        session,
+        token,
+        chat_id,
+        f"{header}\n\n{_format_current(merged)}{warn}",
+        **kwargs,
+    )
+
+
+def build_price_comparison_markdown(
+    query: str,
+    items: List[Dict[str, Any]],
+    *,
+    highlight_sizes: Optional[Set[str]] = None,
+) -> str:
     """TG-03: строит Markdown таблицу сравнения цен по магазинам."""
     lines = [f"🔍 **Лучшие цены по запросу «{query}»:**\n"]
     lines.append("| Магазин | Цена | Товар |")
@@ -1197,7 +1350,7 @@ def build_price_comparison_markdown(query: str, items: List[Dict[str, Any]]) -> 
         shop = it.get("shop", "Магазин")
         price = format_price(it.get("current_price", 0))
         title = (it.get("title") or "")[:32].replace("|", " ")
-        sz_summary = _format_tg_sizes_summary(it.get("available_sizes"), max_shown=4)
+        sz_summary = _format_tg_sizes_summary(it.get("available_sizes"), max_shown=4, highlight_sizes=highlight_sizes)
         if sz_summary:
             title = f"{title} ({sz_summary})"
         lines.append(f"| {shop} | **{price}** | {title} |")
@@ -1232,6 +1385,7 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
         return
 
     top = items[:5]
+    saved_sizes = _user_saved_sizes_set(chat_id)
     lines = [f"🔍 <b>Лучшие цены по запросу «{html.escape(q)}»:</b>\n"]
     keyboard = []
 
@@ -1240,7 +1394,7 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
         shop = it.get("shop", "Магазин")
         emoji = _shop_emoji(shop)
         title = html.escape(it.get("title", ""))
-        sz_summary = _format_tg_sizes_summary(it.get("available_sizes"))
+        sz_summary = _format_tg_sizes_summary(it.get("available_sizes"), highlight_sizes=saved_sizes)
         sizes_line = f"\n   👟 Размеры: {html.escape(sz_summary)}" if sz_summary else ""
         lines.append(f"{idx}. {emoji} <b>{price}</b> — {title} (<i>{shop}</i>){sizes_line}")
         if it.get("url") and it["url"].startswith("http"):
@@ -1257,7 +1411,7 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
     keyboard.append([choose_chat_button("📤 Поделиться поиском с другом", query=q, style="success")])
 
     reply_markup = {"inline_keyboard": keyboard} if keyboard else None
-    rich_table = build_price_comparison_markdown(q, top)
+    rich_table = build_price_comparison_markdown(q, top, highlight_sizes=saved_sizes)
     if not await send_tg_rich_message(session, token, chat_id, rich_table, reply_markup, message_thread_id=message_thread_id):
         await send_tg_message(session, token, chat_id, "\n".join(lines), reply_markup, message_thread_id=message_thread_id)
 
@@ -2048,6 +2202,10 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
     elif cmd in ("/scan", "/barcode", "/qr"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "📷")
         await handle_scan_command(session, token, chat_id, lang=user_lang, **kwargs)
+    elif cmd in ("/sizes", "/размеры"):
+        await set_tg_message_reaction(session, token, chat_id, message_id, "👟")
+        args_text = text[len(text.split()[0]):].strip()
+        await handle_sizes_command(session, token, chat_id, user_id, args_text, from_user=from_user, **kwargs)
     elif cmd in ("/search", "/find", "/price"):
         await set_tg_message_reaction(session, token, chat_id, message_id, "🔍")
         query = text[len(cmd):].strip()

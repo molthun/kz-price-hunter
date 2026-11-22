@@ -3,6 +3,16 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.53.0] - 2026-11-22
+
+### Для пользователей
+- 👟 В Telegram-боте появилась команда `/sizes` (или `/размеры`): можно посмотреть, задать (`/sizes 42 L`, `/sizes рост 104`) или сбросить (`/sizes сброс`) свои размеры прямо в чате — они сразу синхронизируются с сайтом и Mini App.
+- ✅ В выдаче `/search` Telegram-бота сохранённый «Мой размер» теперь автоматически поднимается в видимый список и отмечается галочкой (`✓42`, `✓рост 104`).
+
+### Технические изменения
+- `telegram_bot.py`: добавлены `parse_tg_sizes_command`, `handle_sizes_command`, `_user_saved_sizes_set`, приоритетное выделение сохранённых размеров в `_format_tg_sizes_summary` и `build_price_comparison_markdown`, маршрутизация `/sizes` и `/размеры` в `process_telegram_update`.
+- `tests/domain/test_sizes.py`: добавлен `TelegramSizesCommandTest` (разбор команды, приоритет и `✓` при >6 размерах, сквозное сохранение/чтение/сброс через `process_telegram_update` в изолированной БД).
+
 ## [6.52.2] - 2026-11-22
 
 ### Для пользователей

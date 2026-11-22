@@ -694,3 +694,91 @@ class KidsHeightSettingsValidationTest(unittest.TestCase):
             with self.subTest(bad=bad):
                 with self.assertRaises(ValueError):
                     config.validate_user_settings({"preferred_kids_height": bad})
+
+
+class TelegramSizesCommandTest(unittest.IsolatedAsyncioTestCase):
+    """v6.53.0: команда /sizes (/размеры) в Telegram-боте и подсветка «Моего размера» в выдаче."""
+
+    def test_parse_and_format_summary_priority(self):
+        import telegram_bot
+
+        self.assertEqual(
+            telegram_bot.parse_tg_sizes_command("42 XL рост 104"),
+            ({"preferred_shoe_size": "42", "preferred_clothing_size": "XL", "preferred_kids_height": "рост 104"}, []),
+        )
+        self.assertEqual(
+            telegram_bot.parse_tg_sizes_command("сброс"),
+            ({"preferred_shoe_size": "", "preferred_clothing_size": "", "preferred_kids_height": ""}, []),
+        )
+        upd, unk = telegram_bot.parse_tg_sizes_command("абракадабра")
+        self.assertEqual(upd, {})
+        self.assertEqual(unk, ["абракадабра"])
+
+        # Приоритет и отметка ✓ даже за пределами первых 6 размеров
+        summary = telegram_bot._format_tg_sizes_summary(
+            ["35", "36", "37", "38", "39", "40", "41", "42", "43"],
+            max_shown=6,
+            highlight_sizes={"43"},
+        )
+        self.assertIn("✓43", summary)
+        self.assertTrue(summary.endswith("+3"))
+
+    async def test_sizes_command_saves_reads_and_resets_user_settings(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import AsyncMock, patch
+        import database
+        import telegram_bot
+
+        with tempfile.TemporaryDirectory() as td:
+            db_path = Path(td) / "tg_sizes_cmd.db"
+            send_mock = AsyncMock()
+            react_mock = AsyncMock()
+            uid = 777530
+            with (
+                patch.object(database, "DB_PATH", db_path),
+                patch.object(telegram_bot, "send_tg_message", send_mock),
+                patch.object(telegram_bot, "set_tg_message_reaction", react_mock),
+                patch.object(telegram_bot._message_limiter, "retry_after", return_value=0),
+            ):
+                database.init_db()
+                # 1. Сохраняем обувь, одежду и рост ребёнка
+                await telegram_bot.process_telegram_update(None, "tok", {
+                    "message": {
+                        "message_id": 1,
+                        "chat": {"id": uid, "type": "private"},
+                        "from": {"id": uid, "is_bot": False, "first_name": "Tester"},
+                        "text": "/sizes 42 L рост 104",
+                    }
+                })
+                u = database.get_user(uid)
+                self.assertEqual(u["settings"]["preferred_shoe_size"], "42")
+                self.assertEqual(u["settings"]["preferred_clothing_size"], "L")
+                self.assertEqual(u["settings"]["preferred_kids_height"], "рост 104")
+                self.assertIn("Мои размеры сохранены", send_mock.call_args.args[3])
+
+                # 2. Просмотр текущих размеров командой /размеры
+                await telegram_bot.process_telegram_update(None, "tok", {
+                    "message": {
+                        "message_id": 2,
+                        "chat": {"id": uid, "type": "private"},
+                        "from": {"id": uid, "is_bot": False, "first_name": "Tester"},
+                        "text": "/размеры",
+                    }
+                })
+                self.assertIn("рост 104", send_mock.call_args.args[3])
+
+                # 3. Сброс размеров
+                await telegram_bot.process_telegram_update(None, "tok", {
+                    "message": {
+                        "message_id": 3,
+                        "chat": {"id": uid, "type": "private"},
+                        "from": {"id": uid, "is_bot": False, "first_name": "Tester"},
+                        "text": "/sizes сброс",
+                    }
+                })
+                u2 = database.get_user(uid)
+                self.assertEqual(u2["settings"]["preferred_shoe_size"], "")
+                self.assertEqual(u2["settings"]["preferred_clothing_size"], "")
+                self.assertEqual(u2["settings"]["preferred_kids_height"], "")
+                self.assertIn("Размеры сброшены", send_mock.call_args.args[3])
