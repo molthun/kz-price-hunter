@@ -1,0 +1,66 @@
+snapshot_utc: 2026-11-21T22:04:33.497149+00:00
+
+=== 1. ALL 9 MARWIN CATEGORIES SINCE 2026-11-21T17:50:35Z ===
+  Меломан: 📚 Книги | https://www.marwin.kz/knigi-32627 -> ('2026-11-21T18:43:43.989327+00:00', 'limited', 'unknown', 200, None)
+  Меломан: 🎮 Видеоигры и консоли | https://www.marwin.kz/videoigry-i-konsoli-32532 -> ('2026-11-21T18:43:58.527683+00:00', 'complete', 'ok', 121, None)
+  Меломан: 🧸 Игрушки и развлечения | https://www.marwin.kz/igrushki-i-igry-32632 -> ('2026-11-21T18:44:01.916816+00:00', 'limited', 'unknown', 200, None)
+  Меломан: 🧱 Конструкторы LEGO | https://www.marwin.kz/konstruktory-32794 -> ('2026-11-21T18:44:09.744006+00:00', 'limited', 'unknown', 200, None)
+  Меломан: 🎲 Настольные игры | https://www.marwin.kz/igry-nastolnye-32654 -> ('2026-11-21T18:44:14.376734+00:00', 'limited', 'unknown', 200, None)
+  Меломан: 🎨 Творчество и хобби | https://www.marwin.kz/tvorchestvo-fine-art-32491 -> ('2026-11-21T18:44:20.268943+00:00', 'limited', 'unknown', 200, None)
+  Меломан: ✏️ Школа и канцелярия | https://www.marwin.kz/shkola-kancelyariya-32768 -> ('2026-11-21T18:44:26.418433+00:00', 'limited', 'unknown', 200, None)
+  Меломан: 🎵 Музыка и винил | https://www.marwin.kz/vinil-i-cd-32606 -> ('2026-11-21T18:44:40.798266+00:00', 'complete', 'unknown', 1, None)
+  Меломан: 🍬 Сладости и подарки | https://www.marwin.kz/sladosti-i-napitki-32693 -> ('2026-11-21T19:57:26.866258+00:00', 'limited', 'ok', 200, None)
+SUMMARY MARWIN 9: scanned=9/9
+marwin_v2_ active products: 1533
+marwin legacy active products: 7090
+
+=== 2. ALL 36 RESTORED PC-COMPONENT / LAPTOP CATEGORIES SINCE 2026-11-21T17:50:35Z ===
+[dns] (5 categories):
+  DNS: 🎮 Видеокарты | https://www.dns-shop.kz/catalog/17a89aab16404e77/videokarty/ -> ('2026-11-21T17:50:58.562185+00:00', 'limited', 'ok', 24, None)
+  DNS: ⚙️ Процессоры | https://www.dns-shop.kz/catalog/17a899cd16404e77/processory/ -> ('2026-11-21T17:51:05.713730+00:00', 'limited', 'ok', 24, None)
+  DNS: 💾 SSD накопители 2.5" SATA | https://www.dns-shop.kz/catalog/8a9ddfba20724e77/ssd-nakopiteli/ -> ('2026-11-21T17:51:13.700067+00:00', 'limited', 'unknown', 24, None)
+  DNS: 💾 SSD M.2 накопители | https://www.dns-shop.kz/catalog/dd58148920724e77/ssd-m2-nakopiteli/ -> ('2026-11-21T17:51:20.520016+00:00', 'limited', 'unknown', 24, None)
+  DNS: 🧠 Оперативная память | https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/ -> ('2026-11-21T17:51:28.820768+00:00', 'limited', 'ok', 24, None)
+[forcecom] (8 categories):
+  Forcecom: 🎮 Видеокарты | https://forcecom.kz/catalog/graphics-cards/ -> ('2026-11-21T17:50:58.561092+00:00', 'limited', 'ok', 135, None)
+  Forcecom: 🧩 Материнские платы | https://forcecom.kz/catalog/motherboards/ -> ('2026-11-21T17:51:49.838907+00:00', 'limited', 'ok', 387, None)
+  Forcecom: 🧠 Оперативная память | https://forcecom.kz/catalog/ram/ -> ('2026-11-21T17:53:38.106360+00:00', 'limited', 'ok', 316, None)
+  Forcecom: 💾 SSD диски | https://forcecom.kz/catalog/ssd/ -> ('2026-11-21T17:55:00.069379+00:00', 'limited', 'ok', 288, None)
+  Forcecom: 💾 Жесткие диски | https://forcecom.kz/catalog/hdd/ -> ('2026-11-21T17:55:56.583234+00:00', 'limited', 'ok', 135, None)
+  Forcecom: 📦 Корпуса | https://forcecom.kz/catalog/cases/ -> ('2026-11-21T17:56:26.911355+00:00', 'limited', 'ok', 477, None)
+  Forcecom: ⌨️ Клавиатуры | https://forcecom.kz/catalog/keyboards/ -> ('2026-11-21T17:58:00.172621+00:00', 'limited', 'ok', 559, None)
+  Forcecom: 🖱 Мыши | https://forcecom.kz/catalog/mice/ -> ('2026-11-21T17:59:42.040892+00:00', 'limited', 'ok', 795, None)
+[moon] (8 categories):
+  Moon: 🎮 Видеокарты | https://moon.kz/videokarty/ -> ('2026-11-21T17:50:58.560946+00:00', 'limited', 'ok', 162, None)
+  Moon: ⚙️ Процессоры | https://moon.kz/protsessory/ -> ('2026-11-21T17:51:08.267709+00:00', 'limited', 'ok', 272, None)
+  Moon: 🧩 Материнские платы | https://moon.kz/materinskie-platy/ -> ('2026-11-21T17:51:24.463437+00:00', 'limited', 'ok', 276, None)
+  Moon: 🧠 Оперативная память | https://moon.kz/moduli-pamyati/ -> ('2026-11-21T17:51:38.111888+00:00', 'limited', 'warning', 10, 'товаров 10 при норме 20 (50%)')
+  Moon: 💾 SSD диски | https://moon.kz/nakopiteli-ssd/ -> ('2026-11-21T17:51:41.348290+00:00', 'limited', 'warning', 10, 'товаров 10 при норме 20 (50%)')
+  Moon: ⚡️ Блоки питания | https://moon.kz/bloki-pitaniya/ -> ('2026-11-21T17:51:44.187940+00:00', 'limited', 'ok', 246, None)
+  Moon: 📦 Корпуса | https://moon.kz/korpusa/ -> ('2026-11-21T17:51:57.563721+00:00', 'limited', 'ok', 634, None)
+  Moon: ❄️ Системы охлаждения | https://moon.kz/kulery-i-sistemy-okhlazhdeniya/ -> ('2026-11-21T17:52:38.024002+00:00', 'limited', 'warning', 10, 'товаров 10 при норме 20 (50%)')
+[ants] (7 categories):
+  ANTS: 🖥 Системные блоки | https://ants.kz/catalog/sistemnye-bloki/ -> ('2026-11-21T17:50:58.560452+00:00', 'complete', 'ok', 177, None)
+  ANTS: ⚙️ Процессоры | https://ants.kz/catalog/protsessory/ -> ('2026-11-21T17:51:14.977843+00:00', 'complete', 'ok', 117, None)
+  ANTS: 🔌 Материнские платы | https://ants.kz/catalog/materinskie-platy/ -> ('2026-11-21T17:51:23.973661+00:00', 'complete', 'ok', 312, None)
+  ANTS: 🧠 Оперативная память | https://ants.kz/catalog/operativnaya-pamyat/ -> ('2026-11-21T17:51:56.861456+00:00', 'complete', 'ok', 249, None)
+  ANTS: 🎮 Видеокарты | https://ants.kz/catalog/videokarty/ -> ('2026-11-21T17:52:23.475362+00:00', 'complete', 'ok', 107, None)
+  ANTS: 💾 SSD-накопители | https://ants.kz/catalog/ssd-nakopiteli/ -> ('2026-11-21T17:52:32.862746+00:00', 'complete', 'ok', 188, None)
+  ANTS: 🗄 Корпуса | https://ants.kz/catalog/korpusa-dlya-kompyuterov/ -> ('2026-11-21T17:52:49.679227+00:00', 'complete', 'ok', 444, None)
+[itmag] (8 categories):
+  ITMag: 🖥 Системные блоки | https://itmag.kz/catalog/personal-nye-komp-yutery/ -> ('2026-11-21T17:51:36.368060+00:00', 'complete', 'ok', 228, None)
+  ITMag: ⚙️ Процессоры | https://itmag.kz/catalog/protsessory/ -> ('2026-11-21T17:52:07.674484+00:00', 'complete', 'ok', 203, None)
+  ITMag: 🔌 Материнские платы | https://itmag.kz/catalog/materinskie_platy/ -> ('2026-11-21T17:52:29.305886+00:00', 'complete', 'ok', 530, None)
+  ITMag: 🧠 Оперативная память | https://itmag.kz/catalog/operativnaya_pamyat/ -> ('2026-11-21T17:53:25.181062+00:00', 'complete', 'ok', 271, None)
+  ITMag: 🎮 Видеокарты | https://itmag.kz/catalog/videokarty/ -> ('2026-11-21T17:53:53.143652+00:00', 'complete', 'ok', 168, None)
+  ITMag: 💾 Жесткие диски и SSD | https://itmag.kz/catalog/zhestkie_diski/ -> ('2026-11-21T17:54:09.894708+00:00', 'complete', 'ok', 230, None)
+  ITMag: 🗄 Корпуса | https://itmag.kz/catalog/korpusa/ -> ('2026-11-21T17:54:31.519478+00:00', 'complete', 'ok', 795, None)
+  ITMag: 🔋 Блоки питания | https://itmag.kz/catalog/bloki-pitaniya-k-korpusam/ -> ('2026-11-21T17:55:48.112554+00:00', 'complete', 'ok', 616, None)
+SUMMARY PC 36: scanned=36/36
+
+=== 3. WAVE METADATA ===
+  ('wave_cycle', '1491')
+  ('wave_last_cycle_completed_at', '1795252279.6725621')
+  ('wave_index', '6')
+  ('wave_last_run_at', '1795290851.7755394')
+  ('wave_last_result', '{"cycle": 1491, "wave_index": 5, "total_waves": 9, "is_last": false, "finished_at": 1795291141.4574213, "shops": 38, "failed_shops": ["flip", "mechta"]}')

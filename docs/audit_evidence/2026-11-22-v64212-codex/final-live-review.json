@@ -1,0 +1,515 @@
+{
+  "reviewed_head": "b51c9145cf3623665b3cc874003cda3863667ced",
+  "code_commit": "67ce569",
+  "image": "sha256:ff625f40fbb125d11767f4869ffcf95a1d227c6cd6c1c6caa3faa5593c97dc15",
+  "source": "provided historical stand evidence; no new remote poll",
+  "sha_checks": [
+    {
+      "file": "scrapers/marwin.py",
+      "match": true,
+      "sha256": "d2581f554be79e7a03a1ec1f3103768d593358284837936ad2c506719a233689",
+      "supplied_copies": 3
+    },
+    {
+      "file": "config.py",
+      "match": true,
+      "sha256": "59bb35e316b6cf33108c8750a01fe17a577dae65af1c6b89a52110eb3496d8e1",
+      "supplied_copies": 3
+    },
+    {
+      "file": "version.py",
+      "match": true,
+      "sha256": "dca72b8ba846846b423c34f25d73e71b212187eb6feee5475058427d445dcd47",
+      "supplied_copies": 3
+    },
+    {
+      "file": "web/server.py",
+      "match": true,
+      "sha256": "147d9acbe8c3c9473a24f77a7de70d7b864ea11fb0d67a2f6bbf71d0702e5586",
+      "supplied_copies": 3
+    },
+    {
+      "file": "catchup_plan.py",
+      "match": true,
+      "sha256": "7064b5d53357a10fb7e2e79f27630fb9e11f6a898f142a8549a55edb273f0c6f",
+      "supplied_copies": 3
+    }
+  ],
+  "source_cutoff_utc": "2026-11-21T17:50:35Z",
+  "marwin": [
+    {
+      "section": "marwin",
+      "shop": "marwin",
+      "label": "Меломан: 📚 Книги | https://www.marwin.kz/knigi-32627",
+      "started_at": "2026-11-21T18:43:43.989327+00:00",
+      "kind": "limited",
+      "quality": "unknown",
+      "valid": 200,
+      "reason": null
+    },
+    {
+      "section": "marwin",
+      "shop": "marwin",
+      "label": "Меломан: 🎮 Видеоигры и консоли | https://www.marwin.kz/videoigry-i-konsoli-32532",
+      "started_at": "2026-11-21T18:43:58.527683+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 121,
+      "reason": null
+    },
+    {
+      "section": "marwin",
+      "shop": "marwin",
+      "label": "Меломан: 🧸 Игрушки и развлечения | https://www.marwin.kz/igrushki-i-igry-32632",
+      "started_at": "2026-11-21T18:44:01.916816+00:00",
+      "kind": "limited",
+      "quality": "unknown",
+      "valid": 200,
+      "reason": null
+    },
+    {
+      "section": "marwin",
+      "shop": "marwin",
+      "label": "Меломан: 🧱 Конструкторы LEGO | https://www.marwin.kz/konstruktory-32794",
+      "started_at": "2026-11-21T18:44:09.744006+00:00",
+      "kind": "limited",
+      "quality": "unknown",
+      "valid": 200,
+      "reason": null
+    },
+    {
+      "section": "marwin",
+      "shop": "marwin",
+      "label": "Меломан: 🎲 Настольные игры | https://www.marwin.kz/igry-nastolnye-32654",
+      "started_at": "2026-11-21T18:44:14.376734+00:00",
+      "kind": "limited",
+      "quality": "unknown",
+      "valid": 200,
+      "reason": null
+    },
+    {
+      "section": "marwin",
+      "shop": "marwin",
+      "label": "Меломан: 🎨 Творчество и хобби | https://www.marwin.kz/tvorchestvo-fine-art-32491",
+      "started_at": "2026-11-21T18:44:20.268943+00:00",
+      "kind": "limited",
+      "quality": "unknown",
+      "valid": 200,
+      "reason": null
+    },
+    {
+      "section": "marwin",
+      "shop": "marwin",
+      "label": "Меломан: ✏️ Школа и канцелярия | https://www.marwin.kz/shkola-kancelyariya-32768",
+      "started_at": "2026-11-21T18:44:26.418433+00:00",
+      "kind": "limited",
+      "quality": "unknown",
+      "valid": 200,
+      "reason": null
+    },
+    {
+      "section": "marwin",
+      "shop": "marwin",
+      "label": "Меломан: 🎵 Музыка и винил | https://www.marwin.kz/vinil-i-cd-32606",
+      "started_at": "2026-11-21T18:44:40.798266+00:00",
+      "kind": "complete",
+      "quality": "unknown",
+      "valid": 1,
+      "reason": null
+    },
+    {
+      "section": "marwin",
+      "shop": "marwin",
+      "label": "Меломан: 🍬 Сладости и подарки | https://www.marwin.kz/sladosti-i-napitki-32693",
+      "started_at": "2026-11-21T19:57:26.866258+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 200,
+      "reason": null
+    }
+  ],
+  "pc_sources": [
+    {
+      "section": "pc",
+      "shop": "dns",
+      "label": "DNS: 🎮 Видеокарты | https://www.dns-shop.kz/catalog/17a89aab16404e77/videokarty/",
+      "started_at": "2026-11-21T17:50:58.562185+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 24,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "dns",
+      "label": "DNS: ⚙️ Процессоры | https://www.dns-shop.kz/catalog/17a899cd16404e77/processory/",
+      "started_at": "2026-11-21T17:51:05.713730+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 24,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "dns",
+      "label": "DNS: 💾 SSD накопители 2.5\" SATA | https://www.dns-shop.kz/catalog/8a9ddfba20724e77/ssd-nakopiteli/",
+      "started_at": "2026-11-21T17:51:13.700067+00:00",
+      "kind": "limited",
+      "quality": "unknown",
+      "valid": 24,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "dns",
+      "label": "DNS: 💾 SSD M.2 накопители | https://www.dns-shop.kz/catalog/dd58148920724e77/ssd-m2-nakopiteli/",
+      "started_at": "2026-11-21T17:51:20.520016+00:00",
+      "kind": "limited",
+      "quality": "unknown",
+      "valid": 24,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "dns",
+      "label": "DNS: 🧠 Оперативная память | https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/",
+      "started_at": "2026-11-21T17:51:28.820768+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 24,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "forcecom",
+      "label": "Forcecom: 🎮 Видеокарты | https://forcecom.kz/catalog/graphics-cards/",
+      "started_at": "2026-11-21T17:50:58.561092+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 135,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "forcecom",
+      "label": "Forcecom: 🧩 Материнские платы | https://forcecom.kz/catalog/motherboards/",
+      "started_at": "2026-11-21T17:51:49.838907+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 387,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "forcecom",
+      "label": "Forcecom: 🧠 Оперативная память | https://forcecom.kz/catalog/ram/",
+      "started_at": "2026-11-21T17:53:38.106360+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 316,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "forcecom",
+      "label": "Forcecom: 💾 SSD диски | https://forcecom.kz/catalog/ssd/",
+      "started_at": "2026-11-21T17:55:00.069379+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 288,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "forcecom",
+      "label": "Forcecom: 💾 Жесткие диски | https://forcecom.kz/catalog/hdd/",
+      "started_at": "2026-11-21T17:55:56.583234+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 135,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "forcecom",
+      "label": "Forcecom: 📦 Корпуса | https://forcecom.kz/catalog/cases/",
+      "started_at": "2026-11-21T17:56:26.911355+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 477,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "forcecom",
+      "label": "Forcecom: ⌨️ Клавиатуры | https://forcecom.kz/catalog/keyboards/",
+      "started_at": "2026-11-21T17:58:00.172621+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 559,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "forcecom",
+      "label": "Forcecom: 🖱 Мыши | https://forcecom.kz/catalog/mice/",
+      "started_at": "2026-11-21T17:59:42.040892+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 795,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "moon",
+      "label": "Moon: 🎮 Видеокарты | https://moon.kz/videokarty/",
+      "started_at": "2026-11-21T17:50:58.560946+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 162,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "moon",
+      "label": "Moon: ⚙️ Процессоры | https://moon.kz/protsessory/",
+      "started_at": "2026-11-21T17:51:08.267709+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 272,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "moon",
+      "label": "Moon: 🧩 Материнские платы | https://moon.kz/materinskie-platy/",
+      "started_at": "2026-11-21T17:51:24.463437+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 276,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "moon",
+      "label": "Moon: 🧠 Оперативная память | https://moon.kz/moduli-pamyati/",
+      "started_at": "2026-11-21T17:51:38.111888+00:00",
+      "kind": "limited",
+      "quality": "warning",
+      "valid": 10,
+      "reason": "товаров 10 при норме 20 (50%)"
+    },
+    {
+      "section": "pc",
+      "shop": "moon",
+      "label": "Moon: 💾 SSD диски | https://moon.kz/nakopiteli-ssd/",
+      "started_at": "2026-11-21T17:51:41.348290+00:00",
+      "kind": "limited",
+      "quality": "warning",
+      "valid": 10,
+      "reason": "товаров 10 при норме 20 (50%)"
+    },
+    {
+      "section": "pc",
+      "shop": "moon",
+      "label": "Moon: ⚡️ Блоки питания | https://moon.kz/bloki-pitaniya/",
+      "started_at": "2026-11-21T17:51:44.187940+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 246,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "moon",
+      "label": "Moon: 📦 Корпуса | https://moon.kz/korpusa/",
+      "started_at": "2026-11-21T17:51:57.563721+00:00",
+      "kind": "limited",
+      "quality": "ok",
+      "valid": 634,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "moon",
+      "label": "Moon: ❄️ Системы охлаждения | https://moon.kz/kulery-i-sistemy-okhlazhdeniya/",
+      "started_at": "2026-11-21T17:52:38.024002+00:00",
+      "kind": "limited",
+      "quality": "warning",
+      "valid": 10,
+      "reason": "товаров 10 при норме 20 (50%)"
+    },
+    {
+      "section": "pc",
+      "shop": "ants",
+      "label": "ANTS: 🖥 Системные блоки | https://ants.kz/catalog/sistemnye-bloki/",
+      "started_at": "2026-11-21T17:50:58.560452+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 177,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "ants",
+      "label": "ANTS: ⚙️ Процессоры | https://ants.kz/catalog/protsessory/",
+      "started_at": "2026-11-21T17:51:14.977843+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 117,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "ants",
+      "label": "ANTS: 🔌 Материнские платы | https://ants.kz/catalog/materinskie-platy/",
+      "started_at": "2026-11-21T17:51:23.973661+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 312,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "ants",
+      "label": "ANTS: 🧠 Оперативная память | https://ants.kz/catalog/operativnaya-pamyat/",
+      "started_at": "2026-11-21T17:51:56.861456+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 249,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "ants",
+      "label": "ANTS: 🎮 Видеокарты | https://ants.kz/catalog/videokarty/",
+      "started_at": "2026-11-21T17:52:23.475362+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 107,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "ants",
+      "label": "ANTS: 💾 SSD-накопители | https://ants.kz/catalog/ssd-nakopiteli/",
+      "started_at": "2026-11-21T17:52:32.862746+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 188,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "ants",
+      "label": "ANTS: 🗄 Корпуса | https://ants.kz/catalog/korpusa-dlya-kompyuterov/",
+      "started_at": "2026-11-21T17:52:49.679227+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 444,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "itmag",
+      "label": "ITMag: 🖥 Системные блоки | https://itmag.kz/catalog/personal-nye-komp-yutery/",
+      "started_at": "2026-11-21T17:51:36.368060+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 228,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "itmag",
+      "label": "ITMag: ⚙️ Процессоры | https://itmag.kz/catalog/protsessory/",
+      "started_at": "2026-11-21T17:52:07.674484+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 203,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "itmag",
+      "label": "ITMag: 🔌 Материнские платы | https://itmag.kz/catalog/materinskie_platy/",
+      "started_at": "2026-11-21T17:52:29.305886+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 530,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "itmag",
+      "label": "ITMag: 🧠 Оперативная память | https://itmag.kz/catalog/operativnaya_pamyat/",
+      "started_at": "2026-11-21T17:53:25.181062+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 271,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "itmag",
+      "label": "ITMag: 🎮 Видеокарты | https://itmag.kz/catalog/videokarty/",
+      "started_at": "2026-11-21T17:53:53.143652+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 168,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "itmag",
+      "label": "ITMag: 💾 Жесткие диски и SSD | https://itmag.kz/catalog/zhestkie_diski/",
+      "started_at": "2026-11-21T17:54:09.894708+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 230,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "itmag",
+      "label": "ITMag: 🗄 Корпуса | https://itmag.kz/catalog/korpusa/",
+      "started_at": "2026-11-21T17:54:31.519478+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 795,
+      "reason": null
+    },
+    {
+      "section": "pc",
+      "shop": "itmag",
+      "label": "ITMag: 🔋 Блоки питания | https://itmag.kz/catalog/bloki-pitaniya-k-korpusam/",
+      "started_at": "2026-11-21T17:55:48.112554+00:00",
+      "kind": "complete",
+      "quality": "ok",
+      "valid": 616,
+      "reason": null
+    }
+  ],
+  "counts": {
+    "marwin_scanned": 9,
+    "marwin_complete": 2,
+    "marwin_limited": 7,
+    "pc_scanned": 36,
+    "pc_complete": 15,
+    "pc_limited": 21,
+    "pc_warnings": 3
+  },
+  "linux_author_tests": 3297,
+  "linux_author_seconds": 444.697,
+  "pins": {
+    "ok": true,
+    "checked": 25,
+    "mismatched": [],
+    "unpinned": [],
+    "pinned_not_installed": []
+  },
+  "live_smoke": "121 items, 7 pages, complete, unparsed0",
+  "stand_restart_utc": "2026-11-21T22:03:20Z",
+  "source_results_predate_restart": true,
+  "production_changed": false
+}

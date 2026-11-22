@@ -1,0 +1,29 @@
+=== LOCAL UTC ===
+2026-11-21T22:03:55Z
+=== LOCAL GIT ===
+b51c9145cf3623665b3cc874003cda3863667ced
+=== LOCAL SHA256 ===
+d2581f554be79e7a03a1ec1f3103768d593358284837936ad2c506719a233689  scrapers/marwin.py
+59bb35e316b6cf33108c8750a01fe17a577dae65af1c6b89a52110eb3496d8e1  config.py
+dca72b8ba846846b423c34f25d73e71b212187eb6feee5475058427d445dcd47  version.py
+147d9acbe8c3c9473a24f77a7de70d7b864ea11fb0d67a2f6bbf71d0702e5586  web/server.py
+7064b5d53357a10fb7e2e79f27630fb9e11f6a898f142a8549a55edb273f0c6f  catchup_plan.py
+=== STAND INSPECT / API / GIT / SHA256 ===
+2026-11-21T22:04:00Z
+Image=sha256:ff625f40fbb125d11767f4869ffcf95a1d227c6cd6c1c6caa3faa5593c97dc15 StartedAt=2026-11-21T22:03:20.072554501Z RestartCount=0 Status=running Health=healthy
+{"version": "6.42.12", "app_name": "KZ Price Hunter", "release_date": "2026-11-21", "author": "Advanced Agentic Coding"}
+{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}
+--- STAND CHECKOUT GIT ---
+67ce5698608bd3582061bba686ebafadb1d33987
+--- STAND CHECKOUT SHA256 ---
+d2581f554be79e7a03a1ec1f3103768d593358284837936ad2c506719a233689  scrapers/marwin.py
+59bb35e316b6cf33108c8750a01fe17a577dae65af1c6b89a52110eb3496d8e1  config.py
+dca72b8ba846846b423c34f25d73e71b212187eb6feee5475058427d445dcd47  version.py
+147d9acbe8c3c9473a24f77a7de70d7b864ea11fb0d67a2f6bbf71d0702e5586  web/server.py
+7064b5d53357a10fb7e2e79f27630fb9e11f6a898f142a8549a55edb273f0c6f  catchup_plan.py
+--- CONTAINER SHA256 ---
+d2581f554be79e7a03a1ec1f3103768d593358284837936ad2c506719a233689  /app/scrapers/marwin.py
+59bb35e316b6cf33108c8750a01fe17a577dae65af1c6b89a52110eb3496d8e1  /app/config.py
+dca72b8ba846846b423c34f25d73e71b212187eb6feee5475058427d445dcd47  /app/version.py
+147d9acbe8c3c9473a24f77a7de70d7b864ea11fb0d67a2f6bbf71d0702e5586  /app/web/server.py
+7064b5d53357a10fb7e2e79f27630fb9e11f6a898f142a8549a55edb273f0c6f  /app/catchup_plan.py

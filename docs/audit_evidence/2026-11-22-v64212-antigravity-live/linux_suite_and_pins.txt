@@ -1,0 +1,31 @@
+=== CLEAN CONTAINER FULL LINUX SUITE (v6.42.12) ===
+2026-11-21T22:04:04Z
+exit_code=0
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[Auth] ⚠️ ADMIN_TELEGRAM_IDS не задан — администраторов нет, общие настройки и логи недоступны
+[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены
+.........../app/tests/web/test_web_optimizations.py:77: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+  app["stats_cache"] = BoundedTTLCache(maxsize=10, ttl=server.STATS_CACHE_TTL_SECONDS)
+.....
+----------------------------------------------------------------------
+Ran 3297 tests in 444.697s
+
+OK
+=== PINS CHECK IN CLEAN CONTAINER ===
+{
+  "ok": true,
+  "checked": 25,
+  "mismatched": [],
+  "unpinned": [],
+  "pinned_not_installed": []
+}

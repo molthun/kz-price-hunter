@@ -1,0 +1,47 @@
+{
+  "snapshot": "6.42.11 before 6.42.12 replaced it",
+  "review_type": "supplied evidence review, not new remote connection",
+  "sha_checks": [
+    {
+      "file": "config.py",
+      "match": true,
+      "sha256": "08d6df46faf3c52d557ab2c18d7240c254b20f3ddb4107309d7a79c88ee5b3f4"
+    },
+    {
+      "file": "scrapers/marwin.py",
+      "match": true,
+      "sha256": "ec07906bebfd5efdf964125f397635840802ae72459baf370a3fdf80f496dd39"
+    },
+    {
+      "file": "web/server.py",
+      "match": true,
+      "sha256": "147d9acbe8c3c9473a24f77a7de70d7b864ea11fb0d67a2f6bbf71d0702e5586"
+    },
+    {
+      "file": "catchup_plan.py",
+      "match": true,
+      "sha256": "7064b5d53357a10fb7e2e79f27630fb9e11f6a898f142a8549a55edb273f0c6f"
+    },
+    {
+      "file": "database.py",
+      "match": true,
+      "sha256": "cdfea7c81904a5fec507e6543089c58c1cf136b45814a0ba770ca2290084ee7e"
+    },
+    {
+      "file": "version.py",
+      "match": true,
+      "sha256": "5e4e20330da0b4db59264af6e7fa7ebf2a4202e83cef7fc24ef01cb4834cf801"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "match": true,
+      "sha256": "e88ae9902b33439710e93d1cfaaad075f350f6efe3c61e018d91c808c51bd08a"
+    }
+  ],
+  "catchup_launches_in_supplied_log": 10,
+  "catchup_tracked_or_demand_lines": 0,
+  "wave_tracked_batches": 1,
+  "wave_demand_batches": 1,
+  "author_linux_tail": "3296 OK in 498.877s",
+  "marwin_v11": "partial/failed, 121 items; fixed in v12 needs its own live evidence"
+}
