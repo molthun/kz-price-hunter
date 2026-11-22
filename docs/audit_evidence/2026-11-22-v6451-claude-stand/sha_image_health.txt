@@ -1,0 +1,13 @@
+commit 5c44c23247bfd17299f5c600be29809d131c9825
+local d373cac52fd3938deddae6b7f68b1aad395b5f7de9e49576d763dea7ae55f441 web/templates/search_first.html
+local 9e98d2aef7bd8b97093edc8dce1773554b622e9489fc08898524dd79601eafa5 tests/frontend/test_frontend_user_sizes.cjs
+local 44728b3b54a28bf95f51f112bb3a1f883736de3077d77c35bc70917c16a3b09a version.py
+local d3f6646ae8f440a93d5f6f036e38fececb539af6d3b705ece8c3ed6ba797844d CHANGELOG.md
+stand_head 5c44c23247bfd17299f5c600be29809d131c9825
+container d373cac52fd3938deddae6b7f68b1aad395b5f7de9e49576d763dea7ae55f441 web/templates/search_first.html
+container 9e98d2aef7bd8b97093edc8dce1773554b622e9489fc08898524dd79601eafa5 tests/frontend/test_frontend_user_sizes.cjs
+container 44728b3b54a28bf95f51f112bb3a1f883736de3077d77c35bc70917c16a3b09a version.py
+container d3f6646ae8f440a93d5f6f036e38fececb539af6d3b705ece8c3ed6ba797844d CHANGELOG.md
+image=sha256:d57af249687b51de6674574d412019f54f0a0d288b8714f3cfa84198821c8351 health=healthy restarts=0
+version {"version": "6.45.1", "app_name": "KZ Price Hunter", "release_date": "2026-11-22", "author": "Advanced Agentic Coding"}
+health {"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}

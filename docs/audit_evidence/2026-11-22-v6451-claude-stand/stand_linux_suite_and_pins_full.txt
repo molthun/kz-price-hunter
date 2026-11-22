@@ -1,0 +1,13 @@
+----------------------------------------------------------------------
+Ran 3371 tests in 469.910s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+  "mismatched": [],
+  "unpinned": [],
+  "pinned_not_installed": []
+}
+
+[exited with code 0]
