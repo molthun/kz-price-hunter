@@ -38,4 +38,4 @@ flowchart LR
 - Прод и стенд имеют отдельные данные, настройки и Telegram-ботов. Прод получает образ из GHCR, стенд собирается из checkout.
 - Центр мониторинга показывает обходы, ошибки, состояние очереди, AI и резервных копий.
 
-[Диагностика](DIAGNOSTICS.md) · [Стенд](TEST_STAND.md) · [Прод и резервные копии](PROD_MOVE_P17E.md) · [Данные и безопасность](SECURITY_AND_PRIVACY.md)
+[Диагностика](DIAGNOSTICS.md) · [Стенд](TEST_STAND.md) · [Прод и резервные копии](archive/PROD_MOVE_P17E.md) · [Данные и безопасность](SECURITY_AND_PRIVACY.md)
