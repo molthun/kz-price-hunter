@@ -3,6 +3,16 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.46.0] - 2026-11-22
+
+### Для пользователей
+- ☁️ Сохранённые в профиле «Мои размеры» (обувь и одежда) теперь синхронизируются с аккаунтом на сервере — размеры, выбранные на телефоне или в Telegram, автоматически подтягиваются на компьютере и в других браузерах.
+
+### Серверная синхронизация «Моих размеров» в профиле пользователя
+- **`config.py`:** в `USER_DEFAULTS` добавлены поля `preferred_shoe_size` и `preferred_clothing_size`; `validate_user_settings` нормализует их через `domain.sizes.normalize_size_token` и отклоняет некорректные значения (`400`). Автоматически работает через штатные `GET /api/me` и `POST /api/me/settings` (с изоляцией по `user_id` и очисткой при удалении аккаунта).
+- **`web/templates/search_first.html`:** `checkAuth()` подтягивает размеры из `data.settings` (`syncUserSizesFromServer`), а `onUserSizesChanged()` для авторизованного пользователя сохраняет их через `POST /api/me/settings` с честной обработкой ошибок сети и `localStorage`.
+- **Тесты:** расширены `tests/domain/test_sizes.py` (валидация, HTTP `/api/me/settings` + `/api/me`, изоляция пользователей) и `tests/frontend/test_frontend_user_sizes.cjs` (синхронизация с сервером после очистки `localStorage`).
+
 ## [6.45.1] - 2026-11-22
 
 ### Для пользователей

@@ -151,6 +151,77 @@ class SizesSearchIntegrationTest(unittest.TestCase):
         self.assertIn("offer-size-chip", html)
 
 
+class UserSizesSettingsSyncTest(unittest.TestCase):
+    def test_validate_user_settings_sizes(self):
+        from config import validate_user_settings
+        clean = validate_user_settings({"preferred_shoe_size": "37,5", "preferred_clothing_size": "2xl"})
+        self.assertEqual(clean["preferred_shoe_size"], "37.5")
+        self.assertEqual(clean["preferred_clothing_size"], "XXL")
+
+        cleared = validate_user_settings({"preferred_shoe_size": "", "preferred_clothing_size": ""})
+        self.assertEqual(cleared["preferred_shoe_size"], "")
+        self.assertEqual(cleared["preferred_clothing_size"], "")
+
+        with self.assertRaises(ValueError):
+            validate_user_settings({"preferred_shoe_size": "XL"})
+        with self.assertRaises(ValueError):
+            validate_user_settings({"preferred_clothing_size": "42"})
+        with self.assertRaises(ValueError):
+            validate_user_settings({"preferred_shoe_size": "999"})
+
+    def test_http_me_settings_saves_and_isolates_user_sizes(self):
+        import asyncio
+        from unittest.mock import patch
+        from aiohttp.test_utils import TestServer
+        import auth
+        import web.server as server
+        from tests.test_support import BrowserTestClient
+
+        database.init_db()
+        uid1, uid2 = 8601, 8602
+        database.upsert_telegram_user({"id": uid1, "first_name": "UserOne"})
+        database.upsert_telegram_user({"id": uid2, "first_name": "UserTwo"})
+        tok1 = database.create_session(uid1)
+        tok2 = database.create_session(uid2)
+
+        async def _scenario():
+            app = server.create_app()
+            app.cleanup_ctx.clear()
+            with patch.object(auth, "PUBLIC_ORIGIN", ""):
+                async with BrowserTestClient(TestServer(app)) as client:
+                    # 1. Гость получает 401
+                    r_guest = await client.post("/api/me/settings", json={"preferred_shoe_size": "42"})
+                    self.assertEqual(r_guest.status, 401)
+
+                    # 2. UserOne сохраняет размеры
+                    client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: tok1})
+                    r_bad = await client.post("/api/me/settings", json={"preferred_shoe_size": "INVALID"})
+                    self.assertEqual(r_bad.status, 400)
+
+                    r_save = await client.post(
+                        "/api/me/settings",
+                        json={"preferred_shoe_size": "42,5", "preferred_clothing_size": "2xl"},
+                    )
+                    self.assertEqual(r_save.status, 200)
+                    saved = (await r_save.json())["settings"]
+                    self.assertEqual(saved["preferred_shoe_size"], "42.5")
+                    self.assertEqual(saved["preferred_clothing_size"], "XXL")
+
+                    r_me1 = await client.get("/api/me")
+                    me1 = await r_me1.json()
+                    self.assertEqual(me1["settings"]["preferred_shoe_size"], "42.5")
+                    self.assertEqual(me1["settings"]["preferred_clothing_size"], "XXL")
+
+                    # 3. UserTwo не видит размеры UserOne
+                    client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: tok2})
+                    r_me2 = await client.get("/api/me")
+                    me2 = await r_me2.json()
+                    self.assertEqual(me2["settings"]["preferred_shoe_size"], "")
+                    self.assertEqual(me2["settings"]["preferred_clothing_size"], "")
+
+        asyncio.run(_scenario())
+
+
 if __name__ == "__main__":
     unittest.main()
 

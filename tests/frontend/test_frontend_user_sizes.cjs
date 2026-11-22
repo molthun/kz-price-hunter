@@ -150,6 +150,27 @@ async function runTest() {
     const myChip = page.locator('.offer-size-chip.is-my-size');
     await myChip.waitFor({state: 'visible'});
     assert.match(await myChip.innerText(), /42/);
+
+    // 4. Серверная синхронизация (v6.46.0): вход -> сохранение размеров -> очистка localStorage -> восстановление с /api/me
+    await page.goto(base + '/profile');
+    const loginRes = await page.evaluate(async () => {
+      const r = await fetch('/api/auth/dev-login', {method: 'POST'});
+      return {status: r.status, data: await r.json()};
+    });
+    assert.equal(loginRes.status, 200);
+    await page.reload();
+    await page.waitForSelector('#profileSizesCard', {state: 'visible'});
+    await page.selectOption('#profileShoeSize', '43');
+    await page.waitForFunction(() => /синхронизировано/i.test((document.getElementById('profileSizesState') || {}).textContent || ''));
+    await page.selectOption('#profileClothingSize', 'XL');
+    await page.waitForFunction(() => /XL/.test((document.getElementById('profileSizesState') || {}).textContent || ''));
+
+    // Имитация другого устройства: полностью очищаем localStorage и перезагружаем страницу
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('profileShoeSize').value === '43');
+    assert.equal(await page.inputValue('#profileClothingSize'), 'XL');
+
     assert.deepEqual(errors, [], 'Unexpected page errors: ' + errors.join('; '));
 
     console.log('test_frontend_user_sizes PASS');

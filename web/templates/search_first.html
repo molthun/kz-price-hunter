@@ -8042,7 +8042,23 @@
       if (clothEl) clothEl.value = sz.clothing || '';
     }
 
-    function onUserSizesChanged() {
+    function syncUserSizesFromServer(settings) {
+      if (!settings || typeof settings !== 'object') return;
+      const hasShoe = Object.prototype.hasOwnProperty.call(settings, 'preferred_shoe_size');
+      const hasCloth = Object.prototype.hasOwnProperty.call(settings, 'preferred_clothing_size');
+      if (!hasShoe && !hasCloth) return;
+      const cur = getUserSizes();
+      const next = {
+        shoe: hasShoe ? String(settings.preferred_shoe_size || '').trim() : (cur.shoe || ''),
+        clothing: hasCloth ? String(settings.preferred_clothing_size || '').trim().toUpperCase() : (cur.clothing || ''),
+      };
+      try {
+        localStorage.setItem(USER_SIZES_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {}
+      syncProfileSizesUI();
+    }
+
+    async function onUserSizesChanged() {
       const shoeEl = document.getElementById('profileShoeSize');
       const clothEl = document.getElementById('profileClothingSize');
       const stateEl = document.getElementById('profileSizesState');
@@ -8050,19 +8066,54 @@
         shoe: shoeEl ? String(shoeEl.value || '').trim() : '',
         clothing: clothEl ? String(clothEl.value || '').trim().toUpperCase() : '',
       };
+      let localSaved = true;
       try {
         localStorage.setItem(USER_SIZES_STORAGE_KEY, JSON.stringify(payload));
       } catch (e) {
-        const errMsg = 'Не удалось сохранить размеры в браузере (хранилище недоступно).';
+        localSaved = false;
+      }
+
+      let serverSaved = false;
+      let serverError = '';
+      if (typeof currentUser !== 'undefined' && currentUser) {
+        try {
+          const resp = await fetch('/api/me/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              preferred_shoe_size: payload.shoe,
+              preferred_clothing_size: payload.clothing,
+            }),
+          });
+          if (resp.ok) {
+            serverSaved = true;
+          } else {
+            const errData = await resp.json().catch(() => ({}));
+            serverError = errData.message || 'Не удалось сохранить размеры в профиле на сервере.';
+          }
+        } catch (e) {
+          serverError = 'Не удалось сохранить размеры в профиле на сервере.';
+        }
+      }
+
+      if (!localSaved && !serverSaved) {
+        const errMsg = serverError || 'Не удалось сохранить размеры в браузере (хранилище недоступно).';
         if (stateEl) stateEl.textContent = errMsg;
         if (typeof showToast === 'function') showToast('⚠️ ' + errMsg);
         return;
       }
+      if (serverError) {
+        if (stateEl) stateEl.textContent = serverError + ' (Сохранено только в этом браузере.)';
+        if (typeof showToast === 'function') showToast('⚠️ ' + serverError);
+        return;
+      }
+
       const parts = [];
       if (payload.shoe) parts.push('обувь ' + payload.shoe);
       if (payload.clothing) parts.push('одежда ' + payload.clothing);
+      const suffix = serverSaved ? ' (синхронизировано с профилем)' : '';
       if (stateEl) {
-        stateEl.textContent = parts.length ? ('Сохранено: ' + parts.join(', ')) : 'Размеры сброшены.';
+        stateEl.textContent = parts.length ? ('Сохранено: ' + parts.join(', ') + suffix) : ('Размеры сброшены' + suffix + '.');
       }
       if (typeof showToast === 'function') {
         showToast(parts.length ? ('👟 Размеры сохранены: ' + parts.join(', ')) : '👟 Размеры сброшены');
@@ -8127,6 +8178,9 @@
         currentUser = data.user;
         currentAuthConfig = data.auth || {};
         isMaintenanceMode = !!data.maintenance_mode;
+        if (currentUser && data.settings) {
+          syncUserSizesFromServer(data.settings);
+        }
         updateAuthUI();
         updateAccessTimer(data.access);
         if (currentUser && typeof WatchManager !== 'undefined') {

@@ -425,6 +425,8 @@ USER_DEFAULTS = {
     # Поиск по умолчанию
     "search_exclude_accessories_default": True,
     "search_default_sort": "price_asc",
+    "preferred_shoe_size": "",
+    "preferred_clothing_size": "",
 
     # Магазины в ленте алертов и уведомлениях
     "alert_shops": _all_shops_enabled(),
@@ -951,6 +953,26 @@ def validate_user_settings(new_settings, current=None):
     if isinstance(new_settings, dict):
         new_settings = {k: v for k, v in new_settings.items() if k not in SERVER_MANAGED_USER_KEYS}
     clean = _validate(new_settings, USER_DEFAULTS)
+    if "preferred_shoe_size" in clean:
+        raw_shoe = str(clean["preferred_shoe_size"] or "").strip()
+        if not raw_shoe:
+            clean["preferred_shoe_size"] = ""
+        else:
+            from domain.sizes import normalize_size_token
+            norm_shoe = normalize_size_token(raw_shoe)
+            if not norm_shoe or not norm_shoe[0].isdigit():
+                raise ValueError("Некорректный размер обуви")
+            clean["preferred_shoe_size"] = norm_shoe
+    if "preferred_clothing_size" in clean:
+        raw_cloth = str(clean["preferred_clothing_size"] or "").strip()
+        if not raw_cloth:
+            clean["preferred_clothing_size"] = ""
+        else:
+            from domain.sizes import normalize_size_token
+            norm_cloth = normalize_size_token(raw_cloth)
+            if not norm_cloth or norm_cloth[0].isdigit():
+                raise ValueError("Некорректный размер одежды")
+            clean["preferred_clothing_size"] = norm_cloth
     merged = {**merge_user_settings(current or {}), **clean}
     if merged["min_item_price_kzt"] > merged["max_item_price_kzt"]:
         raise ValueError("Мин. цена товара не может быть больше макс. цены")
