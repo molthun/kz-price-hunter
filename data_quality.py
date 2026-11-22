@@ -108,19 +108,43 @@ def baseline_from_history(history: List[Dict[str, Any]]) -> Optional[Dict[str, f
 
 STABLE_SHIFT_WINDOW = 5
 STABLE_SHIFT_MIN_RATIO = 0.70
+STABLE_SHIFT_MAX_SPAN_SECONDS = 7 * 86400
+REBASED = "rebased"
+CONFIRMED = "confirmed"
 
 
-def rebased_baseline_from_recent(recent_scans: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """Адаптация застрявшей нормы: если последние STABLE_SHIFT_WINDOW полных обходов подряд
-    получили degraded без высокого брака и со стабильным объёмом (min/max >= 0.70), значит
-    размер каталога реально изменился или active_offers раздулся без retire."""
+def _ts(value: Any) -> Optional[float]:
+    try:
+        parsed = datetime.datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+    return parsed.timestamp()
+
+
+def rebased_baseline_from_recent(recent_scans: List[Dict[str, Any]],
+                                 now: Optional[float] = None) -> Optional[Dict[str, Any]]:
+    """Рекомендация новой нормы для застрявшего источника (6.43.1, исправлено 6.43.4).
+
+    recent_scans — последние фактические попытки источника любого вида, новые первыми. Серия засчитывается,
+    только если STABLE_SHIFT_WINDOW последних попыток подряд — полные обходы (kind='complete'), каждый
+    degraded или уже оценённый по этой рекомендации, без высокого брака, со стабильным объёмом
+    (min/max >= 0.70) и не старше STABLE_SHIFT_MAX_SPAN_SECONDS. Ошибка или limited разрывает серию (DQ-02).
+
+    Устойчивый малый объём не отличает сокращение каталога от стабильной поломки адаптера (DQ-01), поэтому
+    рекомендация не даёт права снимать товары и не обучает норму: см. assess и basis='rebased'.
+    """
     window = list(recent_scans[:STABLE_SHIFT_WINDOW])
     if len(window) < STABLE_SHIFT_WINDOW:
         return None
     valids: List[int] = []
     image_shares: List[float] = []
     for row in window:
-        if row.get("quality") != DEGRADED:
+        if row.get("kind", "complete") != "complete":
+            return None
+        quality = row.get("quality")
+        if quality != DEGRADED and not (quality == WARNING and row.get("baseline_basis") == REBASED):
             return None
         received = int(row.get("received") or 0)
         valid = int(row.get("valid") or 0)
@@ -132,12 +156,16 @@ def rebased_baseline_from_recent(recent_scans: List[Dict[str, Any]]) -> Optional
         valids.append(valid)
         if valid > 0 and row.get("with_image") is not None:
             image_shares.append(int(row["with_image"]) / valid)
+    if now is not None and "finished_at" in window[-1]:
+        oldest = _ts(window[-1].get("finished_at"))
+        if oldest is None or now - oldest > STABLE_SHIFT_MAX_SPAN_SECONDS:
+            return None
     if max(valids) <= 0 or (min(valids) / max(valids)) < STABLE_SHIFT_MIN_RATIO:
         return None
     return {
         "valid": float(statistics.median(valids)),
         "image_share": float(statistics.median(image_shares)) if image_shares else None,
-        "basis": "rebased",
+        "basis": REBASED,
         "samples": len(window),
     }
 
@@ -179,6 +207,12 @@ def assess(metrics: Dict[str, int], *, complete: bool, error: Optional[str],
         if base_image - share > IMAGE_DROP_WARNING:
             warnings.append(f"с фото {share:.0%} при норме {base_image:.0%}")
 
+    rebased = bool(baseline) and baseline.get("basis") == REBASED
+    if rebased and not reasons:
+        # DQ-01: норма по устойчивой серии — только рекомендация. Товары не снимаются, норма не обучается,
+        # пока администратор не подтвердит её для источника (basis='confirmed').
+        warnings.append(f"норма {base:.0f} предложена по {baseline.get('samples')} стабильным обходам; "
+                        "снятие отсутствующих отключено до подтверждения нормы")
     if reasons:
         quality = DEGRADED
     elif warnings:
@@ -192,8 +226,8 @@ def assess(metrics: Dict[str, int], *, complete: bool, error: Optional[str],
         "reasons": reasons,
         "warnings": warnings,
         # Результат без нормы обучает её (иначе история не накопится), но только если он не degraded
-        "learn": quality in (OK, "unknown"),
-        "may_retire": complete and quality != DEGRADED,
+        "learn": quality in (OK, "unknown") and not rebased,
+        "may_retire": complete and quality != DEGRADED and not rebased,
         "baseline": base,
         "basis": baseline.get("basis") if baseline else None,
     }

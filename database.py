@@ -307,33 +307,80 @@ def reconcile_source(shop_key, source_url, products, complete=False):
     return retired or []
 
 
-def get_source_baseline(shop_key: str, source_url: str, kind: str) -> Optional[Dict[str, Any]]:
-    """Норма источника (P02): медиана принятых результатов того же вида; при серии стабильных
-    чистых complete-прогонов, застрявших в degraded из-за устаревшей нормы, — переобучение
-    (basis='rebased'); при нехватке истории — число активных предложений источника; иначе None."""
-    from data_quality import (
-        BASELINE_WINDOW,
-        MIN_BASELINE_ITEMS,
-        STABLE_SHIFT_WINDOW,
-        baseline_from_history,
-        rebased_baseline_from_recent,
-    )
+def _source_norm_key(shop_key: str, source_url: str, kind: str) -> str:
+    return f"source_norm_confirmed:{kind}:{shop_key}:{source_url}"
+
+
+def _recent_source_attempts(conn, shop_key: str, source_url: str) -> List[Dict[str, Any]]:
+    """Последние фактические попытки источника любого вида (failed/limited тоже), новые первыми (DQ-02)."""
+    from data_quality import STABLE_SHIFT_WINDOW
+    rows = conn.execute("""SELECT kind, quality, received, valid, rejected, duplicates, with_image,
+            baseline_basis, finished_at
+        FROM source_scans WHERE shop_key=? AND source_url=?
+        ORDER BY finished_at DESC, id DESC LIMIT ?""", (shop_key, source_url, STABLE_SHIFT_WINDOW)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_source_norm_recommendation(shop_key: str, source_url: str) -> Optional[Dict[str, Any]]:
+    """Рекомендованная норма по устойчивой серии полных обходов (без права снятия) или None."""
+    from data_quality import rebased_baseline_from_recent
     with get_connection() as conn:
-        if kind == "complete":
-            recent = conn.execute("""SELECT quality, received, valid, rejected, duplicates, with_image
-                FROM source_scans
-                WHERE shop_key=? AND source_url=? AND kind=?
-                ORDER BY finished_at DESC, id DESC LIMIT ?""",
-                (shop_key, source_url, kind, STABLE_SHIFT_WINDOW)).fetchall()
-            rebased = rebased_baseline_from_recent([dict(r) for r in recent])
-            if rebased:
-                return rebased
+        return rebased_baseline_from_recent(_recent_source_attempts(conn, shop_key, source_url), time.time())
+
+
+def get_source_norm_confirmation(shop_key: str, source_url: str, kind: str = "complete") -> Optional[Dict[str, Any]]:
+    raw = get_metadata(_source_norm_key(shop_key, source_url, kind))
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        return {"valid": float(data["valid"]), "image_share": data.get("image_share"),
+                "confirmed_at": str(data["confirmed_at"]), "confirmed_by": data.get("confirmed_by")}
+    except (TypeError, ValueError, KeyError):
+        return None
+
+
+def confirm_source_norm(shop_key: str, source_url: str, confirmed_by: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Явное подтверждение администратором рекомендованной нормы источника (DQ-01).
+
+    Подтверждается только текущая рекомендация (устойчивая серия). После подтверждения полный обход по
+    этой норме может снимать отсутствующие товары и обучать историю; прежняя история до подтверждения
+    нормой больше не служит. Без рекомендации возвращает None."""
+    recommendation = get_source_norm_recommendation(shop_key, source_url)
+    if not recommendation:
+        return None
+    record = {"valid": recommendation["valid"], "image_share": recommendation.get("image_share"),
+              "samples": recommendation.get("samples"),
+              "confirmed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "confirmed_by": confirmed_by}
+    set_metadata(_source_norm_key(shop_key, source_url, "complete"), json.dumps(record, ensure_ascii=False))
+    return record
+
+
+def get_source_baseline(shop_key: str, source_url: str, kind: str) -> Optional[Dict[str, Any]]:
+    """Норма источника (P02): медиана принятых результатов того же вида (после подтверждённой нормы —
+    только принятые после подтверждения); затем подтверждённая администратором норма (basis='confirmed');
+    при нехватке истории и устойчивой серии degraded — рекомендация (basis='rebased', без права снятия, DQ-01);
+    затем число активных предложений источника; иначе None."""
+    from data_quality import BASELINE_WINDOW, CONFIRMED, MIN_BASELINE_ITEMS, baseline_from_history, rebased_baseline_from_recent
+    confirmed = get_source_norm_confirmation(shop_key, source_url, kind) if kind == "complete" else None
+    with get_connection() as conn:
+        since = confirmed["confirmed_at"] if confirmed else ""
         rows = conn.execute("""SELECT valid, with_image FROM source_scans
-            WHERE shop_key=? AND source_url=? AND kind=? AND accepted=1
-            ORDER BY finished_at DESC, id DESC LIMIT ?""", (shop_key, source_url, kind, BASELINE_WINDOW)).fetchall()
+            WHERE shop_key=? AND source_url=? AND kind=? AND accepted=1 AND finished_at > ?
+            ORDER BY finished_at DESC, id DESC LIMIT ?""",
+            (shop_key, source_url, kind, since, BASELINE_WINDOW)).fetchall()
         baseline = baseline_from_history([dict(r) for r in rows])
         if baseline:
             return baseline
+        if confirmed:
+            return {"valid": confirmed["valid"], "image_share": confirmed["image_share"], "basis": CONFIRMED,
+                    "samples": 0}
+        if kind == "complete":
+            # Прежняя здоровая история здесь уже исключена: рекомендация — только при её нехватке
+            rebased = rebased_baseline_from_recent(_recent_source_attempts(conn, shop_key, source_url), time.time())
+            if rebased:
+                return rebased
         active = conn.execute("SELECT COUNT(*) FROM product_sources WHERE shop_key=? AND source_url=? AND active=1",
                               (shop_key, source_url)).fetchone()[0]
     if active >= MIN_BASELINE_ITEMS:

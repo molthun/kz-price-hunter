@@ -401,19 +401,22 @@ def publish_seller_vision_items(
     resolved_city = str(city or meta.get("city") or "Алматы").strip()[:80] or "Алматы"
 
     # Серверная повторная валидация: клиент не может обойти порог уверенности, валюту или проверку цены
+    # VU-01: состояние едет внутри своей позиции; каждая позиция проверяется отдельно, отклонённая
+    # схемой не сдвигает состояние соседей и учитывается в skipped_count.
     normalized_input: List[Dict[str, Any]] = []
-    conditions_by_idx: List[str] = []
+    rejected_count = 0
     allowed_conditions = {Condition.NEW, Condition.USED, Condition.REFURBISHED, Condition.OPEN_BOX}
     for item in raw_items:
         if not isinstance(item, dict):
+            rejected_count += 1
             continue
         title = str(item.get("raw_title") or item.get("title") or "").strip()
         cond = str(item.get("condition") or Condition.NEW)
         if cond not in allowed_conditions:
             cond = Condition.NEW
-        conditions_by_idx.append(cond)
         normalized_input.append({
             "title": title,
+            "condition": cond,
             "price": item.get("price"),
             "old_price": item.get("old_price"),
             "currency": item.get("currency") or "KZT",
@@ -427,22 +430,19 @@ def publish_seller_vision_items(
             "raw_snippet": str(item.get("raw_snippet") or "")[:300],
         })
 
-    validated = VisionExtractionEngine.extract_from_structured(
-        normalized_input,
-        default_city=resolved_city,
-        min_confidence=min_confidence,
-    )
     now_dt = datetime.datetime.now(datetime.timezone.utc)
     published_at = utc_now_iso()
     expires_at = (now_dt + datetime.timedelta(days=ttl_days)).isoformat()
 
     offer_candidates = []
-    rejected_count = 0
-    for idx, vc in enumerate(validated):
-        if idx < len(conditions_by_idx):
-            vc.condition = conditions_by_idx[idx]
-        oc = vc.to_offer_candidate(expires_at=expires_at)
-        if oc is not None:
+    for row in normalized_input:
+        validated = VisionExtractionEngine.extract_from_structured(
+            [row],
+            default_city=resolved_city,
+            min_confidence=min_confidence,
+        )
+        oc = validated[0].to_offer_candidate(expires_at=expires_at) if validated else None
+        if oc is not None and validated[0].condition == row["condition"]:
             offer_candidates.append(oc)
         else:
             rejected_count += 1

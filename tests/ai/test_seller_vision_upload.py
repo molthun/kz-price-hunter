@@ -53,6 +53,25 @@ class SellerVisionUploadDomainTest(unittest.TestCase):
         self.conn.commit()
         return seller
 
+    def test_vu01_rejected_row_does_not_shift_neighbour_conditions(self):
+        """VU-01 (Codex): строка с неверной схемой в начале/середине не меняет состояние соседей и учтена."""
+        seller = self._create_mobilnik()
+        bad = {"raw_title": "Bad row", "price": {"invalid": True}, "confidence": 0.9, "condition": "USED"}
+        goods = [
+            {"raw_title": "Apple iPhone 15 Pro 256GB", "price": 485000, "confidence": 0.9, "condition": "NEW"},
+            {"raw_title": "Samsung Galaxy S24 128GB", "price": 300000, "confidence": 0.9, "condition": "REFURBISHED"},
+            {"raw_title": "Xiaomi 14 256GB", "price": 250000, "confidence": 0.9, "condition": "OPEN_BOX"},
+        ]
+        for name, items in (("first", [bad] + goods),
+                            ("middle", [goods[0], bad, goods[1], "not-a-dict", goods[2]])):
+            with self.subTest(position=name):
+                self.conn.execute("DELETE FROM offers")
+                res = publish_seller_vision_items(self.conn, seller["id"], items)
+                self.assertEqual(res["published_count"], 3)
+                self.assertEqual(res["skipped_count"], len(items) - 3)
+                by_price = {row[0]: row[1] for row in self.conn.execute("SELECT price, condition FROM offers")}
+                self.assertEqual(by_price, {485000.0: "NEW", 300000.0: "REFURBISHED", 250000.0: "OPEN_BOX"})
+
     def test_validate_image_payload_checks_magic_bytes_and_size(self):
         self.assertEqual(detect_image_mime(FAKE_JPEG), "image/jpeg")
         self.assertEqual(detect_image_mime(FAKE_PNG), "image/png")

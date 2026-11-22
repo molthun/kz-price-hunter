@@ -2621,6 +2621,29 @@ async def admin_seller_channel_fetch_now_handler(request):
     return web.json_response(res, status=200 if res.get("ok") else 400)
 
 
+@routes.post("/api/v2/admin/source-norm/confirm")
+@routes.post("/api/admin/source-norm/confirm")
+@require_admin
+async def admin_source_norm_confirm_handler(request):
+    """DQ-01: администратор подтверждает рекомендованную норму источника (устойчивая серия полных обходов).
+    Без подтверждения рекомендация не снимает товары; после него полный обход по норме может снимать."""
+    import database
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Некорректный JSON"}, status=400)
+    shop_key = str((data or {}).get("shop_key") or "").strip()
+    source_url = str((data or {}).get("source_url") or "").strip()
+    if not shop_key or not source_url:
+        return web.json_response({"error": "Нужны shop_key и source_url"}, status=400)
+    user = request.get("user") or {}
+    record = await asyncio.to_thread(database.confirm_source_norm, shop_key, source_url, str(user.get("id") or ""))
+    if not record:
+        return web.json_response({"error": "Для источника нет рекомендованной нормы: нужна устойчивая серия "
+                                           "из последних полных обходов без ошибок"}, status=409)
+    return web.json_response({"status": "ok", "shop_key": shop_key, "source_url": source_url, "norm": record})
+
+
 @routes.post("/api/v2/admin/sellers/{seller_id}/vision-extract")
 @routes.post("/api/admin/sellers/{seller_id}/vision-extract")
 @require_admin

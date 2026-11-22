@@ -312,22 +312,89 @@ class DuplicatesTest(PipelineCase):
         self.assertEqual(dq.measure(rows)["duplicates"], 0)
         self.assertEqual(len(dq.dedupe(rows)), 2)
 
-    def test_stable_complete_degraded_streak_rebases_stale_active_offers_baseline(self):
-        # 100 активных товаров после 1 прогона (accepted=1 < MIN_HISTORY=3 => active_offers=100)
+    def test_stable_streak_without_history_is_only_a_recommendation_until_confirmed(self):
+        """Застрявшая норма active_offers (Forte): серия даёт рекомендацию без снятия; снимает только подтверждение."""
         self.scan(self.result(100))
         self.assertEqual(database.get_source_baseline("syn", self.URL, "complete")["basis"], "active_offers")
-        # Реальный каталог сократился до 35 (< 50% от 100): 5 подряд чистых полных обходов -> degraded
         for _ in range(dq.STABLE_SHIFT_WINDOW):
             self.scan(self.result(35))
         self.assertEqual(self.history()[-1][0], "degraded")
-        # После 5 стабильных чистых complete-прогонов норма переобучается на медиану 35 (rebased)
         rebased = database.get_source_baseline("syn", self.URL, "complete")
-        self.assertEqual(rebased["basis"], "rebased")
-        self.assertEqual(rebased["valid"], 35.0)
-        # 6-й прогон выходит из вечного degraded, снимает старые 65 предложений и обучает историю
+        self.assertEqual((rebased["basis"], rebased["valid"]), ("rebased", 35.0))
+        # DQ-01: рекомендация выводит из вечного degraded, но не снимает 65 и не обучает норму
+        for _ in range(3):
+            self.scan(self.result(35))
+            self.assertEqual(self.history()[-1], ("warning", 35, 0))
+            self.assertEqual(self.active(), 100)
+        self.assertEqual(database.get_source_baseline("syn", self.URL, "complete")["basis"], "rebased")
+        # Явное подтверждение администратором — доказательство причины; после него обход снимает и обучает
+        record = database.confirm_source_norm("syn", self.URL, "admin-test")
+        self.assertEqual(record["valid"], 35.0)
+        self.assertEqual(database.get_source_baseline("syn", self.URL, "complete")["basis"], "confirmed")
         self.scan(self.result(35))
         self.assertEqual(self.history()[-1], ("ok", 35, 1))
         self.assertEqual(self.active(), 35)
+
+    def test_dq01_silent_loss_after_healthy_history_never_retires(self):
+        """DQ-01 (Codex): 3×200 приняты, затем 20 шесть и более раз — прежние 180 не сняты, норма не подменена."""
+        for _ in range(3):
+            self.scan(self.result(200))
+        for _ in range(8):
+            self.scan(self.result(20))
+            self.assertEqual(self.active(), 200)
+            self.assertEqual(self.history()[-1], ("degraded", 20, 0))
+        self.assertEqual(database.get_source_baseline("syn", self.URL, "complete")["basis"], "history")
+        # Рекомендация видна администратору, но сама ничего не снимает
+        self.assertEqual(database.get_source_norm_recommendation("syn", self.URL)["valid"], 20.0)
+
+    def test_dq01_confirmation_after_history_overrides_old_history(self):
+        for _ in range(3):
+            self.scan(self.result(200))
+        for _ in range(dq.STABLE_SHIFT_WINDOW):
+            self.scan(self.result(20))
+        self.assertIsNotNone(database.confirm_source_norm("syn", self.URL, "admin-test"))
+        self.scan(self.result(20))
+        self.assertEqual(self.history()[-1], ("ok", 20, 1))
+        self.assertEqual(self.active(), 20)
+
+    def test_dq02_failed_or_limited_attempts_break_the_series(self):
+        """DQ-02 (Codex): ошибки между малыми обходами разрывают серию; рекомендации и снятия нет."""
+        for _ in range(3):
+            self.scan(self.result(200))
+        for _ in range(5):
+            self.scan(self.result(20))
+            self.scan(self.result(0, complete=False, error="HTTP 503"))
+        self.assertIsNone(database.get_source_norm_recommendation("syn", self.URL))
+        self.assertIsNone(database.confirm_source_norm("syn", self.URL, "admin-test"))
+        self.scan(self.result(20))
+        self.assertEqual(self.history()[-1][0], "degraded")
+        self.assertEqual(self.active(), 200)
+
+    def test_dq02_failure_breaks_series_without_history_too(self):
+        self.scan(self.result(100))
+        for i in range(dq.STABLE_SHIFT_WINDOW):
+            self.scan(self.result(35))
+            if i == 2:
+                self.scan(self.result(0, complete=False, error="HTTP 503"))
+        self.assertNotEqual(database.get_source_baseline("syn", self.URL, "complete")["basis"], "rebased")
+
+    def test_series_older_than_span_is_not_applicable(self):
+        old = (datetime.datetime.now(datetime.timezone.utc)
+               - datetime.timedelta(seconds=dq.STABLE_SHIFT_MAX_SPAN_SECONDS + 60)).isoformat()
+        rows = [{"kind": "complete", "quality": "degraded", "received": 40, "valid": 40, "rejected": 0,
+                 "duplicates": 0, "with_image": 40, "finished_at": old} for _ in range(dq.STABLE_SHIFT_WINDOW)]
+        self.assertIsNone(dq.rebased_baseline_from_recent(rows, time.time()))
+        fresh = [dict(r, finished_at=datetime.datetime.now(datetime.timezone.utc).isoformat()) for r in rows]
+        self.assertEqual(dq.rebased_baseline_from_recent(fresh, time.time())["valid"], 40.0)
+        limited = [dict(fresh[0], kind="limited")] + fresh[1:]
+        self.assertIsNone(dq.rebased_baseline_from_recent(limited, time.time()))
+
+    def test_rebased_assessment_never_retires_or_learns(self):
+        base = {"valid": 35.0, "image_share": None, "basis": "rebased", "samples": 5}
+        a = dq.assess({"received": 35, "valid": 35, "rejected": 0, "duplicates": 0, "with_image": 35},
+                      complete=True, error=None, baseline=base)
+        self.assertEqual((a["quality"], a["may_retire"], a["learn"], a["basis"]), ("warning", False, False, "rebased"))
+        self.assertIn("подтверждения нормы", a["warnings"][-1])
 
     def test_high_rejection_or_unstable_degraded_streak_never_rebases(self):
         high_reject = [
@@ -341,6 +408,40 @@ class DuplicatesTest(PipelineCase):
             for v in (40, 40, 40, 40, 20)  # min/max = 0.5 < 0.70
         ]
         self.assertIsNone(dq.rebased_baseline_from_recent(unstable))
+
+
+class SourceNormConfirmHttpTest(PipelineCase):
+    """DQ-01: подтверждение нормы — только администратор и только при текущей рекомендации."""
+
+    def test_confirm_endpoint_auth_and_recommendation(self):
+        import auth
+        from aiohttp.test_utils import TestServer
+        from tests.test_support import BrowserTestClient
+        from web.server import create_app
+
+        uid = 8431
+        database.upsert_telegram_user({"id": uid, "first_name": "NormAdmin"})
+        token = database.create_session(uid)
+        body = {"shop_key": "syn", "source_url": self.URL}
+
+        async def _call(cookie):
+            app = create_app()
+            app.cleanup_ctx.clear()
+            with patch.object(auth, "ADMIN_TELEGRAM_IDS", {uid}), patch.object(auth, "PUBLIC_ORIGIN", ""):
+                async with BrowserTestClient(TestServer(app)) as client:
+                    if cookie:
+                        client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: token})
+                    r = await client.post("/api/admin/source-norm/confirm", json=body)
+                    return r.status, await r.json()
+
+        self.assertIn(asyncio.run(_call(False))[0], (401, 403))
+        self.scan(self.result(100))
+        self.assertEqual(asyncio.run(_call(True))[0], 409)  # серии нет — подтверждать нечего
+        for _ in range(dq.STABLE_SHIFT_WINDOW):
+            self.scan(self.result(35))
+        status, data = asyncio.run(_call(True))
+        self.assertEqual((status, data["norm"]["valid"], data["norm"]["confirmed_by"]), (200, 35.0, str(uid)))
+        self.assertEqual(database.get_source_baseline("syn", self.URL, "complete")["basis"], "confirmed")
 
 
 class StaleBenchmarkTest(DbCase):
