@@ -230,6 +230,8 @@ class ProductSearchResult:
     has_gift: bool = False
     # A05: характеристики, по которым фильтр выдачи найдёт этот товар (индекс на текущем названии)
     filterable_attributes: Dict[str, str] = field(default_factory=dict)
+    # v6.50.0: подтверждённые размеры в наличии (обувь, рост, одежда) с учётом фильтров выдачи
+    available_sizes: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
@@ -879,6 +881,28 @@ class SearchCore:
                 for card in page_items:
                     card.product, card.filterable_attributes = reconcile_card_attributes(
                         card.product, confirmed.get(card.product.id, {}))
+
+            if page_items and hasattr(self.search_repo, "available_sizes_for_products"):
+                try:
+                    sizes_by_pid = self.search_repo.available_sizes_for_products(
+                        [c.product.id for c in page_items],
+                        city=target_city,
+                        condition=target_condition,
+                        channel_type=target_channel,
+                        seller_type=seller_type,
+                        seller_id=seller_id,
+                        installment=installment,
+                        gift=gift,
+                        in_stock=in_stock,
+                        delivery=delivery,
+                        min_price=target_min_price,
+                        max_price=target_max_price,
+                    )
+                except Exception as ex:
+                    logger.warning(f"Available sizes lookup failed: {type(ex).__name__}")
+                    sizes_by_pid = {}
+                for card in page_items:
+                    card.available_sizes = sizes_by_pid.get(card.product.id, [])
 
             return SearchResponse2(
                 query=query,

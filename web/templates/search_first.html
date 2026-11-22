@@ -2066,6 +2066,26 @@
       font-weight: 600;
     }
 
+    .card-sizes-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      margin-top: 6px;
+      font-size: 0.78rem;
+    }
+
+    .card-sizes-label {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-right: 2px;
+    }
+
+    .card-size-more {
+      color: var(--text-muted);
+      background: transparent;
+    }
+
     .my-size-quick-row {
       display: flex;
       flex-wrap: wrap;
@@ -8079,6 +8099,36 @@
       if (clothEl) clothEl.value = sz.clothing || '';
     }
 
+    function renderCardSizesHtml(availableSizes) {
+      if (!Array.isArray(availableSizes) || availableSizes.length === 0) return '';
+      const mySz = getUserSizes();
+      const mySet = new Set([mySz.shoe, mySz.clothing].filter(Boolean));
+      const maxVisible = 6;
+      const list = availableSizes.map(s => String(s || '').trim()).filter(Boolean);
+      if (list.length === 0) return '';
+
+      let visible = list.slice(0, maxVisible);
+      // Гарантируем, что сохранённый размер пользователя виден на карточке, даже если размеров > 6
+      if (list.length > maxVisible && mySet.size > 0) {
+        const hiddenMine = list.slice(maxVisible).filter(s => mySet.has(s));
+        if (hiddenMine.length > 0) {
+          const keep = Math.max(0, maxVisible - hiddenMine.length);
+          visible = list.slice(0, keep).concat(hiddenMine).slice(0, maxVisible);
+        }
+      }
+      const hiddenCount = Math.max(0, list.length - visible.length);
+      const chips = visible.map(sz => {
+        const mine = mySet.has(sz);
+        return '<span class="offer-size-chip' + (mine ? ' is-my-size' : '') + '"' +
+          (mine ? ' title="Ваш размер в наличии"' : '') + '>' + escapeHtml(sz) + '</span>';
+      }).join('');
+      const more = hiddenCount > 0
+        ? '<span class="offer-size-chip card-size-more">+' + hiddenCount + '</span>'
+        : '';
+      return '<div class="card-sizes-row" aria-label="Размеры в наличии">' +
+        '<span class="card-sizes-label">Размеры:</span>' + chips + more + '</div>';
+    }
+
     function syncUserSizesFromServer(settings) {
       const src = settings && typeof settings === 'object' ? settings : {};
       const hasShoe = Object.prototype.hasOwnProperty.call(src, 'preferred_shoe_size');
@@ -11406,6 +11456,8 @@
           ? `<button type="button" class="card-spec-tag${s.isActive ? ' active' : ''}" data-spec-key="${escapeHtml(s.key)}" data-spec-val="${escapeHtml(s.val)}" onclick="event.stopPropagation(); toggleSpecFilter(this.dataset.specKey, this.dataset.specVal)" title="Фильтровать по: ${escapeHtml(s.val)}">${s.icon} <span>${escapeHtml(s.val)}</span></button>`
           : `<span class="card-spec-tag static" data-spec-key="${escapeHtml(s.key)}" title="Значение из описания продавца — не подтверждено по названию, фильтр по нему недоступен">${s.icon} <span>${escapeHtml(s.val)}</span></span>`).join('')}</div>` : '';
 
+        const sizesHtml = renderCardSizesHtml(item.available_sizes);
+
         return `
           <div class="product-card" data-id="${escapeHtml(pId)}" onclick="openProduct(event, this.dataset.id)">
             <div class="card-img-wrap">
@@ -11420,6 +11472,7 @@
               </div>
               <h3 class="card-title">${escapeHtml(title)}</h3>
               ${specsHtml}
+              ${sizesHtml}
               ${item.has_gift ? '<div class="card-gift-hint" title="У части магазинов с подарком">🎁 Есть с подарком</div>' : ''}
               ${item.variants_count ? '<div class="card-variants-hint">Ещё исполнений: ' + Number(item.variants_count) + '</div>' : ''}
               <div class="card-sellers-hint">Сравнение предложений магазинов и маркетплейсов Казахстана</div>

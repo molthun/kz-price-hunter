@@ -1097,6 +1097,49 @@ class SearchRepository(BaseRepository):
                 out.setdefault(pid, {})[key] = str(value)
         return out
 
+    def available_sizes_for_products(self, product_ids, **offer_args) -> Dict[str, List[str]]:
+        """Доступные размеры в наличии для страницы карточек выдачи (v6.50.0).
+
+        Использует ровно те же условия `_offer_filter`, что и основная выдача (город,
+        цена, продавец, состояние, наличие), чтобы на карточке никогда не показывались
+        размеры из другого города или вне активных фильтров.
+        """
+        ids = [i for i in dict.fromkeys(product_ids or []) if i]
+        if not ids:
+            return {}
+        from domain.sizes import sort_size_key
+
+        filtered_args = {
+            k: offer_args.get(k)
+            for k in (
+                "city", "condition", "channel_type", "seller_type", "seller_id",
+                "installment", "gift", "in_stock", "delivery", "min_price", "max_price",
+            )
+        }
+        conditions, params = self._offer_filter(**filtered_args, size=None)
+        where_sql = " AND ".join(conditions) if conditions else "1=1"
+        try:
+            rows = self.conn.execute(
+                f"""
+                SELECT DISTINCT o.product_id, os.size
+                FROM offer_sizes os
+                JOIN offers o ON o.id = os.offer_id
+                JOIN sellers s ON s.id = o.seller_id
+                JOIN channels c ON c.id = o.channel_id
+                WHERE o.product_id IN (SELECT value FROM json_each(?))
+                  AND {where_sql}
+                """,
+                [json.dumps(ids)] + list(params),
+            ).fetchall()
+        except Exception:
+            return {}
+
+        grouped: Dict[str, List[str]] = {}
+        for pid, sz in rows:
+            if pid and sz:
+                grouped.setdefault(pid, []).append(str(sz))
+        return {pid: sorted(set(vals), key=sort_size_key) for pid, vals in grouped.items()}
+
     def attribute_facets(self, arguments, schema):
         """Dynamic fields use the same entire SQL result set, before family grouping/LIMIT."""
         from domain.query_parser import QueryParser

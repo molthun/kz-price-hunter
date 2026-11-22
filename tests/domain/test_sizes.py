@@ -517,3 +517,77 @@ class HeightSizesTest(unittest.TestCase):
         r = local_search.search_sync({"query": "комбинезон Sz05 на рост 98", "limit": 20, "offset": 0}, {"plan": None}, {})
         self.assertEqual(r.get("selected_attributes", {}).get("size"), "рост 98")
         self.assertTrue(any("Sz05" in it["product"]["title"] for it in r["items"]))
+
+
+class SearchCardAvailableSizesTest(unittest.TestCase):
+    """v6.50.0: карточки выдачи поиска отдают available_sizes с учётом активных фильтров."""
+
+    def test_search_cards_include_filtered_available_sizes(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import database
+        from domain.search_core import SearchCore
+        from repositories.search_repo import SearchRepository
+
+        with tempfile.TemporaryDirectory() as td:
+            db_path = Path(td) / "card_sizes.db"
+            with patch.object(database, "DB_PATH", db_path):
+                database.init_db()
+                database.save_or_update_products_batch([
+                    {
+                        "id": "card_sz_almaty",
+                        "shop": "Kari",
+                        "title": "Мокасины CardSizesV650",
+                        "category": "Одежда и обувь",
+                        "price": 32000,
+                        "url": "https://kari.com/kz/p/card-sz-almaty",
+                        "city": "Алматы",
+                        "in_stock": True,
+                        "available_sizes": ["42", "38"],
+                    },
+                    {
+                        "id": "card_sz_astana",
+                        "shop": "KIMEX",
+                        "title": "Мокасины CardSizesV650",
+                        "category": "Одежда и обувь",
+                        "price": 85000,
+                        "url": "https://kimex.kz/p/card-sz-astana",
+                        "city": "Астана",
+                        "in_stock": True,
+                        "available_sizes": ["44"],
+                    },
+                    {
+                        "id": "card_sz_nosize",
+                        "shop": "Technodom",
+                        "title": "Рюкзак CardSizesNoSz",
+                        "category": "Аксессуары",
+                        "price": 15000,
+                        "url": "https://technodom.kz/p/card-sz-nosize",
+                        "city": "Алматы",
+                        "in_stock": True,
+                    },
+                ])
+
+                with database.get_connection() as conn:
+                    core = SearchCore(SearchRepository(conn))
+                    # Без фильтра города видны размеры всех городов, отсортированные по возрастанию
+                    res_all = core.search("CardSizesV650")
+                    self.assertEqual(len(res_all.items), 1)
+                    self.assertEqual(res_all.items[0].available_sizes, ["38", "42", "44"])
+                    self.assertEqual(res_all.to_dict()["items"][0]["available_sizes"], ["38", "42", "44"])
+
+                    # С фильтром города Астана — только размер 44 (алматинские 38/42 исключены)
+                    res_astana = core.search("CardSizesV650", city="Астана")
+                    self.assertEqual(len(res_astana.items), 1)
+                    self.assertEqual(res_astana.items[0].available_sizes, ["44"])
+
+                    # С фильтром max_price=40000 — только размеры дешёвого офера (38, 42; 44 за 85k исключён)
+                    res_cheap = core.search("CardSizesV650", max_price=40000)
+                    self.assertEqual(len(res_cheap.items), 1)
+                    self.assertEqual(res_cheap.items[0].available_sizes, ["38", "42"])
+
+                    # Товар без размеров возвращает пустой список
+                    res_nosz = core.search("CardSizesNoSz")
+                    self.assertEqual(len(res_nosz.items), 1)
+                    self.assertEqual(res_nosz.items[0].available_sizes, [])

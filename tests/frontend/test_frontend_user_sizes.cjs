@@ -92,6 +92,7 @@ async function runTest() {
             min_price: 34000,
             offers_count: 1,
             has_purchasable_offers: true,
+            available_sizes: ['36', '37', '38', '39', '40', '41', '42', '43'],
             offers: [{
               id: 'off_shoe_1',
               product_id: 'p_shoe_1',
@@ -117,6 +118,14 @@ async function runTest() {
     });
 
     await page.goto(base + '/search?q=%D0%BA%D1%80%D0%BE%D1%81%D1%81%D0%BE%D0%B2%D0%BA%D0%B8');
+    // v6.50.0: на карточке выдачи видны размеры в наличии, а размер 42 (индекс 6 > 5) поднят в видимые и подсвечен
+    const cardSizesRow = page.locator('.product-card .card-sizes-row');
+    await cardSizesRow.waitFor({state: 'visible'});
+    const cardMyChip = cardSizesRow.locator('.offer-size-chip.is-my-size');
+    await cardMyChip.waitFor({state: 'visible'});
+    assert.match(await cardMyChip.innerText(), /42/);
+    assert.equal(await cardSizesRow.locator('.card-size-more').innerText(), '+2');
+
     const quickBtn = page.locator('.my-size-quick-btn').filter({hasText: 'Мой размер: 42'});
     await quickBtn.waitFor({state: 'visible'});
     await quickBtn.click();

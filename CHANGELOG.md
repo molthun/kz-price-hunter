@@ -3,6 +3,17 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.50.0] - 2026-11-22
+
+### Для пользователей
+- 👟 Доступные размеры обуви, роста и одежды теперь видны прямо на карточках товаров в выдаче поиска — не нужно открывать каждый товар по очереди. Если у вас сохранён «Мой размер», он гарантированно показывается на карточке и подсвечивается, даже если размеров больше 6.
+
+### Технические изменения
+- `repositories/search_repo.py`: добавлен пакетный метод `available_sizes_for_products(product_ids, **offer_args)` с ровно теми же условиями `_offer_filter` (город, цена, продавец, состояние, наличие), что и основная выдача; сортировка через `domain.sizes.sort_size_key`.
+- `domain/search_core.py`: добавлено поле `available_sizes` в `ProductSearchResult` и пакетное обогащение страницы выдачи `page_items`.
+- `web/templates/search_first.html`: добавлены `.card-sizes-row` и `renderCardSizesHtml(availableSizes)` (до 6 чипов + `+N`, приоритетный показ и подсветка `.is-my-size` для сохранённого размера пользователя, поддержка светлой/тёмной тем и мобильного экрана).
+- Тесты: `SearchCardAvailableSizesTest` в `tests/domain/test_sizes.py` и проверка `.card-sizes-row` / `.is-my-size` / `+2` в `tests/frontend/test_frontend_user_sizes.cjs`.
+
 ## [6.49.1] - 2026-11-22
 
 ### Для пользователей
