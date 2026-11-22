@@ -29,8 +29,12 @@ class ISpaceScraper(PagedScraper):
     SHOP_NAME = "iSpace"
     SHOP_EMOJI = "🍏"
     PAGE_DELAY_SECONDS = 0.5
-    CARD_DELAY_SECONDS = 0.8
+    # Стенд 22.11 (6.44.3): при темпе 0.8 с сайт отвечал 429 примерно на 119-м запросе за 2.5 мин
+    # даже без постороннего трафика; 2 с — около 30 запросов в минуту
+    CARD_DELAY_SECONDS = 2.0
     PRODUCT_WORKERS = 2
+    # Пауза Retry-After, оставшаяся от прошлого раздела, выжидается один раз, а не губит раздел
+    MAX_COOLDOWN_WAIT_SECONDS = 120
 
     def _get(self, url: str) -> requests.Response:
         return requests.get(url, impersonate="chrome124", timeout=45, headers={"Accept-Language": "ru-RU,ru;q=0.9"})
@@ -108,7 +112,13 @@ class ISpaceScraper(PagedScraper):
                 time.sleep(self.PAGE_DELAY_SECONDS)
             url = category_url if page == 1 else f"{category_url}?page={page}"
             try:
-                r = self._get(url)
+                try:
+                    r = self._get(url)
+                except requests.HostCooldown as cooldown:
+                    if cooldown.retry_after > self.MAX_COOLDOWN_WAIT_SECONDS:
+                        raise
+                    time.sleep(max(0.0, cooldown.retry_after) + 1.0)
+                    r = self._get(url)
                 if r.status_code != 200:
                     raise RuntimeError(f"HTTP {r.status_code}")
             except Exception as e:
@@ -171,7 +181,9 @@ class ISpaceScraper(PagedScraper):
         products = [p for p in results if isinstance(p, dict)]
         failed = sum(1 for p in results if p in ("error", NO_PRODUCT_DATA, "rate_limit", "aborted"))
         if rate_limited.is_set():
-            return ScanResult(products, error=f"HTTP 429: прерван обход карточек ({failed} из {len(links)})")
+            import source_failure
+            return ScanResult(products, error=f"HTTP 429: прерван обход карточек ({failed} из {len(links)})",
+                              error_info=source_failure.make("http_429", phase="fetch", http_status=429))
         if failed:
             return ScanResult(products, error=f"Не открылись карточки: {failed} из {len(links)}")
         if not links:
