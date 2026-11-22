@@ -209,7 +209,13 @@
     .form-grid label.check { display: flex; align-items: center; gap: 8px; }
     .form-grid label.check input { width: 20px; min-height: 20px; margin: 0; }
     .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-    @media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } }
+    .vision-upload-panel { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: var(--bg); }
+    .vision-upload-panel summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; min-height: 36px; display: flex; align-items: center; }
+    .vision-upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .vision-upload-grid .wide { grid-column: 1 / -1; }
+    .vision-table-wrap { overflow-x: auto; margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
+    .vision-rejected-list { margin: 8px 0 0; padding-left: 18px; font-size: 0.82rem; color: var(--muted); }
+    @media (max-width: 560px) { .form-grid, .vision-upload-grid { grid-template-columns: 1fr; } }
     .card a {
       display: inline-block;
       padding: 9px 16px;
@@ -375,6 +381,51 @@
             <span class="form-label" style="margin-bottom:6px">Подключённые витрины и сбор цен</span>
             <div id="shopChannelsList" style="display:flex;flex-direction:column;gap:8px"></div>
           </div>
+          <details class="wide vision-upload-panel" id="shopVisionSection" hidden>
+            <summary>Загрузить прайс / скриншот (Vision ИИ)</summary>
+            <p class="user-meta" style="margin:6px 0 0">Подходит для магазинов из Instagram и WhatsApp: загрузите фото или скриншот прайс-листа, проверьте распознанные цены и опубликуйте в каталог.</p>
+            <div class="vision-upload-grid">
+              <label class="wide">Изображение прайса (JPEG, PNG, WEBP, до 10 МБ)
+                <input type="file" id="shopVisionFile" accept="image/jpeg,image/png,image/webp">
+              </label>
+              <label>Канал публикации
+                <select id="shopVisionChannel"></select>
+              </label>
+              <label>Город
+                <input id="shopVisionCity" maxlength="80" placeholder="Алматы">
+              </label>
+              <label class="wide">Ссылка для заказа (необязательно)
+                <input id="shopVisionUrl" inputmode="url" placeholder="По умолчанию ссылка WhatsApp или выбранного канала">
+              </label>
+              <div class="wide" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+                <button type="button" class="main" id="shopVisionExtractBtn">Распознать прайс</button>
+              </div>
+            </div>
+            <div class="state" id="shopVisionState" role="status"></div>
+            <div id="shopVisionPreview" hidden>
+              <div class="vision-table-wrap">
+                <table class="ch-table" aria-label="Распознанные позиции прайса">
+                  <thead>
+                    <tr>
+                      <th style="width:32px"></th>
+                      <th>Товар</th>
+                      <th>Цена (₸)</th>
+                      <th>Старая</th>
+                      <th>Уверенность</th>
+                    </tr>
+                  </thead>
+                  <tbody id="shopVisionRows"></tbody>
+                </table>
+              </div>
+              <div id="shopVisionRejectedBox" hidden style="margin-top:8px">
+                <div class="user-meta" id="shopVisionRejectedTitle"></div>
+                <ul class="vision-rejected-list" id="shopVisionRejectedList"></ul>
+              </div>
+              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+                <button type="button" class="main" id="shopVisionPublishBtn">Опубликовать выбранные</button>
+              </div>
+            </div>
+          </details>
           <div class="wide user-meta" id="shopCollection"></div>
         </div>
         <div class="state error" id="shopFormError" role="alert"></div>
@@ -915,7 +966,192 @@
           channelsSection.style.display = 'none';
         }
       }
+      resetShopVisionUpload(shop);
     }
+
+    let shopVisionItems = [];
+
+    function resetShopVisionUpload(shop) {
+      const section = document.getElementById('shopVisionSection');
+      if (!section) return;
+      shopVisionItems = [];
+      const hasSeller = Boolean(shopEditId);
+      section.hidden = !hasSeller;
+      section.open = false;
+      const fileInput = document.getElementById('shopVisionFile');
+      if (fileInput) fileInput.value = '';
+      const cityInput = document.getElementById('shopVisionCity');
+      if (cityInput) cityInput.value = (shop && shop.city) ? shop.city : 'Алматы';
+      const urlInput = document.getElementById('shopVisionUrl');
+      if (urlInput) urlInput.value = '';
+      const stateEl = document.getElementById('shopVisionState');
+      if (stateEl) { stateEl.className = 'state'; stateEl.textContent = ''; }
+      const preview = document.getElementById('shopVisionPreview');
+      if (preview) preview.hidden = true;
+      const rows = document.getElementById('shopVisionRows');
+      if (rows) rows.replaceChildren();
+      const rejBox = document.getElementById('shopVisionRejectedBox');
+      if (rejBox) rejBox.hidden = true;
+      const rejList = document.getElementById('shopVisionRejectedList');
+      if (rejList) rejList.replaceChildren();
+
+      const sel = document.getElementById('shopVisionChannel');
+      if (sel) {
+        sel.replaceChildren();
+        const autoOpt = document.createElement('option');
+        autoOpt.value = '';
+        autoOpt.textContent = 'Автоматически (WhatsApp / Instagram)';
+        sel.append(autoOpt);
+        const channels = (shop && Array.isArray(shop.channels)) ? shop.channels : [];
+        channels.filter(c => c.is_active).forEach(ch => {
+          const opt = document.createElement('option');
+          opt.value = ch.id;
+          opt.textContent = `${ch.name || ch.channel_type} (${ch.channel_type})`;
+          sel.append(opt);
+        });
+      }
+    }
+
+    function renderShopVisionPreview(data) {
+      const preview = document.getElementById('shopVisionPreview');
+      const rows = document.getElementById('shopVisionRows');
+      const rejBox = document.getElementById('shopVisionRejectedBox');
+      const rejTitle = document.getElementById('shopVisionRejectedTitle');
+      const rejList = document.getElementById('shopVisionRejectedList');
+      const publishBtn = document.getElementById('shopVisionPublishBtn');
+      const publishable = Array.isArray(data.publishable) ? data.publishable : [];
+      const rejected = Array.isArray(data.rejected) ? data.rejected : [];
+      shopVisionItems = publishable;
+
+      rows.replaceChildren();
+      publishable.forEach((item, idx) => {
+        const tr = document.createElement('tr');
+        const tdCheck = document.createElement('td');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = true;
+        cb.dataset.visionIndex = String(idx);
+        cb.setAttribute('aria-label', 'Выбрать ' + (item.raw_title || 'позицию'));
+        cb.style.width = '18px';
+        cb.style.minHeight = '18px';
+        tdCheck.append(cb);
+
+        const tdTitle = document.createElement('td');
+        tdTitle.textContent = item.raw_title || '';
+
+        const tdPrice = document.createElement('td');
+        tdPrice.textContent = item.price != null ? Number(item.price).toLocaleString('ru-RU') + ' ₸' : '—';
+
+        const tdOld = document.createElement('td');
+        tdOld.textContent = item.old_price != null ? Number(item.old_price).toLocaleString('ru-RU') + ' ₸' : '—';
+
+        const tdConf = document.createElement('td');
+        tdConf.textContent = item.confidence != null ? Math.round(Number(item.confidence) * 100) + '%' : '—';
+
+        tr.append(tdCheck, tdTitle, tdPrice, tdOld, tdConf);
+        rows.append(tr);
+      });
+
+      rejList.replaceChildren();
+      if (rejected.length > 0) {
+        rejBox.hidden = false;
+        rejTitle.textContent = `Пропущено (не прошли проверку цены/валюты): ${rejected.length}`;
+        rejected.forEach(item => {
+          const li = document.createElement('li');
+          const reason = item.rejection_label || item.rejection_reason || 'не прошла проверку';
+          li.textContent = `${item.raw_title || 'Без названия'} — ${reason}`;
+          rejList.append(li);
+        });
+      } else {
+        rejBox.hidden = true;
+      }
+
+      publishBtn.disabled = publishable.length === 0;
+      preview.hidden = publishable.length === 0 && rejected.length === 0;
+    }
+
+    document.getElementById('shopVisionExtractBtn').addEventListener('click', async () => {
+      if (!shopEditId) return;
+      const fileInput = document.getElementById('shopVisionFile');
+      const stateEl = document.getElementById('shopVisionState');
+      const btn = document.getElementById('shopVisionExtractBtn');
+      const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+      if (!file) {
+        stateEl.className = 'state error';
+        stateEl.textContent = 'Выберите изображение прайс-листа (JPEG, PNG или WEBP).';
+        return;
+      }
+      const fd = new FormData();
+      fd.append('image', file);
+      const cityVal = (document.getElementById('shopVisionCity').value || '').trim();
+      if (cityVal) fd.append('city', cityVal);
+
+      btn.disabled = true;
+      stateEl.className = 'state';
+      stateEl.textContent = 'Распознавание прайса через Vision ИИ…';
+      try {
+        const res = await fetch('/api/admin/sellers/' + encodeURIComponent(shopEditId) + '/vision-extract', {
+          method: 'POST',
+          body: fd,
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Ошибка распознавания');
+        renderShopVisionPreview(data);
+        const pubCount = (data.publishable || []).length;
+        const rejCount = (data.rejected || []).length;
+        stateEl.className = 'state';
+        stateEl.textContent = pubCount > 0
+          ? `Распознано готовых позиций: ${pubCount}` + (rejCount ? `, отклонено: ${rejCount}` : '') + '. Проверьте и нажмите «Опубликовать выбранные».'
+          : (rejCount > 0 ? `Готовых к публикации позиций нет (отклонено: ${rejCount}).` : 'На изображении не найдено товаров с ценами.');
+      } catch (err) {
+        stateEl.className = 'state error';
+        stateEl.textContent = err.message || 'Не удалось распознать изображение.';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('shopVisionPublishBtn').addEventListener('click', async () => {
+      if (!shopEditId || !shopVisionItems.length) return;
+      const stateEl = document.getElementById('shopVisionState');
+      const btn = document.getElementById('shopVisionPublishBtn');
+      const checked = [...document.querySelectorAll('#shopVisionRows input[type="checkbox"]:checked')]
+        .map(cb => shopVisionItems[Number(cb.dataset.visionIndex)])
+        .filter(Boolean);
+      if (!checked.length) {
+        stateEl.className = 'state error';
+        stateEl.textContent = 'Отметьте хотя бы одну позицию для публикации.';
+        return;
+      }
+      btn.disabled = true;
+      stateEl.className = 'state';
+      stateEl.textContent = 'Публикация выбранных позиций…';
+      try {
+        const payload = {
+          items: checked,
+          channel_id: document.getElementById('shopVisionChannel').value || null,
+          city: (document.getElementById('shopVisionCity').value || '').trim() || null,
+          source_url: (document.getElementById('shopVisionUrl').value || '').trim() || null,
+        };
+        const res = await fetch('/api/admin/sellers/' + encodeURIComponent(shopEditId) + '/vision-publish', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Ошибка публикации');
+        document.getElementById('shopVisionPreview').hidden = true;
+        shopVisionItems = [];
+        await loadShops();
+        stateEl.className = 'state';
+        stateEl.textContent = `Опубликовано предложений: ${data.published_count} (канал: ${data.channel_name}).`;
+      } catch (err) {
+        stateEl.className = 'state error';
+        stateEl.textContent = err.message || 'Не удалось опубликовать позиции.';
+      } finally {
+        btn.disabled = false;
+      }
+    });
 
     async function openShop(id) {
       const state = document.getElementById('shopsState');

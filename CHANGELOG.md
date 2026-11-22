@@ -3,6 +3,22 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.43.0] - 2026-11-22
+
+### Для пользователей
+- 📸 В панели администратора добавлена загрузка скриншотов и фото прайс-листов через Vision ИИ для магазинов из Instagram и WhatsApp: можно загрузить картинку прайса в карточке магазина, проверить распознанные позиции и цены в предпросмотре и опубликовать выбранные предложения в каталог со ссылкой на заказ в WhatsApp или соцсеть.
+
+### Vision-загрузка прайс-листов и скриншотов для продавцов (Instagram / WhatsApp)
+- **`domain/seller_vision_upload.py`:** новый доменный модуль двухэтапной загрузки прайсов:
+  - `extract_seller_price_image`: проверяет размер (до 10 МБ) и magic bytes (`JPEG`/`PNG`/`WEBP`), вызывает `VisionExtractionEngine.extract_from_image` (`ai_router`, локальная `qwen3-vl:8b-instruct` + fallback), делит результат на `publishable` и `rejected` с человекочитаемыми причинами отклонения; в БД ничего не пишет.
+  - `publish_seller_vision_items`: повторно валидирует подтверждённые позиции на сервере (порог уверенности `>= 0.75`, валюта `KZT`, защита от закрытой цены), подбирает канал продавца и кликабельную ссылку заказа (`source_url` → `wa.me` → `channel.base_url`) и сохраняет предложения через `SocialOfferPipeline`.
+- **`web/server.py`:** добавлены админские эндпоинты (`@require_admin`):
+  - `POST /api/admin/sellers/{seller_id}/vision-extract` (и `/api/v2/...` алиас, поддержка `multipart/form-data` и JSON `base64`);
+  - `POST /api/admin/sellers/{seller_id}/vision-publish` (и `/api/v2/...` алиас);
+  - увеличен `client_max_size` приложения до 16 МБ для загрузки изображений.
+- **`web/templates/admin.html`:** в окне редактирования магазина `#shopDialog` добавлена раскрываемая секция «Загрузить прайс / скриншот (Vision ИИ)» с выбором файла, канала, города, предпросмотром в адаптивной таблице и публикацией выбранных позиций (светлая/тёмная темы и мобильный экран).
+- **Тесты:** `tests/ai/test_seller_vision_upload.py` (валидация, мок Vision, повторная серверная проверка, привязка WhatsApp `wa.me`, права доступа `@require_admin` на HTTP API).
+
 ## [6.42.12] - 2026-11-21
 
 ### Для пользователей

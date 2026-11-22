@@ -2621,6 +2621,121 @@ async def admin_seller_channel_fetch_now_handler(request):
     return web.json_response(res, status=200 if res.get("ok") else 400)
 
 
+@routes.post("/api/v2/admin/sellers/{seller_id}/vision-extract")
+@routes.post("/api/admin/sellers/{seller_id}/vision-extract")
+@require_admin
+async def admin_seller_vision_extract_handler(request):
+    """Распознаёт прайс-лист/скриншот продавца через Vision ИИ (предпросмотр, без записи в БД)."""
+    import base64 as _b64
+    from domain.seller_admin import seller_details
+    from domain.seller_vision_upload import (
+        MAX_VISION_UPLOAD_BYTES,
+        VisionUploadError,
+        extract_seller_price_image,
+    )
+
+    seller_id = request.match_info["seller_id"]
+    seller = await asyncio.to_thread(_with_db, lambda conn: seller_details(conn, seller_id))
+    if not seller:
+        return web.json_response({"ok": False, "error": "Магазин не найден"}, status=404)
+
+    image_bytes = b""
+    city = str(seller.get("city") or "Алматы")
+    content_type = (request.content_type or "").lower()
+
+    if content_type.startswith("multipart/"):
+        try:
+            reader = await request.multipart()
+            while True:
+                part = await reader.next()
+                if part is None:
+                    break
+                if part.name == "image":
+                    buf = bytearray()
+                    while True:
+                        chunk = await part.read_chunk(65536)
+                        if not chunk:
+                            break
+                        buf.extend(chunk)
+                        if len(buf) > MAX_VISION_UPLOAD_BYTES:
+                            return web.json_response(
+                                {"ok": False, "error": "Размер изображения превышает 10 МБ."},
+                                status=413,
+                            )
+                    image_bytes = bytes(buf)
+                elif part.name == "city":
+                    raw_city = (await part.text()).strip()
+                    if raw_city:
+                        city = raw_city[:80]
+        except Exception:
+            return web.json_response({"ok": False, "error": "Не удалось прочитать файл изображения."}, status=400)
+    else:
+        try:
+            body = await request.json()
+        except Exception:
+            return web.json_response({"ok": False, "error": "Ожидается multipart/form-data или JSON."}, status=400)
+        if not isinstance(body, dict):
+            return web.json_response({"ok": False, "error": "Ожидается JSON-объект."}, status=400)
+        b64_raw = str(body.get("image_base64") or "").strip()
+        if "," in b64_raw and b64_raw.lower().startswith("data:"):
+            b64_raw = b64_raw.split(",", 1)[1]
+        try:
+            image_bytes = _b64.b64decode(b64_raw, validate=True) if b64_raw else b""
+        except Exception:
+            return web.json_response({"ok": False, "error": "Некорректные данные изображения (base64)."}, status=400)
+        if body.get("city"):
+            city = str(body.get("city")).strip()[:80] or city
+
+    try:
+        result = await extract_seller_price_image(image_bytes, default_city=city)
+    except VisionUploadError as exc:
+        return web.json_response({"ok": False, "error": str(exc)}, status=400)
+    except Exception as exc:
+        logger.warning("vision-extract failed for %s: %s", seller_id, type(exc).__name__)
+        return web.json_response({"ok": False, "error": "Не удалось распознать изображение."}, status=500)
+
+    return web.json_response({"ok": True, "seller_id": seller_id, **result})
+
+
+@routes.post("/api/v2/admin/sellers/{seller_id}/vision-publish")
+@routes.post("/api/admin/sellers/{seller_id}/vision-publish")
+@require_admin
+async def admin_seller_vision_publish_handler(request):
+    """Публикует подтверждённые позиции из Vision-предпросмотра в предложения магазина."""
+    from domain.seller_vision_upload import VisionUploadError, publish_seller_vision_items
+
+    seller_id = request.match_info["seller_id"]
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "Ожидается JSON с позициями прайса."}, status=400)
+    if not isinstance(body, dict) or not isinstance(body.get("items"), list):
+        return web.json_response({"ok": False, "error": "Передайте список позиций items."}, status=400)
+
+    def _publish(conn):
+        return publish_seller_vision_items(
+            conn,
+            seller_id,
+            body.get("items") or [],
+            channel_id=str(body.get("channel_id") or "").strip() or None,
+            city=str(body.get("city") or "").strip() or None,
+            source_url=str(body.get("source_url") or "").strip() or None,
+            expires_days=body.get("expires_days", 7),
+        )
+
+    try:
+        res = await asyncio.to_thread(_with_db, _publish)
+    except LookupError as exc:
+        return web.json_response({"ok": False, "error": str(exc)}, status=404)
+    except VisionUploadError as exc:
+        return web.json_response({"ok": False, "error": str(exc)}, status=400)
+    except Exception as exc:
+        logger.warning("vision-publish failed for %s: %s", seller_id, type(exc).__name__)
+        return web.json_response({"ok": False, "error": "Не удалось опубликовать позиции."}, status=500)
+
+    return web.json_response({"ok": True, **res})
+
+
 @routes.post("/api/v2/admin/channels/{channel_id}/sync")
 @routes.post("/api/v2/admin/sellers/{seller_id}/channels/{channel_id}/sync")
 @require_admin
@@ -6868,7 +6983,10 @@ def create_app():
     import diagnostics
     diagnostics.mark_process_start()
     init_db()
-    app = web.Application(middlewares=[telemetry_middleware, auth_middleware, gzip_middleware])
+    app = web.Application(
+        middlewares=[telemetry_middleware, auth_middleware, gzip_middleware],
+        client_max_size=16 * 1024 * 1024,
+    )
     app.on_startup.append(_init_thread_pool)
     app["stats_cache"] = BoundedTTLCache(maxsize=128, ttl=STATS_CACHE_TTL_SECONDS)
     _register_stats_cache(app["stats_cache"])
