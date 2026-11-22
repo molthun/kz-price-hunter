@@ -106,6 +106,13 @@ class ScheduleTest(unittest.TestCase):
         known = {"a": {"last_checked_at": "2026-09-25T10:00:00+00:00"}}
         self.assertFalse(notices.due(known, "2026-09-26T10:00:00+00:00", shops=1))
 
+    def test_last_run_gates_repeat_for_a_week(self):
+        last = {"at": "2026-11-22T07:00:00+00:00", "shops": ["a", "b"]}
+        self.assertFalse(notices.due({}, "2026-11-28T07:00:00+00:00", 2, last_run=last, shop_keys=["a", "b"]))
+        self.assertTrue(notices.due({}, "2026-11-29T07:00:00+00:00", 2, last_run=last, shop_keys=["a", "b"]))
+        self.assertTrue(notices.due({}, "2026-11-22T08:00:00+00:00", 3, last_run=last, shop_keys=["a", "b", "c"]))
+        self.assertTrue(notices.due({}, "2026-11-22T08:00:00+00:00", 2, last_run={"at": "bad"}, shop_keys=["a"]))
+
     def test_week_old_check_is_due_again(self):
         known = {"a": {"last_checked_at": "2026-09-01T10:00:00+00:00"}}
         self.assertTrue(notices.due(known, "2026-09-25T10:00:00+00:00", shops=1))
@@ -146,6 +153,40 @@ class CheckAndQueueTest(unittest.TestCase):
         outcome = self._run({"moon": result})
         self.assertEqual(outcome["unreachable"], ["moon"])
         self.assertEqual(outcome["checked"], 0, "непроверенный магазин не попадает в проверенные")
+
+    def test_clean_and_unreachable_shops_do_not_force_a_check_every_loop(self):
+        """6.43.5: магазины без обращений не попадают в таблицу; раньше из-за этого проверка шла
+        на каждом круге фонового цикла (прод: раз в 3–4 минуты, у iSpace — 429)."""
+        clean = {"shop_key": "ispace", "host": "ispace.kz", "checked": True, "error": None,
+                 "notices": [], "fingerprint": ""}
+        down = {"shop_key": "moon", "host": "moon.kz", "checked": False,
+                "error": "страница не открылась", "notices": [], "fingerprint": ""}
+        shops = {"ispace": clean, "moon": down}
+        calls = []
+
+        def inspect(key, host):
+            calls.append(key)
+            return shops[key]
+
+        def run(now):
+            with patch.object(notices, "inspect_shop", side_effect=inspect), \
+                 patch("daily_digest.recipients", return_value=[777]):
+                return notices.check_and_queue({k: v["host"] for k, v in shops.items()}, now_iso=now)
+
+        with database.get_connection() as conn:
+            conn.execute("DELETE FROM schema_metadata WHERE name = ?", (notices.LAST_RUN_KEY,))
+            conn.commit()
+        self.assertFalse(run("2026-11-22T07:00:00+00:00")["skipped"])
+        self.assertEqual(len(calls), 2)
+        for later in ("2026-11-22T07:04:00+00:00", "2026-11-25T07:00:00+00:00", "2026-11-29T06:59:00+00:00"):
+            self.assertTrue(run(later)["skipped"], later)
+        self.assertEqual(len(calls), 2, "ни одного повторного захода на сайты раньше недели")
+        self.assertFalse(run("2026-11-29T07:00:00+00:00")["skipped"], "через неделю — снова")
+        self.assertEqual(len(calls), 4)
+
+        shops["kari"] = dict(clean, shop_key="kari", host="kz.kari.com")
+        self.assertFalse(run("2026-11-29T08:00:00+00:00")["skipped"], "новый магазин в реестре — внеочередная")
+        self.assertTrue(run("2026-11-29T08:05:00+00:00")["skipped"])
 
     def test_message_quotes_the_shop_and_shows_the_link(self):
         lines = notices.message_lines(

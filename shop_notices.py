@@ -236,9 +236,28 @@ def notice_alert_id(shop_key: str, fingerprint: str) -> int:
     return -(NOTICE_ALERT_BASE + int.from_bytes(digest[:4], "big"))
 
 
-def due(known: Dict[str, Any], now_iso: str, shops: int) -> bool:
-    """Пора ли проверять. Проверка тяжёлая (страница и её скрипты), поэтому раз в неделю."""
+LAST_RUN_KEY = "shop_notices_last_run"
+
+
+def due(known: Dict[str, Any], now_iso: str, shops: int, last_run: Optional[Dict[str, Any]] = None,
+        shop_keys: Optional[Iterable[str]] = None) -> bool:
+    """Пора ли проверять. Проверка тяжёлая (страница и её скрипты), поэтому раз в неделю.
+
+    last_run — время и магазины прошлой проверки (schema_metadata). В таблицу обращений попадают только
+    магазины, где обращение нашлось, поэтому по ней одной «кого-то ещё не смотрели» было верно всегда, и
+    проверка шла на каждом круге фонового цикла (с 5.24.0 — раз в несколько минут, 6.43.5). Теперь
+    раньше недели проверка повторяется, только если в реестре появился магазин, которого прошлая не охватила.
+    """
     import datetime as _dt
+    if last_run:
+        try:
+            at = _dt.datetime.fromisoformat(str(last_run["at"]))
+            moment = _dt.datetime.fromisoformat(now_iso)
+        except (KeyError, TypeError, ValueError):
+            return True
+        if shop_keys is not None and set(shop_keys) - set(last_run.get("shops") or []):
+            return True
+        return (moment - at).total_seconds() >= CHECK_INTERVAL_HOURS * 3600
     if len(known) < shops:
         return True  # кого-то ещё ни разу не смотрели
     checked = [row.get("last_checked_at") for row in known.values() if row.get("last_checked_at")]
@@ -250,6 +269,19 @@ def due(known: Dict[str, Any], now_iso: str, shops: int) -> bool:
     except ValueError:
         return True
     return (moment - oldest).total_seconds() >= CHECK_INTERVAL_HOURS * 3600
+
+
+def _last_run() -> Optional[Dict[str, Any]]:
+    import json as _json
+    import database
+    raw = database.get_metadata(LAST_RUN_KEY)
+    if not raw:
+        return None
+    try:
+        value = _json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
 
 
 def check_and_queue(hosts: Dict[str, str], names: Optional[Dict[str, str]] = None,
@@ -266,7 +298,7 @@ def check_and_queue(hosts: Dict[str, str], names: Optional[Dict[str, str]] = Non
     moment = now_iso or _dt.datetime.now(_dt.timezone.utc).isoformat()
     names = names or {}
     known = database.get_shop_notices()
-    if not due(known, moment, len(hosts)):
+    if not due(known, moment, len(hosts), last_run=_last_run(), shop_keys=hosts.keys()):
         return {"checked": 0, "changed": [], "unreachable": [], "queued": 0, "skipped": True}
 
     changed, unreachable, checked = [], [], 0
@@ -283,6 +315,7 @@ def check_and_queue(hosts: Dict[str, str], names: Optional[Dict[str, str]] = Non
             _json.dumps(result["notices"], ensure_ascii=False), moment)
         if is_new:
             changed.append(result)
+    database.set_metadata(LAST_RUN_KEY, _json.dumps({"at": moment, "shops": sorted(hosts)}, ensure_ascii=False))
 
     queued = 0
     for result in changed:
