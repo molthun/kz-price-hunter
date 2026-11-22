@@ -2060,9 +2060,10 @@
     }
 
     .offer-size-chip.is-my-size {
-      background: var(--primary);
+      background: rgba(37, 99, 235, 0.12);
+      background: color-mix(in srgb, var(--primary) 14%, transparent);
       border-color: var(--primary);
-      color: #ffffff;
+      color: var(--primary);
       font-weight: 600;
     }
 
@@ -2102,6 +2103,10 @@
       border-color: var(--primary);
       color: #ffffff;
       font-weight: 600;
+    }
+
+    .card-size-btn.is-my-size.active {
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 30%, transparent);
     }
 
     .my-size-quick-row {
@@ -8179,6 +8184,7 @@
           ? 'Снять фильтр по размеру ' + sz
           : (mine ? 'Ваш размер в наличии — нажмите для фильтра' : 'Фильтровать по размеру ' + sz);
         return '<button type="button" class="' + cls + '" data-size="' + escapeHtml(sz) + '"' +
+          ' aria-pressed="' + (isActive ? 'true' : 'false') + '"' +
           ' onclick="event.stopPropagation(); onCardSizeChipClick(this.dataset.size)"' +
           ' title="' + escapeHtml(title) + '">' + escapeHtml(sz) + '</button>';
       }).join('');

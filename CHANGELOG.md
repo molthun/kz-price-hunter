@@ -3,6 +3,15 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.52.2] - 2026-11-22
+
+### Для пользователей
+- 🎨 Активный фильтр размера на карточке товара теперь визуально отличается от сохранённого «Моего размера»: «Мой размер» выделен мягкой заливкой и цветной рамкой, а активный выбранный фильтр — сплошной заливкой, чтобы их нельзя было спутать, когда оба видны рядом.
+
+### Технические изменения
+- `web/templates/search_first.html`: разведены стили `.offer-size-chip.is-my-size` (мягкий tint + `border-color: var(--primary)`) и `.card-size-btn.active` (сплошная заливка `var(--primary)` + белый текст; при совпадении `.is-my-size.active` добавлено кольцо `box-shadow`), добавлен атрибут `aria-pressed` на `button.card-size-btn`.
+- `tests/frontend/test_frontend_user_sizes.cjs`: добавлена проверка `aria-pressed="true"` и отличия `getComputedStyle(activeBtn).backgroundColor` от `.is-my-size:not(.active)`.
+
 ## [6.52.1] - 2026-11-22
 
 ### Для пользователей

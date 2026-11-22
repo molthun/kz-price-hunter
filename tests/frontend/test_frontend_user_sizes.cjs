@@ -130,9 +130,18 @@ async function runTest() {
     await cardSizesRow.locator('button.card-size-btn', {hasText: '37'}).click();
     await page.waitForFunction(() => {
       const btn = document.querySelector('.card-sizes-row button.card-size-btn.active');
-      return btn && btn.textContent.trim() === '37';
+      return btn && btn.textContent.trim() === '37' && btn.getAttribute('aria-pressed') === 'true';
     });
     assert.equal(capturedAttrSize, '37');
+
+    // v6.52.2: активный фильтр (37) и сохранённый «мой» размер (42) визуально различаются фоном
+    const chipBgDiff = await page.evaluate(() => {
+      const activeBtn = document.querySelector('.card-sizes-row button.card-size-btn.active');
+      const myBtn = document.querySelector('.card-sizes-row button.card-size-btn.is-my-size:not(.active)');
+      if (!activeBtn || !myBtn) return false;
+      return getComputedStyle(activeBtn).backgroundColor !== getComputedStyle(myBtn).backgroundColor;
+    });
+    assert.equal(chipBgDiff, true, 'активный чип и чип «моего размера» должны визуально отличаться');
 
     const quickBtn = page.locator('.my-size-quick-btn').filter({hasText: 'Мой размер: 42'});
     await quickBtn.waitFor({state: 'visible'});
