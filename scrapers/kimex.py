@@ -13,6 +13,7 @@ import time
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import quote_plus, urljoin
 
+from domain.sizes import normalize_available_sizes
 from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import (
@@ -56,7 +57,55 @@ class KimexScraper(PagedScraper):
             return clean + "/"
         return f"{clean}/page-{page}/"
 
-    def _parse_card(self, card: Any, category_name: str) -> Optional[Dict[str, Any]]:
+    _HIDDEN_STYLE_RE = re.compile(r"display\s*:\s*none", re.IGNORECASE)
+    _JS_PUSH_RE = re.compile(r"SDVVJCCatalogItemJSData\.push\((\{.*?\})\);", re.DOTALL)
+    _PRODUCT_ID_RE = re.compile(r"'PRODUCT'\s*:\s*\{\s*'ID'\s*:\s*'(\d+)'")
+    _OFFER_SPLIT_RE = re.compile(r"(?=\{'ID':'\d+','NAME':')")
+    _OFFER_NAME_RE = re.compile(r"'NAME'\s*:\s*'([^']+)'")
+    _OFFER_CAN_BUY_RE = re.compile(r"'CAN_BUY'\s*:\s*(true|false)")
+    _OFFER_MAX_QTY_RE = re.compile(r"'MAX_QUANTITY'\s*:\s*'([^']*)'")
+    _TRAILING_SIZE_RE = re.compile(r"\(([^()]{1,16})\)\s*$")
+
+    @classmethod
+    def _extract_sizes_map(cls, html: str) -> Dict[str, List[str]]:
+        """Извлекает доступные размеры товаров из встроенных блоков SDVVJCCatalogItemJSData."""
+        if not html or "SDVVJCCatalogItemJSData" not in html:
+            return {}
+        sizes_map: Dict[str, List[str]] = {}
+        for block in cls._JS_PUSH_RE.findall(html):
+            pid_match = cls._PRODUCT_ID_RE.search(block)
+            if not pid_match:
+                continue
+            pid = pid_match.group(1)
+            offers_idx = block.find("'OFFERS'")
+            if offers_idx == -1:
+                continue
+            offers_chunk = block[offers_idx:]
+            raw_sizes: List[str] = []
+            for offer_blk in cls._OFFER_SPLIT_RE.split(offers_chunk)[1:]:
+                cb = cls._OFFER_CAN_BUY_RE.search(offer_blk)
+                if not cb or cb.group(1) != "true":
+                    continue
+                mq = cls._OFFER_MAX_QTY_RE.search(offer_blk)
+                if mq and mq.group(1).strip() in ("0", "0.0"):
+                    continue
+                nm = cls._OFFER_NAME_RE.search(offer_blk)
+                if not nm:
+                    continue
+                sm = cls._TRAILING_SIZE_RE.search(nm.group(1))
+                if sm:
+                    raw_sizes.append(sm.group(1))
+            normalized = normalize_available_sizes(raw_sizes)
+            if normalized:
+                sizes_map[pid] = normalized
+        return sizes_map
+
+    def _parse_card(
+        self,
+        card: Any,
+        category_name: str,
+        sizes_map: Optional[Dict[str, List[str]]] = None,
+    ) -> Optional[Dict[str, Any]]:
         # ID товара / SKU
         prod_id = card.get("data-id") or ""
         href = card.get("href") or ""
@@ -94,13 +143,16 @@ class KimexScraper(PagedScraper):
         if not price:
             return None
 
-        # Старая цена (если есть скидка)
+        # Старая цена (если есть скидка; пропускаем скрытые Bitrix-заглушки display: none)
         old_price = 0
-        old_price_el = card.select_one(".card__price--old, .price--old")
-        if old_price_el:
-            old_price = parse_price(old_price_el.get_text(strip=True))
-            if old_price <= price:
-                old_price = 0
+        for old_price_el in card.select(".card__price--old, .price--old"):
+            style_attr = str(old_price_el.get("style") or "")
+            if self._HIDDEN_STYLE_RE.search(style_attr):
+                continue
+            candidate = parse_price(old_price_el.get_text(strip=True))
+            if candidate > price:
+                old_price = candidate
+                break
 
         # Изображение товара
         img_el = card.select_one("img")
@@ -123,6 +175,9 @@ class KimexScraper(PagedScraper):
             "in_stock": True,
             "city": "Алматы / Казахстан",
         }
+        sizes = (sizes_map or {}).get(str(prod_id))
+        if sizes:
+            item["available_sizes"] = list(sizes)
         return validate_product_item(item, default_shop=self.SHOP_NAME)
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> ScanResult:
@@ -157,6 +212,7 @@ class KimexScraper(PagedScraper):
             raise UnconfirmedEnd(f"KIMEX HTTP {resp.status_code} на странице {page_num}")
 
         soup = make_soup(resp.text)
+        sizes_map = self._extract_sizes_map(resp.text)
         # Основные карточки каталога находятся в .cataloge__cards
         cards = soup.select(".cataloge__cards a.card[data-entity='item']")
         if not cards:
@@ -166,7 +222,7 @@ class KimexScraper(PagedScraper):
         seen_urls: Set[str] = set()
 
         for card in cards:
-            validated = self._parse_card(card, category_name)
+            validated = self._parse_card(card, category_name, sizes_map=sizes_map)
             if validated and validated["url"] not in seen_urls:
                 seen_urls.add(validated["url"])
                 products.append(validated)
@@ -194,6 +250,7 @@ class KimexScraper(PagedScraper):
             if resp.status_code != 200:
                 return []
             soup = make_soup(resp.text)
+            sizes_map = self._extract_sizes_map(resp.text)
             cards = soup.select(".cataloge__cards a.card[data-entity='item']")
             if not cards:
                 cards = [c for c in soup.select("a.card[data-entity='item']") if "swiper-slide" not in [p.get("class", [""])[0] for p in c.parents]]
@@ -202,7 +259,7 @@ class KimexScraper(PagedScraper):
             seen_urls: Set[str] = set()
 
             for card in cards:
-                validated = self._parse_card(card, "Поиск")
+                validated = self._parse_card(card, "Поиск", sizes_map=sizes_map)
                 if validated and validated["url"] not in seen_urls:
                     seen_urls.add(validated["url"])
                     results.append(validated)
