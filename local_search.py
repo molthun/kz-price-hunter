@@ -1225,6 +1225,13 @@ def matches_watch(target, offer):
         pid = offer.get('canonical_product_id') or offer.get('product_id')
         if not pid:
             return False
+        # SZ-01: размер — свойство этого предложения, а не товара; без его размеров совпадения нет
+        wanted_size = attrs.get('size') or inferred.get('size')
+        if wanted_size:
+            from domain.sizes import normalize_available_sizes, normalize_size_token
+            norm = normalize_size_token(wanted_size) or str(wanted_size).strip()
+            if norm not in normalize_available_sizes(offer.get('available_sizes')):
+                return False
         # Цели, сохранённые до 6.40.22, несут неочищенный текст памяти: та же очистка, что в выдаче
         memory = {k: v for k, v in {**inferred, **attrs}.items() if k in _MEMORY_KEYS}
         if memory:

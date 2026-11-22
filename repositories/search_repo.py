@@ -145,6 +145,9 @@ PRIVATE_SELLER_TYPES = {"private", "private_seller", "classifieds"}
 BUSINESS_SELLER_TYPES = {"business", "company", "retail"}
 
 
+_SIZE_FROM_FILTERS = object()  # _offer_filter: размер берётся из фильтров репозитория
+
+
 def _attribute_value_variants(key: str, value: str) -> list[str]:
     """Возвращает список возможных вариантов написания одного нормализованного значения для поиска."""
     variants = [value]
@@ -297,8 +300,17 @@ class SearchRepository(BaseRepository):
             alts.append(f"электро{stem}")
         return list(dict.fromkeys(alts))
 
-    @staticmethod
+    def _size_filter_value(self) -> Optional[str]:
+        """Выбранный или выведенный размер (обувь, одежда) — условие конкретного предложения (SZ-01)."""
+        from domain.sizes import normalize_size_token
+        for name in ('attribute_filters', 'inferred_attribute_filters'):
+            value = (getattr(self, name, None) or {}).get('size')
+            if value:
+                return normalize_size_token(value) or str(value).strip()
+        return None
+
     def _offer_filter(
+        self,
         city: Optional[str] = None,
         condition: Optional[str] = None,
         channel_type: Optional[str] = None,
@@ -311,8 +323,13 @@ class SearchRepository(BaseRepository):
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
         now: Optional[datetime.datetime] = None,
+        size: Any = _SIZE_FROM_FILTERS,
     ) -> tuple[List[str], list]:
-        """Условия к предложению (алиасы o, s, c) — единые для выдачи, счётчика и фасетов."""
+        """Условия к предложению (алиасы o, s, c) — единые для выдачи, счётчика и фасетов.
+
+        size — размер этого же предложения (offer_sizes): по умолчанию из выбранных/выведенных
+        фильтров, None — без условия (фасет «Размер»). Размер не проверяется отдельно от города,
+        продавца и цены: иначе их могли бы выполнить разные предложения одного товара (SZ-01)."""
         conditions = [
             "o.is_active = 1",
             "s.is_active = 1",
@@ -373,21 +390,19 @@ class SearchRepository(BaseRepository):
             conditions.append("o.price <= ?")
             params.append(max_price)
 
+        if size is _SIZE_FROM_FILTERS:
+            size = self._size_filter_value()
+        if size:
+            conditions.append("EXISTS (SELECT 1 FROM offer_sizes os WHERE os.offer_id = o.id AND os.size = ?)")
+            params.append(str(size))
+
         return conditions, params
 
     def _category_filter(self, category: Optional[str]) -> tuple[str, list]:
         sql, params = self._category_filter_only(category)
         for key, value in getattr(self, 'attribute_filters', {}).items():
             if key == 'size':
-                from domain.sizes import normalize_size_token
-                norm_sz = normalize_size_token(value) or str(value).strip()
-                sql += (
-                    " AND EXISTS (SELECT 1 FROM offer_sizes os"
-                    " JOIN offers o_sz ON o_sz.id = os.offer_id"
-                    " WHERE os.product_id = p.id AND o_sz.is_active = 1 AND os.size = ?)"
-                )
-                params.append(norm_sz)
-                continue
+                continue  # условие предложения, см. _offer_filter (SZ-01)
             variants = _attribute_value_variants(key, value)
             if len(variants) > 1:
                 placeholders = ",".join(["?"] * len(variants))
@@ -401,15 +416,7 @@ class SearchRepository(BaseRepository):
                 params.extend([key, value])
         for key, value in getattr(self, 'inferred_attribute_filters', {}).items():
             if key == 'size':
-                from domain.sizes import normalize_size_token
-                norm_sz = normalize_size_token(value) or str(value).strip()
-                sql += (
-                    " AND EXISTS (SELECT 1 FROM offer_sizes os"
-                    " JOIN offers o_sz ON o_sz.id = os.offer_id"
-                    " WHERE os.product_id = p.id AND o_sz.is_active = 1 AND os.size = ?)"
-                )
-                params.append(norm_sz)
-                continue
+                continue  # условие предложения, см. _offer_filter (SZ-01)
             sql += (" AND (p.id IN (SELECT value FROM json_each(?)) OR EXISTS ("
                     "SELECT 1 FROM product_search_attributes pa WHERE pa.product_id=p.id"
                     " AND pa.key=? AND pa.value=? AND pa.source_title=p.title))")
@@ -1267,19 +1274,23 @@ class SearchRepository(BaseRepository):
             try:
                 from domain.sizes import sort_size_key
                 self.attribute_filters = {k: v for k, v in chosen.items() if k != 'size'}
+                sz_conditions, sz_params = self._offer_filter(**offer_args, size=None)
                 sz_sql, sz_values = self._matching_product_ids(
-                    parsed.clean_query, conditions, params,
+                    parsed.clean_query, sz_conditions, sz_params,
                     arguments.get('brand') or parsed.detected_brand, arguments.get('category'),
                     arguments.get('model'), arguments.get('kind'),
                 )
+                # Размер считается только у предложений, которые сами проходят город, продавца и цену
                 sz_rows = self.fetchall(
                     f'''SELECT os.size AS value, COUNT(DISTINCT COALESCE(p.family_id, p.id)) AS count
                         FROM offer_sizes os
-                        JOIN offers o_sz ON o_sz.id = os.offer_id
-                        JOIN canonical_products p ON p.id = os.product_id
-                        WHERE o_sz.is_active = 1 AND p.id IN ({sz_sql})
+                        JOIN offers o ON o.id = os.offer_id
+                        JOIN sellers s ON o.seller_id = s.id
+                        JOIN channels c ON o.channel_id = c.id
+                        JOIN canonical_products p ON p.id = o.product_id
+                        WHERE {" AND ".join(sz_conditions)} AND p.id IN ({sz_sql})
                         GROUP BY os.size LIMIT 80''',
-                    sz_values,
+                    list(sz_params) + list(sz_values),
                 )
                 if sz_rows or 'size' in chosen:
                     sz_values_list = sorted(
@@ -1399,6 +1410,10 @@ class SearchRepository(BaseRepository):
         key_by_name = {name.lower(): k for k, name in SHOP_KEYS.items()}
 
         purch_sql, purch_params = sql_purchasable_conditions(moment, offer="o", channel="c")
+        # В других городах — тоже только предложения с выбранным размером (SZ-01)
+        wanted_size = self._size_filter_value()
+        size_sql = "AND EXISTS (SELECT 1 FROM offer_sizes os WHERE os.offer_id = o.id AND os.size = ?)" if wanted_size else ""
+        size_params = [wanted_size] if wanted_size else []
         sql = f"""
             SELECT o.*,
                    s.name as seller_name,
@@ -1419,10 +1434,11 @@ class SearchRepository(BaseRepository):
               AND (s.slug IN ({','.join('?' * len(delivery_keys))})
                    OR s.name IN ({','.join('?' * len(delivery_names))}))
               AND {' AND '.join(purch_sql)}
+              {size_sql}
             ORDER BY o.price ASC, o.id ASC
             LIMIT ? OFFSET ?
         """
-        base_params = list(product_ids) + cities + delivery_keys + delivery_names + list(purch_params)
+        base_params = list(product_ids) + cities + delivery_keys + delivery_names + list(purch_params) + size_params
         result: List[Dict[str, Any]] = []
         seen = set()
         for batch in range(self.OTHER_CITY_MAX_BATCHES):

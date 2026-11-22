@@ -153,3 +153,99 @@ class SizesSearchIntegrationTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SizeIsOfferConditionTest(unittest.TestCase):
+    """SZ-01 (Codex 22.11): размер и город/продавец/цена — условия одного и того же предложения."""
+
+    BASE = {"sku": "RUNSIZE901", "title": "Кроссовки T.Taccardi Run Offer Белые", "category": "Обувь",
+            "image_url": "https://example.invalid/image.jpg", "old_price_on_site": 0}
+
+    @classmethod
+    def setUpClass(cls):
+        database.init_db()
+        a = dict(cls.BASE, id="kari_sz01_a", shop="Kari", price=10000, city="Астана",
+                 url="https://example.invalid/sz01/a", available_sizes=["36"])
+        b = dict(cls.BASE, id="intertop_sz01_b", shop="Интертоп", price=20000, city="Алматы",
+                 url="https://example.invalid/sz01/b", available_sizes=["42"])
+        c = dict(cls.BASE, id="kari_sz01_c", shop="Kari", price=15000, city="Алматы",
+                 url="https://example.invalid/sz01/c", available_sizes=["42"])
+        database.save_or_update_products_batch([a, b, c])
+        with database.get_connection() as conn:
+            rows = {r["url"]: dict(r) for r in conn.execute(
+                "SELECT id, product_id, seller_id, url FROM offers WHERE url LIKE 'https://example.invalid/sz01/%'")}
+            # Третье предложение (42, Kari, 15 000) снято с продажи: его размер не должен засчитываться
+            conn.execute("UPDATE offers SET is_active = 0 WHERE id = ?", (rows["https://example.invalid/sz01/c"]["id"],))
+            conn.commit()
+        cls.rows = rows
+
+    def _search(self, size="42", **kw):
+        from repositories.search_repo import SearchRepository
+        with database.get_connection() as conn:
+            repo = SearchRepository(conn)
+            repo.attribute_filters = {"size": size} if size else {}
+            items = repo.search_products("кроссовки", **kw)
+            total = repo.count_search_products("кроссовки", **kw)["total_products"]
+        return ([(o["city"], o["price"]) for it in items for o in it["offers"]], total)
+
+    def test_one_canonical_product_for_both_sellers(self):
+        pids = {r["product_id"] for r in self.rows.values()}
+        self.assertEqual(len(pids), 1, "сценарий Codex: одна модель — один товар у разных продавцов")
+
+    def test_negative_scenarios_give_nothing(self):
+        kari = self.rows["https://example.invalid/sz01/a"]["seller_id"]
+        for name, kw in (("город Астана", {"city": "Астана"}),
+                         ("продавец Kari", {"seller_id": kari}),
+                         ("цена до 15 000", {"max_price": 15000})):
+            with self.subTest(name):
+                self.assertEqual(self._search(**kw), ([], 0))
+
+    def test_unscoped_size_shows_only_matching_offer_and_price(self):
+        self.assertEqual(self._search(), ([("Алматы", 20000.0)], 1))
+        offers, _ = self._search(size=None)
+        self.assertIn(("Астана", 10000.0), offers, "без размера дешёвое предложение остаётся в выдаче")
+
+    def test_local_search_astana_size42_is_empty(self):
+        r = local_search.search_sync({"query": "кроссовки Taccardi 42 размер", "city": "Астана", "limit": 20, "offset": 0},
+                                     {"plan": None}, {})
+        self.assertEqual(r.get("selected_attributes", {}).get("size"), "42")
+        self.assertEqual([it for it in r["items"] if "Run Offer" in it["product"]["title"]], [])
+
+    def test_size_facet_counts_only_offers_passing_city(self):
+        from repositories.search_repo import SearchRepository
+        with database.get_connection() as conn:
+            repo = SearchRepository(conn)
+            repo.attribute_filters = {}
+            facets = repo.attribute_facets({"query": "кроссовки", "city": "Астана"}, {})
+        sizes = {v["value"] for f in facets if f["key"] == "size" for v in f["values"]}
+        self.assertIn("36", sizes)
+        self.assertNotIn("42", sizes, "42 есть только в Алматы и у снятого предложения")
+
+    def test_watch_matches_size_on_the_same_offer(self):
+        pid = self.rows["https://example.invalid/sz01/a"]["product_id"]
+        target = local_search.WATCH_PREFIX + json.dumps({"query": "кроссовки", "attributes": {"size": "42"}},
+                                                        ensure_ascii=False)
+        self.assertFalse(local_search.matches_watch(target, {"canonical_product_id": pid, "price": 10000,
+                                                             "available_sizes": ["36"]}))
+        self.assertFalse(local_search.matches_watch(target, {"canonical_product_id": pid, "price": 10000}))
+        self.assertTrue(local_search.matches_watch(target, {"canonical_product_id": pid, "price": 20000,
+                                                            "available_sizes": ["41", "42"]}))
+
+
+class SizeStringParsingTest(unittest.TestCase):
+    """SZ-02 и уточнения парсера запроса."""
+
+    def test_decimal_comma_inside_list(self):
+        for raw in ("37,5;38", "37.5;38", ["37,5", "38"], [{"size": "37,5"}, {"size": "38"}], "38/37,5"):
+            with self.subTest(raw=raw):
+                self.assertEqual(normalize_available_sizes(raw), ["37.5", "38"])
+        self.assertEqual(normalize_available_sizes("37,5"), ["37.5"])
+        self.assertEqual(normalize_available_sizes("36,38,40"), ["36", "38", "40"])
+        self.assertEqual(normalize_available_sizes("36, 37,5, 38"), ["36", "37.5", "38"])
+
+    def test_letters_in_clothing_context_and_tv_guard(self):
+        self.assertEqual(extract_size_from_query("футболка M"), ("M", "футболка"))
+        self.assertEqual(extract_size_from_query("платье S"), ("S", "платье"))
+        self.assertEqual(extract_size_from_query("телевизор размер 42 дюйма"), (None, "телевизор размер 42 дюйма"))
+        self.assertEqual(extract_size_from_query("телевизор размер42 дюйма"), (None, "телевизор размер42 дюйма"))
+        self.assertEqual(extract_size_from_query("macbook m3"), (None, "macbook m3"))

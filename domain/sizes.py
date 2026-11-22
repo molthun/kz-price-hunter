@@ -68,7 +68,11 @@ _CLOTHING_CONTEXT_RE = re.compile(
 _CONTEXT_NUM_RE = re.compile(
     r"(?iu)(?<![\w.,])(\d{2}(?:[.,]5)?)(?![\w.,]|\s*(?:см|мм|м\b|гб|gb|тб|tb|мб|mb|л\b|кг|г\b|гр|вт|w\b|гц|hz|\"|''|дюйм|%|₸|тг|тенге|kzt))"
 )
-_CONTEXT_LETTER_RE = re.compile(r"(?iu)(?<!\w)(2xs|xxs|xs|2xl|3xl|4xl|xxxl|xxl|xl)(?!\w)")
+_CONTEXT_LETTER_RE = re.compile(r"(?iu)(?<!\w)(2xs|xxs|xs|2xl|3xl|4xl|xxxl|xxl|xl|[sml])(?!\w)")
+# Дробная запятая размера: «37,5» (в списке «37,5;38»), но не «36,38»
+_DECIMAL_COMMA_RE = re.compile(r"(?<!\d)(\d{2}),([05])(?!\d)")
+# После явного маркера стоит единица измерения техники: «размер 42 дюйма», «размер 42"» — это не одежда
+_NON_APPAREL_UNIT_RE = re.compile(r"(?iu)^\s*(?:дюйм\w*|\"|''|см\b|мм\b|inch\w*)")
 
 
 def normalize_size_token(raw: Any) -> Optional[str]:
@@ -116,7 +120,9 @@ def normalize_available_sizes(raw_sizes: Any) -> List[str]:
     if raw_sizes is None:
         return []
     if isinstance(raw_sizes, str):
-        items: Iterable[Any] = re.split(r"[,;/|]+", raw_sizes)
+        # SZ-02: «37,5» внутри списка — дробный размер, а не два размера 37 и 5
+        text = _DECIMAL_COMMA_RE.sub(r"\1.\2", raw_sizes)
+        items: Iterable[Any] = re.split(r"[,;/|]+", text)
     elif isinstance(raw_sizes, dict):
         items = raw_sizes.keys()
     elif isinstance(raw_sizes, (list, tuple, set)):
@@ -153,6 +159,8 @@ def extract_size_from_query(query: str) -> Tuple[Optional[str], str]:
     if m_exp:
         raw_tok = m_exp.group(1) or m_exp.group(2)
         norm = normalize_size_token(raw_tok)
+        if norm and _NON_APPAREL_UNIT_RE.match(text[m_exp.end():]):
+            norm = None
         if norm:
             cleaned = (text[:m_exp.start()] + " " + text[m_exp.end():]).strip()
             cleaned = re.sub(r"\s+", " ", cleaned)
