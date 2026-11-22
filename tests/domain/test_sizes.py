@@ -782,3 +782,88 @@ class TelegramSizesCommandTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(u2["settings"]["preferred_clothing_size"], "")
                 self.assertEqual(u2["settings"]["preferred_kids_height"], "")
                 self.assertIn("Размеры сброшены", send_mock.call_args.args[3])
+
+
+class TelegramSizesDecimalCommaTest(unittest.IsolatedAsyncioTestCase):
+    """v6.53.1 / SZ-07 (Codex): десятичная запятая в /sizes не превращает 37,5 в 37."""
+
+    def test_parser_keeps_decimal_and_rejects_partial_fractions(self):
+        import telegram_bot
+
+        p = telegram_bot.parse_tg_sizes_command
+        full = {"preferred_shoe_size": "37.5", "preferred_clothing_size": "L", "preferred_kids_height": "рост 104"}
+        cases = {
+            "37,5": ({"preferred_shoe_size": "37.5"}, []),
+            "37.5": ({"preferred_shoe_size": "37.5"}, []),
+            "37,5 L рост 104": (full, []),
+            "L,37,5 рост 104": (full, []),
+            "37,5,L; рост 104 см": (full, []),
+            "42, L": ({"preferred_shoe_size": "42", "preferred_clothing_size": "L"}, []),
+            "42;L": ({"preferred_shoe_size": "42", "preferred_clothing_size": "L"}, []),
+            "42 42": ({"preferred_shoe_size": "42"}, []),
+            # Невалидная дробь целиком нераспознана — целая часть не сохраняется
+            "37,7": ({}, ["37.7"]),
+            "37,7 L": ({"preferred_clothing_size": "L"}, ["37.7"]),
+            # Несколько разных значений одной категории не сохраняются (раньше молча побеждало последнее)
+            "37,25": ({}, ["37", "25"]),
+            "42,43 L": ({"preferred_clothing_size": "L"}, ["42", "43"]),
+            "рост 98 рост 104": ({}, ["рост 98", "рост 104"]),
+            # Дробный рост не обрезается до целого
+            "рост 104,5": ({}, ["рост", "104.5"]),
+        }
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(p(text), expected)
+
+    async def test_real_update_saves_decimal_reads_highlights_and_resets(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import AsyncMock, patch
+        import database
+        import telegram_bot
+
+        def update(mid, text, uid):
+            return {"message": {"message_id": mid, "chat": {"id": uid, "type": "private"},
+                                "from": {"id": uid, "is_bot": False, "first_name": "Tester"}, "text": text}}
+
+        with tempfile.TemporaryDirectory() as td:
+            send_mock = AsyncMock()
+            uid = 653101
+            with (
+                patch.object(database, "DB_PATH", Path(td) / "tg_sizes_decimal.db"),
+                patch.object(telegram_bot, "send_tg_message", send_mock),
+                patch.object(telegram_bot, "set_tg_message_reaction", AsyncMock()),
+                patch.object(telegram_bot._message_limiter, "retry_after", return_value=0),
+            ):
+                database.init_db()
+                # Сценарий Codex: /sizes 37,5 L рост 104 → в профиле 37.5, без предупреждения о «5»
+                await telegram_bot.process_telegram_update(None, "tok", update(1, "/sizes 37,5 L рост 104", uid))
+                s = database.get_user(uid)["settings"]
+                self.assertEqual(s["preferred_shoe_size"], "37.5")
+                self.assertEqual(s["preferred_clothing_size"], "L")
+                self.assertEqual(s["preferred_kids_height"], "рост 104")
+                reply = send_mock.call_args.args[3]
+                self.assertIn("Мои размеры сохранены", reply)
+                self.assertIn("<b>37.5</b>", reply)
+                self.assertNotIn("Пропущено", reply)
+
+                # Подсветка в выдаче видит именно 37.5, а не 37
+                saved = telegram_bot._user_saved_sizes_set(uid)
+                self.assertIn("37.5", saved)
+                self.assertNotIn("37", saved)
+                summary = telegram_bot._format_tg_sizes_summary(
+                    ["36", "36.5", "37", "38", "39", "40", "41", "37.5"], max_shown=6, highlight_sizes=saved)
+                self.assertIn("✓37.5", summary)
+                self.assertNotIn("✓37,", summary + ",")
+
+                # Невалидная дробь не перезаписывает сохранённый размер целым числом
+                await telegram_bot.process_telegram_update(None, "tok", update(2, "/sizes 38,7", uid))
+                self.assertEqual(database.get_user(uid)["settings"]["preferred_shoe_size"], "37.5")
+                self.assertIn("Не удалось распознать", send_mock.call_args.args[3])
+
+                # Просмотр и сброс
+                await telegram_bot.process_telegram_update(None, "tok", update(3, "/размеры", uid))
+                self.assertIn("<b>37.5</b>", send_mock.call_args.args[3])
+                await telegram_bot.process_telegram_update(None, "tok", update(4, "/sizes сброс", uid))
+                s = database.get_user(uid)["settings"]
+                self.assertEqual((s["preferred_shoe_size"], s["preferred_clothing_size"], s["preferred_kids_height"]), ("", "", ""))

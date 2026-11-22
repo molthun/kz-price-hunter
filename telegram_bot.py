@@ -1231,29 +1231,51 @@ def parse_tg_sizes_command(args_text: str):
     updates: Dict[str, str] = {}
     unknown: List[str] = []
 
+    explicit_heights: List[str] = []
+
     # Сначала извлекаем явный «рост N [см]»
     def _consume_height(m: re.Match) -> str:
         heights = normalize_height_sizes(m.group(0))
         if len(heights) == 1:
             updates["preferred_kids_height"] = heights[0]
+            explicit_heights.append(heights[0])
             return " "
         unknown.append(m.group(0).strip())
         return " "
 
-    rest = re.sub(r"(?iu)\bрост\s*\d{2,3}(?:\s*см)?\b", _consume_height, raw)
+    # SZ-07: «37,5» — десятичная запятая, а не разделитель списка. Одна цифра после запятой
+    # (размеры не бывают однозначными) склеивается в «37.5» до разбиения; дальше токен целиком
+    # проверяет общий нормализатор, и невалидная дробь («37,7») уходит в unknown, а не в «37».
+    raw = re.sub(r"(?<![\d.])(\d{1,3}),(\d)(?![\d.])", r"\1.\2", raw)
+    # «рост 104.5» не обрезается до «рост 104»: дробный рост целиком считается нераспознанным
+    rest = re.sub(r"(?iu)\bрост\s*\d{2,3}(?![.,]\d)(?:\s*см)?\b", _consume_height, raw)
+    # SZ-07: несколько разных значений одной категории («37,25», «42 43») не сохраняются —
+    # иначе молча побеждает последнее и пользователь получает не тот размер.
+    seen: Dict[str, List[str]] = {}
+    for h in explicit_heights:
+        if h not in seen.setdefault("preferred_kids_height", []):
+            seen["preferred_kids_height"].append(h)
     for token in [t.strip() for t in re.split(r"[\s,;]+", rest) if t.strip()]:
+        key = value = None
         norm = normalize_size_token(token)
         if norm:
-            if norm[0].isdigit():
-                updates["preferred_shoe_size"] = norm
-            else:
-                updates["preferred_clothing_size"] = norm
+            key = "preferred_shoe_size" if norm[0].isdigit() else "preferred_clothing_size"
+            value = norm
+        else:
+            heights = normalize_height_sizes(token)
+            if len(heights) == 1:
+                key, value = "preferred_kids_height", heights[0]
+        if key is None:
+            unknown.append(token)
             continue
-        heights = normalize_height_sizes(token)
-        if len(heights) == 1:
-            updates["preferred_kids_height"] = heights[0]
-            continue
-        unknown.append(token)
+        values = seen.setdefault(key, [])
+        if value not in values:
+            values.append(value)
+        updates[key] = value
+    for key, values in seen.items():
+        if len(values) > 1:
+            updates.pop(key, None)
+            unknown.extend(v for v in values if v not in unknown)
     return updates, unknown
 
 
