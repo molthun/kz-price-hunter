@@ -1,0 +1,15 @@
+d101cff454 feat(telegram): admin price/screenshot upload command /прайс with preview and publish confirmation (v6.47.0)
+image=sha256:1999016033f3411cd3ba33ad8acd97b87e56b0fd278bc42da9a1d007574c71da health=healthy restarts=0
+----------------------------------------------------------------------
+Ran 3383 tests in 674.536s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+  "mismatched": [],
+  "unpinned": [],
+  "pinned_not_installed": []
+}
+
+[exited with code 0]
