@@ -678,3 +678,19 @@ class SearchInDatabaseSizesTest(unittest.TestCase):
                 self.assertIn("(38, 40, 42)", md)
                 md_tv = telegram_bot.build_price_comparison_markdown("телевизор 42 дюйма", hits_tv)
                 self.assertNotIn("(38", md_tv)
+
+
+class KidsHeightSettingsValidationTest(unittest.TestCase):
+    """v6.52.0: валидация и нормализация preferred_kids_height в пользовательских настройках."""
+
+    def test_validate_preferred_kids_height(self):
+        import config
+
+        self.assertEqual(config.validate_user_settings({"preferred_kids_height": ""})["preferred_kids_height"], "")
+        self.assertEqual(config.validate_user_settings({"preferred_kids_height": "98"})["preferred_kids_height"], "рост 98")
+        self.assertEqual(config.validate_user_settings({"preferred_kids_height": "рост 104"})["preferred_kids_height"], "рост 104")
+        self.assertEqual(config.validate_user_settings({"preferred_kids_height": "116 см"})["preferred_kids_height"], "рост 116")
+        for bad in ("abc", "XL", "42", "92-98"):
+            with self.subTest(bad=bad):
+                with self.assertRaises(ValueError):
+                    config.validate_user_settings({"preferred_kids_height": bad})

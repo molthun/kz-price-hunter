@@ -427,6 +427,7 @@ USER_DEFAULTS = {
     "search_default_sort": "price_asc",
     "preferred_shoe_size": "",
     "preferred_clothing_size": "",
+    "preferred_kids_height": "",
 
     # Магазины в ленте алертов и уведомлениях
     "alert_shops": _all_shops_enabled(),
@@ -973,6 +974,16 @@ def validate_user_settings(new_settings, current=None):
             if not norm_cloth or norm_cloth[0].isdigit():
                 raise ValueError("Некорректный размер одежды")
             clean["preferred_clothing_size"] = norm_cloth
+    if "preferred_kids_height" in clean:
+        raw_kids = str(clean["preferred_kids_height"] or "").strip()
+        if not raw_kids:
+            clean["preferred_kids_height"] = ""
+        else:
+            from domain.sizes import normalize_height_sizes
+            heights = normalize_height_sizes(raw_kids)
+            if len(heights) != 1:
+                raise ValueError("Некорректный рост ребёнка")
+            clean["preferred_kids_height"] = heights[0]
     merged = {**merge_user_settings(current or {}), **clean}
     if merged["min_item_price_kzt"] > merged["max_item_price_kzt"]:
         raise ValueError("Мин. цена товара не может быть больше макс. цены")

@@ -28,8 +28,12 @@ def changed_value(key, default):
             return {"gemini-2.5-flash": {"input": 0.3, "output": 2.5}}
         first = next(iter(default))
         return {first: not default[first]}
-    # 6.46.0: размеры проверяются по допустимым значениям — произвольная строка для них недопустима
-    return {"preferred_shoe_size": "42", "preferred_clothing_size": "L"}.get(key, "changed")
+    # 6.46.0 / 6.52.0: размеры проверяются по допустимым значениям — произвольная строка для них недопустима
+    return {
+        "preferred_shoe_size": "42",
+        "preferred_clothing_size": "L",
+        "preferred_kids_height": "рост 104",
+    }.get(key, "changed")
 
 
 class UserSettingsTest(unittest.TestCase):

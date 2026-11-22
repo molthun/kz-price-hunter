@@ -2086,6 +2086,24 @@
       background: transparent;
     }
 
+    .card-size-btn {
+      font-family: inherit;
+      font-size: inherit;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .card-size-btn:hover {
+      border-color: var(--primary);
+    }
+
+    .card-size-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
     .my-size-quick-row {
       display: flex;
       flex-wrap: wrap;
@@ -7139,6 +7157,20 @@
                 <option value="XXL">XXL</option><option value="XXXL">XXXL</option>
               </select>
             </label>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem;font-weight:600;">
+              Рост ребёнка (см)
+              <select id="profileKidsHeight" class="profile-city-dropdown" onchange="onUserSizesChanged()" aria-label="Рост ребёнка">
+                <option value="">Не указан</option>
+                <option value="рост 80">рост 80</option><option value="рост 86">рост 86</option>
+                <option value="рост 92">рост 92</option><option value="рост 98">рост 98</option>
+                <option value="рост 104">рост 104</option><option value="рост 110">рост 110</option>
+                <option value="рост 116">рост 116</option><option value="рост 122">рост 122</option>
+                <option value="рост 128">рост 128</option><option value="рост 134">рост 134</option>
+                <option value="рост 140">рост 140</option><option value="рост 146">рост 146</option>
+                <option value="рост 152">рост 152</option><option value="рост 158">рост 158</option>
+                <option value="рост 164">рост 164</option>
+              </select>
+            </label>
           </div>
           <div id="profileSizesState" style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);" role="status"></div>
         </div>
@@ -8048,6 +8080,7 @@
       return {
         shoe: typeof src.shoe === 'string' ? src.shoe.trim() : '',
         clothing: typeof src.clothing === 'string' ? src.clothing.trim().toUpperCase() : '',
+        kidsHeight: typeof src.kidsHeight === 'string' ? src.kidsHeight.trim().toLowerCase() : '',
       };
     }
 
@@ -8071,7 +8104,11 @@
       userSizesState = normalizeUserSizes(sizes);
       const owner = currentSizesOwner();
       try {
-        const record = { shoe: userSizesState.shoe, clothing: userSizesState.clothing };
+        const record = {
+          shoe: userSizesState.shoe,
+          clothing: userSizesState.clothing,
+          kidsHeight: userSizesState.kidsHeight,
+        };
         if (owner) record.uid = owner;
         localStorage.setItem(USER_SIZES_STORAGE_KEY, JSON.stringify(record));
         return true;
@@ -8086,41 +8123,64 @@
         const owner = currentSizesOwner();
         // Кеш другого аккаунта не показывается; кеш без метки — гостевой или сохранённый до 6.46.1
         userSizesState = (cached && (!cached.owner || cached.owner === owner))
-          ? cached.sizes : { shoe: '', clothing: '' };
+          ? cached.sizes : { shoe: '', clothing: '', kidsHeight: '' };
       }
-      return { shoe: userSizesState.shoe, clothing: userSizesState.clothing };
+      return {
+        shoe: userSizesState.shoe,
+        clothing: userSizesState.clothing,
+        kidsHeight: userSizesState.kidsHeight,
+      };
     }
 
     function syncProfileSizesUI() {
       const sz = getUserSizes();
       const shoeEl = document.getElementById('profileShoeSize');
       const clothEl = document.getElementById('profileClothingSize');
+      const kidsEl = document.getElementById('profileKidsHeight');
       if (shoeEl) shoeEl.value = sz.shoe || '';
       if (clothEl) clothEl.value = sz.clothing || '';
+      if (kidsEl) kidsEl.value = sz.kidsHeight || '';
+    }
+
+    function onCardSizeChipClick(sizeVal) {
+      const sz = String(sizeVal || '').trim();
+      if (!sz || typeof onDynamicAttrFacetSelected !== 'function') return;
+      const cur = (typeof AppState !== 'undefined' && AppState.attributes && AppState.attributes.size) || '';
+      onDynamicAttrFacetSelected('size', String(cur) === sz ? '' : sz);
     }
 
     function renderCardSizesHtml(availableSizes) {
       if (!Array.isArray(availableSizes) || availableSizes.length === 0) return '';
       const mySz = getUserSizes();
-      const mySet = new Set([mySz.shoe, mySz.clothing].filter(Boolean));
+      const mySet = new Set([mySz.shoe, mySz.clothing, mySz.kidsHeight].filter(Boolean));
+      const activeSz = (typeof AppState !== 'undefined' && AppState.attributes && AppState.attributes.size)
+        ? String(AppState.attributes.size) : '';
       const maxVisible = 6;
       const list = availableSizes.map(s => String(s || '').trim()).filter(Boolean);
       if (list.length === 0) return '';
 
       let visible = list.slice(0, maxVisible);
-      // Гарантируем, что сохранённый размер пользователя виден на карточке, даже если размеров > 6
-      if (list.length > maxVisible && mySet.size > 0) {
-        const hiddenMine = list.slice(maxVisible).filter(s => mySet.has(s));
-        if (hiddenMine.length > 0) {
-          const keep = Math.max(0, maxVisible - hiddenMine.length);
-          visible = list.slice(0, keep).concat(hiddenMine).slice(0, maxVisible);
+      // Гарантируем, что выбранный фильтром или сохранённый размер пользователя виден на карточке
+      const prioritySet = new Set(mySet);
+      if (activeSz) prioritySet.add(activeSz);
+      if (list.length > maxVisible && prioritySet.size > 0) {
+        const hiddenPrio = list.slice(maxVisible).filter(s => prioritySet.has(s));
+        if (hiddenPrio.length > 0) {
+          const keep = Math.max(0, maxVisible - hiddenPrio.length);
+          visible = list.slice(0, keep).concat(hiddenPrio).slice(0, maxVisible);
         }
       }
       const hiddenCount = Math.max(0, list.length - visible.length);
       const chips = visible.map(sz => {
         const mine = mySet.has(sz);
-        return '<span class="offer-size-chip' + (mine ? ' is-my-size' : '') + '"' +
-          (mine ? ' title="Ваш размер в наличии"' : '') + '>' + escapeHtml(sz) + '</span>';
+        const isActive = activeSz === sz;
+        const cls = 'offer-size-chip card-size-btn' + (mine ? ' is-my-size' : '') + (isActive ? ' active' : '');
+        const title = isActive
+          ? 'Снять фильтр по размеру ' + sz
+          : (mine ? 'Ваш размер в наличии — нажмите для фильтра' : 'Фильтровать по размеру ' + sz);
+        return '<button type="button" class="' + cls + '" data-size="' + escapeHtml(sz) + '"' +
+          ' onclick="event.stopPropagation(); onCardSizeChipClick(this.dataset.size)"' +
+          ' title="' + escapeHtml(title) + '">' + escapeHtml(sz) + '</button>';
       }).join('');
       const more = hiddenCount > 0
         ? '<span class="offer-size-chip card-size-more">+' + hiddenCount + '</span>'
@@ -8133,11 +8193,13 @@
       const src = settings && typeof settings === 'object' ? settings : {};
       const hasShoe = Object.prototype.hasOwnProperty.call(src, 'preferred_shoe_size');
       const hasCloth = Object.prototype.hasOwnProperty.call(src, 'preferred_clothing_size');
-      if (!hasShoe && !hasCloth) return;
+      const hasKids = Object.prototype.hasOwnProperty.call(src, 'preferred_kids_height');
+      if (!hasShoe && !hasCloth && !hasKids) return;
       // Сервер — источник истины вошедшего пользователя, в том числе пустые значения (очистка)
       setUserSizesState({
         shoe: hasShoe ? String(src.preferred_shoe_size || '') : '',
         clothing: hasCloth ? String(src.preferred_clothing_size || '') : '',
+        kidsHeight: hasKids ? String(src.preferred_kids_height || '') : '',
       });
       syncProfileSizesUI();
     }
@@ -8151,7 +8213,11 @@
       return fetch('/api/me/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ preferred_shoe_size: sizes.shoe, preferred_clothing_size: sizes.clothing }),
+        body: JSON.stringify({
+          preferred_shoe_size: sizes.shoe,
+          preferred_clothing_size: sizes.clothing,
+          preferred_kids_height: sizes.kidsHeight || '',
+        }),
       }).then(async resp => {
         if (resp.ok) return { ok: true, error: '' };
         const errData = await resp.json().catch(() => ({}));
@@ -8160,7 +8226,7 @@
     }
 
     function queueUserSizesSave(sizes) {
-      sizesSavePending = { shoe: sizes.shoe, clothing: sizes.clothing };
+      sizesSavePending = { shoe: sizes.shoe, clothing: sizes.clothing, kidsHeight: sizes.kidsHeight || '' };
       if (!sizesSaveRunning) {
         sizesSaveRunning = (async () => {
           let last = { ok: false, error: '', sizes: null };
@@ -8183,10 +8249,12 @@
     async function onUserSizesChanged() {
       const shoeEl = document.getElementById('profileShoeSize');
       const clothEl = document.getElementById('profileClothingSize');
+      const kidsEl = document.getElementById('profileKidsHeight');
       const stateEl = document.getElementById('profileSizesState');
       const cacheSaved = setUserSizesState({
         shoe: shoeEl ? String(shoeEl.value || '') : '',
         clothing: clothEl ? String(clothEl.value || '') : '',
+        kidsHeight: kidsEl ? String(kidsEl.value || '') : '',
       });
       const payload = getUserSizes();
 
@@ -8196,8 +8264,16 @@
         const outcome = await queueUserSizesSave(payload);
         const latest = getUserSizes();
         // Сообщение пишет только последнее изменение: устаревший обработчик молчит
-        if (outcome.sizes && (outcome.sizes.shoe !== latest.shoe || outcome.sizes.clothing !== latest.clothing)) return;
-        if (latest.shoe !== payload.shoe || latest.clothing !== payload.clothing) return;
+        if (outcome.sizes && (
+          outcome.sizes.shoe !== latest.shoe ||
+          outcome.sizes.clothing !== latest.clothing ||
+          (outcome.sizes.kidsHeight || '') !== (latest.kidsHeight || '')
+        )) return;
+        if (
+          latest.shoe !== payload.shoe ||
+          latest.clothing !== payload.clothing ||
+          (latest.kidsHeight || '') !== (payload.kidsHeight || '')
+        ) return;
         serverSaved = outcome.ok;
         serverError = outcome.ok ? '' : outcome.error;
       }
@@ -8217,6 +8293,7 @@
       const parts = [];
       if (payload.shoe) parts.push('обувь ' + payload.shoe);
       if (payload.clothing) parts.push('одежда ' + payload.clothing);
+      if (payload.kidsHeight) parts.push(payload.kidsHeight);
       const suffix = serverSaved ? ' (синхронизировано с профилем)' : '';
       if (stateEl) {
         stateEl.textContent = parts.length ? ('Сохранено: ' + parts.join(', ') + suffix) : ('Размеры сброшены' + suffix + '.');
@@ -11659,7 +11736,7 @@
 
         if (field.key === 'size') {
           const userSizes = getUserSizes();
-          const quickTargets = [userSizes.shoe, userSizes.clothing].filter(
+          const quickTargets = [userSizes.shoe, userSizes.clothing, userSizes.kidsHeight].filter(
             s => s && vals.some(v => String(v.value) === String(s))
           );
           if (quickTargets.length > 0) {
@@ -12704,7 +12781,7 @@
         if (off.warranty) factsHtml += '<div>Гарантия: ' + escapeHtml(off.warranty) + '</div>';
         if (Array.isArray(off.available_sizes) && off.available_sizes.length > 0) {
           const mySz = getUserSizes();
-          const mySet = new Set([mySz.shoe, mySz.clothing].filter(Boolean));
+          const mySet = new Set([mySz.shoe, mySz.clothing, mySz.kidsHeight].filter(Boolean));
           const chips = off.available_sizes.slice(0, 24).map(sz => {
             const mine = mySet.has(String(sz));
             return '<span class="offer-size-chip' + (mine ? ' is-my-size' : '') + '"' +

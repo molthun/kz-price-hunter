@@ -3,6 +3,17 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.52.0] - 2026-11-22
+
+### Для пользователей
+- 👟 Чипы размеров прямо на карточках выдачи поиска теперь кликабельные — нажмите на любой размер, чтобы мгновенно отфильтровать выдачу по нему (повторное нажатие снимает фильтр).
+- 🧒 В «Моих размерах» профиля добавлен **«Рост ребёнка (см)»** (`рост 80`–`рост 164`) с серверной синхронизацией между устройствами, кнопкой быстрого фильтра и подсветкой на карточках выдачи и товара.
+
+### Технические изменения
+- `config.py`: добавлен `preferred_kids_height` в `USER_DEFAULTS` и строгая валидация/нормализация через `domain.sizes.normalize_height_sizes` (`"98"` → `"рост 98"`, невалидные значения отклоняются `ValueError` → HTTP 400).
+- `web/templates/search_first.html`: чипы `.card-sizes-row .offer-size-chip` стали кнопками `button.card-size-btn` с `onCardSizeChipClick` (переключение `AppState.attributes.size` без открытия модалки товара); добавлен `<select id="profileKidsHeight">` с полной поддержкой `SY-01`/`SY-02` очереди и памяти страницы, быстрым фильтром и подсветкой `.is-my-size`.
+- Тесты: `KidsHeightSettingsValidationTest` в `tests/domain/test_sizes.py`, `tests/core/test_settings.py`, `tests/frontend/test_frontend_user_sizes_sync.cjs` и проверка клика `.card-size-btn` в `tests/frontend/test_frontend_user_sizes.cjs`.
+
 ## [6.51.0] - 2026-11-22
 
 ### Для пользователей

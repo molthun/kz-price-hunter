@@ -118,13 +118,21 @@ async function runTest() {
     });
 
     await page.goto(base + '/search?q=%D0%BA%D1%80%D0%BE%D1%81%D1%81%D0%BE%D0%B2%D0%BA%D0%B8');
-    // v6.50.0: на карточке выдачи видны размеры в наличии, а размер 42 (индекс 6 > 5) поднят в видимые и подсвечен
+    // v6.50.0 / v6.52.0: на карточке выдачи видны кликабельные чипы размеров, размер 42 поднят и подсвечен
     const cardSizesRow = page.locator('.product-card .card-sizes-row');
     await cardSizesRow.waitFor({state: 'visible'});
-    const cardMyChip = cardSizesRow.locator('.offer-size-chip.is-my-size');
+    const cardMyChip = cardSizesRow.locator('button.card-size-btn.is-my-size');
     await cardMyChip.waitFor({state: 'visible'});
     assert.match(await cardMyChip.innerText(), /42/);
     assert.equal(await cardSizesRow.locator('.card-size-more').innerText(), '+2');
+
+    // Клик по чипу размера на карточке включает фильтр по размеру (не открывая карточку товара)
+    await cardSizesRow.locator('button.card-size-btn', {hasText: '37'}).click();
+    await page.waitForFunction(() => {
+      const btn = document.querySelector('.card-sizes-row button.card-size-btn.active');
+      return btn && btn.textContent.trim() === '37';
+    });
+    assert.equal(capturedAttrSize, '37');
 
     const quickBtn = page.locator('.my-size-quick-btn').filter({hasText: 'Мой размер: 42'});
     await quickBtn.waitFor({state: 'visible'});
