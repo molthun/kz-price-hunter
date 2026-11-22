@@ -8156,20 +8156,20 @@
       const activeSz = (typeof AppState !== 'undefined' && AppState.attributes && AppState.attributes.size)
         ? String(AppState.attributes.size) : '';
       const maxVisible = 6;
-      const list = availableSizes.map(s => String(s || '').trim()).filter(Boolean);
+      const list = [...new Set(availableSizes.map(s => String(s || '').trim()).filter(Boolean))];
       if (list.length === 0) return '';
 
-      let visible = list.slice(0, maxVisible);
-      // Гарантируем, что выбранный фильтром или сохранённый размер пользователя виден на карточке
-      const prioritySet = new Set(mySet);
-      if (activeSz) prioritySet.add(activeSz);
-      if (list.length > maxVisible && prioritySet.size > 0) {
-        const hiddenPrio = list.slice(maxVisible).filter(s => prioritySet.has(s));
-        if (hiddenPrio.length > 0) {
-          const keep = Math.max(0, maxVisible - hiddenPrio.length);
-          visible = list.slice(0, keep).concat(hiddenPrio).slice(0, maxVisible);
-        }
+      // SZ-06: выбранный фильтром и сохранённые размеры видны всегда, где бы они ни стояли в списке;
+      // активный — первым приоритетом (по нему снимается фильтр). Остальные места — по порядку списка.
+      const priority = [];
+      if (activeSz && list.includes(activeSz)) priority.push(activeSz);
+      list.forEach(s => { if (mySet.has(s) && !priority.includes(s)) priority.push(s); });
+      const keepSet = new Set(priority.slice(0, maxVisible));
+      for (const s of list) {
+        if (keepSet.size >= maxVisible) break;
+        keepSet.add(s);
       }
+      const visible = list.filter(s => keepSet.has(s));
       const hiddenCount = Math.max(0, list.length - visible.length);
       const chips = visible.map(sz => {
         const mine = mySet.has(sz);
