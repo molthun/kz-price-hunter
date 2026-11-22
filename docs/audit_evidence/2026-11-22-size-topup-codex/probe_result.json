@@ -1,0 +1,28 @@
+{
+  "dry_run_no_mutation": true,
+  "known_empty_preserved": true,
+  "existing_sizes_preserved": true,
+  "current_product_id_used": true,
+  "original_timestamp_preserved": true,
+  "invalid_target_payload_handled": true,
+  "source_only_offer_skipped": true,
+  "second_run_adds_zero": true,
+  "source_rows_unchanged": true,
+  "first_report": {
+    "offers": 2,
+    "by_seller": [
+      [
+        "Fixture",
+        2
+      ]
+    ],
+    "size_rows_added": 2,
+    "payloads_updated": 2,
+    "offer_sizes_after": [
+      3,
+      3
+    ],
+    "dry_run": false,
+    "secs": 0.0
+  }
+}
