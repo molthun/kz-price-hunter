@@ -9,6 +9,87 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## STAND_DEPLOYED v6.46.1 — SY-01/SY-02 «Мои размеры» + итог iSpace в проде — Claude (22.11.2026, Asia/Almaty)
+
+- **Срез:**
+  - `34372fd` (6.46.1) — правка SY-01/SY-02 моя; закоммитил её Antigravity из общей рабочей копии, содержание не изменено.
+  - `fd48d95` — правка теста настроек.
+  - Стенд: fast-forward через git bundle, образ `sha256:50f65070…16a9`, 6.46.1, healthy, перезапусков 0.
+  - **После моих проверок Antigravity выложил 6.47.0 (`d101cff`)** — стенд сейчас на нём. SHA `search_first.html`, `test_frontend_user_sizes_sync.cjs` и `test_settings.py` совпадают в git `fd48d95` и контейнере. `version.py` уже 6.47.0. Push не выполнялся, прод — 6.45.1.
+- **SY-01:** сохранения размеров идут по очереди (`queueUserSizesSave`). Следующий POST уходит только после ответа на предыдущий и несёт последний снимок. «Сохранено» пишет только последний обработчик.
+- **SY-02:** текущие размеры — в памяти страницы (`userSizesState`); `localStorage` — необязательный кеш с меткой `uid`.
+  - Профиль, быстрый фильтр и подсветка читают состояние.
+  - Значения сервера, включая очистку, видны и при недоступном кеше.
+  - Кеш другого аккаунта и прежнего аккаунта после выхода не показывается; вход через Telegram WebApp сбрасывает прежние размеры.
+- **Регрессия `tests/frontend/test_frontend_user_sizes_sync.cjs`:** настоящие функции шаблона в `node:vm`, управляемый порядок сети и хранилище; 5 сценариев PASS:
+  - последнее изменение побеждает и восстанавливается после перезагрузки;
+  - ошибка первого запроса;
+  - недоступный кеш с сервером и без;
+  - чужой аккаунт и очистка.
+  - На прежнем шаблоне — FAIL: второй запрос уходил, пока первый в пути. Пробник Codex `ui_sync_probe.cjs` ждёт два одновременных запроса, поэтому на новом коде его `assert` намеренно не выполнится.
+- **Найдено попутно:** `tests/core/test_settings.py` с 6.46.0 давал 2 ERROR в полном наборе — для размеров подставлялось недопустимое `"changed"`, а целевые наборы этот тест не включали. Исправлено в `fd48d95`.
+- **Проверки:**
+  - Полный набор на чистой копии `fd48d95` (без незакоммиченного `telegram_bot.py` Antigravity) — 3 373 OK; secrets 0; браузерные наборы — 48/48 PASS.
+  - Стенд, чистый контейнер на образе `fd48d95` — 3 373 OK; pins `ok: true`, проверено 25.
+- **Прод 6.45.1, только чтение:**
+  - iSpace — `complete`, 258 товаров за 1 704 с (11:07:55Z, первый добор после выпуска);
+  - проверка обращений — одна в 10:40:30Z, до 11:13Z больше не запускалась (было около 1,7 мин);
+  - исключений 0; healthy, перезапусков 0.
+  - 429 в проде по журналу не видно (`complete` бывает только без прерывания по 429); телеметрию прода не читал.
+- **Доказательства:** `docs/audit_evidence/2026-11-22-v6461-claude-stand/`, `docs/audit_evidence/2026-11-22-v6451-claude-prerelease/prod_followup_1113Z.txt`.
+- **Следующий шаг:** Codex — приёмка 6.46.1 (`34372fd` + `fd48d95`). 6.47.0 Antigravity — отдельно.
+
+## STAND_DEPLOYED v6.47.0 — Telegram-бот: загрузка прайса/скриншота продавца (`/прайс <магазин>`) — Antigravity (2026-11-22 16:08, Asia/Almaty)
+
+- **Статус:** коммит `d101cff` (`v6.47.0` поверх `34372fd` / `v6.46.1`) выложен на стенд через git bundle и проверен. **Готово к проверке Codex / Claude.** Push в `origin/main` не выполнялся, прод не трогался.
+- **Что сделано (`v6.47.0`):**
+  - `domain/telegram_price_upload.py`: разбор команды и текста (`parse_price_command_args`), извлечение крупнейшего фото или документа-изображения (`extract_photo_file_id`), поиск активного продавца по `id`/`slug`/`name`/`legal_name` (`find_seller_for_price_upload`), безопасное скачивание из Telegram с лимитом 10 МБ и проверкой magic bytes (`download_telegram_image`), ограниченное TTL-хранилище черновиков (`PriceUploadDraftStore`, 30 мин, max 64, строгая проверка `admin_user_id` + атомарное `pop_for_admin` против двойной публикации), экранированное HTML-превью и отчёт публикации.
+  - `telegram_bot.py`: админские команды `/прайс`, `/upload_price` (и фото с подписью `/price`), обработчики кнопок `pricepub:` / `pricecan:` (`handle_price_upload_callback`) и `edit_tg_message_text`. Обычный текстовый `/price <запрос>` сохранён как алиас `/search` без изменений; случайные фото с подписями игнорируются.
+  - `tests/domain/test_telegram_price_upload.py`: 10 модульных и сквозных тестов (в т.ч. проверка отказа не-админу, чужому админу, повторного клика, сохранности текстового `/price` и HTML-экранирования).
+  - `version.py` (`6.47.0`), `CHANGELOG.md` (с разделом `### Для пользователей`), `ROADMAP_AND_LOG.md`.
+- **Проверки:**
+  - **Локально:**
+    - `tests.domain.test_telegram_price_upload`, `tests.ai.test_seller_vision_upload`, `tests.core.test_release_notes`, `tests.core.test_unittest_discovery_contract` — **25 OK** (`1.299 с`, Telegram HTTP и Vision в тестах замокированы; запись в изолированную временную БД проверена реально).
+    - `tests/notifications` (полный набор, 357 тестов) — **357 OK** (`13.067 с`).
+    - `release_gate.py secrets` — **`ok: true`, `findings: []`**.
+    - Deno + Playwright: `test_frontend_admin_vision_upload.cjs` (**PASS**), `test_frontend_telegram_admin.cjs` (**4/4 PASS** — 390/1366 × light/dark).
+  - **Стенд (`kzph-stand`, порт `35539`):**
+    - Образ `sha256:1999016033f3411cd3ba33ad8acd97b87e56b0fd278bc42da9a1d007574c71da`, `Status=running`, `Health=healthy`, `Restarts=0`, `StartedAt=2026-11-22T11:08:02.235403286Z`.
+    - `/api/version` = `6.47.0`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`).
+    - `6/6` SHA256 (`domain/telegram_price_upload.py`, `telegram_bot.py`, `tests/domain/test_telegram_price_upload.py`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`) совпали локально, в checkout стенда (`d101cff454`) и внутри контейнера `kzph-stand`.
+    - Чистый контейнер (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`): целевые Python-тесты — **25 OK** (`1.576 с`); `pins` — **`ok: true`, `checked: 25`**.
+- **Сырые доказательства (`docs/audit_evidence/2026-11-22-v6470-antigravity-stand/`):** `local_tests_and_secrets.txt`, `local_sha256.txt`, `frontend_vision_upload.txt`, `sha_image_health_pins.txt`, `clean_container_targeted.txt`.
+- **Непроведённые проверки:** живой прогон в реальном Telegram-чате с реальным `getFile` и живым Vision GPU на `v6.47.0` не выполнялся (требуется проверка владельцем в тестовом боте стенда); полный Linux-набор (3 380+ тестов) целиком на `d101cff` не прогонялся.
+- **Следующий точный шаг:** **Codex** — аудит `v6.46.1` (`34372fd`) и `v6.47.0` (`d101cff`) на стенде; владелец — живая проверка `/прайс <магазин>` в стендовом Telegram-боте.
+
+## STAND_DEPLOYED v6.46.1 — закрыты SY-01 и SY-02 (очередь сохранений «Моих размеров» и независимость от `localStorage`) — Antigravity (2026-11-22 15:59, Asia/Almaty)
+
+- **Статус:** незавершённая правка Claude (`v6.46.1`) проверена, закоммичена локально как `34372fd` (`v6.46.1` поверх `d6afc85`) и выложена на стенд через git bundle (`fast-forward` `b2808a034c..34372fd63b`, локальная правка `docker-compose.stand.yml` сохранена). **Готово к повторной приёмке Codex.** Push в `origin/main` не выполнялся, прод не трогался.
+- **Что исправлено (`v6.46.1`):**
+  - **SY-01 (`web/templates/search_first.html`):** сохранения размеров на сервер сериализованы очередью (`queueUserSizesSave` + `sizesSaveRunning`/`sizesSavePending`) — следующий `POST /api/me/settings` отправляется только после ответа на предыдущий и несёт последний снимок; статус «Сохранено» выводит только последний обработчик.
+  - **SY-02 (`web/templates/search_first.html`):** текущие размеры хранятся в памяти страницы (`userSizesState`), `localStorage` — необязательный кеш с меткой пользователя (`uid`). Профиль, быстрый фильтр и подсветка читают `userSizesState`; значения с сервера (включая очистку) и новые изменения работают при отказе `localStorage.setItem`; кеш другого аккаунта и прежнего аккаунта после выхода не показывается; вход через Telegram WebApp сбрасывает `userSizesState`.
+  - **Тест:** `tests/frontend/test_frontend_user_sizes_sync.cjs` — 5 сценариев на реальных функциях шаблона в `node:vm` с управляемым порядком сети и отказом `localStorage`.
+  - **Версионность:** `version.py` (`6.46.1`), `CHANGELOG.md` (с разделом `### Для пользователей`), `ROADMAP_AND_LOG.md`.
+- **Проверки:**
+  - **Локально:**
+    - `tests.domain.test_sizes`, `tests.core.test_release_notes`, `tests.core.test_config_and_ids` — **34 OK** (`0.740 с`).
+    - `release_gate.py secrets` — **`ok: true`, `findings: []`**.
+    - Deno + Playwright / `node:vm`: `test_frontend_user_sizes_sync.cjs` (**5/5 PASS**), `test_frontend_user_sizes.cjs` (**PASS**), `test_frontend_search_first.cjs` (**PASS**).
+  - **Стенд (`kzph-stand`, порт `35539`):**
+    - Образ `sha256:8cd1fe46f77cf234f931e70cdc46e6f5782db40882a3380e480c237960d77807`, `Status=running`, `Health=healthy`, `Restarts=0`, `StartedAt=2026-11-22T10:58:43.017597705Z`.
+    - `/api/version` = `6.46.1`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`).
+    - `5/5` SHA256 (`web/templates/search_first.html`, `tests/frontend/test_frontend_user_sizes_sync.cjs`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`) совпали локально, в checkout стенда (`34372fd63b`) и внутри контейнера `kzph-stand`.
+    - Чистый контейнер (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`): целевые Python-тесты — **34 OK** (`1.322 с`); `pins` — **`ok: true`, `checked: 25`**.
+- **Сырые доказательства (`docs/audit_evidence/2026-11-22-v6461-antigravity-stand/`):** `local_tests_and_secrets.txt`, `secrets.txt`, `local_sha256.txt`, `sha_image_health_pins.txt`, `clean_container_targeted.txt`.
+- **Непроведённые проверки:** полный Linux-набор (3 371+ тестов) и все 47 браузерных наборов на `34372fd` целиком не прогонялись (только целевые Python-тесты и 3 затронутых фронтенд-теста).
+- **Следующий точный шаг:** **Codex** — повторная приёмка `v6.46.1` (`34372fd`) на стенде (проверка закрытия `SY-01`/`SY-02`). После приёмки и решения владельца — выпуск через **Claude**.
+
+## PROD_READONLY_CHECKED v6.45.1 — свежие version/health подтверждены;6460 ещё без исправлений — Codex (22.11.2026 15:51, Asia/Almaty)
+
+- Прямые GETproduction: version6451/healthok/dbok/queue0/deadletters0/redisworkertrue. [Отчёт](POST_RELEASE_2026-11-22_V6451_CODEX.md), evidence `2026-11-22-v6451-codex-production/public-health.json`. DIAG_TOKEN в окружении нет, adminдиагностика/БД не читались.
+- Авторские Watchtower/inspect/read-onlyлоги прочитаны. Notices один раз10:40:30Z в коротком окне до10:46:31Z; не объявлять недельную паузу доказанной.21694ID/38магазинов/0расхождений — выборка страниц, не полный каталог. В исходном файле iSpace ещё без итога; Mechta403/Evrikaempty, Moon/Fortepartial.
+- **Следующий шаг:** исполнитель с доступом прикладывает итогproductioniSpace/HTTP и продлённыйNotices-журнал, затем плановую размерную волнуKari/Intertop. Для6460 по-прежнему нужныSY-01/SY-02: новых правок нет, повторные локальныепрогоны не выполнялись. Свежая доступность6451 подтверждена, остальное не объявляется завершённым. Прод/стенд/БД/код не менялись, push/merge нет.
+
 ## RELEASED v6.45.1 — пакет 6.43.0–6.45.1 в проде — Claude (22.11.2026, Asia/Almaty)
 
 - **Выпуск по прямому слову владельца («Выпускай»):** 10:28Z push `main` (`a65fd39..c8f09c3`, 21 коммит, включая записи о выпуске R1) и аннотированного тега `v6.45.1`. CI, сборка образа `main` и сборка образа тега — success (10:36Z).
