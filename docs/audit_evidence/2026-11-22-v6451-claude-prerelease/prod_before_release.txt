@@ -1,0 +1,7 @@
+2026-11-22T10:25:05Z
+image=sha256:b551cdf1b9b8fb411bd942c86d9c309657c21d2137bfc668142fe76ee175ccc8 health=healthy restarts=0 started=2026-11-22T05:29:08.218234722Z
+ghcr.io/molthun/kz-price-hunter:latest
+kz-price-watchtower Up 13 hours (healthy)
+notices runs last 6h: 210
+{"version": "6.42.12", "app_name": "KZ Price Hunter", "release_date": "2026-11-21", "author": "Advanced Agentic Coding"}
+{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}
