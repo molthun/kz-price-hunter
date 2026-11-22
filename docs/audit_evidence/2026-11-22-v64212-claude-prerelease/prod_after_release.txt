@@ -1,0 +1,20 @@
+# прод после выпуска, только чтение (docker inspect/logs, GET), 05:39Z
+{"version": "6.42.12", "app_name": "KZ Price Hunter", "release_date": "2026-11-21", "author": "Advanced Agentic Coding"}
+{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 1, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}
+вс 22 нояб 2026 05:39:10 UTC
+healthy restarts=0
+2026-11-22T05:29:09.371212342Z [AutoScan] 🤖 Автономный фоновый монитор запущен (интервал волны: 60 мин, лимит полного круга: 24ч)...
+2026-11-22T05:29:29.845546921Z [AutoScan] 🧩 Добор отставших источников: 106 у 14 магазинов (Forcecom, Sulpak, Moon.kz, Технодом...)
+2026-11-22T05:29:29.854444350Z [Scan] Старт обхода 14 магазинов [добор: 106 источников]: Forcecom, Sulpak, Moon.kz, Технодом, Alser, Kaspi Магазин, Halyk Market, ANTS, ITMag, Комфорт, MasterOK, Интертоп, Детский мир, Пла
+2026-11-22T05:30:51.132902852Z [Технодом] complete: 995 товаров за 74с
+2026-11-22T05:30:53.152234987Z [Alser] complete: 5 товаров за 1с
+2026-11-22T05:31:12.956791079Z [Moon.kz] partial: 1588 товаров за 101с
+2026-11-22T05:31:51.615083141Z [Halyk Market] partial: 1200 товаров за 31с
+2026-11-22T05:32:29.151920565Z [Sulpak] limited: 2255 товаров за 176с
+2026-11-22T05:34:47.308487215Z [ANTS] complete: 2045 товаров за 175с
+2026-11-22T05:37:27.809710322Z [Kaspi Магазин] limited: 7030 товаров за 389с
+2026-11-22T05:37:38.355547168Z [ITMag] complete: 3594 товаров за 309с
+2026-11-22T05:38:00.601964371Z [Forcecom] limited: 3513 товаров за 510с
+
+[exited with code 0]
+image=sha256:b551cdf1b9b8fb411bd942c86d9c309657c21d2137bfc668142fe76ee175ccc8 StartedAt=2026-11-22T05:29:08.218234722Z
