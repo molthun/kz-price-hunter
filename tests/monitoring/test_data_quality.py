@@ -312,6 +312,36 @@ class DuplicatesTest(PipelineCase):
         self.assertEqual(dq.measure(rows)["duplicates"], 0)
         self.assertEqual(len(dq.dedupe(rows)), 2)
 
+    def test_stable_complete_degraded_streak_rebases_stale_active_offers_baseline(self):
+        # 100 активных товаров после 1 прогона (accepted=1 < MIN_HISTORY=3 => active_offers=100)
+        self.scan(self.result(100))
+        self.assertEqual(database.get_source_baseline("syn", self.URL, "complete")["basis"], "active_offers")
+        # Реальный каталог сократился до 35 (< 50% от 100): 5 подряд чистых полных обходов -> degraded
+        for _ in range(dq.STABLE_SHIFT_WINDOW):
+            self.scan(self.result(35))
+        self.assertEqual(self.history()[-1][0], "degraded")
+        # После 5 стабильных чистых complete-прогонов норма переобучается на медиану 35 (rebased)
+        rebased = database.get_source_baseline("syn", self.URL, "complete")
+        self.assertEqual(rebased["basis"], "rebased")
+        self.assertEqual(rebased["valid"], 35.0)
+        # 6-й прогон выходит из вечного degraded, снимает старые 65 предложений и обучает историю
+        self.scan(self.result(35))
+        self.assertEqual(self.history()[-1], ("ok", 35, 1))
+        self.assertEqual(self.active(), 35)
+
+    def test_high_rejection_or_unstable_degraded_streak_never_rebases(self):
+        high_reject = [
+            {"quality": "degraded", "received": 100, "valid": 40, "rejected": 60, "duplicates": 0, "with_image": 40}
+            for _ in range(dq.STABLE_SHIFT_WINDOW)
+        ]
+        self.assertIsNone(dq.rebased_baseline_from_recent(high_reject))
+
+        unstable = [
+            {"quality": "degraded", "received": v, "valid": v, "rejected": 0, "duplicates": 0, "with_image": v}
+            for v in (40, 40, 40, 40, 20)  # min/max = 0.5 < 0.70
+        ]
+        self.assertIsNone(dq.rebased_baseline_from_recent(unstable))
+
 
 class StaleBenchmarkTest(DbCase):
     """C02: устаревшая цена конкурента не основание арбитража; алерт гаснет, когда основание устарело."""

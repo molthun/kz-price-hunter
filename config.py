@@ -1529,13 +1529,13 @@ MAGNUM_CATEGORIES = [
 
 # Kari (kz.kari.com): обувь, одежда, аксессуары и детские товары; разделы второго уровня, каждый меньше предела выдачи в 10 000 товаров.
 KARI_CATEGORIES = [
-    {"name": "Kari: 👠 Женская обувь", "url": "https://kz.kari.com/catalog/zhenschinam/zhenskaya-obuv/", "master": "clothes", "max_pages": 135},
+    {"name": "Kari: 👠 Женская обувь", "url": "https://kz.kari.com/catalog/zhenschinam/zhenskaya-obuv/", "master": "clothes", "max_pages": 167},
     {"name": "Kari: 👗 Женская одежда", "url": "https://kz.kari.com/catalog/zhenschinam/zhenskaya-odezhda/", "master": "clothes", "max_pages": 30},
     {"name": "Kari: 👜 Сумки и рюкзаки", "url": "https://kz.kari.com/catalog/zhenschinam/sumki-i-ryukzaki/", "master": "clothes", "max_pages": 60},
     {"name": "Kari: 🧣 Женские аксессуары", "url": "https://kz.kari.com/catalog/zhenschinam/aksessuaryi/", "master": "clothes", "max_pages": 40},
     {"name": "Kari: 💍 Ювелирные украшения", "url": "https://kz.kari.com/catalog/zhenschinam/yuvelirnyie-ukrasheniya/", "master": "clothes", "max_pages": 60},
     {"name": "Kari: 💄 Красота и здоровье", "url": "https://kz.kari.com/catalog/zhenschinam/krasota-i-zdorove/", "master": "beauty_health", "max_pages": 30},
-    {"name": "Kari: 👞 Мужская обувь", "url": "https://kz.kari.com/catalog/muzhchinam/muzhskaya-obuv/", "master": "clothes", "max_pages": 60},
+    {"name": "Kari: 👞 Мужская обувь", "url": "https://kz.kari.com/catalog/muzhchinam/muzhskaya-obuv/", "master": "clothes", "max_pages": 80},
     {"name": "Kari: 👕 Мужская одежда", "url": "https://kz.kari.com/catalog/muzhchinam/muzhskaya-odezhda/", "master": "clothes", "max_pages": 15},
     {"name": "Kari: 🧢 Мужские аксессуары", "url": "https://kz.kari.com/catalog/muzhchinam/aksessuaryi/", "master": "clothes", "max_pages": 20},
     {"name": "Kari: 👧 Обувь для девочек", "url": "https://kz.kari.com/catalog/detyam/obuv-dlya-devochek/", "master": "clothes", "max_pages": 40},

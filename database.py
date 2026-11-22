@@ -308,10 +308,26 @@ def reconcile_source(shop_key, source_url, products, complete=False):
 
 
 def get_source_baseline(shop_key: str, source_url: str, kind: str) -> Optional[Dict[str, Any]]:
-    """Норма источника (P02): медиана принятых результатов того же вида; при нехватке истории — число
-    активных предложений источника (если их достаточно); иначе None."""
-    from data_quality import BASELINE_WINDOW, MIN_BASELINE_ITEMS, baseline_from_history
+    """Норма источника (P02): медиана принятых результатов того же вида; при серии стабильных
+    чистых complete-прогонов, застрявших в degraded из-за устаревшей нормы, — переобучение
+    (basis='rebased'); при нехватке истории — число активных предложений источника; иначе None."""
+    from data_quality import (
+        BASELINE_WINDOW,
+        MIN_BASELINE_ITEMS,
+        STABLE_SHIFT_WINDOW,
+        baseline_from_history,
+        rebased_baseline_from_recent,
+    )
     with get_connection() as conn:
+        if kind == "complete":
+            recent = conn.execute("""SELECT quality, received, valid, rejected, duplicates, with_image
+                FROM source_scans
+                WHERE shop_key=? AND source_url=? AND kind=?
+                ORDER BY finished_at DESC, id DESC LIMIT ?""",
+                (shop_key, source_url, kind, STABLE_SHIFT_WINDOW)).fetchall()
+            rebased = rebased_baseline_from_recent([dict(r) for r in recent])
+            if rebased:
+                return rebased
         rows = conn.execute("""SELECT valid, with_image FROM source_scans
             WHERE shop_key=? AND source_url=? AND kind=? AND accepted=1
             ORDER BY finished_at DESC, id DESC LIMIT ?""", (shop_key, source_url, kind, BASELINE_WINDOW)).fetchall()

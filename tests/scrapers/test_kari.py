@@ -79,6 +79,9 @@ class KariScraperTest(unittest.TestCase):
         for category in categories:
             self.assertIn(category["master"], config.MASTER_CATEGORIES)
             self.assertLessEqual(category["max_pages"], 167)  # предел выдачи сайта: 10 000 товаров
+        by_url = {c["url"]: c["max_pages"] for c in categories}
+        self.assertEqual(by_url["https://kz.kari.com/catalog/zhenschinam/zhenskaya-obuv/"], 167)
+        self.assertEqual(by_url["https://kz.kari.com/catalog/muzhchinam/muzhskaya-obuv/"], 80)
 
     def test_every_section_has_a_catalog_category(self):
         from config import KARI_CATEGORIES

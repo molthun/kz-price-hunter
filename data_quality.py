@@ -106,6 +106,42 @@ def baseline_from_history(history: List[Dict[str, Any]]) -> Optional[Dict[str, f
             "basis": "history", "samples": len(accepted)}
 
 
+STABLE_SHIFT_WINDOW = 5
+STABLE_SHIFT_MIN_RATIO = 0.70
+
+
+def rebased_baseline_from_recent(recent_scans: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Адаптация застрявшей нормы: если последние STABLE_SHIFT_WINDOW полных обходов подряд
+    получили degraded без высокого брака и со стабильным объёмом (min/max >= 0.70), значит
+    размер каталога реально изменился или active_offers раздулся без retire."""
+    window = list(recent_scans[:STABLE_SHIFT_WINDOW])
+    if len(window) < STABLE_SHIFT_WINDOW:
+        return None
+    valids: List[int] = []
+    image_shares: List[float] = []
+    for row in window:
+        if row.get("quality") != DEGRADED:
+            return None
+        received = int(row.get("received") or 0)
+        valid = int(row.get("valid") or 0)
+        rejected = int(row.get("rejected") or 0) + int(row.get("duplicates") or 0)
+        if valid < MIN_BASELINE_ITEMS:
+            return None
+        if received >= MIN_RECEIVED_FOR_SHARE and rejected / received > REJECTED_DEGRADED_SHARE:
+            return None
+        valids.append(valid)
+        if valid > 0 and row.get("with_image") is not None:
+            image_shares.append(int(row["with_image"]) / valid)
+    if max(valids) <= 0 or (min(valids) / max(valids)) < STABLE_SHIFT_MIN_RATIO:
+        return None
+    return {
+        "valid": float(statistics.median(valids)),
+        "image_share": float(statistics.median(image_shares)) if image_shares else None,
+        "basis": "rebased",
+        "samples": len(window),
+    }
+
+
 def assess(metrics: Dict[str, int], *, complete: bool, error: Optional[str],
            baseline: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """Оценка результата категории.
