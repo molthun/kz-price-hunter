@@ -9,6 +9,7 @@
 """
 import json
 import re
+import threading
 import time
 import contextvars
 from concurrent.futures import ThreadPoolExecutor
@@ -27,8 +28,9 @@ NO_PRODUCT_DATA = "no-product-data"
 class ISpaceScraper(PagedScraper):
     SHOP_NAME = "iSpace"
     SHOP_EMOJI = "🍏"
-    PAGE_DELAY_SECONDS = 0.3
-    PRODUCT_WORKERS = 4
+    PAGE_DELAY_SECONDS = 0.5
+    CARD_DELAY_SECONDS = 0.8
+    PRODUCT_WORKERS = 2
 
     def _get(self, url: str) -> requests.Response:
         return requests.get(url, impersonate="chrome124", timeout=45, headers={"Accept-Language": "ru-RU,ru;q=0.9"})
@@ -124,12 +126,39 @@ class ISpaceScraper(PagedScraper):
                 listing_complete = True
                 break
 
+        stop_event = threading.Event()
+        rate_limited = threading.Event()
+        pace_lock = threading.Lock()
+        next_slot = [0.0]
+
         def fetch(link):
+            if stop_event.is_set():
+                return "aborted"
+            if self.CARD_DELAY_SECONDS > 0:
+                with pace_lock:
+                    now = time.monotonic()
+                    wait = next_slot[0] - now
+                    if wait > 0:
+                        next_slot[0] = next_slot[0] + self.CARD_DELAY_SECONDS
+                    else:
+                        next_slot[0] = now + self.CARD_DELAY_SECONDS
+                if wait > 0 and stop_event.wait(wait):
+                    return "aborted"
+            if stop_event.is_set():
+                return "aborted"
             try:
                 resp = self._get(link)
+                if resp.status_code == 429:
+                    rate_limited.set()
+                    stop_event.set()
+                    return "rate_limit"
                 if resp.status_code != 200:
                     return "error"
                 return self.parse_product(resp.text, link, category_name)
+            except requests.HostCooldown:
+                rate_limited.set()
+                stop_event.set()
+                return "rate_limit"
             except Exception:
                 return "error"
 
@@ -140,7 +169,9 @@ class ISpaceScraper(PagedScraper):
             results = list(pool.map(lambda task: task[0].run(fetch, task[1]), tasks))
 
         products = [p for p in results if isinstance(p, dict)]
-        failed = sum(1 for p in results if p in ("error", NO_PRODUCT_DATA))
+        failed = sum(1 for p in results if p in ("error", NO_PRODUCT_DATA, "rate_limit", "aborted"))
+        if rate_limited.is_set():
+            return ScanResult(products, error=f"HTTP 429: прерван обход карточек ({failed} из {len(links)})")
         if failed:
             return ScanResult(products, error=f"Не открылись карточки: {failed} из {len(links)}")
         if not links:
