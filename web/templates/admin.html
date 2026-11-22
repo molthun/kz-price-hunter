@@ -382,11 +382,14 @@
             <div id="shopChannelsList" style="display:flex;flex-direction:column;gap:8px"></div>
           </div>
           <details class="wide vision-upload-panel" id="shopVisionSection" hidden>
-            <summary>Загрузить прайс / скриншот (Vision ИИ)</summary>
-            <p class="user-meta" style="margin:6px 0 0">Подходит для магазинов из Instagram и WhatsApp: загрузите фото или скриншот прайс-листа, проверьте распознанные цены и опубликуйте в каталог.</p>
+            <summary>Загрузить прайс: скриншот или текст (Instagram / WhatsApp)</summary>
+            <p class="user-meta" style="margin:6px 0 0">Подходит для магазинов из Instagram и WhatsApp: загрузите фото прайса и/или вставьте текст описания поста и комментариев с ценами, проверьте предпросмотр и опубликуйте в каталог.</p>
             <div class="vision-upload-grid">
-              <label class="wide">Изображение прайса (JPEG, PNG, WEBP, до 10 МБ)
+              <label class="wide">Изображение прайса (JPEG, PNG, WEBP, до 10 МБ — необязательно, если есть текст)
                 <input type="file" id="shopVisionFile" accept="image/jpeg,image/png,image/webp">
+              </label>
+              <label class="wide">Описание поста и/или комментарии с ценами (необязательно)
+                <textarea id="shopVisionText" rows="3" maxlength="12000" placeholder="Например: iPhone 15 Pro 256GB — 485 000 ₸&#10;Samsung Galaxy A55 256GB — 175 000 тг"></textarea>
               </label>
               <label>Канал публикации
                 <select id="shopVisionChannel"></select>
@@ -411,6 +414,7 @@
                       <th>Товар</th>
                       <th>Цена (₸)</th>
                       <th>Старая</th>
+                      <th>Источник</th>
                       <th>Уверенность</th>
                     </tr>
                   </thead>
@@ -980,6 +984,8 @@
       section.open = false;
       const fileInput = document.getElementById('shopVisionFile');
       if (fileInput) fileInput.value = '';
+      const textInput = document.getElementById('shopVisionText');
+      if (textInput) textInput.value = '';
       const cityInput = document.getElementById('shopVisionCity');
       if (cityInput) cityInput.value = (shop && shop.city) ? shop.city : 'Алматы';
       const urlInput = document.getElementById('shopVisionUrl');
@@ -1045,10 +1051,13 @@
         const tdOld = document.createElement('td');
         tdOld.textContent = item.old_price != null ? Number(item.old_price).toLocaleString('ru-RU') + ' ₸' : '—';
 
+        const tdSrc = document.createElement('td');
+        tdSrc.textContent = item.source_label || (item.source === 'text' ? 'Текст' : 'Фото');
+
         const tdConf = document.createElement('td');
         tdConf.textContent = item.confidence != null ? Math.round(Number(item.confidence) * 100) + '%' : '—';
 
-        tr.append(tdCheck, tdTitle, tdPrice, tdOld, tdConf);
+        tr.append(tdCheck, tdTitle, tdPrice, tdOld, tdSrc, tdConf);
         rows.append(tr);
       });
 
@@ -1073,22 +1082,25 @@
     document.getElementById('shopVisionExtractBtn').addEventListener('click', async () => {
       if (!shopEditId) return;
       const fileInput = document.getElementById('shopVisionFile');
+      const textInput = document.getElementById('shopVisionText');
       const stateEl = document.getElementById('shopVisionState');
       const btn = document.getElementById('shopVisionExtractBtn');
       const file = fileInput && fileInput.files ? fileInput.files[0] : null;
-      if (!file) {
+      const captionText = textInput ? textInput.value.trim() : '';
+      if (!file && !captionText) {
         stateEl.className = 'state error';
-        stateEl.textContent = 'Выберите изображение прайс-листа (JPEG, PNG или WEBP).';
+        stateEl.textContent = 'Выберите изображение прайс-листа или вставьте текст описания/комментариев.';
         return;
       }
       const fd = new FormData();
-      fd.append('image', file);
+      if (file) fd.append('image', file);
+      if (captionText) fd.append('caption_text', captionText);
       const cityVal = (document.getElementById('shopVisionCity').value || '').trim();
       if (cityVal) fd.append('city', cityVal);
 
       btn.disabled = true;
       stateEl.className = 'state';
-      stateEl.textContent = 'Распознавание прайса через Vision ИИ…';
+      stateEl.textContent = file ? 'Распознавание прайса через Vision ИИ…' : 'Разбор текста описания и комментариев…';
       try {
         const res = await fetch('/api/admin/sellers/' + encodeURIComponent(shopEditId) + '/vision-extract', {
           method: 'POST',

@@ -23,20 +23,26 @@ import uuid
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlparse
 
-from domain.models import Channel, ChannelType, Seller, utc_now_iso
+from domain.models import Channel, ChannelType, Condition, Seller, utc_now_iso
 from domain.seller_identity import normalize_phone
-from domain.social_content import ContentObservation, ContentType
+from domain.social_content import (
+    ContentObservation,
+    ContentType,
+    SocialContentExtractor,
+)
 from domain.social_pipeline import SocialOfferPipeline
 from domain.vision_extraction import (
     MIN_VISION_PUBLISH_CONFIDENCE,
     VisionCandidate,
     VisionExtractionEngine,
 )
+from model_matching import extract_canonical_key
 from repositories.channel_repo import ChannelRepository
 from repositories.seller_repo import SellerRepository
 
 MAX_VISION_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 МБ
 MIN_VISION_UPLOAD_BYTES = 16
+MAX_CAPTION_TEXT_CHARS = 12000
 MAX_PUBLISH_ITEMS = 200
 DEFAULT_EXPIRES_DAYS = 7
 MAX_EXPIRES_DAYS = 90
@@ -103,8 +109,10 @@ def _rejection_label(reason: Optional[str]) -> str:
     return reason
 
 
-def _serialize_candidate(cand: VisionCandidate) -> Dict[str, Any]:
+def _serialize_candidate(cand: VisionCandidate, *, source: str = "image") -> Dict[str, Any]:
     data = cand.to_dict()
+    data["source"] = source
+    data["source_label"] = "Текст" if source == "text" else "Фото"
     data["rejection_label"] = None if cand.publishable else _rejection_label(cand.rejection_reason)
     return data
 
@@ -203,6 +211,144 @@ def resolve_seller_upload_channel(
     return seller, selected, order_url
 
 
+def _candidate_dedup_key(item: Dict[str, Any]) -> Tuple[str, Optional[float]]:
+    title = str(item.get("raw_title") or "").strip()
+    canon = item.get("canonical_key") or extract_canonical_key(title) or title.lower()
+    price = item.get("price")
+    price_key = round(float(price), 2) if price is not None else None
+    return (str(canon).lower(), price_key)
+
+
+def _extract_text_candidates(
+    caption_text: str,
+    *,
+    default_city: str,
+    min_confidence: float,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Извлекает позиции из текста описания поста и/или комментариев продавца."""
+    clean_text = str(caption_text or "").strip()[:MAX_CAPTION_TEXT_CHARS]
+    if not clean_text:
+        return [], []
+
+    publishable: List[Dict[str, Any]] = []
+    rejected: List[Dict[str, Any]] = []
+    seen_pub: set = set()
+
+    # 1. Детерминированный разбор соцсетевого текста (маскирует телефоны и память, определяет condition и city)
+    obs = ContentObservation(
+        content_type=ContentType.POST,
+        text=clean_text,
+    )
+    for oc in SocialContentExtractor.extract_candidates(obs):
+        cand = VisionCandidate(
+            raw_title=oc.raw_title,
+            price=float(oc.price),
+            old_price=float(oc.old_price) if oc.old_price and oc.old_price > oc.price else None,
+            currency=getattr(oc, "currency", None) or "KZT",
+            condition=oc.condition or Condition.NEW,
+            city=oc.city if oc.city and oc.city != "Казахстан" else default_city,
+            confidence=0.92,
+            price_determined=True,
+            publishable=True,
+            is_discount=bool(oc.old_price and oc.old_price > oc.price),
+            is_unit_price=bool(getattr(oc, "is_unit_price", False)),
+            quantity=getattr(oc, "quantity", None),
+            unit=getattr(oc, "unit", None),
+            size_or_volume=getattr(oc, "size_or_volume", None),
+            canonical_key=extract_canonical_key(oc.raw_title),
+            raw_snippet=oc.raw_title[:200],
+        )
+        validated = VisionExtractionEngine.validate_candidate(cand, min_confidence=min_confidence)
+        ser = _serialize_candidate(validated, source="text")
+        if validated.publishable:
+            key = _candidate_dedup_key(ser)
+            if key not in seen_pub:
+                seen_pub.add(key)
+                publishable.append(ser)
+        else:
+            rejected.append(ser)
+
+    # 2. OCR/текстовый разбор VisionExtractionEngine (дополнительно ловит зачёркнутые цены и отклонённые валюты RUB/USD)
+    for vc in VisionExtractionEngine.extract_from_ocr_text(
+        clean_text,
+        default_city=default_city,
+        min_confidence=min_confidence,
+    ):
+        ser = _serialize_candidate(vc, source="text")
+        if vc.publishable:
+            key = _candidate_dedup_key(ser)
+            if key not in seen_pub:
+                seen_pub.add(key)
+                publishable.append(ser)
+        else:
+            rejected.append(ser)
+
+    return publishable, rejected
+
+
+async def extract_seller_price_payload(
+    image_bytes: Optional[bytes] = None,
+    caption_text: str = "",
+    *,
+    default_city: str = "Алматы",
+    min_confidence: float = MIN_VISION_PUBLISH_CONFIDENCE,
+    config: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Распознаёт позиции прайс-листа из изображения и/или текста описания/комментариев без записи в БД."""
+    has_image = bool(image_bytes)
+    clean_text = str(caption_text or "").strip()[:MAX_CAPTION_TEXT_CHARS]
+    if not has_image and not clean_text:
+        raise VisionUploadError("Загрузите изображение прайса или вставьте текст описания/комментариев.")
+
+    city = str(default_city or "Алматы").strip()[:80] or "Алматы"
+    mime: Optional[str] = None
+    publishable: List[Dict[str, Any]] = []
+    rejected: List[Dict[str, Any]] = []
+    seen_pub: set = set()
+
+    if has_image:
+        mime = validate_image_payload(image_bytes or b"")
+        img_candidates = await VisionExtractionEngine.extract_from_image(
+            bytes(image_bytes or b""),
+            mime_type=mime,
+            default_city=city,
+            min_confidence=min_confidence,
+            config=config,
+        )
+        for cand in img_candidates:
+            ser = _serialize_candidate(cand, source="image")
+            if cand.publishable:
+                key = _candidate_dedup_key(ser)
+                if key not in seen_pub:
+                    seen_pub.add(key)
+                    publishable.append(ser)
+            else:
+                rejected.append(ser)
+
+    if clean_text:
+        txt_pub, txt_rej = _extract_text_candidates(
+            clean_text,
+            default_city=city,
+            min_confidence=min_confidence,
+        )
+        for item in txt_pub:
+            key = _candidate_dedup_key(item)
+            if key not in seen_pub:
+                seen_pub.add(key)
+                publishable.append(item)
+        rejected.extend(txt_rej)
+
+    return {
+        "mime_type": mime,
+        "has_image": has_image,
+        "has_text": bool(clean_text),
+        "city": city,
+        "publishable": publishable,
+        "rejected": rejected,
+        "total": len(publishable) + len(rejected),
+    }
+
+
 async def extract_seller_price_image(
     image_bytes: bytes,
     *,
@@ -210,25 +356,15 @@ async def extract_seller_price_image(
     min_confidence: float = MIN_VISION_PUBLISH_CONFIDENCE,
     config: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Распознаёт позиции прайс-листа на изображении без записи в БД."""
-    mime = validate_image_payload(image_bytes)
-    city = str(default_city or "Алматы").strip()[:80] or "Алматы"
-    candidates = await VisionExtractionEngine.extract_from_image(
-        bytes(image_bytes),
-        mime_type=mime,
-        default_city=city,
+    """Распознаёт позиции прайс-листа на изображении без записи в БД (обёртка совместимости)."""
+    validate_image_payload(image_bytes)
+    return await extract_seller_price_payload(
+        image_bytes=image_bytes,
+        caption_text="",
+        default_city=default_city,
         min_confidence=min_confidence,
         config=config,
     )
-    publishable = [_serialize_candidate(c) for c in candidates if c.publishable]
-    rejected = [_serialize_candidate(c) for c in candidates if not c.publishable]
-    return {
-        "mime_type": mime,
-        "city": city,
-        "publishable": publishable,
-        "rejected": rejected,
-        "total": len(candidates),
-    }
 
 
 def publish_seller_vision_items(
@@ -266,10 +402,16 @@ def publish_seller_vision_items(
 
     # Серверная повторная валидация: клиент не может обойти порог уверенности, валюту или проверку цены
     normalized_input: List[Dict[str, Any]] = []
+    conditions_by_idx: List[str] = []
+    allowed_conditions = {Condition.NEW, Condition.USED, Condition.REFURBISHED, Condition.OPEN_BOX}
     for item in raw_items:
         if not isinstance(item, dict):
             continue
         title = str(item.get("raw_title") or item.get("title") or "").strip()
+        cond = str(item.get("condition") or Condition.NEW)
+        if cond not in allowed_conditions:
+            cond = Condition.NEW
+        conditions_by_idx.append(cond)
         normalized_input.append({
             "title": title,
             "price": item.get("price"),
@@ -296,7 +438,9 @@ def publish_seller_vision_items(
 
     offer_candidates = []
     rejected_count = 0
-    for vc in validated:
+    for idx, vc in enumerate(validated):
+        if idx < len(conditions_by_idx):
+            vc.condition = conditions_by_idx[idx]
         oc = vc.to_offer_candidate(expires_at=expires_at)
         if oc is not None:
             offer_candidates.append(oc)

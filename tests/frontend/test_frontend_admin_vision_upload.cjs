@@ -146,6 +146,27 @@ async function runTest() {
     // Проверяем, что в списке магазинов обновился счётчик предложений
     const updatedRowText = await row.innerText();
     assert.match(updatedRowText, /предложений: 1/);
+
+    // 4. Сквозной сценарий только по тексту описания/комментариев (БЕЗ мока /vision-extract!)
+    await page.unroute('**/api/admin/sellers/*/vision-extract');
+    await row.getByRole('button', {name: 'Изменить'}).click();
+    await page.waitForFunction(() => document.getElementById('shopDialog').open);
+    await page.locator('#shopVisionSection summary').click();
+    await page.fill('#shopVisionText', 'Apple iPhone 15 128GB — 395 000 ₸');
+    await page.click('#shopVisionExtractBtn');
+    await page.waitForSelector('#shopVisionPreview', {state: 'visible'});
+    const txtRows = await page.locator('#shopVisionRows').innerText();
+    assert.match(txtRows, /iPhone 15 128GB/i);
+    assert.match(txtRows, /Текст/);
+    await page.click('#shopVisionPublishBtn');
+    await page.waitForFunction(() => {
+      const txt = (document.getElementById('shopVisionState') || {}).textContent || '';
+      return /Опубликовано предложений: 1/.test(txt);
+    });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.getElementById('shopDialog').open);
+    assert.match(await row.innerText(), /предложений: 2/);
+
     assert.deepEqual(errors, [], 'Unexpected page errors: ' + errors.join('; '));
 
     console.log('test_frontend_admin_vision_upload PASS');

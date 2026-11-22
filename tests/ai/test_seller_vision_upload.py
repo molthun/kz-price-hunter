@@ -16,6 +16,7 @@ from domain.seller_vision_upload import (
     VisionUploadError,
     detect_image_mime,
     extract_seller_price_image,
+    extract_seller_price_payload,
     publish_seller_vision_items,
     validate_image_payload,
 )
@@ -180,6 +181,60 @@ class SellerVisionUploadDomainTest(unittest.TestCase):
                 channel_id=ch2.id,
             )
 
+    def test_extract_caption_and_comments_text_only_and_combined_with_image(self):
+        # 1. Только текст описания поста и комментариев (без картинки)
+        caption = (
+            "Заказ в WhatsApp +7 777 555 44 33\n"
+            "Apple iPhone 15 Pro 256GB б/у в идеале — 485 000 ₸\n"
+            "Samsung Galaxy A55 256GB — 175 000 тг"
+        )
+        res_txt = asyncio.run(extract_seller_price_payload(caption_text=caption, default_city="Астана"))
+        self.assertFalse(res_txt["has_image"])
+        self.assertTrue(res_txt["has_text"])
+        self.assertEqual(len(res_txt["publishable"]), 2)
+        self.assertTrue(all(item["source"] == "text" for item in res_txt["publishable"]))
+        iphone = next(i for i in res_txt["publishable"] if "iphone 15 pro" in i["raw_title"].lower())
+        self.assertEqual(iphone["price"], 485000.0)
+        self.assertEqual(iphone["condition"], "USED")
+
+        # Публикация сохраняет condition=USED
+        seller = self._create_mobilnik()
+        pub = publish_seller_vision_items(self.conn, seller["id"], [iphone])
+        self.assertEqual(pub["published_count"], 1)
+        cond_db = self.conn.execute(
+            "SELECT condition FROM offers WHERE id = ?",
+            (pub["offers"][0]["id"],),
+        ).fetchone()[0]
+        self.assertEqual(cond_db, "USED")
+
+        # 2. Фото + текст комментариев одновременно (с дедупликацией одинакового товара)
+        mock_routed = {
+            "result": {
+                "items": [
+                    {
+                        "title": "Samsung Galaxy A55 256GB",
+                        "price": 175000,
+                        "currency": "KZT",
+                        "is_price_occluded": False,
+                        "confidence": 0.95,
+                    }
+                ]
+            }
+        }
+        with patch("ai_router.run", new=AsyncMock(return_value=mock_routed)):
+            res_both = asyncio.run(
+                extract_seller_price_payload(
+                    image_bytes=FAKE_PNG,
+                    caption_text="Samsung Galaxy A55 256GB — 175 000 тг\nXiaomi 14 256GB — 310 000 ₸",
+                    default_city="Астана",
+                )
+            )
+        self.assertTrue(res_both["has_image"])
+        self.assertTrue(res_both["has_text"])
+        self.assertEqual(len(res_both["publishable"]), 2)
+        sources = {item["source"] for item in res_both["publishable"]}
+        self.assertEqual(sources, {"image", "text"})
+
 
 class SellerVisionUploadHttpTest(unittest.TestCase):
     def test_admin_http_endpoints_and_auth(self):
@@ -253,6 +308,17 @@ class SellerVisionUploadHttpTest(unittest.TestCase):
                         self.assertTrue(ext_data["ok"])
                         self.assertEqual(len(ext_data["publishable"]), 1)
 
+                        # Text-only extract (caption / comments without image) -> 200
+                        r_txt = await client.post(
+                            f"/api/admin/sellers/{seller_id}/vision-extract",
+                            json={"caption_text": "Apple iPhone 15 128GB — 395 000 ₸", "city": "Астана"},
+                        )
+                        self.assertEqual(r_txt.status, 200)
+                        txt_data = await r_txt.json()
+                        self.assertTrue(txt_data["ok"])
+                        self.assertEqual(len(txt_data["publishable"]), 1)
+                        self.assertEqual(txt_data["publishable"][0]["source"], "text")
+
                         # Публикация -> 200
                         r_pub = await client.post(
                             f"/api/admin/sellers/{seller_id}/vision-publish",
@@ -271,6 +337,7 @@ class SellerVisionUploadHttpTest(unittest.TestCase):
         for token in (
             'id="shopVisionSection"',
             'id="shopVisionFile"',
+            'id="shopVisionText"',
             'id="shopVisionChannel"',
             'id="shopVisionExtractBtn"',
             'id="shopVisionPublishBtn"',

@@ -2625,13 +2625,14 @@ async def admin_seller_channel_fetch_now_handler(request):
 @routes.post("/api/admin/sellers/{seller_id}/vision-extract")
 @require_admin
 async def admin_seller_vision_extract_handler(request):
-    """Распознаёт прайс-лист/скриншот продавца через Vision ИИ (предпросмотр, без записи в БД)."""
+    """Распознаёт прайс-лист/скриншот и/или текст описания/комментариев продавца (предпросмотр, без записи в БД)."""
     import base64 as _b64
     from domain.seller_admin import seller_details
     from domain.seller_vision_upload import (
+        MAX_CAPTION_TEXT_CHARS,
         MAX_VISION_UPLOAD_BYTES,
         VisionUploadError,
-        extract_seller_price_image,
+        extract_seller_price_payload,
     )
 
     seller_id = request.match_info["seller_id"]
@@ -2640,6 +2641,7 @@ async def admin_seller_vision_extract_handler(request):
         return web.json_response({"ok": False, "error": "Магазин не найден"}, status=404)
 
     image_bytes = b""
+    caption_parts = []
     city = str(seller.get("city") or "Алматы")
     content_type = (request.content_type or "").lower()
 
@@ -2663,12 +2665,16 @@ async def admin_seller_vision_extract_handler(request):
                                 status=413,
                             )
                     image_bytes = bytes(buf)
+                elif part.name in ("caption_text", "comments_text"):
+                    txt = (await part.text()).strip()
+                    if txt:
+                        caption_parts.append(txt[:MAX_CAPTION_TEXT_CHARS])
                 elif part.name == "city":
                     raw_city = (await part.text()).strip()
                     if raw_city:
                         city = raw_city[:80]
         except Exception:
-            return web.json_response({"ok": False, "error": "Не удалось прочитать файл изображения."}, status=400)
+            return web.json_response({"ok": False, "error": "Не удалось прочитать данные прайса."}, status=400)
     else:
         try:
             body = await request.json()
@@ -2683,16 +2689,25 @@ async def admin_seller_vision_extract_handler(request):
             image_bytes = _b64.b64decode(b64_raw, validate=True) if b64_raw else b""
         except Exception:
             return web.json_response({"ok": False, "error": "Некорректные данные изображения (base64)."}, status=400)
+        for field in ("caption_text", "comments_text"):
+            txt = str(body.get(field) or "").strip()
+            if txt:
+                caption_parts.append(txt[:MAX_CAPTION_TEXT_CHARS])
         if body.get("city"):
             city = str(body.get("city")).strip()[:80] or city
 
+    caption_text = "\n".join(caption_parts)[:MAX_CAPTION_TEXT_CHARS]
     try:
-        result = await extract_seller_price_image(image_bytes, default_city=city)
+        result = await extract_seller_price_payload(
+            image_bytes=image_bytes or None,
+            caption_text=caption_text,
+            default_city=city,
+        )
     except VisionUploadError as exc:
         return web.json_response({"ok": False, "error": str(exc)}, status=400)
     except Exception as exc:
         logger.warning("vision-extract failed for %s: %s", seller_id, type(exc).__name__)
-        return web.json_response({"ok": False, "error": "Не удалось распознать изображение."}, status=500)
+        return web.json_response({"ok": False, "error": "Не удалось распознать данные прайса."}, status=500)
 
     return web.json_response({"ok": True, "seller_id": seller_id, **result})
 

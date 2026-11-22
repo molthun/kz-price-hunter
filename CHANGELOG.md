@@ -3,6 +3,17 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.43.2] - 2026-11-22
+
+### Для пользователей
+- 💬 В загрузке прайсов для магазинов из Instagram и WhatsApp теперь можно вставлять текст описания поста и комментариев с ценами — как отдельно (без скриншота), так и вместе с фото прайса. Система автоматически разбирает товары, цены, состояние («б/у», «витрина») и не путает номера телефонов или объём памяти с ценой.
+
+### Поддержка текста описания и комментариев в загрузке прайсов продавцов
+- **`domain/seller_vision_upload.py`:** добавлена функция `extract_seller_price_payload(image_bytes=None, caption_text="")`, объединяющая мультимодальный Vision-разбор изображения с детерминированным разбором текста описания и комментариев (`SocialContentExtractor` + `VisionExtractionEngine.extract_from_ocr_text`) с дедупликацией, пометкой источника (`Фото` / `Текст`) и сохранением состояния (`Condition`) при публикации.
+- **`web/server.py`:** `/api/admin/sellers/{seller_id}/vision-extract` (и `/api/v2/...`) принимает `caption_text` / `comments_text` в `multipart/form-data` и JSON, в том числе без изображения.
+- **`web/templates/admin.html`:** в `#shopVisionSection` добавлено поле `#shopVisionText` («Описание поста и/или комментарии с ценами») и колонка «Источник» в таблице предпросмотра.
+- **Тесты:** расширены `tests/ai/test_seller_vision_upload.py` и `tests/frontend/test_frontend_admin_vision_upload.cjs`.
+
 ## [6.43.1] - 2026-11-22
 
 ### Для пользователей
