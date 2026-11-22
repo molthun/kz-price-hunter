@@ -1,0 +1,10 @@
+# Живой сервер (с 22.11.2026): стенд стал единственным рабочим сервером, см. docs/SINGLE_LIVE_MIGRATION.md.
+# Подключается поверх docker-compose.stand.yml:
+#   docker compose -f docker-compose.stand.yml -f docker-compose.live.yml up -d app
+services:
+  app:
+    # Живой сервер поднимается после сбоя и перезагрузки машины
+    restart: unless-stopped
+    ports:
+      # Порт старого прода: DSM-прокси shop.molthun.ru ведёт на 192.168.28.25:35540
+      - "35540:35539"

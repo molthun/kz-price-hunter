@@ -2,7 +2,17 @@
 
 22.11.2026, Claude. Решение консилиума: [CONSILIUM_2026-11-22_SINGLE_LIVE_CLAUDE.md](CONSILIUM_2026-11-22_SINGLE_LIVE_CLAUDE.md). Скрипты: `scripts/single_live/` (`backup.py`, `migrate.py`, `analyze.py`). На машине стенда они лежат в `~/kzph-migration/`.
 
-## Подготовка выполнена (живые среды не менялись)
+## Переключение выполнено 22.11.2026 17:39–17:42Z (по слову владельца «Switch now»)
+
+- Watchtower и старый прод остановлены, автозапуск у обоих выключен (`restart=no`). Контейнер `kz-price-hunter` и `~/kzph-prod/data` сохранены для отката до 06.12.2026.
+- Финальные копии: `~/kzph-migration/prod_final_20261122T1739Z.db`, `stand_final_20261122T1739Z.db`, обе с `quick_check=ok`. Прежний `.env` стенда сохранён в `stand.env.before-switch`.
+- Перенос в живую БД занял 21 с; цифры совпали с репетицией: +836 810 / +936 782 / 145 210 / +1 пользователь; `quick_check=ok`.
+- `.env`: `PUBLIC_ORIGIN` и `APP_URL` теперь `https://shop.molthun.ru`. Файл-дополнение `docker-compose.live.yml` (копия в `deploy/`) добавляет порт 35540 и `restart: unless-stopped`.
+- Запуск: `docker compose -f docker-compose.stand.yml -f docker-compose.live.yml up -d app`. Сервер healthy, 6.53.2, образ `ca57a7b0…48f0`.
+- Снаружи `https://shop.molthun.ru`: версия 6.53.2, главная 200, поиск «кроссовки» — 1 174 товара, история цен из перенесённых данных, скидки 200. В журнале 0 ошибок; обход и бот запущены.
+- **Осталось владельцу:** перенести токен основного бота в `.env` и перезапустить (команда в карточке handoff). До этого основной бот молчит, а вход через Telegram на `shop` не работает: стендовый бот привязан в BotFather к `shdev`.
+
+## Подготовка (выполнена до переключения, живые среды не менялись)
 
 **Копии.** Обе БД сняты 17:32Z через SQLite backup API с моментального снимка WAL: ~15 с каждая, писатели не блокировались, `quick_check=ok`. Файлы: `~/kzph-migration/prod_20261122T1732Z.db`, `stand_20261122T1732Z.db`.
 

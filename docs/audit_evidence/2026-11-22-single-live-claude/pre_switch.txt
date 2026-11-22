@@ -1,0 +1,13 @@
+== pre-switch 20261122T1739Z
+kzph-stand	kzph-stand:local	Up 19 minutes (healthy)
+kz-price-hunter	ghcr.io/molthun/kz-price-hunter:latest	Up 7 hours (healthy)
+kz-price-watchtower	containrrr/watchtower:latest	Up 20 hours (healthy)
+kz-price-hunter image=sha256:3dfe977a1151c4283057bffa0cc66ab7ec8661d9c6340103bad1ee616dee0503 restart=unless-stopped
+kzph-stand image=sha256:ca57a7b0fc0cfb7cc2e319702a7bfcfc3070cf7ade175471e4f7120727aa48f0 restart=no
+kz-price-watchtower image=sha256:6dd50763bbd632a83cb154d5451700530d1e44200b268a4e9488fefdfcf2b038 restart=unless-stopped
+{"version": "6.45.1", "app_name": "KZ Price Hunter", "release_date": "2026-11-22", "author": "Advanced Agentic Coding"}
+{"version": "6.53.2", "app_name": "KZ Price Hunter", "release_date": "2026-11-22", "author": "Advanced Agentic Coding"}
+public shop 200
+public shdev 200
+930b224ea4
+env-backed-up

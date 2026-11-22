@@ -9,6 +9,17 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## SINGLE_LIVE_SWITCHED — один живой сервер: `shop.molthun.ru` → бывший стенд, старый прод остановлен — Claude (22.11.2026 17:39–17:42Z)
+
+- **По прямому слову владельца «Switch now».** Watchtower и `kz-price-hunter` остановлены, `restart=no`; контейнер и `~/kzph-prod/data` хранятся для отката до 06.12.2026. Финальные копии обеих БД в `~/kzph-migration/` (`*_final_20261122T1739Z.db`, quick_check ok).
+- **Перенос истории прода в живую БД:** +836 810 записей истории предложений, +936 782 истории товаров, 145 210 сводных цен, +1 пользователь; совпало с репетицией; quick_check ok.
+- **Живой сервер** `kzph-stand` (6.53.2, `930b224`, образ `ca57a7b0…48f0`): `PUBLIC_ORIGIN/APP_URL=https://shop.molthun.ru`, порт 35540 (DSM-прокси без правки), `restart: unless-stopped` через `docker-compose.live.yml`. Снаружи: версия 6.53.2, поиск, история, скидки — 200, журнал без ошибок.
+- **Ждёт владельца — токен основного бота** (сам токен в отчёты не попадает). На машине стенда:
+  `cd ~/kzph-stand && T=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' kz-price-hunter | grep '^TELEGRAM_BOT_TOKEN=' | cut -d= -f2-) && sed -i "s#^TELEGRAM_BOT_TOKEN=.*#TELEGRAM_BOT_TOKEN=$T#" .env && unset T && docker compose -f docker-compose.stand.yml -f docker-compose.live.yml up -d app`
+  Затем в DSM: `shdev.molthun.ru` → редирект на `shop.molthun.ru`.
+- **Новый порядок для всех агентов:** бывший «стенд» — единственный рабочий сервер с пользователями. Тесты — только в одноразовых чистых контейнерах (`--network none --tmpfs /app/data`). Перед каждым обновлением — `scripts/single_live/backup.py`. Обновление явное: `docker compose -f docker-compose.stand.yml -f docker-compose.live.yml up -d --build app`. Без `-f docker-compose.live.yml` сервер потеряет порт 35540 и автозапуск. Push в `main` больше ничего не перезапускает; публикуются только принятые версии с тегами.
+- Подробно и откат: [SINGLE_LIVE_MIGRATION.md](SINGLE_LIVE_MIGRATION.md).
+
 ## SINGLE_LIVE_PREPARED — перенос на один живой сервер подготовлен и проверен на копиях — Claude (22.11.2026, Asia/Almaty)
 
 - **По слову владельца «Yes, prepare».** Живые среды не менялись: прод и стенд работают, push не выполнялся.
