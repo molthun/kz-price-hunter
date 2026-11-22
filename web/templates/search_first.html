@@ -2059,6 +2059,53 @@
       line-height: 1.4;
     }
 
+    .offer-size-chip.is-my-size {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .my-size-quick-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 6px 0 8px;
+    }
+
+    .my-size-quick-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 10px;
+      min-height: 34px;
+      border-radius: 999px;
+      border: 1px solid var(--primary);
+      background: transparent;
+      color: var(--primary);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .my-size-quick-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    .profile-sizes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 560px) {
+      .profile-sizes-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .delivery-kz-badge {
       display: inline-flex;
       align-items: center;
@@ -7034,6 +7081,48 @@
           </div>
         </div>
 
+        <!-- My Sizes Card (v6.45.0) -->
+        <div class="profile-card" id="profileSizesCard">
+          <div class="profile-section-header">
+            <div>
+              <h2 class="profile-section-title">👟 Мои размеры</h2>
+              <div class="profile-section-desc">Подсвечивает ваш размер в карточках обуви и одежды и добавляет кнопку быстрого фильтра в поиске</div>
+            </div>
+          </div>
+          <div class="profile-sizes-grid">
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem;font-weight:600;">
+              Размер обуви (EU)
+              <select id="profileShoeSize" class="profile-city-dropdown" onchange="onUserSizesChanged()" aria-label="Мой размер обуви">
+                <option value="">Не указан</option>
+                <option value="34">34</option><option value="34.5">34.5</option>
+                <option value="35">35</option><option value="35.5">35.5</option>
+                <option value="36">36</option><option value="36.5">36.5</option>
+                <option value="37">37</option><option value="37.5">37.5</option>
+                <option value="38">38</option><option value="38.5">38.5</option>
+                <option value="39">39</option><option value="39.5">39.5</option>
+                <option value="40">40</option><option value="40.5">40.5</option>
+                <option value="41">41</option><option value="41.5">41.5</option>
+                <option value="42">42</option><option value="42.5">42.5</option>
+                <option value="43">43</option><option value="43.5">43.5</option>
+                <option value="44">44</option><option value="44.5">44.5</option>
+                <option value="45">45</option><option value="46">46</option>
+                <option value="47">47</option><option value="48">48</option>
+              </select>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem;font-weight:600;">
+              Размер одежды
+              <select id="profileClothingSize" class="profile-city-dropdown" onchange="onUserSizesChanged()" aria-label="Мой размер одежды">
+                <option value="">Не указан</option>
+                <option value="XXS">XXS</option><option value="XS">XS</option>
+                <option value="S">S</option><option value="M">M</option>
+                <option value="L">L</option><option value="XL">XL</option>
+                <option value="XXL">XXL</option><option value="XXXL">XXXL</option>
+              </select>
+            </label>
+          </div>
+          <div id="profileSizesState" style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);" role="status"></div>
+        </div>
+
         <!-- Watches Section -->
         <div class="profile-card">
           <div class="profile-section-header">
@@ -7926,6 +8015,53 @@
       document.querySelectorAll('.profile-city-chip').forEach(chip => {
         chip.classList.toggle('active', chip.dataset.city === city);
       });
+      syncProfileSizesUI();
+    }
+
+    const USER_SIZES_STORAGE_KEY = 'kzph_user_sizes';
+
+    function getUserSizes() {
+      try {
+        const raw = localStorage.getItem(USER_SIZES_STORAGE_KEY);
+        if (!raw) return { shoe: '', clothing: '' };
+        const parsed = JSON.parse(raw);
+        return {
+          shoe: typeof parsed.shoe === 'string' ? parsed.shoe.trim() : '',
+          clothing: typeof parsed.clothing === 'string' ? parsed.clothing.trim().toUpperCase() : '',
+        };
+      } catch (e) {
+        return { shoe: '', clothing: '' };
+      }
+    }
+
+    function syncProfileSizesUI() {
+      const sz = getUserSizes();
+      const shoeEl = document.getElementById('profileShoeSize');
+      const clothEl = document.getElementById('profileClothingSize');
+      if (shoeEl) shoeEl.value = sz.shoe || '';
+      if (clothEl) clothEl.value = sz.clothing || '';
+    }
+
+    function onUserSizesChanged() {
+      const shoeEl = document.getElementById('profileShoeSize');
+      const clothEl = document.getElementById('profileClothingSize');
+      const stateEl = document.getElementById('profileSizesState');
+      const payload = {
+        shoe: shoeEl ? String(shoeEl.value || '').trim() : '',
+        clothing: clothEl ? String(clothEl.value || '').trim().toUpperCase() : '',
+      };
+      try {
+        localStorage.setItem(USER_SIZES_STORAGE_KEY, JSON.stringify(payload));
+      } catch (e) {}
+      const parts = [];
+      if (payload.shoe) parts.push('обувь ' + payload.shoe);
+      if (payload.clothing) parts.push('одежда ' + payload.clothing);
+      if (stateEl) {
+        stateEl.textContent = parts.length ? ('Сохранено: ' + parts.join(', ')) : 'Размеры сброшены.';
+      }
+      if (typeof showToast === 'function') {
+        showToast(parts.length ? ('👟 Размеры сохранены: ' + parts.join(', ')) : '👟 Размеры сброшены');
+      }
     }
 
     function onCityChanged(city) {
@@ -11349,6 +11485,27 @@
         const selected = AppState.attributes[field.key] || (data.selected_attributes || {})[field.key] || '';
         const vals = field.values || [];
 
+        if (field.key === 'size') {
+          const userSizes = getUserSizes();
+          const quickTargets = [userSizes.shoe, userSizes.clothing].filter(
+            s => s && vals.some(v => String(v.value) === String(s))
+          );
+          if (quickTargets.length > 0) {
+            const qRow = document.createElement('div');
+            qRow.className = 'my-size-quick-row';
+            quickTargets.forEach(sz => {
+              const btn = document.createElement('button');
+              btn.type = 'button';
+              const isActive = String(selected) === String(sz);
+              btn.className = 'my-size-quick-btn' + (isActive ? ' active' : '');
+              btn.textContent = (isActive ? '✓ ' : '') + 'Мой размер: ' + sz;
+              btn.onclick = () => onDynamicAttrFacetSelected('size', isActive ? '' : sz);
+              qRow.appendChild(btn);
+            });
+            group.appendChild(qRow);
+          }
+        }
+
         if (vals.length > 0 && vals.length <= 25) {
           const listWrap = document.createElement('div');
           listWrap.id = 'filterAttrList_' + field.key;
@@ -12374,7 +12531,14 @@
 
         if (off.warranty) factsHtml += '<div>Гарантия: ' + escapeHtml(off.warranty) + '</div>';
         if (Array.isArray(off.available_sizes) && off.available_sizes.length > 0) {
-          const chips = off.available_sizes.slice(0, 24).map(sz => '<span class="offer-size-chip">' + escapeHtml(sz) + '</span>').join('');
+          const mySz = getUserSizes();
+          const mySet = new Set([mySz.shoe, mySz.clothing].filter(Boolean));
+          const chips = off.available_sizes.slice(0, 24).map(sz => {
+            const mine = mySet.has(String(sz));
+            return '<span class="offer-size-chip' + (mine ? ' is-my-size' : '') + '"' +
+              (mine ? ' title="Ваш размер в наличии"' : '') + '>' +
+              (mine ? '✓ ' : '') + escapeHtml(sz) + '</span>';
+          }).join('');
           factsHtml += '<div class="offer-sizes-row" aria-label="Доступные размеры"><span>Размеры:</span> ' + chips + '</div>';
         }
 
