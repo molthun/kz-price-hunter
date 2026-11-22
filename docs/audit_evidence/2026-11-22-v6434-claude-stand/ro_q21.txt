@@ -1,0 +1,30 @@
+## iSpace последние 12
+('2026-11-22T06:39:12.124268+00:00', 'ispace', 'iSpace: 📱 iPhone', 'limited', 'failed', 0, 0, None, None, 0, 'SC02[code=cooldown;phase=fetch;page=-;http=-] Действует пауза перед запросами к магазину')
+('2026-11-22T06:39:11.923758+00:00', 'ispace', 'iSpace: 💻 Mac', 'limited', 'failed', 47, 47, None, None, 0, 'SC02[code=unknown;phase=category;page=-;http=200] Причина сбоя не определена')
+('2026-11-22T06:13:25.354013+00:00', 'ispace', 'iSpace: 🔊 Колонки', 'limited', 'failed', 0, 0, None, None, 0, 'SC02[code=cooldown;phase=fetch;page=-;http=-] Действует пауза перед запросами к магазину')
+('2026-11-22T06:13:24.842518+00:00', 'ispace', 'iSpace: ⌚️ Apple Watch', 'limited', 'failed', 0, 0, None, None, 0, 'SC02[code=cooldown;phase=fetch;page=-;http=-] Действует пауза перед запросами к магазину')
+('2026-11-22T06:13:24.438810+00:00', 'ispace', 'iSpace: 📱 iPhone', 'limited', 'failed', 45, 45, None, None, 0, 'SC02[code=unknown;phase=category;page=-;http=200] Причина сбоя не определена')
+('2026-11-22T05:12:15.665977+00:00', 'ispace', 'iSpace: 🔊 Колонки', 'limited', 'failed', 0, 0, None, None, 0, 'SC02[code=cooldown;phase=fetch;page=-;http=-] Действует пауза перед запросами к магазину')
+('2026-11-22T05:12:15.156557+00:00', 'ispace', 'iSpace: ⌚️ Apple Watch', 'limited', 'failed', 0, 0, None, None, 0, 'SC02[code=cooldown;phase=fetch;page=-;http=-] Действует пауза перед запросами к магазину')
+('2026-11-22T05:12:14.748717+00:00', 'ispace', 'iSpace: 📱 iPhone', 'limited', 'failed', 44, 44, None, None, 0, 'SC02[code=unknown;phase=category;page=-;http=200] Причина сбоя не определена')
+('2026-11-22T04:11:15.297904+00:00', 'ispace', 'iSpace: 🔊 Колонки', 'limited', 'failed', 0, 0, None, None, 0, 'SC02[code=cooldown;phase=fetch;page=-;http=-] Действует пауза перед запросами к магазину')
+('2026-11-22T04:11:14.786486+00:00', 'ispace', 'iSpace: ⌚️ Apple Watch', 'limited', 'failed', 0, 0, None, None, 0, 'SC02[code=cooldown;phase=fetch;page=-;http=-] Действует пауза перед запросами к магазину')
+('2026-11-22T04:11:14.380714+00:00', 'ispace', 'iSpace: 📱 iPhone', 'limited', 'failed', 44, 44, None, None, 0, 'SC02[code=unknown;phase=category;page=-;http=200] Причина сбоя не определена')
+('2026-11-22T03:10:02.063288+00:00', 'ispace', 'iSpace: 🔊 Колонки', 'limited', 'failed', 0, 0, None, None, 0, 'SC02[code=cooldown;phase=fetch;page=-;http=-] Действует пауза перед запросами к магазину')
+## Kari обувь последние 8
+('2026-11-22T01:23:06.810844+00:00', 'kari', 'Kari: 👞 Мужская обувь', 'limited', 'ok', 3600, 3600, 3600.0, 'history', 1, None)
+('2026-11-22T01:19:03.023380+00:00', 'kari', 'Kari: 👠 Женская обувь', 'limited', 'ok', 8100, 8100, 8100.0, 'history', 1, None)
+('2026-11-21T14:06:59.396854+00:00', 'kari', 'Kari: 👞 Мужская обувь', 'limited', 'ok', 3600, 3600, 3600.0, 'history', 1, None)
+('2026-11-21T14:00:41.948308+00:00', 'kari', 'Kari: 👠 Женская обувь', 'limited', 'ok', 8100, 8100, 8100.0, 'history', 1, None)
+('2026-11-20T11:24:49.319032+00:00', 'kari', 'Kari: 👞 Мужская обувь', 'limited', 'ok', 3600, 3600, 3600.0, 'history', 1, None)
+('2026-11-20T11:20:28.517456+00:00', 'kari', 'Kari: 👠 Женская обувь', 'limited', 'ok', 8100, 8100, 9109.0, 'active_offers', 1, None)
+('2026-11-18T15:40:36.323618+00:00', 'kari', 'Kari: 👞 Мужская обувь', 'limited', 'ok', 3600, 3600, 3664.0, 'active_offers', 1, None)
+('2026-11-18T15:35:48.563596+00:00', 'kari', 'Kari: 👠 Женская обувь', 'limited', 'ok', 8100, 8100, 9102.0, 'active_offers', 1, None)
+## Forte смартфоны последние 4
+('2026-11-22T06:39:47.288946+00:00', 'fortemarket', 'Forte: 📱 Смартфоны', 'complete', 'ok', 4245, 4245, 4245.0, 'active_offers', 1, None)
+('2026-11-22T06:27:22.188927+00:00', 'fortemarket', 'Forte: 📱 Смартфоны', 'complete', 'ok', 4245, 4245, 4282.0, 'rebased', 1, None)
+('2026-11-22T05:26:23.148769+00:00', 'fortemarket', 'Forte: 📱 Смартфоны', 'complete', 'degraded', 4280, 4280, 12592.0, 'active_offers', 0, 'товаров 4280 при норме 12592 (34%)')
+('2026-11-22T04:45:18.099546+00:00', 'fortemarket', 'Forte: 📱 Смартфоны', 'complete', 'degraded', 4281, 4281, 12590.0, 'active_offers', 0, 'товаров 4281 при норме 12590 (34%)')
+## rebased за сутки
+('2026-11-22T06:27:22.188927+00:00', 'fortemarket', 'Forte: 📱 Смартфоны', 'complete', 'ok', 4245, 4245, 4282.0, 'rebased', 1, None)
+## подтверждённые нормы

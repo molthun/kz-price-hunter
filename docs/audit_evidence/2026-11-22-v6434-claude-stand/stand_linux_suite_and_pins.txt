@@ -1,0 +1,10 @@
+----------------------------------------------------------------------
+Ran 3318 tests in 453.653s
+
+OK
+  "mismatched": [],
+  "unpinned": [],
+  "pinned_not_installed": []
+}
+
+[exited with code 0]

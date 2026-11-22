@@ -1,0 +1,19 @@
+commit 1665520def0be24bc30af1f5e83aca5792c0e91e
+local 320eb5c930f7128afb4438e12409b8975e2684d12bd7b09d3308f833cf4fcc88 data_quality.py
+local e26df9b105a0141f3a3643f94afbc3b5b424e204ca5c75b1243512441ac06e0f database.py
+local 71e7926459649425974efb8934f998abec0f8007d9605e764869c588afeed64b web/server.py
+local ed0a992ef26aa72f9895e1e29e2baf605c36760e0c32b8555aa3e2e453c954cc domain/seller_vision_upload.py
+local 585a75fa12739f0a5221fab5a32d0e49ba832b8f0843ddb63bf3a3e2bf876ff2 tests/monitoring/test_data_quality.py
+local 3fde1d3abac19c372805256a90ea6257a5471bd2bc234be5e1e204de8a8aa059 tests/ai/test_seller_vision_upload.py
+local 2ca152893313e0376c3e05da09633f083bc352f53761674e028b3e84c9edc85b version.py
+stand_head 1665520def0be24bc30af1f5e83aca5792c0e91e
+container 320eb5c930f7128afb4438e12409b8975e2684d12bd7b09d3308f833cf4fcc88 data_quality.py
+container e26df9b105a0141f3a3643f94afbc3b5b424e204ca5c75b1243512441ac06e0f database.py
+container 71e7926459649425974efb8934f998abec0f8007d9605e764869c588afeed64b web/server.py
+container ed0a992ef26aa72f9895e1e29e2baf605c36760e0c32b8555aa3e2e453c954cc domain/seller_vision_upload.py
+container 585a75fa12739f0a5221fab5a32d0e49ba832b8f0843ddb63bf3a3e2bf876ff2 tests/monitoring/test_data_quality.py
+container 3fde1d3abac19c372805256a90ea6257a5471bd2bc234be5e1e204de8a8aa059 tests/ai/test_seller_vision_upload.py
+container 2ca152893313e0376c3e05da09633f083bc352f53761674e028b3e84c9edc85b version.py
+image=sha256:ff2d325340d062ab7701131f09062fc3c0997d7383aca135053ca67c13717e7a health=healthy restarts=0 started=2026-11-22T06:56:02.394100341Z
+version {"version": "6.43.4", "app_name": "KZ Price Hunter", "release_date": "2026-11-22", "author": "Advanced Agentic Coding"}
+health {"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}

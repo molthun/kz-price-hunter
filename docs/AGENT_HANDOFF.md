@@ -9,6 +9,63 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## STAND_DEPLOYED v6.43.4 — исправлены DQ-01, DQ-02, VU-01 из возврата 6.43.0–6.43.3 — Claude (22.11.2026, Asia/Almaty)
+
+- **Срез:** коммит `1665520` поверх `e73383a`, на стенде fast-forward через git bundle; образ `sha256:ff2d3253…7e7a`, `kzph-stand` healthy, перезапусков 0, `/api/version=6.43.4`, `/api/health=ok` (очередь 0, dead letters 0). SHA 7 изменённых файлов совпали: git, checkout стенда, контейнер. Push не выполнялся, прод (6.42.12) не тронут.
+- **DQ-01:** норма по устойчивой серии (`basis='rebased'`) — только рекомендация: `warning` с пояснением, `may_retire=False`, `learn=False`. Применяется лишь при нехватке принятой истории; при здоровой истории источник остаётся `degraded`. Новая норма действует только после явного подтверждения администратором: `POST /api/admin/source-norm/confirm` с `shop_key` и `source_url` (`basis='confirmed'`, запись в `schema_metadata`, 409 без текущей рекомендации). После подтверждения нормой служит только история, принятая позже него.
+- **DQ-02:** серия строится по последним 5 фактическим попыткам источника любого вида; `failed`/`limited` её разрывают; серия старше 7 суток не применяется.
+- **VU-01:** состояние товара передаётся внутри своей строки, каждая строка проверяется отдельно; отклонённая схемой строка или не-словарь учитываются в `skipped_count`.
+- **Проверки:**
+  - **Сценарии Codex** (`reproduce.py` на 6.43.4):
+    - 3×200 → 20: снято 0, итог `degraded` (было снято 180);
+    - то же с HTTP 503 между обходами: снято 0;
+    - iPhone сохранён как NEW, `skipped=1`.
+  - **Регрессии на прежнем коде `e73383a`:** 6 FAIL и 1 ERROR в наборе качества, FAIL VU-01 в обоих положениях битой строки.
+  - **Локально:** полный набор 3 318 OK; целевые тесты 155 OK; secrets 0; браузерные наборы — все 44 из git PASS. Две копии `… 2.cjs` вне git падают и к коду не относятся.
+  - **Стенд:** чистый `docker run --rm --network none` — 3 318 OK; pins чистые.
+- **Живые данные стенда (только чтение, `ro_q21`):**
+  - iSpace и обувь Kari после 6.43.1 и 6.43.3 ещё не обходились: последние строки iSpace от 06:39Z — `limited`/`failed`, пауза магазина; Kari — от 01:23Z. Ожидание следующего обхода идёт.
+  - Forte: в 06:27Z, на 6.43.1, снято около 8 300 предложений по догадке rebased (12 569 → 4 245 активных). С 6.43.4 это возможно только после подтверждения. Данные стенда я не менял.
+- **Ограничение:** кнопки подтверждения нормы в админке нет, есть только служебный адрес. Это интерфейсная задача для Antigravity.
+- **Доказательства:** `docs/audit_evidence/2026-11-22-v6434-claude-stand/` — SHA, образ и health; хвосты полного набора локально и на Linux вместе с pins; браузерные наборы 44/44; целевые тесты; `codex_reproduce_on_6434.json`; `ro_q21.*` и `ro_q22.py`.
+- **Следующий шаг:** Codex — повторная приёмка 6.43.0–6.43.4. Живой обход iSpace и обуви Kari я допишу отдельной строкой, как только он появится.
+
+## AUDIT_RETURNED v6.43.0–v6.43.3 — rebase снимает каталог при устойчивой поломке; дефект condition в прайсе — Codex (22.11.2026 11:46, Asia/Almaty)
+
+- Срез `e73383a`, отдельный git-архив; **147 целевых тестов OK**, secrets0. Чужая незакоммиченная передача сохранена, код/БД/стенд/прод не менялись.
+- **DQ-01 P1:** после принятой истории200 трижды и пяти degraded по20 шестой обход20 становится ok и снимает180. Стабильный низкий объём не доказывает исчезновения; глобальный rebase нельзя автоматически использовать для may_retire без независимого подтверждения. Зелёный Forte этого риска не закрывает.
+- **DQ-02 P2:** SQL фильтрует kind=complete до LIMIT5, поэтому ошибки/limited не разрывают якобы непрерывную серию. Репродукция с HTTP503 после каждого малого обхода также снимает180.
+- **VU-01 P2:** неверная price-структура в первой строке пропускается валидатором, но condition из неё применяется следующему товару: NEW iPhone сохранён USED, skipped_count0 вместо1.
+- [Полный отчёт и критерии](REVIEW_2026-11-22_V6430_V6433_CODEX.md), evidence `2026-11-22-v6433-codex/`. 8 SHA для авторских доказательств6.43.1 сверены с git; Linux3305/pins25 относятся к6.43.1. Сырых доказательств текущего образа6.43.3 и плановых iSpace/Kari пока нет.
+- **Следующий шаг:** автор/Claude исправляет три дефекта с регрессиями и новой версией, проверяет новый стенд, прикладывает текущие SHA/image/health/test logs и source_scans iSpace/Kari; затем Codex повторяет приёмку. Этот пакет к выпуску не принят. R1/6.42.12 уже выпущен отдельно по передаче владельца и этим решением не откатывается.
+
+## STAND_DEPLOYED v6.43.3 — вежливый темп и ранний стоп при HTTP 429 в `ISpaceScraper` — Antigravity (2026-11-22 11:41, Asia/Almaty)
+
+- **Статус:** `v6.43.3` развёрнута и проверена на стенде, **готово к приёмке Codex** (вместе с `v6.43.0`–`v6.43.2`). Push в `origin main` не выполнялся, прод не трогался.
+- **Срез:** коммит `e73383a` (поверх `b47361f`, fast-forward на стенде через git bundle), образ `sha256:a755c3f47080407338fb897caea0ceb89fd4c0efdfbdd6bd9533468ab7f02a2f`, контейнер `kzph-stand` `running / healthy`, `RestartCount=0`, `/api/version=6.43.3`, `/api/health=ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`).
+- **Живое подтверждение `v6.43.1` на стенде:** в `2026-11-22T06:27:22Z` категория `Forte: 📱 Смартфоны` впервые за месяц вышла из `degraded` в `ok` (`complete`, `valid=4245`, `accepted=1`, `baseline=4282.0`, `baseline_basis='rebased'`).
+- **Что сделано (`v6.43.3`):**
+  - `scrapers/ispace.py`: `PRODUCT_WORKERS` снижен с `4` до `2`, добавлен общий темп-лимитер `CARD_DELAY_SECONDS=0.8` и `PAGE_DELAY_SECONDS=0.5` (предотвращает `HTTP 429` на 209 карточках `iSpace: iPhone`); при `HTTP 429` или `requests.HostCooldown` немедленно срабатывает `stop_event` (отменяет оставшиеся запросы) с явной ошибкой `HTTP 429`.
+  - `tests/scrapers/test_ispace.py` (новый), `version.py` (`6.43.3`), `CHANGELOG.md` (с разделом `### Для пользователей`).
+- **Проверки:**
+  - Локально (macOS): `test_ispace`, `test_scraper_reliability`, `test_release_notes`, `test_config_and_ids` — **98 OK** (`6.67 с`), `release_gate.py secrets` — **0 findings**.
+  - Стенд (чистый контейнер `kzph-stand:local`, `--network none --cpus 2 --tmpfs /app/data`): объединённый набор `v6.43.0`–`v6.43.3` (`test_ispace`, `test_scraper_reliability`, `test_seller_vision_upload`, `test_data_quality`, `test_kari`, `test_release_notes`, `test_config_and_ids`) — **147 OK** (`17.54 с`), `pins` при сборке — **25/25 OK**.
+- **Следующий точный шаг:** **Codex** — независимая приёмка `v6.43.0`–`v6.43.3` (`e73383a`) на стенде; наблюдение следующего планового обхода `iSpace: 📱 iPhone` и `Kari` обуви на стенде.
+
+## STAND_DEPLOYED v6.43.2 — поддержка текста описания и комментариев в загрузке прайсов продавцов (Instagram / WhatsApp) — Antigravity (2026-11-22 11:31, Asia/Almaty)
+
+- **Статус:** `v6.43.2` развёрнута и проверена на стенде, **готово к приёмке Codex** (вместе с `v6.43.0`–`v6.43.1`). Push в `origin main` не выполнялся, прод не трогался.
+- **Срез:** коммит `b47361f` (поверх `83294f4`, fast-forward на стенде через git bundle), образ `sha256:8ba4499be79694b101fb79e9bb315c8994411449011916588be1cf0e4e36b7ea`, контейнер `kzph-stand` `running / healthy`, `RestartCount=0`, `/api/version=6.43.2`, `/api/health=ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`).
+- **Что сделано (`v6.43.2`):**
+  - `domain/seller_vision_upload.py`: добавлена `extract_seller_price_payload(image_bytes=None, caption_text="")` — объединяет Vision-разбор скриншота и детерминированный разбор текста описания/комментариев (`SocialContentExtractor` + `VisionExtractionEngine.extract_from_ocr_text`) с дедупликацией, маркировкой источника (`Фото` / `Текст`) и сохранением состояния (`Condition`, напр. `USED` для «б/у»).
+  - `web/server.py`: `/api/admin/sellers/{seller_id}/vision-extract` (и `/api/v2/...`) принимает `caption_text` / `comments_text` как с фото, так и без фото.
+  - `web/templates/admin.html`: в `#shopVisionSection` добавлено поле `#shopVisionText` («Описание поста и/или комментарии с ценами») и колонка «Источник» в таблице предпросмотра.
+  - `version.py` (`6.43.2`), `CHANGELOG.md` (с разделом `### Для пользователей`).
+- **Проверки:**
+  - Локально (macOS): целевые Python-тесты — **37 OK** (`0.56 с`), `release_gate.py secrets` — **0 findings**; браузерные (Deno + Playwright): `test_frontend_admin_vision_upload` (**PASS**, включая сквозной текстовый сценарий БЕЗ мока `/vision-extract`) и `test_frontend_admin_sellers` (**PASS**).
+  - Стенд (чистый контейнер `kzph-stand:local`, `--network none --cpus 2 --tmpfs /app/data`): целевой набор — **39 OK** (`1.07 с`), `pins` при сборке — **25/25 OK**.
+- **Следующий точный шаг:** **Codex** — независимая приёмка `v6.43.0`–`v6.43.2` (`b47361f`) на стенде; владелец может опробовать на стенде загрузку скриншота и/или текста описания/комментариев для «Мобильника» (`/admin#shopsTool`).
+
 ## RELEASED v6.42.12 — R1 в проде — Claude (2026-11-22, Asia/Almaty)
 
 - **Основание:** прямое слово владельца «Yes, release» (22.11.2026).
@@ -29,20 +86,43 @@
   - судьба 9 664 старых записей Marwin — отдельное решение владельца.
 - **Следующий точный шаг:** Codex — независимая проверка прода только чтением после первых суток. Владелец — решение по старым записям Marwin и read-only срез избранного и наблюдений. Документы этого шага не пушатся отдельно: push документов пересобирает образ и перезапускает прод посреди добора.
 
-## IN_PROGRESS v6.43.0 — Vision-загрузка прайс-листов и скриншотов для продавцов (Instagram / WhatsApp) — Antigravity (2026-11-22 10:35, Asia/Almaty)
+## STAND_DEPLOYED v6.43.1 — расширение `max_pages` обуви Kari + адаптация застрявшей нормы `degraded` (`Forte: Смартфоны`) — Antigravity (2026-11-22 10:46, Asia/Almaty)
 
-- **Основание:** прямое поручение владельца «все по очереди» (2026-11-22 10:32). Работа ведётся локально и на стенде; прод и `origin/main` не трогаются.
+- **Статус:** `v6.43.0` + `v6.43.1` развёрнуты и проверены на стенде, **готово к приёмке Codex**. Push в `origin main` не выполнялся, прод не трогался.
+- **Срез:** коммиты `18fbf61` (`v6.43.0`) и `83294f4` (`v6.43.1`, fast-forward на стенде через git bundle), образ `sha256:56029b36df703879a1ca42b635ff447d178123d2874fe5a236679560c3f6cbba`, контейнер `kzph-stand` `running / healthy`, `RestartCount=0`, `/api/version=6.43.1`, `/api/health=ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`).
+- **Что сделано (`v6.43.1`):**
+  - `config.py`: `Kari: 👠 Женская обувь` `max_pages` `135 → 167` (до предела выдачи сайта 10 000 товаров при фактических `154` стр. / `9 202` товарах), `Kari: 👞 Мужская обувь` `60 → 80` (при фактических `61` стр. / `3 615` товарах).
+  - `data_quality.py` (`rebased_baseline_from_recent`) + `database.py` (`get_source_baseline`): убран вечный цикл `degraded → may_retire=False → рост active_offers → degraded`. После `5` стабильных чистых полных обходов подряд (`kind='complete'`, `valid >= 20`, брак `<= 30%`, `min/max >= 0.70`) `get_source_baseline` возвращает медиану с `basis='rebased'`, позволяя следующему обходу вернуться в `ok` и снять устаревшие записи.
+  - Read-only проверка на живой БД стенда для `Forte: 📱 Смартфоны`: `rebased_baseline_from_recent` вернул `{'valid': 4282.0, 'image_share': 1.0, 'basis': 'rebased', 'samples': 5}` (вместо раздутых `12 592` `active_offers`).
+  - `version.py` (`6.43.1`), `CHANGELOG.md` (с разделом `### Для пользователей`), тесты в `tests/monitoring/test_data_quality.py` и `tests/scrapers/test_kari.py`.
+- **Проверки и сырые доказательства (`docs/audit_evidence/2026-11-22-v6431-antigravity-live/`):**
+  - `sha_image_health.txt`: `8/8` SHA256 изменённых файлов (`domain/seller_vision_upload.py`, `web/server.py`, `web/templates/admin.html`, `config.py`, `data_quality.py`, `database.py`, `version.py`, `CHANGELOG.md`) совпали локально (`83294f4`), в checkout стенда и внутри `kzph-stand`; `Status=running`, `Health=healthy`, `Restarts=0`, `/api/version=6.43.1`, `/api/health=ok`.
+  - `linux_suite_and_pins.txt`: полный Linux-набор `python3 -m unittest discover -s tests -t . -p "test_*.py"` в чистом контейнере `kzph-stand:local` (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`) — **3 305 OK** (`525.18 с`, +8 новых тестов поверх 3 297 на `v6.42.12`); `pins` в чистом контейнере — **25/25 OK**.
+  - `frontend_and_secrets.txt`: браузерные тесты (Deno + Playwright, macOS) `test_frontend_admin_vision_upload` (**PASS**, light/dark `390x844` + реальный `/vision-publish`) и `test_frontend_admin_sellers` (**PASS**); `release_gate.py secrets` — **0 findings**.
+  - `real_vision_and_forte_smoke.txt`:
+    - **Реальный вызов локальной модели Vision GPU (`qwen3-vl:8b-instruct` на стенде, стоимость \$0, без записи в БД):** синтетический PNG-прайс распознан с 2/2 `publishable` (`Apple iPhone 16 Pro 256GB` `629000.0 KZT`, `confidence=0.98`; `Samsung Galaxy S24 Ultra 512GB` `549990.0 KZT`, `confidence=0.97`).
+    - Read-only проверка `rebased_baseline_from_recent` на БД стенда для `Forte: 📱 Смартфоны`: `{'valid': 4282.0, 'image_share': 1.0, 'basis': 'rebased', 'samples': 5}`.
+  - **Не проведено:** живой прогон плановых волн `Forte: Смартфоны` и `Kari` обуви после деплоя `v6.43.1` (ещё не подошла их очередь волны) и полный прогон всех 44 frontend-наборов.
+- **Следующий точный шаг:** **Codex** — независимая приёмка `v6.43.0` + `v6.43.1` на стенде (по сырым доказательствам и коду `83294f4`); владелец может опробовать загрузку реального скриншота «Мобильника» на стенде (`/admin#shopsTool`).
+
+## STAND_DEPLOYED v6.43.0 — Vision-загрузка прайс-листов и скриншотов для продавцов (Instagram / WhatsApp) — Antigravity (2026-11-22 10:42, Asia/Almaty)
+
+- **Статус:** `v6.43.0` развёрнута и проверена на стенде, **готово к приёмке Codex**. Push в `origin main` не выполнялся, прод не трогался.
+- **Срез:** коммит `18fbf61` (доставлен на стенд через git bundle поверх `32c5a8ce37`, fast-forward), образ `sha256:3baac85ea0b8100b1051a52e33c623420ebc342198891c6a320498b5d02c7d0d`, контейнер `kzph-stand` `running / healthy`, `RestartCount=0`, `/api/version=6.43.0`, `/api/health=ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`).
 - **Диагноз Шага 1 (падающие магазины на стенде — заблокированы антибот/WAF, обход запрещён):**
   - `Мечта` (`mechta.kz`): HTTP `403` (Cloudflare WAF block page).
   - `Flip.kz`: HTTP `429` (`Ошибка 1301/2`, антибот rate-limit).
   - `Лемана ПРО` (`lemanapro.kz`): `ServicePipe challenge` в контейнере стенда.
-  - По правилам проекта антиботы/WAF/challenge не обходятся; итог будет доложен владельцу.
-- **Область файлов (`v6.43.0`):**
-  - `domain/seller_vision_upload.py` (новый доменный модуль загрузки, валидации и публикации Vision-прайсов продавца);
-  - `web/server.py` (`POST /api/admin/sellers/{seller_id}/vision-extract` и `/vision-publish`, + `/api/v2/...` алиасы, строго `@require_admin`);
-  - `web/templates/admin.html` (панель Vision-загрузки в карточке магазина `#shopDialog`, светлая/тёмная тема + mobile);
-  - `tests/ai/test_seller_vision_upload.py`, `tests/frontend/test_frontend_admin_vision_upload.cjs`;
+  - По правилам проекта антиботы/WAF/challenge не обходятся.
+- **Что сделано (`v6.43.0`):**
+  - `domain/seller_vision_upload.py`: двухэтапная загрузка прайсов (валидация размера ≤10 МБ и magic bytes JPEG/PNG/WEBP, `VisionExtractionEngine.extract_from_image` без записи в БД на предпросмотре, повторная серверная валидация на публикации, приоритет кликабельной ссылки `wa.me` для соцсетевых/WhatsApp-продавцов, сохранение через `SocialOfferPipeline` с `conn.commit()`).
+  - `web/server.py`: `@require_admin` эндпоинты `POST /api/admin/sellers/{seller_id}/vision-extract` (multipart + base64) и `/vision-publish` (+ `/api/v2/...` алиасы), `client_max_size=16 MiB`.
+  - `web/templates/admin.html`: раскрываемая панель `#shopVisionSection` в `#shopDialog` (светлая/тёмная темы, мобильный экран).
   - `version.py` (`6.43.0`), `CHANGELOG.md` (с разделом `### Для пользователей`).
+- **Проверки:**
+  - Локально (macOS): `tests.ai.test_seller_vision_upload`, `tests.core.test_seller_admin`, `tests.web.test_admin_page`, `tests.core.test_release_notes`, `tests.core.test_config_and_ids` — **38 OK** (мок `ai_router.run`, реального вызова LLM/GPU не было); `release_gate.py secrets` — **0 findings**.
+  - Браузерные (Deno + Playwright, macOS): `test_frontend_admin_vision_upload` (**PASS**, включая light/dark `390x844` и реальный `/vision-publish`) и `test_frontend_admin_sellers` (**PASS**).
+  - Стенд (чистый контейнер `kzph-stand:local`, `--network none --cpus 2 --tmpfs /app/data`): те же **38 OK**, `pins` при сборке **25/25 OK**.
 
 ## RELEASE_REVIEW_PENDING_GATE v6.42.12 — подготовка проверена, production-срез Marwin ещё нужен — Codex (22.11.2026 10:19, Asia/Almaty)
 
