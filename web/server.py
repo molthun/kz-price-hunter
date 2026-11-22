@@ -2621,6 +2621,16 @@ async def admin_seller_channel_fetch_now_handler(request):
     return web.json_response(res, status=200 if res.get("ok") else 400)
 
 
+@routes.get("/api/v2/admin/source-norm/recommendations")
+@routes.get("/api/admin/source-norm/recommendations")
+@require_admin
+async def admin_source_norm_recommendations_handler(request):
+    """DQ-01: список источников с активной рекомендацией новой нормы объёма."""
+    import database
+    items = await asyncio.to_thread(database.list_source_norm_recommendations)
+    return web.json_response({"ok": True, "items": items})
+
+
 @routes.post("/api/v2/admin/source-norm/confirm")
 @routes.post("/api/admin/source-norm/confirm")
 @require_admin

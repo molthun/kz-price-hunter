@@ -357,6 +357,50 @@ def confirm_source_norm(shop_key: str, source_url: str, confirmed_by: Optional[s
     return record
 
 
+def list_source_norm_recommendations() -> List[Dict[str, Any]]:
+    """Список источников с активной неподтверждённой рекомендацией новой нормы объёма (DQ-01)."""
+    from data_quality import STABLE_SHIFT_MAX_SPAN_SECONDS, rebased_baseline_from_recent
+    now_ts = time.time()
+    cutoff_iso = datetime.datetime.fromtimestamp(
+        now_ts - STABLE_SHIFT_MAX_SPAN_SECONDS, tz=datetime.timezone.utc
+    ).isoformat()
+    items: List[Dict[str, Any]] = []
+    with get_connection() as conn:
+        candidates = conn.execute(
+            """SELECT shop_key, source_url, MAX(category) AS category, MAX(finished_at) AS last_at
+               FROM source_scans
+               WHERE quality = 'degraded' AND finished_at >= ?
+               GROUP BY shop_key, source_url
+               ORDER BY last_at DESC""",
+            (cutoff_iso,),
+        ).fetchall()
+        for row in candidates:
+            shop_key, source_url, category = row[0], row[1], row[2] or ""
+            rec = rebased_baseline_from_recent(_recent_source_attempts(conn, shop_key, source_url), now_ts)
+            if not rec:
+                continue
+            confirmed = get_source_norm_confirmation(shop_key, source_url, "complete")
+            if confirmed and confirmed.get("confirmed_at", "") >= (row[3] or ""):
+                continue
+            current = get_source_baseline(shop_key, source_url, "complete")
+            active = conn.execute(
+                "SELECT COUNT(*) FROM product_sources WHERE shop_key=? AND source_url=? AND active=1",
+                (shop_key, source_url),
+            ).fetchone()[0]
+            items.append({
+                "shop_key": shop_key,
+                "source_url": source_url,
+                "category": category,
+                "recommended_valid": float(rec["valid"]),
+                "samples": int(rec.get("samples") or 0),
+                "current_baseline": current.get("valid") if current else None,
+                "current_basis": current.get("basis") if current else None,
+                "active_offers": int(active),
+                "last_scan_at": row[3],
+            })
+    return items
+
+
 def get_source_baseline(shop_key: str, source_url: str, kind: str) -> Optional[Dict[str, Any]]:
     """Норма источника (P02): медиана принятых результатов того же вида (после подтверждённой нормы —
     только принятые после подтверждения); затем подтверждённая администратором норма (basis='confirmed');

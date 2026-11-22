@@ -511,6 +511,12 @@
       <div class="state" id="serviceState" role="status">Состояние ещё не загружено.</div>
       <p class="user-meta" id="serviceAt"></p>
       <div id="serviceSections" class="service-sections"></div>
+      <div id="sourceNormSection" class="local-settings" style="margin:16px 0;">
+        <h3>Рекомендуемые нормы объёма источников</h3>
+        <p class="user-meta">Если магазин устойчиво отдаёт меньше товаров, чем прежняя норма, система не снимает товары сама, а предлагает подтвердить новую норму вручную.</p>
+        <div id="sourceNormState" class="state" role="status">Проверка рекомендаций…</div>
+        <div id="sourceNormList" class="service-sections" style="margin:8px 0 0;"></div>
+      </div>
       <h3>На что обратить внимание</h3>
       <p class="user-meta" id="serviceAiState" role="status"></p>
       <ol id="serviceActions" class="service-actions"></ol>
@@ -1914,8 +1920,60 @@
     }
   }
   async function serviceResponse(response){const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Не удалось загрузить состояние сервиса.');return data;}
+  async function loadSourceNormRecommendations(doneMessage){
+    const stateEl=document.getElementById('sourceNormState'), listEl=document.getElementById('sourceNormList');
+    if(!stateEl||!listEl)return;
+    if(!doneMessage){stateEl.className='state'; stateEl.textContent='Проверяем рекомендации норм…';}
+    try{
+      const data=await serviceResponse(await fetch('/api/admin/source-norm/recommendations',{cache:'no-store'}));
+      const items=Array.isArray(data.items)?data.items:[];
+      listEl.replaceChildren();
+      if(!items.length){
+        stateEl.className='state';
+        stateEl.textContent=doneMessage||'Источников, ожидающих подтверждения новой нормы, сейчас нет.';
+        return;
+      }
+      stateEl.className='state';
+      stateEl.textContent=doneMessage?(doneMessage+' Осталось: '+items.length):('Ожидают подтверждения: '+items.length);
+      for(const item of items){
+        const card=document.createElement('div'); card.className='local-settings'; card.style.margin='0'; card.style.borderLeft='4px solid #be8600';
+        const title=document.createElement('h4'); title.style.margin='0 0 6px'; title.textContent=(item.category||item.source_url)+' ('+item.shop_key+')';
+        const info=document.createElement('p'); info.className='user-meta';
+        const curText=item.current_baseline!=null?Math.round(item.current_baseline):'нет';
+        info.textContent='Рекомендуемая норма: '+Math.round(item.recommended_valid)+' товаров (по '+item.samples+' полным обходам) · Прежняя норма: '+curText+' · Активных в БД: '+item.active_offers;
+        const urlEl=document.createElement('p'); urlEl.className='user-meta'; urlEl.textContent=item.source_url;
+        const actions=document.createElement('div'); actions.className='user-actions'; actions.style.marginTop='8px';
+        const btn=document.createElement('button'); btn.type='button'; btn.className='main'; btn.textContent='Подтвердить новую норму';
+        btn.addEventListener('click',async()=>{
+          btn.disabled=true;
+          const orig=btn.textContent;
+          btn.textContent='Подтверждаем…';
+          try{
+            await serviceResponse(await fetch('/api/admin/source-norm/confirm',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({shop_key:item.shop_key,source_url:item.source_url})
+            }));
+            const msg='Новая норма для «'+(item.category||item.shop_key)+'» подтверждена ('+Math.round(item.recommended_valid)+' товаров).';
+            await loadSourceNormRecommendations(msg);
+          }catch(err){
+            stateEl.className='state error';
+            stateEl.textContent=err.message||'Не удалось подтвердить норму.';
+            btn.disabled=false; btn.textContent=orig;
+          }
+        });
+        actions.append(btn);
+        card.append(title,info,urlEl,actions);
+        listEl.append(card);
+      }
+    }catch(e){
+      stateEl.className='state error';
+      stateEl.textContent=e.message||'Не удалось загрузить рекомендации норм.';
+    }
+  }
   async function loadServiceOverview(){
     const serial=++serviceSerial;serviceEl('Refresh').disabled=true;serviceEl('State').textContent='Обновляем состояние…';serviceEl('AiState').textContent='Предыдущий разбор сброшен.';serviceEl('Actions').replaceChildren();
+    loadSourceNormRecommendations();
     try{const d=await serviceResponse(await fetch('/api/admin/service-overview',{cache:'no-store'}));if(serial!==serviceSerial)return;serviceRender(d);if(!serviceAiBusy)explainServiceOverview();else serviceEl('AiState').textContent='Состояние обновлено. Повторите разбор после завершения предыдущего запроса.';}
     catch(e){if(serial!==serviceSerial)return;serviceAt=null;serviceEl('Sections').replaceChildren();serviceEl('At').textContent='Свежий снимок недоступен.';serviceEl('State').textContent=e.message;}
     finally{if(serial===serviceSerial)serviceEl('Refresh').disabled=false;}
