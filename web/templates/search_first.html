@@ -8019,19 +8019,56 @@
     }
 
     const USER_SIZES_STORAGE_KEY = 'kzph_user_sizes';
+    // SY-02 (6.46.1): текущие размеры живут в памяти страницы; localStorage — необязательный кеш с меткой
+    // пользователя. Отказ записи кеша не меняет того, что видят профиль, быстрый фильтр и подсветка.
+    let userSizesState = null;
 
-    function getUserSizes() {
+    function normalizeUserSizes(raw) {
+      const src = raw && typeof raw === 'object' ? raw : {};
+      return {
+        shoe: typeof src.shoe === 'string' ? src.shoe.trim() : '',
+        clothing: typeof src.clothing === 'string' ? src.clothing.trim().toUpperCase() : '',
+      };
+    }
+
+    function currentSizesOwner() {
+      return (typeof currentUser !== 'undefined' && currentUser && currentUser.id != null) ? String(currentUser.id) : '';
+    }
+
+    function readUserSizesCache() {
       try {
         const raw = localStorage.getItem(USER_SIZES_STORAGE_KEY);
-        if (!raw) return { shoe: '', clothing: '' };
+        if (!raw) return null;
         const parsed = JSON.parse(raw);
-        return {
-          shoe: typeof parsed.shoe === 'string' ? parsed.shoe.trim() : '',
-          clothing: typeof parsed.clothing === 'string' ? parsed.clothing.trim().toUpperCase() : '',
-        };
+        if (!parsed || typeof parsed !== 'object') return null;
+        return { owner: parsed.uid != null ? String(parsed.uid) : '', sizes: normalizeUserSizes(parsed) };
       } catch (e) {
-        return { shoe: '', clothing: '' };
+        return null;
       }
+    }
+
+    function setUserSizesState(sizes) {
+      userSizesState = normalizeUserSizes(sizes);
+      const owner = currentSizesOwner();
+      try {
+        const record = { shoe: userSizesState.shoe, clothing: userSizesState.clothing };
+        if (owner) record.uid = owner;
+        localStorage.setItem(USER_SIZES_STORAGE_KEY, JSON.stringify(record));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function getUserSizes() {
+      if (!userSizesState) {
+        const cached = readUserSizesCache();
+        const owner = currentSizesOwner();
+        // Кеш другого аккаунта не показывается; кеш без метки — гостевой или сохранённый до 6.46.1
+        userSizesState = (cached && (!cached.owner || cached.owner === owner))
+          ? cached.sizes : { shoe: '', clothing: '' };
+      }
+      return { shoe: userSizesState.shoe, clothing: userSizesState.clothing };
     }
 
     function syncProfileSizesUI() {
@@ -8043,62 +8080,81 @@
     }
 
     function syncUserSizesFromServer(settings) {
-      if (!settings || typeof settings !== 'object') return;
-      const hasShoe = Object.prototype.hasOwnProperty.call(settings, 'preferred_shoe_size');
-      const hasCloth = Object.prototype.hasOwnProperty.call(settings, 'preferred_clothing_size');
+      const src = settings && typeof settings === 'object' ? settings : {};
+      const hasShoe = Object.prototype.hasOwnProperty.call(src, 'preferred_shoe_size');
+      const hasCloth = Object.prototype.hasOwnProperty.call(src, 'preferred_clothing_size');
       if (!hasShoe && !hasCloth) return;
-      const cur = getUserSizes();
-      const next = {
-        shoe: hasShoe ? String(settings.preferred_shoe_size || '').trim() : (cur.shoe || ''),
-        clothing: hasCloth ? String(settings.preferred_clothing_size || '').trim().toUpperCase() : (cur.clothing || ''),
-      };
-      try {
-        localStorage.setItem(USER_SIZES_STORAGE_KEY, JSON.stringify(next));
-      } catch (e) {}
+      // Сервер — источник истины вошедшего пользователя, в том числе пустые значения (очистка)
+      setUserSizesState({
+        shoe: hasShoe ? String(src.preferred_shoe_size || '') : '',
+        clothing: hasCloth ? String(src.preferred_clothing_size || '') : '',
+      });
       syncProfileSizesUI();
+    }
+
+    // SY-01 (6.46.1): сохранения идут строго по очереди — следующий запрос уходит только после ответа на
+    // предыдущий и несёт последний снимок, поэтому на сервере остаётся последнее изменение пользователя.
+    let sizesSaveRunning = null;
+    let sizesSavePending = null;
+
+    function postUserSizes(sizes) {
+      return fetch('/api/me/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preferred_shoe_size: sizes.shoe, preferred_clothing_size: sizes.clothing }),
+      }).then(async resp => {
+        if (resp.ok) return { ok: true, error: '' };
+        const errData = await resp.json().catch(() => ({}));
+        return { ok: false, error: errData.message || 'Не удалось сохранить размеры в профиле на сервере.' };
+      }).catch(() => ({ ok: false, error: 'Не удалось сохранить размеры в профиле на сервере.' }));
+    }
+
+    function queueUserSizesSave(sizes) {
+      sizesSavePending = { shoe: sizes.shoe, clothing: sizes.clothing };
+      if (!sizesSaveRunning) {
+        sizesSaveRunning = (async () => {
+          let last = { ok: false, error: '', sizes: null };
+          try {
+            while (sizesSavePending) {
+              const snapshot = sizesSavePending;
+              sizesSavePending = null;
+              const result = await postUserSizes(snapshot);
+              last = { ok: result.ok, error: result.error, sizes: snapshot };
+            }
+          } finally {
+            sizesSaveRunning = null;
+          }
+          return last;
+        })();
+      }
+      return sizesSaveRunning;
     }
 
     async function onUserSizesChanged() {
       const shoeEl = document.getElementById('profileShoeSize');
       const clothEl = document.getElementById('profileClothingSize');
       const stateEl = document.getElementById('profileSizesState');
-      const payload = {
-        shoe: shoeEl ? String(shoeEl.value || '').trim() : '',
-        clothing: clothEl ? String(clothEl.value || '').trim().toUpperCase() : '',
-      };
-      let localSaved = true;
-      try {
-        localStorage.setItem(USER_SIZES_STORAGE_KEY, JSON.stringify(payload));
-      } catch (e) {
-        localSaved = false;
-      }
+      const cacheSaved = setUserSizesState({
+        shoe: shoeEl ? String(shoeEl.value || '') : '',
+        clothing: clothEl ? String(clothEl.value || '') : '',
+      });
+      const payload = getUserSizes();
 
       let serverSaved = false;
       let serverError = '';
-      if (typeof currentUser !== 'undefined' && currentUser) {
-        try {
-          const resp = await fetch('/api/me/settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              preferred_shoe_size: payload.shoe,
-              preferred_clothing_size: payload.clothing,
-            }),
-          });
-          if (resp.ok) {
-            serverSaved = true;
-          } else {
-            const errData = await resp.json().catch(() => ({}));
-            serverError = errData.message || 'Не удалось сохранить размеры в профиле на сервере.';
-          }
-        } catch (e) {
-          serverError = 'Не удалось сохранить размеры в профиле на сервере.';
-        }
+      if (currentSizesOwner()) {
+        const outcome = await queueUserSizesSave(payload);
+        const latest = getUserSizes();
+        // Сообщение пишет только последнее изменение: устаревший обработчик молчит
+        if (outcome.sizes && (outcome.sizes.shoe !== latest.shoe || outcome.sizes.clothing !== latest.clothing)) return;
+        if (latest.shoe !== payload.shoe || latest.clothing !== payload.clothing) return;
+        serverSaved = outcome.ok;
+        serverError = outcome.ok ? '' : outcome.error;
       }
 
-      if (!localSaved && !serverSaved) {
+      if (!cacheSaved && !serverSaved) {
         const errMsg = serverError || 'Не удалось сохранить размеры в браузере (хранилище недоступно).';
-        if (stateEl) stateEl.textContent = errMsg;
+        if (stateEl) stateEl.textContent = errMsg + ' Размеры действуют до перезагрузки страницы.';
         if (typeof showToast === 'function') showToast('⚠️ ' + errMsg);
         return;
       }
@@ -9492,6 +9548,10 @@
           const data = await res.json();
           if (data.status === 'ok' && data.user) {
             currentUser = data.user;
+            // Сменился аккаунт: размеры — его, а не прежние (SY-02)
+            userSizesState = null;
+            if (data.settings) syncUserSizesFromServer(data.settings);
+            else syncProfileSizesUI();
             updateAuthUI();
             return true;
           }
