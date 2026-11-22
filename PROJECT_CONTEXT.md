@@ -17,5 +17,5 @@ KZ Price Hunter — поиск цен и предложений продавцо
 
 - [README](README.md) содержит установку и основные маршруты.
 - [План](docs/DEVELOPMENT_PLAN.md) и [журнал передачи](docs/AGENT_HANDOFF.md) фиксируют требования, решения и состояние работ.
-- [Прод](https://shop.molthun.ru/api/version) и [стенд](https://shdev.molthun.ru/api/version) показывают фактически запущенные версии.
-- [Порядок выката](docs/RELEASE_AND_ROLLBACK.md), [стенд](docs/TEST_STAND.md) и [восстановление](docs/PROD_MOVE_P17E.md#восстановление) описывают сопровождение.
+- [Рабочая бета](https://shop.molthun.ru/api/version) — единственная пользовательская среда; имя контейнера `kzph-stand` осталось историческим. Git хранит код для воспроизводимого развёртывания.
+- [Установка](docs/INSTALL.md), [эксплуатация и восстановление](docs/OPERATIONS.md), [изолированные проверки](docs/TEST_STAND.md) и [публикация/обновление](docs/RELEASE_AND_ROLLBACK.md) описывают сопровождение.
