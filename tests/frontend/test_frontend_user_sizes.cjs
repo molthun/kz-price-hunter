@@ -58,6 +58,19 @@ async function runTest() {
     assert.equal(await page.inputValue('#profileShoeSize'), '42');
     assert.equal(await page.inputValue('#profileClothingSize'), 'L');
 
+    // US-01: при сбое localStorage.setItem показывается честное сообщение ошибки, а не «Сохранено»
+    const errText = await page.evaluate(() => {
+      const orig = Storage.prototype.setItem;
+      Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); };
+      try {
+        onUserSizesChanged();
+        return (document.getElementById('profileSizesState') || {}).textContent || '';
+      } finally {
+        Storage.prototype.setItem = orig;
+      }
+    });
+    assert.match(errText, /Не удалось сохранить/);
+
     // 2. В поиске при наличии фасета «Размер» появляется быстрая кнопка «Мой размер: 42»
     let capturedAttrSize = null;
     await page.route('**/api/v2/search**', async route => {

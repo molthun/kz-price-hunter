@@ -8052,7 +8052,12 @@
       };
       try {
         localStorage.setItem(USER_SIZES_STORAGE_KEY, JSON.stringify(payload));
-      } catch (e) {}
+      } catch (e) {
+        const errMsg = 'Не удалось сохранить размеры в браузере (хранилище недоступно).';
+        if (stateEl) stateEl.textContent = errMsg;
+        if (typeof showToast === 'function') showToast('⚠️ ' + errMsg);
+        return;
+      }
       const parts = [];
       if (payload.shoe) parts.push('обувь ' + payload.shoe);
       if (payload.clothing) parts.push('одежда ' + payload.clothing);
