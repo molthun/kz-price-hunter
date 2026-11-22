@@ -1,0 +1,5 @@
+user {"shoe":"44","clothing":"","kidsHeight":""} cards 1
+cards with 44 and +N: 1 {"chips":[{"t":"36","a":false,"m":false},{"t":"37","a":false,"m":false},{"t":"38","a":false,"m":false},{"t":"39","a":false,"m":false},{"t":"43","a":true,"m":false},{"t":"44","a":false,"m":true}],"more":"+3"}
+cards without visible active 43: 0
+after re-click: attributes= {} url= no size
+PASS stand re-click probe

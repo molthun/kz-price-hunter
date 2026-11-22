@@ -1,0 +1,19 @@
+slice d8d1ac2 (v6.51.0); stand image sha256:28749cb8…2321 healthy
+stand clean container (--network none --cpus 2 --tmpfs /app/data):
+local clean git archive d8d1ac2:
+
+STAND
+----------------------------------------------------------------------
+Ran 3395 tests in 508.565s
+
+OK
+LOCAL
+----------------------------------------------------------------------
+Ran 3395 tests in 234.773s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+
+[exited with code 0]

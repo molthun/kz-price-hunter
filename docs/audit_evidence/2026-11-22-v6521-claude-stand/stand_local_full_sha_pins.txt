@@ -1,0 +1,38 @@
+== STAND
+image=sha256:9bcfb02c9a1ed4116a2ea8914f4c1ee7105066ea0cdf8d6fe2b636d14e172d23 health=healthy restarts=0 started=2026-11-22T15:48:51.058070289Z
+{"version": "6.52.1", "app_name": "KZ Price Hunter", "release_date": "2026-11-22", "author": "Advanced Agentic Coding"}
+{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}
+77a16c0b7aa6a19f checkout web/templates/search_first.html
+77a16c0b7aa6a19f
+6e2198d3fdf17a0b checkout tests/frontend/test_frontend_card_sizes_priority.cjs
+6e2198d3fdf17a0b
+01a2a116a0bdb623 checkout version.py
+01a2a116a0bdb623
+5de536f306682ff9 checkout CHANGELOG.md
+5de536f306682ff9
+fd0ceb2b5f669f50 checkout ROADMAP_AND_LOG.md
+fd0ceb2b5f669f50
+Ran 3396 tests in 569.846s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+== LOCAL
+Ran 3396 tests in 235.474s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+77a16c0b7aa6a19f local web/templates/search_first.html
+6e2198d3fdf17a0b local tests/frontend/test_frontend_card_sizes_priority.cjs
+01a2a116a0bdb623 local version.py
+5de536f306682ff9 local CHANGELOG.md
+fd0ceb2b5f669f50 local ROADMAP_AND_LOG.md
+== FRONTEND
+FAIL tests/frontend/test_frontend_auth.cjs
+FAIL tests/frontend/test_frontend_closed_gate_auth.cjs
+frontend pass=46 fail=2
+
+[exited with code 0]

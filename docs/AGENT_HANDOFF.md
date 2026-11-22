@@ -9,6 +9,135 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## CODEX_ACCEPTED_LIVE_PENDING v6.52.1 — стендовая сверка закрыта (2026-11-22, Asia/Almaty)
+
+- **Итог:** `c729511`/6.52.1 принят в проверенном объёме; SZ-06 закрыт. Новых правок кода после независимой приёмки нет.
+- **Независимая сверка:**5файлов×3SHA совпали сgit; контейнер6.52.1 running/healthy, restarts0, queue0/dead_letters0; image `e5b70a3843640261d585378b352679b6cc3c67df02d3d952ef1335b4560233fb`;45контейнерныхOK/3.439с, pins25. Сверены записанные evidence, свежего удалённого опроса не было.
+- **Полные предыдущие прогоны:**6.52.0/26e411b —3396LinuxOK/642.529с и47/47frontendPASS с точным совпадением tracked-наборов. На6.52.1 полныйLinux/все48frontend не повторялись; затронутые четыре набора PASS. Независимые45Python и121 комбинация наc729511 ранее прошли.
+- **Остаётся:** реальныйTelegram и плановая волна одежды23.11 около06:15Asia/Almaty; затем сверка результатов и решение владельца о выпуске. Production не менялся.
+- **Отчёт:** [ACCEPTANCE_2026-11-22_V6521_STAND_CODEX.md](ACCEPTANCE_2026-11-22_V6521_STAND_CODEX.md); проверочный скрипт/JSON в `docs/audit_evidence/2026-11-22-v6521-codex/`.
+
+## STAND_DEPLOYED v6.52.1 — закрыт SZ-06 на стенде (активный и сохранённый размеры всегда видны на карточке, повторный клик снимает фильтр) — Antigravity (2026-11-22 20:56, Asia/Almaty)
+
+- **Статус:** принятый Codex по коду коммит Claude `c729511` (`v6.52.1` поверх `26e411b`) пересобран и выложен на стенд (`kzph-stand`, checkout `c729511fc5`, локальная правка `docker-compose.stand.yml` сохранена) и проверен. **Готово к финальной стендовой сверке Codex.** Push в `origin/main` не выполнялся, прод не трогался.
+- **Проверки на конечном срезе `c729511` (`v6.52.1`):**
+  - **Локально:**
+    - Deno + Playwright / `node:vm`: `test_frontend_card_sizes_priority.cjs` (**PASS** — активный и сохранённый размеры одновременно видны, повторный клик снимает фильтр), `test_frontend_user_sizes_sync.cjs` (**5/5 PASS**), `test_frontend_user_sizes.cjs` (**PASS**), `test_frontend_search_first.cjs` (**PASS**).
+    - `tests.domain.test_sizes`, `tests.core.test_settings`, `tests.core.test_release_notes`, `tests.core.test_unittest_discovery_contract` — **45 OK** (`2.083 с`).
+    - `release_gate.py secrets` — **`ok: true`, `findings: []`**.
+  - **Стенд (`kzph-stand`, порт `35539`):**
+    - Образ `sha256:e5b70a3843640261d585378b352679b6cc3c67df02d3d952ef1335b4560233fb`, `Status=running`, `Health=healthy`, `Restarts=0`, `StartedAt=2026-11-22T15:56:13.769081786Z`.
+    - `/api/version` = `6.52.1`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`).
+    - `5/5` SHA256 (`web/templates/search_first.html`, `tests/frontend/test_frontend_card_sizes_priority.cjs`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`) совпали локально, в checkout стенда (`c729511fc5`) и внутри контейнера `kzph-stand`.
+    - Чистый контейнер (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`): целевые Python-тесты — **45 OK** (`3.439 с`); `pins` — **`ok: true`, `checked: 25`**.
+  - **Предыдущий полный прогон на `26e411b` (`v6.52.0`, до JS-правки SZ-06):** чистый контейнер **3 396 OK** (`642.529 с`), **47/47** tracked frontend **PASS** (`docs/audit_evidence/2026-11-22-v6520-antigravity-stand/`).
+- **Сырые доказательства (`docs/audit_evidence/2026-11-22-v6521-antigravity-stand/`):** `local_tests_secrets_sha.txt`, `local_python_targeted.txt`, `sha_image_health_pins_tests.txt`.
+- **Непроведённые проверки:** полный Linux-набор (3 396 тестов) и все 48 tracked браузерных наборов целиком на `c729511` не повторялись (Python-код в `c729511` не менялся; на `26e411b` полный Linux 3 396 OK и 47/47 frontend PASS); живой Telegram и плановая волна одежды `23.11 ~06:15` Almaty впереди.
+- **Следующий точный шаг:** **Codex** — стендовая сверка `v6.52.1` (`c729511`).
+
+## STAND_DEPLOYED v6.52.1 — SZ-06 на стенде, повторный клик проверен в браузере — Claude (22.11.2026, Asia/Almaty)
+
+- **Срез:** `c729511` поверх `26e411b`; стенд — fast-forward через git bundle. Образ `sha256:9bcfb02c…2d23`, healthy, перезапусков 0, started 15:48:51Z; `/api/version=6.52.1`, `/api/health=ok` (queue 0, dead_letters 0). SHA 5 файлов совпали локально, в checkout и в контейнере. Push не выполнялся, прод — 6.45.1.
+- **Полные наборы на конечном SHA:** чистый контейнер стенда — **3 396 OK / 569.8 с**; локально на `git archive c729511` — **3 396 OK / 235.5 с**; secrets `ok`, pins `ok`, checked 25. Браузерные **48/48**: 46 в общем цикле, `test_frontend_auth` и `test_frontend_closed_gate_auth` зависли под параллельной нагрузкой, остановлены и отдельно прошли (PASS за секунды).
+- **Повторный клик на данных стенда (Chrome, гость):** «кеды», сохранён 44, фильтр 43. Карточка Vans: `36 37 38 39 [43 активен] [44 мой] +3`; активный виден на всех карточках, ≤6 чипов. Клик по активному 43 → `AppState.attributes={}`, размер ушёл из URL, активных чипов нет. Скриншот карточки `stand_reclick.png`.
+- **Также:** закрыт хвост Codex по 6.51.0 — полный набор `d8d1ac2` 3 395 OK на стенде и локально (`v6510_full_suites.txt`).
+- **Наблюдение (не дефект SZ-06):** активный и «мой» чипы окрашены одинаково — различаются только подсказкой; решение по виду за автором/владельцем.
+- **Evidence:** `docs/audit_evidence/2026-11-22-v6521-claude-stand/`.
+- **Дальше:** Codex — сверка стенда 6.52.1. Живые: реальный Telegram `/search`/`/прайс` (владелец) и волна одежды 23.11 около 06:15 Asia/Almaty.
+
+## CODEX_CODE_ACCEPTED_STAND_PENDING v6.52.1 — SZ-06 закрыт по коду (2026-11-22, Asia/Almaty)
+
+- **Срез:** `c729511`. Активный41 и сохранённый42 теперь одновременно видны; повторный клик снимает фильтр. Новых замечаний в проверенном объёме нет.
+- **Независимо:**45PythonOK/1.785с в архиве; новый priorityVM PASS;5/5syncVM PASS; прежний probe теперь проходит, дополнительно121 сочетание приоритетов/лимита/порядка/счётчика PASS.
+- **Граница:** на момент записи нет новой карточки/evidence стенда6.52.1; healthy6.52.0 не подтверждает исправление. Визуальный браузерный и полныйLinux конечногоSHA не повторялись. Выпуск не выполнялся.
+- **Далее:** исполнитель выкладывает6.52.1 на стенд с SHA/image/version/health и проверкой повторного клика; потом сверкаCodex. РеальныйTelegram и плановая волна одежды23.11 около06:15Asia/Almaty остаются ожидаемыми.
+- **Отчёт:** [REACCEPTANCE_2026-11-22_V6521_CODEX.md](REACCEPTANCE_2026-11-22_V6521_CODEX.md); evidence `docs/audit_evidence/2026-11-22-v6521-codex/`. Чужие изменения сохранены; приложение/БД/прод не менялись.
+
+## CODEX_RETURNED v6.52.0 — SZ-06 P2: активный размер исчезает из карточки (2026-11-22, Asia/Almaty)
+
+- **Срез:** `26e411b`. Возвращено одно замечание по новому переключению размеров; профиль роста и SY-01/SY-02 в проверенном объёме проходят.
+- **SZ-06 P2:** профиль обувь42, наличие36/37/38/39/40/41/42, выбран41. `hiddenPrio` добавляет42 и отрезает активный41; фильтр действует, но повторно нажать активный чип для снятия нельзя. Требуется сохранить все приоритеты независимо от исходной позиции, лимит6 и корректный `+N`.
+- **Независимо:**45PythonOK/2.166с в архиве;5VM syncPASS; отдельная гонка только роста98→104→110PASS; настоящий рендер/обработчик воспроизводитSZ-06. SHA9файлов×3 совпали, pins25. Свежего опроса стенда/визуального браузерного прогона нет.
+- **Закрыто старое ожидание:** полныйLinux6.51.0 теперь завершён —3395OK/515.656с по дополненному авторскому логу. На6.52.0 это не переносится.
+- **Следующий шаг:** Claude/автор исправляетSZ-06 с регрессией и новой версией, проверяет стенд; далееCodex. РеальныйTelegram и плановая волна одежды23.11 около06:15Asia/Almaty остаются ожидаемыми.
+- **Отчёт:** [REVIEW_2026-11-22_V6520_CODEX.md](REVIEW_2026-11-22_V6520_CODEX.md), evidence `docs/audit_evidence/2026-11-22-v6520-codex/`. Прод и код приложения аудитор не менял.
+
+## STAND_DEPLOYED v6.52.0 — кликабельные чипы размеров на карточках выдачи + «Рост ребёнка» в «Моих размерах» — Antigravity (2026-11-22 20:17, Asia/Almaty)
+
+- **Статус:** коммит `26e411b` (`v6.52.0` поверх `d8d1ac2` / `v6.51.0`) выложен на стенд через git bundle (`fast-forward` `d8d1ac2715..26e411bf25`, локальная правка `docker-compose.stand.yml` сохранена) и проверен. **Готово к проверке Codex / Claude.** Push в `origin/main` не выполнялся, прод не трогался.
+- **Что сделано (`v6.52.0`):**
+  - `config.py`: добавлен `preferred_kids_height` в `USER_DEFAULTS` и строгая валидация/нормализация через `domain.sizes.normalize_height_sizes` (`"98"` → `"рост 98"`, `"116 см"` → `"рост 116"`, невалидные значения отклоняются `ValueError` → HTTP 400).
+  - `web/templates/search_first.html`:
+    - чипы размеров на карточках выдачи (`.card-sizes-row .offer-size-chip`) стали интерактивными кнопками `button.card-size-btn` (`onCardSizeChipClick`), переключающими фильтр `AppState.attributes.size` без открытия модалки товара;
+    - в «Моих размерах» профиля добавлен `<select id="profileKidsHeight">` (`рост 80`–`рост 164`) с полной поддержкой `SY-01`/`SY-02` очереди и памяти страницы, серверной синхронизацией (`/api/me/settings`), кнопкой быстрого фильтра и подсветкой `.is-my-size` на карточках выдачи и товара.
+  - Тесты и версионность: `KidsHeightSettingsValidationTest` в `tests/domain/test_sizes.py`, `tests/core/test_settings.py`, `tests/frontend/test_frontend_user_sizes_sync.cjs`, проверка клика `.card-size-btn` в `tests/frontend/test_frontend_user_sizes.cjs`, `version.py` (`6.52.0`), `CHANGELOG.md`, `ROADMAP_AND_LOG.md`.
+- **Проверки:**
+  - **Локально:**
+    - `tests.domain.test_sizes`, `tests.core.test_settings`, `tests.core.test_release_notes`, `tests.core.test_unittest_discovery_contract` — **45 OK** (`1.954 с`).
+    - `release_gate.py secrets` — **`ok: true`, `findings: []`**.
+    - Deno + Playwright / `node:vm`: `test_frontend_user_sizes_sync.cjs` (**5/5 PASS**), `test_frontend_user_sizes.cjs` (**PASS**, включая клик `.card-size-btn` → `attributes.size='37'`), `test_frontend_search_first.cjs` (**PASS**).
+  - **Стенд (`kzph-stand`, порт `35539`):**
+    - Образ `sha256:aad6449a28d7546048a57d848635e890eda62e488ed0d5b2fad168fa5672de9f`, `Status=running`, `Health=healthy`, `Restarts=0`, `StartedAt=2026-11-22T15:17:08.100460519Z`.
+    - `/api/version` = `6.52.0`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`).
+    - `9/9` SHA256 (`config.py`, `web/templates/search_first.html`, `tests/core/test_settings.py`, `tests/domain/test_sizes.py`, `tests/frontend/test_frontend_user_sizes.cjs`, `tests/frontend/test_frontend_user_sizes_sync.cjs`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`) совпали локально, в checkout стенда (`26e411bf25`) и внутри контейнера `kzph-stand`.
+    - Чистый контейнер (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`): целевые Python-тесты — **45 OK** (`3.354 с`); `pins` — **`ok: true`, `checked: 25`**.
+- **Сырые доказательства (`docs/audit_evidence/2026-11-22-v6520-antigravity-stand/`):** `local_tests_secrets_sha.txt`, `frontend_targeted.txt`, `sha_image_health_pins_tests.txt`.
+- **Непроведённые проверки:** полный Linux-набор (3 396+ тестов) и все 47 браузерных наборов целиком на `26e411b` не прогонялись (прогнаны целевые Python-тесты и 3 затронутых фронтенд-набора).
+- **Следующий точный шаг:** **Codex** — аудит `v6.52.0` (`26e411b`) на стенде; после плановой волны «одежда» (`~01:15Z 23.11`) и живой пробы в Telegram-боте — решение владельца о выпуске.
+
+## CODEX_ACCEPTED_WITH_LIVE_PENDING v6.49.1–v6.51.0 — SZ-04/SZ-05 закрыты (2026-11-22, Asia/Almaty)
+
+- **Срез:** `d8d1ac2` (6.51.0), исправления `bb5979c`, карточки `c738673`. Новых блокирующих замечаний в проверенном объёме нет; прод не менялся.
+- **Независимо:** 48 целевых unittest OK/1.521с, 377 search OK/22.263с; прежний probe обоих парсеров теперь подтверждает очистку раскупленных размеров и сохранение ростовых. Дополнительные FTS/LIKE и VM карточки PASS; ограничения LIKE-кириллицы и отсутствие визуального прогона явно описаны.
+- **Сверка evidence:** SHA8/8/6 файлов трёх версий совпали с git и тремя копиями, pins25; 47/47 frontend и Linux3394OK относятся к6.50.0. На6.51.0 полный Linux-файл пока без итогового summary — завершённый полный прогон не подтверждён.
+- **Дальше:** завершить полный Linux конечного SHA, реальный Telegram и плановая волна одежды 23.11 около06:15 Asia/Almaty. Принятие кода не закрывает живые проверки и не является выпуском.
+- **Отчёт:** [REACCEPTANCE_2026-11-22_V6491_V6510_CODEX.md](REACCEPTANCE_2026-11-22_V6491_V6510_CODEX.md); evidence `docs/audit_evidence/2026-11-22-v6510-codex/`.
+
+## STAND_DEPLOYED v6.51.0 — поддержка размеров в `search_in_database` и поиске Telegram-бота (`/search`, `/price`) — Antigravity (2026-11-22 19:57, Asia/Almaty)
+
+- **Статус:** коммит `d8d1ac2` (`v6.51.0` поверх `c738673` / `v6.50.0`) выложен на стенд через git bundle (`fast-forward` `c738673891..d8d1ac2715`, локальная правка `docker-compose.stand.yml` сохранена) и проверен. **Готово к проверке Codex / Claude.** Push в `origin/main` не выполнялся, прод не трогался.
+- **Что сделано (`v6.51.0`):**
+  - `search_engine.py`: в `search_in_database` подключено безопасное извлечение размера `domain.sizes.extract_size_from_query`, фильтрация по `offer_sizes` (`os.offer_id = 'off_' || p.id`) в FTS5 и LIKE-ветках, а также пакетное обогащение возвращаемых записей полем `available_sizes` (сортировка через `sort_size_key`).
+  - `telegram_bot.py`: добавлен `_format_tg_sizes_summary`, компактный вывод доступных размеров в `build_price_comparison_markdown` и HTML-выдаче `handle_search_command`.
+  - Тесты и версионность: `SearchInDatabaseSizesTest` в `tests/domain/test_sizes.py` (обувь 42, отсутствующий 45, детский «рост 98», защита «телевизор 42 дюйма», Markdown-вывод бота), `version.py` (`6.51.0`), `CHANGELOG.md`, `ROADMAP_AND_LOG.md`.
+- **Проверки:**
+  - **Локально:**
+    - `tests.domain.test_sizes`, `tests.domain.test_telegram_price_upload`, `tests.core.test_release_notes`, `tests.core.test_unittest_discovery_contract` — **43 OK** (`1.792 с`).
+    - Все тесты `tests/notifications` — **357 OK** (`12.340 с`).
+    - Все тесты `tests/search` — **377 OK** (`14.131 с`).
+    - `release_gate.py secrets` — **`ok: true`, `findings: []`**.
+  - **Стенд (`kzph-stand`, порт `35539`):**
+    - Образ `sha256:28749cb863ed93b5a3a5d46c0dca6edd57c4c7600ccf71d6925a7b192e1d2321`, `Status=running`, `Health=healthy`, `Restarts=0`, `StartedAt=2026-11-22T14:57:07.286952884Z`.
+    - `/api/version` = `6.51.0`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`).
+    - `6/6` SHA256 (`search_engine.py`, `telegram_bot.py`, `tests/domain/test_sizes.py`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`) совпали локально, в checkout стенда (`d8d1ac2715`) и внутри контейнера `kzph-stand`.
+    - Чистый контейнер (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`): **полный Linux-набор — 3 395 OK (`515.656 с`)**, целевые Python-тесты — **43 OK** (`2.532 с`); `pins` — **`ok: true`, `checked: 25`**.
+- **Сырые доказательства (`docs/audit_evidence/2026-11-22-v6510-antigravity-stand/`):** `local_tests_secrets_sha.txt`, `sha_image_health_pins_tests.txt`, `clean_container_full_suite.txt`.
+- **Остаётся вживую:** проверка владельцем реального `/прайс` и `/search кроссовки 42` в стендовом Telegram-боте; плановая волна «одежда» (`Kari`, `Intertop`, `KIMEX`, «Детский мир», около `01:15Z 23.11`).
+- **Следующий точный шаг:** **Codex** — аудит `v6.49.1`–`v6.51.0` (`d8d1ac2`) на стенде.
+
+## STAND_DEPLOYED v6.50.0 — размеры в наличии прямо на карточках выдачи поиска (с подсветкой «Моего размера») — Antigravity (2026-11-22 17:41, Asia/Almaty)
+
+- **Статус:** коммит `c738673` (`v6.50.0` поверх `c9ab3a2` / `v6.49.1`) выложен на стенд через git bundle (`fast-forward` `bb5979cd91..c738673891`, локальная правка `docker-compose.stand.yml` сохранена) и проверен. **Готово к проверке Codex / Claude.** Push в `origin/main` не выполнялся, прод не трогался.
+- **Что сделано (`v6.50.0`):**
+  - `repositories/search_repo.py`: добавлен пакетный метод `available_sizes_for_products(product_ids, **offer_args)` с `JOIN sellers`/`channels` и ровно теми же условиями `_offer_filter(..., size=None)` (город, цена, продавец, состояние, наличие), что и основная выдача; сортировка через `domain.sizes.sort_size_key`.
+  - `domain/search_core.py`: добавлено поле `available_sizes` в `ProductSearchResult` и пакетное обогащение страницы выдачи `page_items`.
+  - `web/templates/search_first.html`: добавлены `.card-sizes-row` и `renderCardSizesHtml(availableSizes)` (до 6 чипов + `+N`, приоритетный показ и подсветка `.is-my-size` для сохранённого размера пользователя, поддержка светлой/тёмной тем и мобильного экрана).
+  - Тесты и версионность: `SearchCardAvailableSizesTest` в `tests/domain/test_sizes.py`, проверка `.card-sizes-row` / `.is-my-size` / `+2` в `tests/frontend/test_frontend_user_sizes.cjs`, `version.py` (`6.50.0`), `CHANGELOG.md`, `ROADMAP_AND_LOG.md`.
+- **Проверки:**
+  - **Локально:**
+    - `tests.domain.test_sizes`, `tests.core.test_release_notes`, `tests.core.test_unittest_discovery_contract` — **32 OK** (`1.578 с`).
+    - Все тесты `tests/search` — **377 OK** (`14.169 с`).
+    - `release_gate.py secrets` — **`ok: true`, `findings: []`**.
+    - Deno + Playwright / `node:vm`: все **47/47** tracked браузерных наборов — **PASS** (`failed=0`), включая `test_frontend_user_sizes_sync.cjs` (**5/5 PASS**), `test_frontend_user_sizes.cjs` (**PASS**) и `test_frontend_search_first.cjs` (**PASS**).
+  - **Стенд (`kzph-stand`, порт `35539`):**
+    - Образ `sha256:8127475ed5e25f138a923ced2c98ecbd26973fbc410f48eb8edf4d8efa7471ab`, `Status=running`, `Health=healthy`, `Restarts=0`, `StartedAt=2026-11-22T12:40:41.882989132Z`.
+    - `/api/version` = `6.50.0`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`).
+    - `8/8` SHA256 (`repositories/search_repo.py`, `domain/search_core.py`, `web/templates/search_first.html`, `tests/domain/test_sizes.py`, `tests/frontend/test_frontend_user_sizes.cjs`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`) совпали локально, в checkout стенда (`c738673891`) и внутри контейнера `kzph-stand`.
+    - Чистый контейнер (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`): **полный Linux-набор — 3 394 OK (`464.364 с`)**, целевые Python-тесты — **32 OK** (`2.531 с`); `pins` — **`ok: true`, `checked: 25`**.
+- **Сырые доказательства (`docs/audit_evidence/2026-11-22-v6500-antigravity-stand/`):** `local_tests_and_secrets.txt`, `local_sha256.txt`, `sha_image_health_pins_tests.txt`, `clean_container_full_suite.txt`, `frontend_all.txt`.
+- **Остаётся вживую:** проверка владельцем реального `/прайс` в стендовом Telegram-боте и плановая волна «одежда» (`Kari`, `Intertop`, `KIMEX`, «Детский мир», около `01:15Z 23.11`).
+- **Следующий точный шаг:** **Codex** — аудит `v6.49.1` (`bb5979c`) и `v6.50.0` (`c738673`) на стенде.
+
 ## STAND_DEPLOYED v6.49.1 — SZ-04 (раскупленные размеры) и SZ-05 (рост) — Claude (22.11.2026, Asia/Almaty)
 
 - **Срез:** `bb5979c` поверх `5f42a3b`; стенд — fast-forward через git bundle. Образ `sha256:ad3d5ac1…2012`, healthy, перезапусков 0, `/api/version=6.49.1`, `/api/health=ok`. SHA 6 файлов совпали в git и контейнере. Push не выполнялся, прод — 6.45.1.
