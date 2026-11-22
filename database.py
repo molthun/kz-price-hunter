@@ -5613,6 +5613,37 @@ def _apply_retire_transition(jobs: Dict[str, int]) -> List[str]:
             raise
 
 
+def _attach_offer_sizes(conn, offers: List[Dict[str, Any]]) -> None:
+    """Доступные размеры каждого предложения из offer_sizes по его же offer_id (SZ-03).
+
+    Наблюдение по размеру сверяется с размерами этого предложения, не соседнего того же товара.
+    Предложение без записей остаётся без available_sizes и под размерное наблюдение не попадает;
+    раскупленный размер исчезает из offer_sizes при следующем обходе и перестаёт совпадать."""
+    from domain.sizes import sort_size_key
+    by_offer: Dict[str, List[Dict[str, Any]]] = {}
+    for offer in offers:
+        if "available_sizes" in offer:
+            continue
+        offer_id = str(offer.get("offer_id") or "")
+        if offer_id:
+            by_offer.setdefault(offer_id, []).append(offer)
+    if not by_offer:
+        return
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='offer_sizes'").fetchone():
+        return
+    sizes: Dict[str, List[str]] = {}
+    keys = list(by_offer)
+    for start in range(0, len(keys), 500):
+        chunk = keys[start:start + 500]
+        for row in conn.execute(f"SELECT offer_id, size FROM offer_sizes WHERE offer_id IN ({','.join('?' * len(chunk))})",
+                                chunk):
+            sizes.setdefault(row[0], []).append(row[1])
+    for offer_id, found in sizes.items():
+        ordered = sorted(set(found), key=sort_size_key)
+        for offer in by_offer[offer_id]:
+            offer["available_sizes"] = ordered
+
+
 def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.datetime] = None) -> int:
     """Сверяет изменившиеся предложения с активными наблюдениями и ставит срабатывания в очередь.
 
@@ -5625,6 +5656,8 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
     queued = 0
     with get_connection() as conn:
         active = [_watch_row(r) for r in conn.execute("SELECT * FROM watches WHERE is_active = 1")]
+        if active:
+            _attach_offer_sizes(conn, offers)
     if not active:
         return 0
 
@@ -5858,6 +5891,7 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                     r["canonical_product_id"] = r.get("id")
                     rows.append(r)
 
+            _attach_offer_sizes(conn, rows)
             # Прежние ключи и товары предложения (P17CR-02): наблюдения со старой целью продолжают его узнавать
             former_keys = _former_identities(conn, "key", [r.get("canonical_key") for r in rows])
             former_pids = _former_identities(conn, "product", [r.get("canonical_product_id") for r in rows])

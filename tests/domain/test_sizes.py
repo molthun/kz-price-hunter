@@ -249,3 +249,54 @@ class SizeStringParsingTest(unittest.TestCase):
         self.assertEqual(extract_size_from_query("телевизор размер 42 дюйма"), (None, "телевизор размер 42 дюйма"))
         self.assertEqual(extract_size_from_query("телевизор размер42 дюйма"), (None, "телевизор размер42 дюйма"))
         self.assertEqual(extract_size_from_query("macbook m3"), (None, "macbook m3"))
+
+
+class SizeWatchRealPathTest(unittest.TestCase):
+    """SZ-03 (Codex 22.11): размер доходит до наблюдений через штатный watched_offers → evaluate_watches."""
+
+    USER = 864201
+    BASE = {"sku": "RUNSIZE903", "title": "Кроссовки T.Taccardi Run Watch Белые", "category": "Обувь",
+            "image_url": "https://example.invalid/image.jpg", "old_price_on_site": 0}
+
+    def setUp(self):
+        database.init_db()
+        database.upsert_telegram_user({"id": self.USER, "first_name": "SizeWatch"})
+        with database.get_connection() as conn:
+            conn.execute("DELETE FROM watches WHERE user_id = ?", (self.USER,))
+            conn.commit()
+        self.kari = dict(self.BASE, id="kari_sz03_a", shop="Kari", price=10000, city="Алматы",
+                         url="https://example.invalid/sz03/a", available_sizes=["36"])
+        self.inter = dict(self.BASE, id="intertop_sz03_b", shop="Интертоп", price=20000, city="Алматы",
+                          url="https://example.invalid/sz03/b", available_sizes=["42"])
+        database.save_or_update_products_batch([self.kari, self.inter])
+        target = local_search.WATCH_PREFIX + json.dumps(
+            {"query": "кроссовки", "attributes": {"size": "42"}, "original_query": "кроссовки 42 размер"},
+            ensure_ascii=False)
+        database.create_watch(self.USER, {"kind": "search", "target": target, "condition": "target_price",
+                                          "threshold": 25000, "quiet_from": "", "quiet_to": "",
+                                          "cooldown_hours": 0})
+
+    def events(self):
+        return [e for e in database.watch_events(self.USER) if "Run Watch" in (e.get("title") or e.get("target") or "")
+                or e["product_id"] in (self.kari["id"], self.inter["id"])]
+
+    def test_watched_offers_carries_sizes_of_the_same_offer(self):
+        rows = {r["id"]: r for r in database.watched_offers([self.kari["id"], self.inter["id"]])}
+        self.assertEqual(rows[self.inter["id"]]["available_sizes"], ["42"])
+        self.assertEqual(rows[self.kari["id"]]["available_sizes"], ["36"])
+
+    def test_size_watch_fires_once_on_matching_offer_only(self):
+        ids = [self.kari["id"], self.inter["id"]]
+        database.evaluate_watches(database.watched_offers(ids))
+        fired = self.events()
+        self.assertEqual([e["product_id"] for e in fired], [self.inter["id"]],
+                         "42 есть только у Интертопа; дешёвое предложение Kari с 36 не срабатывает")
+        database.evaluate_watches(database.watched_offers(ids))
+        self.assertEqual(len(self.events()), 1, "повтор не дублирует событие")
+
+    def test_sold_out_size_stops_matching(self):
+        database.save_or_update_products_batch([dict(self.inter, price=19000, available_sizes=["43"])])
+        rows = {r["id"]: r for r in database.watched_offers([self.inter["id"]])}
+        self.assertEqual(rows[self.inter["id"]]["available_sizes"], ["43"])
+        database.evaluate_watches(database.watched_offers([self.kari["id"], self.inter["id"]]))
+        self.assertEqual(self.events(), [], "42 раскуплен — ложного события нет")
