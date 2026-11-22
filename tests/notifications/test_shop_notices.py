@@ -155,7 +155,7 @@ class CheckAndQueueTest(unittest.TestCase):
         self.assertEqual(outcome["checked"], 0, "непроверенный магазин не попадает в проверенные")
 
     def test_clean_and_unreachable_shops_do_not_force_a_check_every_loop(self):
-        """6.43.5: магазины без обращений не попадают в таблицу; раньше из-за этого проверка шла
+        """6.44.1: магазины без обращений не попадают в таблицу; раньше из-за этого проверка шла
         на каждом круге фонового цикла (прод: раз в 3–4 минуты, у iSpace — 429)."""
         clean = {"shop_key": "ispace", "host": "ispace.kz", "checked": True, "error": None,
                  "notices": [], "fingerprint": ""}
