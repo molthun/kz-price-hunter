@@ -1,0 +1,17 @@
+commit bb5979cd91e04956aad8b139e39b34d261ecb877
+local 98dcd6bad02e79af48f3c9fce6f2374b288cab127fd6b3a3cb03df85b9cdab89 domain/sizes.py
+local 69aa08046b26216551ae27d2f540560b382c3b50c3746f232f232ce549dfb642 domain/adapter.py
+local 2edd607830b9073485fba1f3abfac086fb022ff5fee0b4ae66ed63e3759ec7a1 scrapers/kimex.py
+local bd74ae597b456353851d66234a883625b304a658e25d2809c3d50f04143c12bb scrapers/detmir.py
+local 6ff5369c4fed594704bb87c27161d0ec58211c3b7cf8447d528171ff3d99f134 tests/domain/test_sizes.py
+local 65a3a350c5d062f3ec065c11d2730e91477f922c355b8a9ab15bf92feccd3a04 version.py
+stand_head bb5979cd91e04956aad8b139e39b34d261ecb877
+container 98dcd6bad02e79af48f3c9fce6f2374b288cab127fd6b3a3cb03df85b9cdab89 domain/sizes.py
+container 69aa08046b26216551ae27d2f540560b382c3b50c3746f232f232ce549dfb642 domain/adapter.py
+container 2edd607830b9073485fba1f3abfac086fb022ff5fee0b4ae66ed63e3759ec7a1 scrapers/kimex.py
+container bd74ae597b456353851d66234a883625b304a658e25d2809c3d50f04143c12bb scrapers/detmir.py
+container 6ff5369c4fed594704bb87c27161d0ec58211c3b7cf8447d528171ff3d99f134 tests/domain/test_sizes.py
+container 65a3a350c5d062f3ec065c11d2730e91477f922c355b8a9ab15bf92feccd3a04 version.py
+image=sha256:ad3d5ac1a82613ca04ed58b1cf6590e8c47bbe3ac8f8bb6fb62cac6169592012 health=healthy restarts=0
+version {"version": "6.49.1", "app_name": "KZ Price Hunter", "release_date": "2026-11-22", "author": "Advanced Agentic Coding"}
+health {"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}

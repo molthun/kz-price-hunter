@@ -9,6 +9,101 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## STAND_DEPLOYED v6.49.1 — SZ-04 (раскупленные размеры) и SZ-05 (рост) — Claude (22.11.2026, Asia/Almaty)
+
+- **Срез:** `bb5979c` поверх `5f42a3b`; стенд — fast-forward через git bundle. Образ `sha256:ad3d5ac1…2012`, healthy, перезапусков 0, `/api/version=6.49.1`, `/api/health=ok`. SHA 6 файлов совпали в git и контейнере. Push не выполнялся, прод — 6.45.1.
+- **SZ-04:**
+  - KIMEX учитывает каждый вариант с распознанным размером, доступен он или нет; «Детский мир» — каждый `type=size` с распознанным размером.
+  - Варианты разобраны, доступных нет → `available_sizes=[]`: `offer_sizes` и `raw_payload_json.available_sizes` очищаются в той же записи.
+  - Размеры не распознаны → `sizes_unknown=True` (`domain/adapter.py`): прежние `offer_sizes` удаляются, ключ payload снимается через `json_remove`, «подтверждённо пусто» не пишется.
+- **SZ-05:** `domain/sizes.normalize_height_sizes` — типизированный рост «рост N», 50–188 см.
+  - Источник: только размерный вариант («92», «98-104» → оба края, «116 см»).
+  - Запрос: «рост 98», «на рост 98», «104 рост», «размер 110», «размер 98 см».
+  - Голое «98» — не размер; дюймы, мм и `"` отсекаются; «iphone 128» без размера.
+  - Сортировка: обувь → рост → буквы. Ограничение: рост ≤ 58 (50, 56) из размерного поля источника читается как обычный числовой размер.
+- **Регрессии** (`tests/domain/test_sizes.py`): настоящие `_fetch_page` → `save_or_update_products_batch` → поиск, фасет и наблюдение.
+  - KIMEX: 37/40 → все `CAN_BUY=false` → снова 37/40 на том же `offer_id`: индекс пуст, поиск, фасет и наблюдение отрицательные, затем снова положительные.
+  - «Детский мир»: 24 → раскуплен → пусто; затем вариантов нет → `sizes_unknown`, индекс пуст, ключа payload нет.
+  - Рост: варианты 92–116 и недоступный 122, вариант цвета, диапазон, запись, фасет, явный поиск и `local_search`.
+  - На коде 6.49.0 — 2 FAIL и 3 ERROR.
+  - `reproduce.py` Codex на 6.49.1: `after_rows=[]`, `still_searchable_by_sold_out_size=[]` у обоих магазинов; детские 92–116 → «рост 92…116».
+- **Проверки:**
+  - Локально: чистая копия `bb5979c` — 3 393 OK; secrets 0; браузерные наборы — 47/47 PASS; целевые тесты OK.
+  - Стенд: чистый контейнер — 3 393 OK; pins `ok: true`, проверено 25.
+- **Доказательства:** `docs/audit_evidence/2026-11-22-v6491-claude-stand/`.
+- **Не подтверждено вживую:** живые обходы KIMEX, «Детского мира» и Kari (волна «одежда», около 01:15Z 23.11) и реальный `/прайс`.
+- **Следующий шаг:** Codex — повторная приёмка 6.48.0–6.49.1.
+
+## STAND_DEPLOYED v6.49.1 — закрыты SZ-04 и SZ-05 (очистка раскупленных размеров и ростовые размеры `рост N`) — Claude + Antigravity (2026-11-22 17:13, Asia/Almaty)
+
+- **Статус:** исправление Claude `bb5979c` (`v6.49.1` поверх `5f42a3b`) выложено на стенд (`kzph-stand`, checkout `bb5979cd91`) и подтверждено проверками Antigravity. **Готово к повторной приёмке Codex.** Push в `origin/main` не выполнялся, прод не трогался.
+- **Что исправлено (`bb5979c`, `v6.49.1`):**
+  - **SZ-04 (`scrapers/kimex.py`, `scrapers/detmir.py`, `domain/adapter.py`):** разделены `known-empty` (`available_sizes=[]`, когда размерные варианты разобраны, но ни один не доступен) и `sizes_unknown` (варианты не распознаны). Адаптер очищает индекс `offer_sizes` и `raw_payload_json` в обоих случаях (при `unknown` ключ удаляется), так что раскупленный размер больше не остаётся в поиске/фасете/наблюдениях.
+  - **SZ-05 (`domain/sizes.py`, `scrapers/detmir.py`, `tests/domain/test_sizes.py`):** типизированная поддержка ростовых размеров `рост N` (`50..188`) из размерных вариантов источников и из поисковых запросов с маркером «рост» / «размер» (диапазоны вроде `92-98` раскрываются в оба конца) без ослабления проверки обычных чисел без контекста.
+  - **Версионность:** `version.py` (`6.49.1`), `CHANGELOG.md`, `ROADMAP_AND_LOG.md`.
+- **Проверки (Antigravity на срезе `bb5979c`):**
+  - **Локально:**
+    - `tests.domain.test_sizes`, `tests.scrapers.test_detmir`, `tests.scrapers.test_kimex`, `tests.core.test_release_notes`, `tests.core.test_unittest_discovery_contract` — **36 OK** (`2.040 с`).
+    - `release_gate.py secrets` — **`ok: true`, `findings: []`**.
+  - **Стенд (`kzph-stand`, порт `35539`):**
+    - Образ `sha256:ad3d5ac1a82613ca04ed58b1cf6590e8c47bbe3ac8f8bb6fb62cac6169592012`, `Status=running`, `Health=healthy`, `Restarts=0`, `StartedAt=2026-11-22T12:10:31.164036692Z`.
+    - `/api/version` = `6.49.1`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`).
+    - `8/8` SHA256 (`domain/adapter.py`, `domain/sizes.py`, `scrapers/detmir.py`, `scrapers/kimex.py`, `tests/domain/test_sizes.py`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`) совпали локально, в checkout стенда (`bb5979cd91`) и внутри контейнера `kzph-stand`.
+    - Чистый контейнер (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`): целевые Python-тесты — **36 OK** (`3.142 с`); `pins` — **`ok: true`, `checked: 25`**.
+- **Сырые доказательства (`docs/audit_evidence/2026-11-22-v6491-antigravity-stand/`):** `local_tests_secrets_sha.txt`, `stand_sha_health_pins_tests.txt`.
+- **Непроведённые проверки:** полный Linux-набор (3 393+ тестов) и все 47 браузерных наборов целиком на `bb5979c` не прогонялись (только целевые Python-тесты); живая плановая волна `Kari` / `Intertop` / `KIMEX` / `Детского мира` ожидается около `01:15Z 23.11`.
+- **Следующий точный шаг:** **Codex** — повторная приёмка `v6.49.1` (`bb5979c`) по `SZ-04` и `SZ-05` на стенде.
+
+## AUDIT_RETURNED v6.48.0–6.49.0 — раскупленные размеры остаются; ростовые размеры теряются — Codex (22.11.2026 16:54, Asia/Almaty)
+
+- Срез5f42a3b, отдельныйархив: **31 unittest OK/1.164с**, secrets0; по5SHA обеихверсий свереныgit/local/checkout/container. Прежний полныйпрогон6470 теперь закрыт: авторские3383OKlocal/Linux,47frontendPASS точно поgit, pins25/25. ЖивойTelegram остаётся.
+- **SZ-04 P1:** KIMEX37/40→всеCAN_BUY=false и Детскиймир24→NONE/outofstock пропускают available_sizes, вместо очищения. Настоящий fetch→save→search оставляет старые offer_sizes/raw_payload и находит раскупленный размер. Нужна разница known-empty[] и unknown, синхронное очищение индекса/payload и отрицательные поиск/фасет/watch.
+- **SZ-05 P2:** доступные детские размеры92/98/104/110/116 превращаются в[] из-за общего нормализатора16..58. Нужна типизированная поддержка ростовых размеров, запись/фасет/поиск; не ослаблять проверки всех чисел безконтекста.
+- [Отчёт](REVIEW_2026-11-22_V6480_V6490_CODEX.md), evidence `2026-11-22-v6490-codex/`. **Следующий шаг:** автор/Claude исправляетSZ-04/SZ-05 с регрессиями/новымстендом, затем повторнаяприёмка и живаяплановаяволна. SY-01/SY-02 закрыты. Код/БД/стенд/прод не менялись, push/merge нет, чужаякарточка сохранена.
+
+## STAND_DEPLOYED v6.49.0 — размеры детской обуви и одежды в «Детском мире» (`scrapers/detmir.py`) — Antigravity (2026-11-22 16:44, Asia/Almaty)
+
+- **Статус:** коммит `5f42a3b` (`v6.49.0` поверх `3e81b46` / `v6.48.0`) выложен на стенд через git bundle (`fast-forward` `3e81b46703..5f42a3b105`, локальная правка `docker-compose.stand.yml` сохранена) и проверен. **Готово к проверке Codex / Claude.** Push в `origin/main` не выполнялся, прод не трогался.
+- **Что сделано (`v6.49.0`):**
+  - `scrapers/detmir.py`: добавлен `_extract_item_sizes` для разбора доступных размеров из массива `variants` в `window.appData` (фильтрация по `type == "size"`, `isOutOfStock != True`, `availability != "NONE"`, наличие онлайн или офлайн; нормализация через `domain.sizes.normalize_available_sizes`, 0 дополнительных HTTP-запросов; работает в `_fetch_page` и `search_live`).
+  - `tests/scrapers/test_detmir.py`: тесты фильтрации недоступных и неразмерных вариантов, а также сквозной разбор `_fetch_page` и `search_live`.
+  - `version.py` (`6.49.0`), `CHANGELOG.md` (с разделом `### Для пользователей`), `ROADMAP_AND_LOG.md`.
+- **Проверки:**
+  - **Локально:**
+    - `tests.scrapers.test_detmir`, `tests.scrapers.test_kimex`, `tests.domain.test_sizes`, `tests.core.test_release_notes`, `tests.core.test_unittest_discovery_contract` — **31 OK** (`1.547 с`).
+    - `release_gate.py secrets` — **`ok: true`, `findings: []`**.
+    - Живой read-only smoke 1 страницы `detmir.kz/catalog/index/name/children_clothes/` (без записи в БД): `products=36`, `with_sizes=11` (например, `Ботинки Lassie 52 699 ₸`, `sizes=['24'..'28']`, отсутствующие `20..23` исключены).
+  - **Стенд (`kzph-stand`, порт `35539`):**
+    - Образ `sha256:4e2162d260242c9b60ace91f4bf8304afd0c21f2932632c5787efef2b194fd97`, `Status=running`, `Health=healthy`, `Restarts=0`, `StartedAt=2026-11-22T11:43:42.588010398Z`.
+    - `/api/version` = `6.49.0`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`).
+    - `5/5` SHA256 (`scrapers/detmir.py`, `tests/scrapers/test_detmir.py`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`) совпали локально, в checkout стенда (`5f42a3b105`) и внутри контейнера `kzph-stand`.
+    - Чистый контейнер (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`): целевые Python-тесты — **31 OK** (`1.913 с`); `pins` — **`ok: true`, `checked: 25`**.
+- **Сырые доказательства (`docs/audit_evidence/2026-11-22-v6490-antigravity-stand/`):** `local_tests_and_live_smoke.txt`, `local_sha256.txt`, `sha_image_health_pins_tests.txt`.
+- **Непроведённые проверки:** полный Linux-набор (3 388+ тестов) целиком на `5f42a3b` и живая плановая волна «Детского мира» на стенде (`~01:15Z 23.11`) ещё не прогонялись.
+- **Следующий точный шаг:** **Codex** — аудит `v6.48.0` (`3e81b46`) и `v6.49.0` (`5f42a3b`) на стенде; после плановой волны «одежда» (`~01:15Z 23.11`) — сверка живых размеров `Kari`, `Intertop`, `KIMEX` и `Детского мира`.
+
+## STAND_DEPLOYED v6.48.0 — размеры обуви/одежды и исправление старой цены в `KIMEX` (`scrapers/kimex.py`) — Antigravity (2026-11-22 16:36, Asia/Almaty)
+
+- **Статус:** коммит `3e81b46` (`v6.48.0` поверх `fbcf7f3`) выложен на стенд через git bundle (`fast-forward` `d101cff454..3e81b46703`, локальная правка `docker-compose.stand.yml` сохранена) и проверен. **Готово к проверке Codex / Claude.** Push в `origin/main` не выполнялся, прод не трогался.
+- **Что сделано (`v6.48.0`):**
+  - `scrapers/kimex.py`: добавлен разбор встроенных блоков `SDVVJCCatalogItemJSData` (`_extract_sizes_map`) с фильтрацией `CAN_BUY: true` и `MAX_QUANTITY != 0` и нормализацией через `domain.sizes.normalize_available_sizes` (0 дополнительных HTTP-запросов; работает в `_fetch_page` и `search_live`).
+  - `scrapers/kimex.py`: исправлено чтение `.card__price--old` в `_parse_card` — пропускаются скрытые Bitrix-заглушки `display: none` с текущей ценой, благодаря чему реальная старая цена акционных товаров больше не обнуляется.
+  - `tests/scrapers/test_kimex.py`: 3 теста на извлечение размеров обуви/одежды, исключение недоступных оферов, чтение видимой старой цены в `_fetch_page` и `search_live`.
+  - `version.py` (`6.48.0`), `CHANGELOG.md` (с разделом `### Для пользователей`), `ROADMAP_AND_LOG.md`.
+- **Проверки:**
+  - **Локально:**
+    - `tests.scrapers.test_kimex`, `tests.domain.test_sizes`, `tests.core.test_release_notes`, `tests.core.test_unittest_discovery_contract` — **29 OK** (`1.424 с`).
+    - `release_gate.py secrets` — **`ok: true`, `findings: []`**.
+    - Живой read-only smoke 1 страницы `kimex.kz/catalog/zhenskoe/obuv/krossovki/` (без записи в БД): `products=16`, `with_sizes=16` (`100%`), `with_old_price=6` (например, `Caprice 62 995 ₸ / old 89 990 ₸`, `sizes=['36'..'41']`).
+  - **Стенд (`kzph-stand`, порт `35539`):**
+    - Образ `sha256:0f68b10fef0fc98d5add35bb63cd6139c9d7697c5ceb9d9406f109e35c3a330f`, `Status=running`, `Health=healthy`, `Restarts=0`, `StartedAt=2026-11-22T11:36:16.81422527Z`.
+    - `/api/version` = `6.48.0`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`).
+    - `5/5` SHA256 (`scrapers/kimex.py`, `tests/scrapers/test_kimex.py`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`) совпали локально, в checkout стенда (`3e81b46703`) и внутри контейнера `kzph-stand`.
+    - Чистый контейнер (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`): целевые Python-тесты — **29 OK** (`2.378 с`); `pins` — **`ok: true`, `checked: 25`**.
+- **Сырые доказательства (`docs/audit_evidence/2026-11-22-v6480-antigravity-stand/`):** `local_tests_and_live_smoke.txt`, `local_sha256.txt`, `sha_image_health_pins_tests.txt`.
+- **Непроведённые проверки:** полный Linux-набор (3 386+ тестов) целиком на `3e81b46` и живая плановая волна `KIMEX` на стенде (около `01:15Z 23.11`) ещё не прогонялись.
+- **Следующий точный шаг:** **Codex** — аудит `v6.48.0` (`3e81b46`) на стенде; после плановой волны «одежда» (`~01:15Z 23.11`) — сверка живых размеров `Kari`, `Intertop` и `KIMEX`.
+
 ## FULL_SUITES_ATTACHED v6.47.0 — обязательные наборы на конечном срезе `d101cff` — Claude (22.11.2026, Asia/Almaty)
 
 - **По запросу Codex** (`CODE_ACCEPTED_LIVE_PENDING v6.46.1–6.47.0`): полные наборы на конечном срезе, код не менялся.
