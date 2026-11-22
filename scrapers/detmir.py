@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import quote_plus, urljoin
 
 from bs4 import BeautifulSoup
+from domain.sizes import normalize_available_sizes
 from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import (
@@ -55,6 +56,30 @@ class DetmirScraper(PagedScraper):
         if page <= 1:
             return clean + "/"
         return f"{clean}/page/{page}/"
+
+    @staticmethod
+    def _extract_item_sizes(raw_item: Dict[str, Any]) -> List[str]:
+        """Извлекает доступные размеры товара из массива `variants` в `window.appData`."""
+        variants = raw_item.get("variants")
+        if not isinstance(variants, list) or not variants:
+            return []
+        raw_sizes: List[str] = []
+        for variant in variants:
+            if not isinstance(variant, dict):
+                continue
+            v_type = str(variant.get("type") or "").strip().lower()
+            if v_type and v_type != "size":
+                continue
+            if variant.get("isOutOfStock") is True:
+                continue
+            if str(variant.get("availability") or "").strip().upper() == "NONE":
+                continue
+            if variant.get("isAvailableOnline") is False and variant.get("isAvailableOffline") is False:
+                continue
+            token = variant.get("size") or variant.get("manufacturer_size") or variant.get("title")
+            if token is not None:
+                raw_sizes.append(str(token))
+        return normalize_available_sizes(raw_sizes)
 
     def _extract_app_data_items(self, html: str, category_name: str) -> Tuple[List[Dict[str, Any]], int]:
         """Извлекает товары и общее количество из внедренного window.appData."""
@@ -114,6 +139,9 @@ class DetmirScraper(PagedScraper):
                     "old_price_on_site": old_price,
                     "city": "Алматы / Казахстан",
                 }
+                sizes = self._extract_item_sizes(it)
+                if sizes:
+                    item["available_sizes"] = sizes
                 validated = validate_product_item(item, default_shop=self.SHOP_NAME)
                 if validated:
                     results.append(validated)
