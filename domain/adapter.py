@@ -382,6 +382,8 @@ def prepare_legacy_offer_v2(
             if "available_sizes" in product and product.get("available_sizes") is not None
             else None
         ),
+        # SZ-04: источник с размерами не распознал их у товара — прежние размеры не выдаются за текущие
+        "sizes_unknown": bool(product.get("sizes_unknown")) and product.get("available_sizes") is None,
     }
 
 
@@ -739,6 +741,18 @@ def _write_legacy_offers_v2(
             WHERE offers.id = j.offer_id
             """,
             (_json_param(payload_updates),),
+        )
+
+    # SZ-04: размеры не распознаны — индекс очищается, а в payload нет ни старого, ни «подтверждённо пустого»
+    unknown_ids = list(dict.fromkeys(it["offer_id"] for it in items if it.get("sizes_unknown")))
+    if unknown_ids:
+        conn.execute("DELETE FROM offer_sizes WHERE offer_id IN (SELECT value FROM json_each(?))",
+                     (_json_param(unknown_ids),))
+        conn.execute(
+            """UPDATE offers SET raw_payload_json = json_remove(raw_payload_json, '$.available_sizes')
+               WHERE id IN (SELECT value FROM json_each(?)) AND raw_payload_json IS NOT NULL
+                 AND raw_payload_json != '' AND json_valid(raw_payload_json)""",
+            (_json_param(unknown_ids),),
         )
 
     if history:

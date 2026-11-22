@@ -88,6 +88,10 @@ def normalize_size_token(raw: Any) -> Optional[str]:
     if not cleaned:
         return None
 
+    hm = _HEIGHT_CANON_RE.match(text)
+    if hm:
+        return _height_token(int(hm.group(1)))
+
     upper = cleaned.upper()
     if upper in _LETTER_ALIASES:
         return _LETTER_ALIASES[upper]
@@ -103,6 +107,39 @@ def normalize_size_token(raw: Any) -> Optional[str]:
     return None
 
 
+# SZ-05: детская одежда по росту (см). Канонический вид «рост 92», чтобы не смешивать с обувью 42 или EU 56.
+HEIGHT_MIN, HEIGHT_MAX = 50, 188
+_HEIGHT_CANON_RE = re.compile(r"(?iu)^рост\s*(\d{2,3})$")
+_HEIGHT_RAW_RE = re.compile(r"(?iu)^(?:рост\s*)?(\d{2,3})(?:\s*(?:[-–/]|до)\s*(\d{2,3}))?\s*(?:см)?$")
+
+
+def _height_token(value: int) -> Optional[str]:
+    return f"рост {value}" if HEIGHT_MIN <= value <= HEIGHT_MAX else None
+
+
+def normalize_height_sizes(raw: Any) -> List[str]:
+    """Ростовой размер из размерного варианта источника: «92», «98-104», «рост 110», «116 см».
+
+    Диапазон раскладывается на края («98-104» → рост 98, рост 104), чтобы его находил поиск по любому краю.
+    Вызывать только для заведомо размерных полей: голое число без контекста размером не считается.
+    """
+    if raw is None:
+        return []
+    text = re.sub(r"\s+", " ", str(raw).strip())
+    m = _HEIGHT_RAW_RE.match(text)
+    if not m:
+        return []
+    out = []
+    for part in (m.group(1), m.group(2)):
+        if part:
+            token = _height_token(int(part))
+            if not token:
+                return []
+            if token not in out:
+                out.append(token)
+    return out
+
+
 def sort_size_key(size: str) -> Tuple[int, float, str]:
     """Ключ естественной сортировки размеров: числа по возрастанию, затем XS..XXXL."""
     norm = normalize_size_token(size) or str(size).strip().upper()
@@ -110,9 +147,12 @@ def sort_size_key(size: str) -> Tuple[int, float, str]:
         return (0, float(norm), norm)
     except ValueError:
         pass
+    hm = _HEIGHT_CANON_RE.match(norm)
+    if hm:
+        return (1, float(hm.group(1)), norm)
     if norm in _LETTER_ORDER:
-        return (1, float(_LETTER_ORDER[norm]), norm)
-    return (2, 0.0, norm)
+        return (2, float(_LETTER_ORDER[norm]), norm)
+    return (3, 0.0, norm)
 
 
 def normalize_available_sizes(raw_sizes: Any) -> List[str]:
@@ -145,6 +185,13 @@ def normalize_available_sizes(raw_sizes: Any) -> List[str]:
     return out
 
 
+# После роста допустимы «см»; дюймы, мм и знак дюйма — это техника
+_NON_HEIGHT_UNIT_RE = re.compile(r"(?iu)^\s*(?:дюйм\w*|\"|''|мм\b|inch\w*)")
+_QUERY_HEIGHT_RE = re.compile(
+    r"(?iu)(?<!\w)(?:(?:на\s+)?рост[а]?\s*(\d{2,3})(?:\s*см\b)?|(\d{2,3})\s*(?:см\s*)?рост\w*|(?:размер[ауе]?|р-р)\s*(\d{2,3})(?:\s*см\b)?)(?!\w)"
+)
+
+
 def extract_size_from_query(query: str) -> Tuple[Optional[str], str]:
     """Извлекает размер из поискового запроса при явном маркере или обувном/одежном контексте.
 
@@ -153,6 +200,15 @@ def extract_size_from_query(query: str) -> Tuple[Optional[str], str]:
     text = str(query or "").strip()
     if not text:
         return None, text
+
+    # 0. Рост (SZ-05): «рост 98», «на рост 104», «98 рост», «размер 110» (110 — не обувь, значит рост)
+    m_h = _QUERY_HEIGHT_RE.search(text)
+    if m_h:
+        value = int(m_h.group(1) or m_h.group(2) or m_h.group(3))
+        token = _height_token(value)
+        if token and not (m_h.group(3) and value <= 58) and not _NON_HEIGHT_UNIT_RE.match(text[m_h.end():]):
+            cleaned = re.sub(r"\s+", " ", (text[:m_h.start()] + " " + text[m_h.end():])).strip()
+            return token, cleaned
 
     # 1. Явный маркер: «размер 42», «42 размер», «р. 38», «size XL»
     m_exp = _EXPLICIT_SIZE_RE.search(text)

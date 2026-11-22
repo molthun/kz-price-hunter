@@ -371,3 +371,149 @@ class SizeWatchRealPathTest(unittest.TestCase):
         self.assertEqual(rows[self.inter["id"]]["available_sizes"], ["43"])
         database.evaluate_watches(database.watched_offers([self.kari["id"], self.inter["id"]]))
         self.assertEqual(self.events(), [], "42 раскуплен — ложного события нет")
+
+
+class KnownEmptySizesClearIndexTest(unittest.TestCase):
+    """SZ-04 (Codex 22.11): раскупленные размеры исчезают из индекса; неизвестные не выдаются за текущие."""
+
+    def setUp(self):
+        database.init_db()
+
+    def _fetch(self, scraper, html, name, url):
+        from unittest.mock import MagicMock
+        scraper.session = MagicMock()
+        scraper.session.get.return_value = MagicMock(status_code=200, text=html)
+        return scraper._fetch_page(name, url, 1)[0]
+
+    def _state(self, url, size):
+        from repositories.search_repo import SearchRepository
+        with database.get_connection() as conn:
+            offer = conn.execute("SELECT id, raw_payload_json FROM offers WHERE url = ?", (url,)).fetchone()
+            sizes = [r[0] for r in conn.execute("SELECT size FROM offer_sizes WHERE offer_id = ? ORDER BY size",
+                                                (offer["id"],))]
+            repo = SearchRepository(conn)
+            repo.attribute_filters = {"size": size}
+            found = any(o.get("url") == url for it in repo.search_products("") for o in it["offers"])
+            repo.attribute_filters = {}
+            facets = repo.attribute_facets({"query": ""}, {})
+        facet = {v["value"] for f in facets if f["key"] == "size" for v in f["values"]}
+        payload = json.loads(offer["raw_payload_json"] or "{}")
+        return offer["id"], sizes, found, size in facet, payload
+
+    def _watch_matches(self, offer_id, size):
+        target = local_search.WATCH_PREFIX + json.dumps({"query": "кроссовки", "attributes": {"size": size}},
+                                                        ensure_ascii=False)
+        offers = [o for o in database.watched_offers([offer_id]) if o.get("offer_id") == offer_id]
+        return bool(offers) and local_search.matches_watch(target, offers[0])
+
+    def test_kimex_sold_out_then_back(self):
+        from scrapers.kimex import KimexScraper
+        from tests.scrapers.test_kimex import SAMPLE_KIMEX_HTML
+        url = "https://kimex.kz/catalog/x/"
+        first = self._fetch(KimexScraper(), SAMPLE_KIMEX_HTML, "KIMEX: Кроссовки", url)
+        size = first["available_sizes"][0]
+        database.save_or_update_products_batch([first])
+        oid, sizes, found, in_facet, _ = self._state(first["url"], size)
+        self.assertTrue(sizes and found and in_facet)
+
+        sold_out = self._fetch(KimexScraper(), SAMPLE_KIMEX_HTML.replace("'CAN_BUY':true", "'CAN_BUY':false"),
+                               "KIMEX: Кроссовки", url)
+        self.assertEqual(sold_out["available_sizes"], [], "варианты разобраны, доступных нет")
+        database.save_or_update_products_batch([sold_out])
+        oid2, sizes, found, in_facet, payload = self._state(first["url"], size)
+        self.assertEqual(oid2, oid)
+        self.assertEqual((sizes, found, in_facet, payload.get("available_sizes")), ([], False, False, []))
+        self.assertFalse(self._watch_matches(oid, size))
+
+        database.save_or_update_products_batch([first])  # размер вернулся на том же предложении
+        oid3, sizes, found, in_facet, _ = self._state(first["url"], size)
+        self.assertEqual(oid3, oid)
+        self.assertTrue(size in sizes and found and in_facet)
+        self.assertTrue(self._watch_matches(oid, size))
+
+    def test_detmir_sold_out_and_unknown(self):
+        from scrapers.detmir import DetmirScraper
+        from tests.scrapers.test_detmir import _make_appdata_html
+        base = {"id": "7155299", "title": "Ботинки Lassie Sz04", "price": {"price": 52699},
+                "link": {"web_url": "/product/index/id/7155299/"}, "pictures": [{"original": "https://cdn.detmir.kz/a.jpg"}]}
+        v = {"size": "24", "type": "size", "isOutOfStock": False, "availability": "AVAILABLE",
+             "isAvailableOnline": True, "isAvailableOffline": True}
+        url = "https://detmir.kz/catalog/index/name/children_shoes/"
+        name = "Детский мир: Обувь"
+        first = self._fetch(DetmirScraper(), _make_appdata_html([dict(base, variants=[v])]), name, url)
+        database.save_or_update_products_batch([first])
+        self.assertTrue(self._state(first["url"], "24")[2])
+
+        gone = dict(v, isOutOfStock=True, availability="NONE", isAvailableOnline=False, isAvailableOffline=False)
+        sold_out = self._fetch(DetmirScraper(), _make_appdata_html([dict(base, variants=[gone])]), name, url)
+        self.assertEqual(sold_out["available_sizes"], [])
+        database.save_or_update_products_batch([sold_out])
+        _, sizes, found, in_facet, payload = self._state(first["url"], "24")
+        self.assertEqual((sizes, found, in_facet, payload.get("available_sizes")), ([], False, False, []))
+
+        database.save_or_update_products_batch([first])
+        # Размерных вариантов нет вовсе — размеры неизвестны: старые не выдаются за текущие,
+        # но и «подтверждённо пусто» в payload не пишется
+        unknown = self._fetch(DetmirScraper(), _make_appdata_html([dict(base, variants=[])]), name, url)
+        self.assertNotIn("available_sizes", unknown)
+        self.assertTrue(unknown.get("sizes_unknown"))
+        database.save_or_update_products_batch([unknown])
+        _, sizes, found, _, payload = self._state(first["url"], "24")
+        self.assertEqual((sizes, found), ([], False))
+        self.assertNotIn("available_sizes", payload)
+
+
+class HeightSizesTest(unittest.TestCase):
+    """SZ-05 (Codex 22.11): детская одежда по росту доходит до индекса, фасета и поиска."""
+
+    def test_detmir_height_variants(self):
+        from scrapers.detmir import DetmirScraper
+        v = {"type": "size", "isOutOfStock": False, "availability": "AVAILABLE",
+             "isAvailableOnline": True, "isAvailableOffline": True}
+        sizes = DetmirScraper._extract_item_sizes(
+            {"variants": [dict(v, size=s) for s in ["92", "98", "104", "110", "116"]]
+                         + [dict(v, size="122", isOutOfStock=True), dict(v, type="color", title="128")]})
+        self.assertEqual(sizes, ["рост 92", "рост 98", "рост 104", "рост 110", "рост 116"])
+        self.assertEqual(DetmirScraper._extract_item_sizes({"variants": [dict(v, size="98-104")]}),
+                         ["рост 98", "рост 104"])
+        self.assertEqual(DetmirScraper._extract_item_sizes({"variants": [dict(v, size="24")]}), ["24"])
+
+    def test_height_is_typed_and_not_any_number(self):
+        from domain.sizes import normalize_height_sizes
+        self.assertEqual(normalize_height_sizes("116 см"), ["рост 116"])
+        self.assertEqual(normalize_height_sizes("200"), [])
+        self.assertEqual(normalize_height_sizes("40"), [])
+        self.assertIsNone(normalize_size_token("98"), "голое 98 вне размерного поля — не размер")
+        self.assertEqual(normalize_available_sizes(["рост 104", "42", "рост 92", "M"]), ["42", "рост 92", "рост 104", "M"])
+        self.assertEqual(extract_size_from_query("куртка на рост 98"), ("рост 98", "куртка"))
+        self.assertEqual(extract_size_from_query("платье размер 110"), ("рост 110", "платье"))
+        self.assertEqual(extract_size_from_query("комбинезон 104 рост"), ("рост 104", "комбинезон"))
+        self.assertEqual(extract_size_from_query("размер 98 см"), ("рост 98", ""))
+        self.assertEqual(extract_size_from_query("кроссовки размер 42"), ("42", "кроссовки"))
+        self.assertEqual(extract_size_from_query("телевизор размер 98 дюймов"), (None, "телевизор размер 98 дюймов"))
+        self.assertEqual(extract_size_from_query("iphone 128"), (None, "iphone 128"))
+
+    def test_height_written_faceted_and_searchable(self):
+        from repositories.search_repo import SearchRepository
+        database.init_db()
+        item = {"id": "detmir_sz05_a", "shop": "Детский мир", "title": "Комбинезон Sz05 Тест", "category": "Одежда",
+                "url": "https://example.invalid/sz05/a", "image_url": "https://example.invalid/i.jpg",
+                "price": 15000, "old_price_on_site": 0, "city": "Алматы",
+                "available_sizes": ["рост 92", "рост 98"]}
+        database.save_or_update_products_batch([item])
+        with database.get_connection() as conn:
+            repo = SearchRepository(conn)
+            repo.attribute_filters = {"size": "рост 98"}
+            hits = [it["product"].title for it in repo.search_products("комбинезон")]
+            repo.attribute_filters = {"size": "рост 110"}
+            misses = repo.search_products("комбинезон")
+            repo.attribute_filters = {}
+            facets = repo.attribute_facets({"query": "комбинезон"}, {})
+        self.assertIn("Комбинезон Sz05 Тест", hits)
+        self.assertEqual([it for it in misses if "Sz05" in it["product"].title], [])
+        values = [v["value"] for f in facets if f["key"] == "size" for v in f["values"]]
+        self.assertIn("рост 92", values)
+        self.assertIn("рост 98", values)
+        r = local_search.search_sync({"query": "комбинезон Sz05 на рост 98", "limit": 20, "offset": 0}, {"plan": None}, {})
+        self.assertEqual(r.get("selected_attributes", {}).get("size"), "рост 98")
+        self.assertTrue(any("Sz05" in it["product"]["title"] for it in r["items"]))

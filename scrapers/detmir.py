@@ -58,27 +58,40 @@ class DetmirScraper(PagedScraper):
         return f"{clean}/page/{page}/"
 
     @staticmethod
-    def _extract_item_sizes(raw_item: Dict[str, Any]) -> List[str]:
-        """Извлекает доступные размеры товара из массива `variants` в `window.appData`."""
+    def _extract_item_sizes(raw_item: Dict[str, Any]) -> Optional[List[str]]:
+        """Доступные размеры товара из `variants` в `window.appData`.
+
+        [] — размерные варианты разобраны, доступных нет (SZ-04); None — размеров у товара не распознано.
+        Обувь и одежда по букве — общим нормализатором, детская одежда по росту (92, 98–104) — ростовым (SZ-05).
+        """
+        from domain.sizes import normalize_height_sizes
         variants = raw_item.get("variants")
         if not isinstance(variants, list) or not variants:
-            return []
+            return None
         raw_sizes: List[str] = []
+        recognized = 0
         for variant in variants:
             if not isinstance(variant, dict):
                 continue
             v_type = str(variant.get("type") or "").strip().lower()
             if v_type and v_type != "size":
                 continue
+            token = variant.get("size") or variant.get("manufacturer_size") or variant.get("title")
+            if token is None:
+                continue
+            norm = normalize_available_sizes([str(token)]) or normalize_height_sizes(token)
+            if not norm:
+                continue
+            recognized += 1
             if variant.get("isOutOfStock") is True:
                 continue
             if str(variant.get("availability") or "").strip().upper() == "NONE":
                 continue
             if variant.get("isAvailableOnline") is False and variant.get("isAvailableOffline") is False:
                 continue
-            token = variant.get("size") or variant.get("manufacturer_size") or variant.get("title")
-            if token is not None:
-                raw_sizes.append(str(token))
+            raw_sizes.extend(norm)
+        if not recognized:
+            return None
         return normalize_available_sizes(raw_sizes)
 
     def _extract_app_data_items(self, html: str, category_name: str) -> Tuple[List[Dict[str, Any]], int]:
@@ -140,8 +153,10 @@ class DetmirScraper(PagedScraper):
                     "city": "Алматы / Казахстан",
                 }
                 sizes = self._extract_item_sizes(it)
-                if sizes:
-                    item["available_sizes"] = sizes
+                if sizes is not None:
+                    item["available_sizes"] = sizes  # [] — размеры разобраны, доступных нет
+                else:
+                    item["sizes_unknown"] = True
                 validated = validate_product_item(item, default_shop=self.SHOP_NAME)
                 if validated:
                     results.append(validated)

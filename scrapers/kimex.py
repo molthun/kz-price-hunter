@@ -82,22 +82,23 @@ class KimexScraper(PagedScraper):
                 continue
             offers_chunk = block[offers_idx:]
             raw_sizes: List[str] = []
+            sized_offers = 0
             for offer_blk in cls._OFFER_SPLIT_RE.split(offers_chunk)[1:]:
+                nm = cls._OFFER_NAME_RE.search(offer_blk)
+                sm = cls._TRAILING_SIZE_RE.search(nm.group(1)) if nm else None
+                if not sm or not normalize_available_sizes([sm.group(1)]):
+                    continue
+                sized_offers += 1  # размерный вариант распознан — доступен он или нет
                 cb = cls._OFFER_CAN_BUY_RE.search(offer_blk)
                 if not cb or cb.group(1) != "true":
                     continue
                 mq = cls._OFFER_MAX_QTY_RE.search(offer_blk)
                 if mq and mq.group(1).strip() in ("0", "0.0"):
                     continue
-                nm = cls._OFFER_NAME_RE.search(offer_blk)
-                if not nm:
-                    continue
-                sm = cls._TRAILING_SIZE_RE.search(nm.group(1))
-                if sm:
-                    raw_sizes.append(sm.group(1))
-            normalized = normalize_available_sizes(raw_sizes)
-            if normalized:
-                sizes_map[pid] = normalized
+                raw_sizes.append(sm.group(1))
+            # SZ-04: варианты разобраны — список известен, в том числе пустой (всё раскуплено)
+            if sized_offers:
+                sizes_map[pid] = normalize_available_sizes(raw_sizes)
         return sizes_map
 
     def _parse_card(
@@ -176,8 +177,10 @@ class KimexScraper(PagedScraper):
             "city": "Алматы / Казахстан",
         }
         sizes = (sizes_map or {}).get(str(prod_id))
-        if sizes:
-            item["available_sizes"] = list(sizes)
+        if sizes is not None:
+            item["available_sizes"] = list(sizes)  # [] — размеры разобраны, доступных нет
+        else:
+            item["sizes_unknown"] = True
         return validate_product_item(item, default_shop=self.SHOP_NAME)
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> ScanResult:
