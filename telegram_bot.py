@@ -116,6 +116,37 @@ async def send_tg_message(
         print(f"[Telegram Bot] Ошибка отправки сообщения: {type(e).__name__}")
 
 
+async def edit_tg_message_text(
+    session: aiohttp.ClientSession,
+    token: str,
+    chat_id: int,
+    message_id: int,
+    text: str,
+    reply_markup: Optional[Dict[str, Any]] = None,
+):
+    """Обновляет текст и клавиатуру существующего сообщения Telegram."""
+    if not session or not token or not chat_id or not message_id:
+        return
+    url = f"https://api.telegram.org/bot{token}/editMessageText"
+    payload: Dict[str, Any] = {
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "link_preview_options": {"is_disabled": True},
+    }
+    if reply_markup is not None:
+        payload["reply_markup"] = reply_markup
+    try:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            if resp.status != 200:
+                payload["text"] = re.sub(r"<[^>]+>", "", text)
+                payload.pop("parse_mode", None)
+                await session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10))
+    except Exception as e:
+        print(f"[Telegram Bot] Ошибка editMessageText: {type(e).__name__}")
+
+
 async def send_tg_rich_message(
     session: aiohttp.ClientSession,
     token: str,
@@ -1617,6 +1648,233 @@ async def handle_inline_query(session: aiohttp.ClientSession, token: str, iq: Di
         print(f"[Telegram Bot] Ошибка answerInlineQuery: {type(e).__name__}")
 
 
+def _is_telegram_admin(user_id: int, user: Optional[Dict[str, Any]] = None) -> bool:
+    return bool(user and user.get("is_admin")) or (user_id in config.ADMIN_TELEGRAM_IDS)
+
+
+async def handle_price_upload_command(
+    session: aiohttp.ClientSession,
+    token: str,
+    chat_id: int,
+    user_id: int,
+    raw_text: str,
+    *,
+    photo_file_id: Optional[str] = None,
+    message_thread_id: Optional[int] = None,
+):
+    """Администраторская команда `/upload_price` / `/прайс` (и фото с подписью `/price`):
+    распознаёт скриншот/текст прайса продавца и присылает превью с кнопкой публикации (v6.47.0).
+    """
+    from database import get_connection
+    from domain.seller_vision_upload import VisionUploadError, extract_seller_price_payload
+    from domain.telegram_price_upload import (
+        PRICE_UPLOAD_DRAFTS,
+        download_telegram_image,
+        find_seller_for_price_upload,
+        format_price_preview_html,
+        parse_price_command_args,
+    )
+
+    kwargs = {"message_thread_id": message_thread_id} if message_thread_id is not None else {}
+    seller_query, caption_text = parse_price_command_args(raw_text)
+
+    if not seller_query:
+        await send_tg_message(
+            session,
+            token,
+            chat_id,
+            "📋 <b>Загрузка прайса продавца</b>\n\n"
+            "Отправьте скриншот (или текст прайса) с подписью:\n"
+            "<code>/прайс Мобильник</code>\n\n"
+            "Для текстового прайса добавьте строки со следующей строки:\n"
+            "<code>/прайс Мобильник\niPhone 16 Pro 256GB — 549 000 тг</code>",
+            **kwargs,
+        )
+        return
+
+    if not photo_file_id and not caption_text:
+        await send_tg_message(
+            session,
+            token,
+            chat_id,
+            "⚠️ Прикрепите скриншот прайса к команде или добавьте строки прайса со следующей строки.",
+            **kwargs,
+        )
+        return
+
+    def _lookup_seller():
+        with get_connection() as conn:
+            return find_seller_for_price_upload(conn, seller_query)
+
+    seller, candidates = await asyncio.to_thread(_lookup_seller)
+    if not seller:
+        if candidates:
+            choices = "\n".join(
+                f"• <code>{html.escape(c.slug or c.id)}</code> — {html.escape(c.name)}"
+                for c in candidates
+            )
+            await send_tg_message(
+                session,
+                token,
+                chat_id,
+                f"🔎 Найдено несколько магазинов по запросу «{html.escape(seller_query)}». Уточните название или slug:\n{choices}",
+                **kwargs,
+            )
+        else:
+            await send_tg_message(
+                session,
+                token,
+                chat_id,
+                f"❌ Магазин «{html.escape(seller_query)}» не найден в активном реестре продавцов.",
+                **kwargs,
+            )
+        return
+
+    meta = seller.metadata if isinstance(seller.metadata, dict) else {}
+    default_city = str(meta.get("city") or "Алматы").strip()[:80] or "Алматы"
+
+    try:
+        image_bytes = None
+        if photo_file_id:
+            await send_tg_chat_action(session, token, chat_id, "typing")
+            image_bytes = await download_telegram_image(session, token, photo_file_id)
+
+        result = await extract_seller_price_payload(
+            image_bytes=image_bytes,
+            caption_text=caption_text,
+            default_city=default_city,
+        )
+    except VisionUploadError as e:
+        await send_tg_message(session, token, chat_id, f"⚠️ {html.escape(str(e))}", **kwargs)
+        return
+    except Exception as e:
+        await send_tg_message(
+            session,
+            token,
+            chat_id,
+            f"⚠️ Не удалось распознать прайс ({html.escape(type(e).__name__)}).",
+            **kwargs,
+        )
+        return
+
+    publishable = result.get("publishable") or []
+    rejected = result.get("rejected") or []
+    preview_text = format_price_preview_html(
+        seller_name=seller.name,
+        city=result.get("city") or default_city,
+        publishable=publishable,
+        rejected=rejected,
+    )
+
+    reply_markup = None
+    if publishable:
+        draft_id = PRICE_UPLOAD_DRAFTS.create(
+            admin_user_id=user_id,
+            seller_id=seller.id,
+            seller_name=seller.name,
+            city=result.get("city") or default_city,
+            publishable=publishable,
+            rejected_count=len(rejected),
+        )
+        reply_markup = {
+            "inline_keyboard": [
+                [
+                    {"text": f"✅ Опубликовать ({len(publishable)})", "callback_data": f"pricepub:{draft_id}"},
+                    {"text": "❌ Отмена", "callback_data": f"pricecan:{draft_id}"},
+                ]
+            ]
+        }
+
+    await send_tg_message(session, token, chat_id, preview_text, reply_markup=reply_markup, **kwargs)
+
+
+async def handle_price_upload_callback(
+    session: aiohttp.ClientSession,
+    token: str,
+    cq_id: str,
+    chat_id: int,
+    message_id: int,
+    user_id: int,
+    user: Optional[Dict[str, Any]],
+    data: str,
+):
+    """Обрабатывает кнопки подтверждения/отмены публикации прайса (v6.47.0)."""
+    from database import get_connection
+    from domain.seller_vision_upload import VisionUploadError, publish_seller_vision_items
+    from domain.telegram_price_upload import PRICE_UPLOAD_DRAFTS, format_publish_result_html
+
+    if not _is_telegram_admin(user_id, user):
+        await answer_callback_query(session, token, cq_id, text="🔒 Только для администраторов", show_alert=True)
+        return
+
+    action, _, draft_id = data.partition(":")
+    draft = PRICE_UPLOAD_DRAFTS.pop_for_admin(draft_id, user_id)
+    if not draft:
+        await answer_callback_query(session, token, cq_id, text="⏳ Черновик истёк или уже обработан", show_alert=True)
+        return
+
+    if action == "pricecan":
+        await answer_callback_query(session, token, cq_id, text="❌ Загрузка отменена")
+        await edit_tg_message_text(
+            session,
+            token,
+            chat_id,
+            message_id,
+            f"❌ <b>Загрузка прайса для «{html.escape(draft['seller_name'])}» отменена.</b>",
+            reply_markup={"inline_keyboard": []},
+        )
+        return
+
+    def _publish():
+        with get_connection() as conn:
+            return publish_seller_vision_items(
+                conn,
+                draft["seller_id"],
+                draft["publishable"],
+                city=draft["city"],
+            )
+
+    try:
+        pub = await asyncio.to_thread(_publish)
+    except (VisionUploadError, LookupError) as e:
+        await answer_callback_query(session, token, cq_id, text="⚠️ Ошибка публикации", show_alert=True)
+        await edit_tg_message_text(
+            session,
+            token,
+            chat_id,
+            message_id,
+            f"⚠️ <b>Публикация не выполнена:</b> {html.escape(str(e))}",
+            reply_markup={"inline_keyboard": []},
+        )
+        return
+    except Exception as e:
+        await answer_callback_query(session, token, cq_id, text="⚠️ Ошибка публикации", show_alert=True)
+        await edit_tg_message_text(
+            session,
+            token,
+            chat_id,
+            message_id,
+            f"⚠️ <b>Ошибка публикации:</b> {html.escape(type(e).__name__)}",
+            reply_markup={"inline_keyboard": []},
+        )
+        return
+
+    await answer_callback_query(session, token, cq_id, text=f"✅ Опубликовано: {pub['published_count']}")
+    await edit_tg_message_text(
+        session,
+        token,
+        chat_id,
+        message_id,
+        format_publish_result_html(
+            seller_name=draft["seller_name"],
+            city=pub.get("city") or draft["city"],
+            published_count=pub.get("published_count", 0),
+            skipped_count=pub.get("skipped_count", 0),
+        ),
+        reply_markup={"inline_keyboard": []},
+    )
+
+
 async def process_telegram_update(session: aiohttp.ClientSession, token: str, update: Dict[str, Any]):
     """Обрабатывает одно входящее событие от Telegram."""
     iq = update.get("inline_query")
@@ -1663,6 +1921,17 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
                     await answer_callback_query(session, token, cq_id, text="🙏 Спасибо за отзыв! Будем улучшать ответы.")
             except Exception as e:
                 await answer_callback_query(session, token, cq_id, text="Спасибо за отзыв!")
+        elif data.startswith(("pricepub:", "pricecan:")):
+            await handle_price_upload_callback(
+                session,
+                token,
+                cq_id,
+                chat_id,
+                int(msg.get("message_id") or 0),
+                user_id,
+                user,
+                data,
+            )
         return
 
     stopped = update.get("stopped_message_generation")
@@ -1684,7 +1953,11 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
     if not msg:
         return
 
-    text = str(msg.get("text") or "").strip()
+    from domain.telegram_price_upload import extract_photo_file_id
+    photo_file_id = extract_photo_file_id(msg)
+    raw_text = str(msg.get("text") or "").strip()
+    raw_caption = str(msg.get("caption") or "").strip()
+    text = raw_text or (raw_caption if photo_file_id else "")
     chat = msg.get("chat", {})
     chat_id = chat.get("id")
     thread_id = msg.get("message_thread_id")
@@ -1707,11 +1980,31 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
         return
 
     # Команды
-    cmd = text.split()[0].lower() if text.startswith("/") else ""
+    cmd = text.split()[0].lower().split("@", 1)[0] if text.startswith("/") else ""
     kwargs = {"message_thread_id": thread_id} if thread_id is not None else {}
     message_id = msg.get("message_id", 0)
     user_lang = (from_user.get("language_code") or "ru").lower().split("-")[0]
     is_kk = user_lang.startswith(("kk", "kz"))
+
+    # Фото с подписью обрабатываются только как админская загрузка прайса
+    if photo_file_id and cmd not in ("/upload_price", "/прайс", "/price"):
+        return
+
+    if cmd in ("/upload_price", "/прайс") or (photo_file_id and cmd == "/price"):
+        if not _is_telegram_admin(user_id, user):
+            await send_tg_message(session, token, chat_id, "🔒 Команда загрузки прайсов доступна только администраторам.", **kwargs)
+            return
+        await set_tg_message_reaction(session, token, chat_id, message_id, "🧾")
+        await handle_price_upload_command(
+            session,
+            token,
+            chat_id,
+            user_id,
+            text,
+            photo_file_id=photo_file_id,
+            message_thread_id=thread_id,
+        )
+        return
 
     if cmd in ("/start", "/help", "/new"):
         reset_chat_history(chat_id)
