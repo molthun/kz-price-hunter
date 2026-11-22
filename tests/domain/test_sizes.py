@@ -805,8 +805,13 @@ class TelegramSizesDecimalCommaTest(unittest.IsolatedAsyncioTestCase):
             "37,7": ({}, ["37.7"]),
             "37,7 L": ({"preferred_clothing_size": "L"}, ["37.7"]),
             # Несколько разных значений одной категории не сохраняются (раньше молча побеждало последнее)
-            "37,25": ({}, ["37", "25"]),
-            "42,43 L": ({"preferred_clothing_size": "L"}, ["42", "43"]),
+            # v6.53.1 (возврат Codex): запятая внутри числа склеивает токен целиком при любой длине хвоста
+            "37,75": ({}, ["37.75"]),
+            "37,05": ({}, ["37.05"]),
+            "37,25": ({}, ["37.25"]),
+            "37,75 рост 104": ({"preferred_kids_height": "рост 104"}, ["37.75"]),
+            "42,43 L": ({"preferred_clothing_size": "L"}, ["42.43"]),
+            "42 43 L": ({"preferred_clothing_size": "L"}, ["42", "43"]),
             "рост 98 рост 104": ({}, ["рост 98", "рост 104"]),
             # Дробный рост не обрезается до целого
             "рост 104,5": ({}, ["рост", "104.5"]),
@@ -856,10 +861,17 @@ class TelegramSizesDecimalCommaTest(unittest.IsolatedAsyncioTestCase):
                 self.assertIn("✓37.5", summary)
                 self.assertNotIn("✓37,", summary + ",")
 
-                # Невалидная дробь не перезаписывает сохранённый размер целым числом
-                await telegram_bot.process_telegram_update(None, "tok", update(2, "/sizes 38,7", uid))
-                self.assertEqual(database.get_user(uid)["settings"]["preferred_shoe_size"], "37.5")
-                self.assertIn("Не удалось распознать", send_mock.call_args.args[3])
+                # Невалидная дробь не перезаписывает сохранённые поля ни целой частью, ни хвостом
+                # (возврат Codex: «37,75» давало обувь 37 и рост 75, «37,05» — обувь 37)
+                for mid, bad in enumerate(("/sizes 38,7", "/sizes 37,75", "/sizes 37,05", "/sizes 37,125"), start=20):
+                    with self.subTest(bad=bad):
+                        await telegram_bot.process_telegram_update(None, "tok", update(mid, bad, uid))
+                        s = database.get_user(uid)["settings"]
+                        self.assertEqual(s["preferred_shoe_size"], "37.5")
+                        self.assertEqual(s["preferred_clothing_size"], "L")
+                        self.assertEqual(s["preferred_kids_height"], "рост 104")
+                        self.assertIn("Не удалось распознать", send_mock.call_args.args[3])
+                        self.assertNotIn("сохранены", send_mock.call_args.args[3])
 
                 # Просмотр и сброс
                 await telegram_bot.process_telegram_update(None, "tok", update(3, "/размеры", uid))
