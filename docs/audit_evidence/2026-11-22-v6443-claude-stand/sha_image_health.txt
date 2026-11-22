@@ -1,0 +1,23 @@
+commit 234c8649758ef8f4a70eb5b0f1411b3fb8cd5a5b
+local 9a280e5c1111155abf8eff7afdf45c08846fd972f2075155675328aef870fb61 domain/sizes.py
+local e6caf56829a89522730d0d9ec41714491ce6890ab2675b84781d1d0510525397 local_search.py
+local 745044eaf0206ae1d4c0453b40f5a719b11b0a653b1c9358bb4e331653874b8f repositories/search_repo.py
+local 97b0e38bad5ca877a3a7edeff3b8d9b9375d5939a94a65693f614f764cc6418e tests/domain/test_sizes.py
+local e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 tests/domain/__init__.py
+local b261d2a7cf4d47d2f97479bd382f72dd46d069059c88580dadde9366b074a72a scrapers/ispace.py
+local 028f4d34cbd1bef709c0f90e0dc6a5591a6478aa647914fccacd833024f9a8b5 tests/scrapers/test_ispace.py
+local c777e6d1ea64bf092045a7ebe267cfe72d82c19440fd343739a6ae686b0f1c54 shop_notices.py
+local 4ea2ebb5a74113adb21b6666d19bc46cc3507614094e8cd100f2660e67a06d65 version.py
+stand_head 234c8649758ef8f4a70eb5b0f1411b3fb8cd5a5b
+container 9a280e5c1111155abf8eff7afdf45c08846fd972f2075155675328aef870fb61 domain/sizes.py
+container e6caf56829a89522730d0d9ec41714491ce6890ab2675b84781d1d0510525397 local_search.py
+container 745044eaf0206ae1d4c0453b40f5a719b11b0a653b1c9358bb4e331653874b8f repositories/search_repo.py
+container 97b0e38bad5ca877a3a7edeff3b8d9b9375d5939a94a65693f614f764cc6418e tests/domain/test_sizes.py
+container e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 tests/domain/__init__.py
+container b261d2a7cf4d47d2f97479bd382f72dd46d069059c88580dadde9366b074a72a scrapers/ispace.py
+container 028f4d34cbd1bef709c0f90e0dc6a5591a6478aa647914fccacd833024f9a8b5 tests/scrapers/test_ispace.py
+container c777e6d1ea64bf092045a7ebe267cfe72d82c19440fd343739a6ae686b0f1c54 shop_notices.py
+container 4ea2ebb5a74113adb21b6666d19bc46cc3507614094e8cd100f2660e67a06d65 version.py
+image=sha256:caa9569c4a0cff709467e28086808f47e9c53e769b39f12e945d79fc3b622464 health=healthy restarts=0 started=2026-11-22T08:51:57.104613895Z
+version {"version": "6.44.3", "app_name": "KZ Price Hunter", "release_date": "2026-11-22", "author": "Advanced Agentic Coding"}
+health {"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}

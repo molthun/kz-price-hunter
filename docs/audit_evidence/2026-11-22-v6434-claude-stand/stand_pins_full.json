@@ -1,0 +1,8 @@
+image=sha256:ff2d325340d062ab7701131f09062fc3c0997d7383aca135053ca67c13717e7a restarts=0
+{
+  "ok": true,
+  "checked": 25,
+  "mismatched": [],
+  "unpinned": [],
+  "pinned_not_installed": []
+}
