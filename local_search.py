@@ -840,6 +840,13 @@ def search_sync(arguments, understanding, selected_attributes):
                     if search_args.get(key) is None and value is not None:
                         search_args[key] = value
         repo = SearchRepository(conn)
+        if 'size' not in attrs and search_args.get('query'):
+            from domain.sizes import extract_size_from_query
+            detected_size, cleaned_q = extract_size_from_query(search_args['query'])
+            if detected_size:
+                attrs['size'] = detected_size
+                if cleaned_q:
+                    search_args['query'] = cleaned_q
         repo.attribute_filters = attrs
         # Цель наблюдения получает тот же текст, что и выдача, до apply_semantics: matches_watch
         # применяет семантику сам (R21-01 — раньше в цель уходил неочищенный текст модели)

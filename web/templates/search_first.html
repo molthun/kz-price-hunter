@@ -2038,6 +2038,27 @@
       background: var(--table-hover);
     }
 
+    .offer-sizes-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      margin-top: 6px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .offer-size-chip {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--table-hover);
+      color: var(--text-main);
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
     .delivery-kz-badge {
       display: inline-flex;
       align-items: center;
@@ -12352,6 +12373,10 @@
         factsHtml += '<div>' + escapeHtml(offerObservationText(off)) + '</div>';
 
         if (off.warranty) factsHtml += '<div>Гарантия: ' + escapeHtml(off.warranty) + '</div>';
+        if (Array.isArray(off.available_sizes) && off.available_sizes.length > 0) {
+          const chips = off.available_sizes.slice(0, 24).map(sz => '<span class="offer-size-chip">' + escapeHtml(sz) + '</span>').join('');
+          factsHtml += '<div class="offer-sizes-row" aria-label="Доступные размеры"><span>Размеры:</span> ' + chips + '</div>';
+        }
 
         const condBadgeHtml = conditionBadge(off.condition);
         const basisLabel = priceBasisLabel(off);

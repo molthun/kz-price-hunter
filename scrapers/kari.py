@@ -11,6 +11,7 @@ import json
 import re
 from typing import Any, Dict, List, Optional
 
+from domain.sizes import normalize_available_sizes
 from scrapers import http as requests
 from scrapers.base import (
     PagedScraper, ScanResult, UnconfirmedEnd, price_value, validate_product_item,
@@ -54,6 +55,8 @@ class KariScraper(PagedScraper):
         brand = str((entity.get("brand") or {}).get("name") or "").strip()
         if brand and brand.lower() not in title.lower():
             title = f"{brand} {title}".strip()
+        raw_sizes = entity.get("sizes") if isinstance(entity.get("sizes"), list) else entity.get("uniqueSizesIds")
+        available_sizes = normalize_available_sizes(raw_sizes)
         return validate_product_item({
             "shop": self.SHOP_NAME,
             "id": f"kari_{articul}" if articul else "",
@@ -65,6 +68,7 @@ class KariScraper(PagedScraper):
             "price": price,
             "old_price_on_site": old_price if old_price > price else 0,
             "city": "Алматы / Казахстан",
+            "available_sizes": available_sizes,
         }, default_shop=self.SHOP_NAME)
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:

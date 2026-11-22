@@ -10,6 +10,7 @@ from __future__ import annotations
 import time
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin
+from domain.sizes import normalize_available_sizes
 from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import (
@@ -121,6 +122,9 @@ class IntertopScraper(PagedScraper):
             img = card.select_one("img")
             img_src = (img.get("src") or img.get("data-src") or "") if img else ""
 
+            size_nodes = card.select(".in-product-tile__options span")
+            available_sizes = normalize_available_sizes([n.get_text(strip=True) for n in size_nodes])
+
             item = {
                 "shop": self.SHOP_NAME,
                 "id": f"intertop_{pid}",
@@ -132,6 +136,7 @@ class IntertopScraper(PagedScraper):
                 "price": price,
                 "old_price_on_site": old_price if old_price > price else 0,
                 "city": "Алматы / Казахстан",
+                "available_sizes": available_sizes,
             }
 
             validated = validate_product_item(item, default_shop=self.SHOP_NAME)

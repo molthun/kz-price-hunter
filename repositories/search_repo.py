@@ -378,6 +378,16 @@ class SearchRepository(BaseRepository):
     def _category_filter(self, category: Optional[str]) -> tuple[str, list]:
         sql, params = self._category_filter_only(category)
         for key, value in getattr(self, 'attribute_filters', {}).items():
+            if key == 'size':
+                from domain.sizes import normalize_size_token
+                norm_sz = normalize_size_token(value) or str(value).strip()
+                sql += (
+                    " AND EXISTS (SELECT 1 FROM offer_sizes os"
+                    " JOIN offers o_sz ON o_sz.id = os.offer_id"
+                    " WHERE os.product_id = p.id AND o_sz.is_active = 1 AND os.size = ?)"
+                )
+                params.append(norm_sz)
+                continue
             variants = _attribute_value_variants(key, value)
             if len(variants) > 1:
                 placeholders = ",".join(["?"] * len(variants))
@@ -390,6 +400,16 @@ class SearchRepository(BaseRepository):
                         " AND pa.key=? AND pa.value=? AND pa.source_title=p.title)")
                 params.extend([key, value])
         for key, value in getattr(self, 'inferred_attribute_filters', {}).items():
+            if key == 'size':
+                from domain.sizes import normalize_size_token
+                norm_sz = normalize_size_token(value) or str(value).strip()
+                sql += (
+                    " AND EXISTS (SELECT 1 FROM offer_sizes os"
+                    " JOIN offers o_sz ON o_sz.id = os.offer_id"
+                    " WHERE os.product_id = p.id AND o_sz.is_active = 1 AND os.size = ?)"
+                )
+                params.append(norm_sz)
+                continue
             sql += (" AND (p.id IN (SELECT value FROM json_each(?)) OR EXISTS ("
                     "SELECT 1 FROM product_search_attributes pa WHERE pa.product_id=p.id"
                     " AND pa.key=? AND pa.value=? AND pa.source_title=p.title))")
@@ -1243,7 +1263,36 @@ class SearchRepository(BaseRepository):
 
         facets = []
         try:
+            # Фасет «Размер» из offer_sizes (обувь и одежда с подтверждёнными размерами в наличии)
+            try:
+                from domain.sizes import sort_size_key
+                self.attribute_filters = {k: v for k, v in chosen.items() if k != 'size'}
+                sz_sql, sz_values = self._matching_product_ids(
+                    parsed.clean_query, conditions, params,
+                    arguments.get('brand') or parsed.detected_brand, arguments.get('category'),
+                    arguments.get('model'), arguments.get('kind'),
+                )
+                sz_rows = self.fetchall(
+                    f'''SELECT os.size AS value, COUNT(DISTINCT COALESCE(p.family_id, p.id)) AS count
+                        FROM offer_sizes os
+                        JOIN offers o_sz ON o_sz.id = os.offer_id
+                        JOIN canonical_products p ON p.id = os.product_id
+                        WHERE o_sz.is_active = 1 AND p.id IN ({sz_sql})
+                        GROUP BY os.size LIMIT 80''',
+                    sz_values,
+                )
+                if sz_rows or 'size' in chosen:
+                    sz_values_list = sorted(
+                        [{'value': str(r['value']), 'count': int(r['count'])} for r in sz_rows if r['value']],
+                        key=lambda item: sort_size_key(item['value']),
+                    )
+                    facets.append({'key': 'size', 'label': 'Размер', 'values': sz_values_list})
+            except Exception:
+                pass
+
             for key, field in list(full_schema.items())[:12]:
+                if key == 'size':
+                    continue
                 self.attribute_filters = {k:v for k,v in chosen.items() if k != key}
                 sql, values = self._matching_product_ids(parsed.clean_query, conditions, params,
                     arguments.get('brand') or parsed.detected_brand, arguments.get('category'),

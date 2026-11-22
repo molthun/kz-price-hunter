@@ -271,6 +271,17 @@ CREATE INDEX IF NOT EXISTS idx_discovery_tasks_status ON discovery_tasks(status)
 CREATE INDEX IF NOT EXISTS idx_discovery_tasks_priority ON discovery_tasks(priority_score DESC);
 CREATE INDEX IF NOT EXISTS idx_discovery_tasks_norm_query ON discovery_tasks(normalized_query, city);
 
+-- Доступные размеры предложений (обувь, одежда — v6.44.0)
+CREATE TABLE IF NOT EXISTS offer_sizes (
+    offer_id TEXT NOT NULL REFERENCES offers(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES canonical_products(id) ON DELETE CASCADE,
+    size TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (offer_id, size)
+);
+CREATE INDEX IF NOT EXISTS idx_offer_sizes_size_product ON offer_sizes(size, product_id);
+CREATE INDEX IF NOT EXISTS idx_offer_sizes_product ON offer_sizes(product_id, size);
+
 -- Название, по которому social-предложение получило идентичность: решение оператора о названии
 -- переносит и его (FA69R-01). Только название, не текст поста.
 CREATE TABLE IF NOT EXISTS social_offer_titles (

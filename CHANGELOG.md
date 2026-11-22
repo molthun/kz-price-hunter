@@ -3,6 +3,22 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.44.0] - 2026-11-22
+
+### Для пользователей
+- 👟 Добавлен подбор размеров обуви и одежды (Kari, Интертоп и другие магазины с данными о размерах):
+  - при поиске вида «кроссовки 42 размер», «сапоги 38» или «куртка XL» выдача автоматически фильтруется по моделям с нужным размером в наличии;
+  - в фильтрах появился фасет **«Размер»** с естественной сортировкой (`36, 37, 38… / S, M, L…`);
+  - в карточке товара рядом с предложением магазина отображаются плашки доступных размеров.
+
+### Индекс размеров `offer_sizes`, сбор из листинга и поиск по размеру
+- **`domain/sizes.py`:** новый модуль нормализации размеров (`normalize_size_token`, `normalize_available_sizes`), естественной сортировки (`sort_size_key`) и контекстного извлечения размера из поискового запроса (`extract_size_from_query` — не путает диагональ ТВ или объём памяти с размером обуви).
+- **`scrapers/kari.py` и `scrapers/intertop.py`:** извлечение `available_sizes` напрямую из листинга (`__NEXT_DATA__` / `.in-product-tile__options span`) без дополнительных HTTP-запросов.
+- **`repositories/schema_v2.py` и `domain/adapter.py`:** добавлена таблица `offer_sizes (offer_id, product_id, size, updated_at)` с индексами; `write_legacy_offers_v2` атомарно синхронизирует `offer_sizes` и `offers.raw_payload_json.available_sizes`.
+- **`repositories/search_repo.py`, `local_search.py`, `domain/search_core.py`:** индексная фильтрация по активным `offer_sizes`, динамический фасет «Размер», автоматическое извлечение размера из запроса в `search_sync` и поле `AggregatedOffer.available_sizes`.
+- **`web/templates/search_first.html`:** отображение плашек доступных размеров в таблице предложений карточки товара (светлая/тёмная темы и мобильный экран).
+- **Тесты:** добавлен `tests/domain/test_sizes.py`.
+
 ## [6.43.4] - 2026-11-22
 
 ### Для пользователей

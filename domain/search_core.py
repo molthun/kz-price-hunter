@@ -86,9 +86,24 @@ class AggregatedOffer:
     title: Optional[str] = None  # название у магазина: по нему виден цвет
     options: Optional[Dict[str, str]] = None
     gift: Optional[str] = None  # что дарят; пустая строка, если магазин не уточнил
+    available_sizes: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+def offer_available_sizes(row: Dict[str, Any]) -> List[str]:
+    """Сохранённый список доступных размеров предложения из raw_payload_json."""
+    payload = row.get("raw_payload_json") or "{}"
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except Exception:
+            payload = {}
+    raw = payload.get("available_sizes") if isinstance(payload, dict) else None
+    if not isinstance(raw, list):
+        return []
+    return [str(s) for s in raw if str(s).strip()]
 
 
 def offer_price_basis(row: Dict[str, Any]) -> Dict[str, Any]:
@@ -477,6 +492,7 @@ class SearchCore:
                         **offer_payment_terms(od),
                         **offer_delivery_terms(od),
                         **offer_price_basis(od),
+                        available_sizes=offer_available_sizes(od),
                     )
                     aggregated_offers.append(agg_off)
 
@@ -1041,6 +1057,7 @@ class SearchCore:
                 seller_metadata_json=od.get("seller_metadata_json"),
                 title=od.get("offer_title"),
                 options=offer_options(od.get("offer_title")),
+                available_sizes=offer_available_sizes(od),
             )
             aggregated_offers.append(agg)
 

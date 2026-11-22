@@ -377,7 +377,17 @@ def prepare_legacy_offer_v2(
         "availability": Availability.normalize(product.get("availability"), default=Availability.IN_STOCK),
         "city": city,
         "published_at": product.get("published_at"),
+        "available_sizes": (
+            _normalize_sizes(product.get("available_sizes"))
+            if "available_sizes" in product and product.get("available_sizes") is not None
+            else None
+        ),
     }
+
+
+def _normalize_sizes(raw: Any) -> List[str]:
+    from domain.sizes import normalize_available_sizes
+    return normalize_available_sizes(raw)
 
 
 def _json_param(rows) -> str:
@@ -686,6 +696,50 @@ def _write_legacy_offers_v2(
         """,
         (timestamp, _json_param(items)),
     )
+
+    sized_items = [it for it in items if it.get("available_sizes") is not None]
+    if sized_items:
+        sized_offer_ids = list(dict.fromkeys(it["offer_id"] for it in sized_items))
+        conn.execute(
+            "DELETE FROM offer_sizes WHERE offer_id IN (SELECT value FROM json_each(?))",
+            (_json_param(sized_offer_ids),),
+        )
+        size_rows = [
+            {"offer_id": it["offer_id"], "product_id": it["product_id"], "size": sz}
+            for it in sized_items
+            for sz in (it.get("available_sizes") or [])
+        ]
+        if size_rows:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO offer_sizes (offer_id, product_id, size, updated_at)
+                SELECT json_extract(value, '$.offer_id'), json_extract(value, '$.product_id'),
+                       json_extract(value, '$.size'), ?1
+                FROM json_each(?2)
+                """,
+                (timestamp, _json_param(size_rows)),
+            )
+        payload_updates = [
+            {"offer_id": it["offer_id"], "sizes_json": json.dumps(it.get("available_sizes") or [], ensure_ascii=False)}
+            for it in sized_items
+        ]
+        conn.execute(
+            """
+            UPDATE offers
+            SET raw_payload_json = json_set(
+                COALESCE(NULLIF(raw_payload_json, ''), '{}'),
+                '$.available_sizes',
+                json(j.sizes_json)
+            )
+            FROM (
+                SELECT json_extract(value, '$.offer_id') AS offer_id,
+                       json_extract(value, '$.sizes_json') AS sizes_json
+                FROM json_each(?1)
+            ) AS j
+            WHERE offers.id = j.offer_id
+            """,
+            (_json_param(payload_updates),),
+        )
 
     if history:
         conn.execute(
