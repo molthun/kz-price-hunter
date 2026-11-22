@@ -9,6 +9,23 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## STAND_ACCEPTED_WITH_LIMITATIONS v6.45.1 / ISPACE_LIVE_ACCEPTED — Codex (22.11.2026 15:19, Asia/Almaty)
+
+- **Стендовая приёмка5c44c23 закрыта в проверенном объёме:**4SHA пересчитаны, совпали с local/checkout/container; образd57af249…8351/version6451/healthok. Прочитаны авторские3371LinuxOK,32targetedOK,pins25/25 и46frontendPASS точно по tracked-списку. Локальная логика иUS-01 приняты раньше, код не менялся.
+- **iSpace live принят:**09:44:44–10:05:32Z на6445 до перезапуска; Mac72/iPhone42/Watch38/колонки61, всеcomplete/ok/accepted1, брак0.213товаров/620HTTP/429=0/cooldown0. Накопленные снятия не приписывать этому обходу; отсутствие429 в одном окне не гарантия навсегда.
+- [Отчёт](ACCEPTANCE_2026-11-22_V6451_STAND_CODEX.md), evidence `2026-11-22-v6451-codex/stand-live-verification.json`. Заголовок BEFOREDEPLOY показывает уже6451; порядок проверен timestamps/source_scans/StartedAt.
+- **Остаётся:** плановая обувь/размерыKari и полнота размерных каталогов, прежние ограничения. **Следующий шаг:** решение владельца о выпуске5c44c23 с ограничениями либо ожиданиеKari, затем сверка сырой плановой волны. US/SZ/DQ/VU закрыты. Код/БД/стенд/прод не менялись, push/merge нет, чужая карточка сохранена.
+
+## STAND_EVIDENCE_ATTACHED v6.45.1 — сырые SHA, health, pins 25/25, чистый контейнер и 46/46 frontend PASS готовы к приёмке — Antigravity (2026-11-22 15:16, Asia/Almaty)
+
+- **Статус:** срез `5c44c23` (`v6.45.1`) на стенде (`kzph-stand`, образ `sha256:d57af249687b51de6674574d412019f54f0a0d288b8714f3cfa84198821c8351`, `running / healthy`, `Restarts=0`, `/api/version=6.45.1`, `/api/health=ok`). Код, БД, настройки и прод не менялись, push не выполнялся.
+- **Приложенные сырые доказательства:**
+  - `docs/audit_evidence/2026-11-22-v6451-antigravity-stand/sha_image_health_pins.txt`: `4/4` SHA256 (`web/templates/search_first.html`, `tests/frontend/test_frontend_user_sizes.cjs`, `version.py`, `CHANGELOG.md`) совпали локально, в checkout стенда и внутри `kzph-stand`; `pins` в чистом контейнере — **`ok: true`, `checked: 25`**.
+  - `docs/audit_evidence/2026-11-22-v6451-antigravity-stand/clean_container_targeted.txt`: чистый контейнер `kzph-stand:local` (`--network none --cpus 2 --tmpfs /app/data`) — **32 OK** (`1.19 с`).
+  - `docs/audit_evidence/2026-11-22-v6451-claude-stand/frontend_46.txt`: все **46/46** tracked браузерных наборов — **PASS** (`fail=0`), включая `test_frontend_user_sizes.cjs`.
+  - `docs/audit_evidence/2026-11-22-v6445-antigravity-live/ispace_live_catchup.txt` + `2026-11-22-v6445-claude-stand/ispace_live_6443_pace.txt`: **4/4** категории `iSpace` (`Mac 72`, `iPhone 42`, `Apple Watch 38`, `Колонки 61`) — `complete / ok`, **0 HTTP 429**.
+- **Следующий точный шаг:** **Codex** — закрыть стендовую приёмку `v6.45.1` (`5c44c23`) и живое окно `iSpace`; затем решение владельца о выпуске `v6.45.1` в прод через **Claude**.
+
 ## LIVE_CHECKED iSpace (темп 6.44.3, образ 6.44.5) + STAND_DEPLOYED v6.45.1 — Claude (22.11.2026, Asia/Almaty)
 
 - **iSpace вживую, только чтение (`ro_q29`):** добор 09:44:44–10:05:32Z на образе 6.44.5 (`472f014`) до перезапуска стенда. Все 4 отстававших раздела прошли `complete/ok`, `accepted=1`, брака 0, основание нормы `history`:
