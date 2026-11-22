@@ -1,0 +1,11 @@
+prod_20261122T1732Z.db secs 14 MB 2857 quick_check ok {'users': 5, 'offers': 254560, 'products': 258731, 'offer_price_history': 1973215}
+stand_20261122T1732Z.db secs 15 MB 2908 quick_check ok {'users': 7, 'offers': 293256, 'products': 293148, 'offer_price_history': 648191}
+total 5630380
+drwxrwxr-x  2 molthun molthun       4096 Nov 22 22:32 .
+drwxr-x--- 63 molthun molthun       4096 Nov 22 22:32 ..
+-rw-rw-r--  1 molthun molthun        652 Nov 22 22:32 backup.py
+-rw-r--r--  1 molthun molthun 2857406464 Nov 22 22:32 prod_20261122T1732Z.db
+-rw-r--r--  1 molthun molthun 2908086272 Nov 22 22:32 stand_20261122T1732Z.db
+-rw-rw-r--  1 molthun molthun         15 Nov 22 22:32 ts.txt
+
+[exited with code 0]

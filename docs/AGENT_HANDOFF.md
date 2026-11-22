@@ -9,6 +9,105 @@
 > Antigravity **в прод не пушит и прод не трогает**. Обязательно строго вести версионность (`version.py`, `CHANGELOG.md`) на каждом шаге даже на стенде.
 > по завершении работы и проверке на стенде Antigravity передаёт отчёт: «готово к выкату, проверяйте». Другие агенты (Claude/Codex) или владелец проверяют, тестят и выкладывают в прод.
 
+## SINGLE_LIVE_PREPARED — перенос на один живой сервер подготовлен и проверен на копиях — Claude (22.11.2026, Asia/Almaty)
+
+- **По слову владельца «Yes, prepare».** Живые среды не менялись: прод и стенд работают, push не выполнялся.
+- **Копии:** обе БД сняты 17:32Z backup API со снимка WAL (≈15 с, писатели не блокировались), `quick_check=ok`; лежат в `~/kzph-migration/` на машине стенда.
+- **Перенос на копии (`scripts/single_live/migrate.py`, 33 с, одна транзакция):** ранняя история прода для общих предложений +836 810 (`offer_price_history` → 1 485 001, начало 25.09 вместо 28.10), `price_observations` +936 782, сводные цены 145 210 товаров, +1 пользователь. Повторный запуск добавляет 0.
+- **Проверка объединённой копии** в одноразовом контейнере 6.53.2 без сети и токена: healthy, история с 25.09, поиск и скидки 200, 0 ошибок; контейнер удалён.
+- **Порядок окна, команды и откат:** [SINGLE_LIVE_MIGRATION.md](SINGLE_LIVE_MIGRATION.md). Ключевое: Watchtower первым; прод остановить без удаления; стенду добавить порт 35540, тогда DSM-прокси `shop.molthun.ru` переезжает без правки DSM; основной бот; `restart: unless-stopped`.
+- **Также 6.53.2 на стенде:** образ `ca57a7b0…48f0`, healthy, `/api/version=6.53.2`; полный набор 3 400 OK на стенде и локально; SHA 5 файлов совпали; pins ok; secrets ok. Evidence: `docs/audit_evidence/2026-11-22-v6532-claude-stand/`.
+- **Ждёт владельца:** слово на окно переключения и перенос токена основного бота в `.env` стенда.
+
+## CODEX_CODE_ACCEPTED_STAND_PENDING v6.53.2 — SZ-07 закрыт по коду (2026-11-22, Asia/Almaty)
+
+- **Срез:** `930b224`. Корректный37,5 сохраняется как37.5;37,75 и37,05 больше не перезаписывают обувь и рост. Новых замечаний в проверенном объёме нет.
+- **Независимо:** 59 Python OK / 1.833 с; прежний сквозной probe проходит, дополнительные невалидные дроби оставляют обувь37.5/рост104 без изменений. Telegram отправка замокана, БД временная настоящая.
+- **Остаётся:** evidence исправленного образа6.53.2 на стенде, реальныйTelegram и плановая волна одежды. Далее исполнитель подтверждает SHA/image/version/health/тесты, затем Codex. Прод и окружения не менялись.
+- **Отчёт:** [REACCEPTANCE_2026-11-22_V6532_CODEX.md](REACCEPTANCE_2026-11-22_V6532_CODEX.md); evidence `docs/audit_evidence/2026-11-22-v6532-codex/`.
+
+## CODEX_RETURNED v6.53.1 — SZ-07 исправлен частично (2026-11-22, Asia/Almaty)
+
+- **Срез:** `01dd8d9`. Исходный `37,5` теперь сохраняется как `37.5`. Но `/sizes 37,75` реально перезаписывает обувь 37.5 → 37 и рост 104 → 75 без предупреждения; `37,05` сохраняет 37 с unknown 05. SZ-07 остаётся открытым, P2.
+- **Причина:** защита запятой только для одной цифры; остаток split классифицирует по разным категориям, поэтому конфликтов нет. Нужен целостный разбор невалидной дроби и отрицательные parser + DB регрессии с сохранением старых полей.
+- **Независимо:** 59 Python OK / 1.866 с; прежний сквозной probe подтверждает исправление и остаточный дефект. SHA 5 файлов × 3 совпали, pins 25; evidence 6.53.1 healthy, свежего опроса нет. Полный Linux-файл пока без итога.
+- **Далее:** Claude/автор завершает SZ-07 с новой версией и стендом, затем Codex. Реальный Telegram и волна одежды остаются ожидаемыми. Прод не менялся.
+- **Отчёт:** [REVIEW_2026-11-22_V6531_CODEX.md](REVIEW_2026-11-22_V6531_CODEX.md); evidence `docs/audit_evidence/2026-11-22-v6531-codex/`.
+
+## CONSILIUM — Переход на один живой сервер (стенд = основная бета, прод-контейнер остановлен, Git = код и релизы) — открыт владельцем (2026-11-22 22:22, Asia/Almaty)
+
+- **Предложение владельца:** остановить прод-контейнер (`shop.molthun.ru` / старый прод), убрать двойной обход магазинов (сейчас стенд и прод независимо сканируют одни и те же магазины), оставить один живой сервер — текущий стенд (где база уже в ~4 раза больше и шире, а аудитория выше и хочет свежую бету), а в Git (`origin/main`) выкладывать весь принятый код и релизные теги.
+- **Решение владельца:** ничего не менять и не останавливать до мнений всех агентов (Antigravity, Claude, Codex).
+- **Позиция Antigravity (ЗА, с условиями безопасности):**
+  - **За:** один обход магазинов вместо двойного (вдвое меньше нагрузки и риска 429/WAF), пользователи сразу получают полную 4× базу и свежие фичи, проще эксплуатация без рассинхрона двух БД.
+  - **Обязательные условия:**
+    1. Раз стенд становится живым сервером с пользователями, его нельзя ломать «наживую»: сборка и прогон тестов — сначала в изолированном чистом контейнере (`--network none --tmpfs /app/data`), переключение живого контейнера — только после зелёного прогона, свежего бэкапа `prices.db` (SQLite backup API) и (для рисковых/крупных изменений) проверки Codex.
+    2. Не бросать старый домен/пользователей прода: перенаправить `shop.molthun.ru` на живой сервер (или аккуратно перенести пользователей/избранное/наблюдения и предупредить в боте), отключить Watchtower на старом проде.
+    3. В `origin/main` пушить только принятые версии с тегами, чтобы Git оставался чистой точкой отката.
+- **Позиция Codex: ЗА один живой сервер, с подготовкой перехода.** Проверки новых версий сохраняются в изолированных контейнерах без фонового обхода/реального Telegram. До переключения нужны согласованные backup обеих БД и пробный перенос пользовательских связей; единый scheduler/poller; проверка домена и входа; отключение неутверждённого автообновления старой среды; план отката с сохранением новых записей. Большая база не заменяет перенос избранного/наблюдений. Git/push не считать безопасной передачей, пока действует связка latest/Watchtower.
+- **Заключение Codex:** поддержать архитектуру, сначала подготовить сверку данных и конкретный план; переход выполнить отдельным решением владельца после всех мнений. Ничего не остановлено/переключено. Подробно: [CONSILIUM_2026-11-22_SINGLE_LIVE_CODEX.md](CONSILIUM_2026-11-22_SINGLE_LIVE_CODEX.md).
+- **Ожидается позиция Claude** и итоговое решение владельца; прод и `origin/main` пока не трогать.
+- **Позиция Claude (решающая по поручению владельца): ЗА, основа — стенд, но сначала перенос ценовой истории прода.** Факты только чтением: у стенда +15 % предложений (293 тыс. против 255 тыс.), а не «в 4 раза»; у прода ценовая история втрое больше и на месяц длиннее (1,97 млн записей с 25.09 против 0,65 млн с 28.10); 217 тыс. общих предложений с одинаковыми `offer_id`; наблюдений и избранного нет нигде; 4 из 5 пользователей прода уже есть на стенде. План: подготовка и перенос на копиях → окно по слову владельца (Watchtower первым, прод остановить без удаления, перенос истории, `shop.molthun.ru` → стенд, основной бот) → явные обновления из тегированных коммитов. Подробно: [CONSILIUM_2026-11-22_SINGLE_LIVE_CLAUDE.md](CONSILIUM_2026-11-22_SINGLE_LIVE_CLAUDE.md).
+
+## CODEX_RETURNED v6.53.0 — SZ-07 P2: десятичная запятая искажает размер (2026-11-22, Asia/Almaty)
+
+- **Срез:** `e59804c`. `/sizes 37,5 L рост 104` реально сохраняетобувь37, unknown5, вместо37.5. Причина: split по запятой до normalize_size_token. Синтетическое private-обновление→настоящая временнаяБД воспроизводит; отправка сообщений замокана.
+- **Исправить:** сохранить десятичный токен при разборе; запятая/точка дают37.5, невалидные дроби не сохраняются частично как целые. Регрессии parser+process_update+DB, новаяверсия/стенд, затемCodex.
+- **Независимо:**57целевыхPythonOK/1.889с +357notificationsOK/12.861с; SHA5файлов×3 совпали, pins25. Снимок/evidence стенда6.53.0 healthy, свежего опроса нет. Целочисленный save/read/reset проходит; полногоLinux конечногоSHA нет.
+- **Остаётся:**SZ-07, живойTelegram и плановаяволна23.11 около06:15Asia/Almaty. Прод не менялся;SZ-04/05/06 остаются закрыты.
+- **Отчёт:** [REVIEW_2026-11-22_V6530_CODEX.md](REVIEW_2026-11-22_V6530_CODEX.md); evidence `docs/audit_evidence/2026-11-22-v6530-codex/`.
+
+## STAND_DEPLOYED v6.53.0 — Telegram-команда `/sizes` (`/размеры`) и подсветка «Моего размера» в выдаче `/search` — Antigravity (2026-11-22 22:05, Asia/Almaty)
+
+- **Статус:** коммит `e59804c` (`v6.53.0` поверх `ccabd7e` / `v6.52.2`) выложен на стенд через git bundle (`fast-forward` `ccabd7ecd4..e59804cb5c`, локальная правка `docker-compose.stand.yml` сохранена) и проверен. **Готово к проверке Codex / Claude.** Push в `origin/main` не выполнялся, прод не трогался.
+- **Что сделано (`v6.53.0`):**
+  - `telegram_bot.py`: добавлены `parse_tg_sizes_command`, `handle_sizes_command`, `_user_saved_sizes_set`, маршрутизация команд `/sizes` и `/размеры` в `process_telegram_update` (просмотр, сохранение и сброс размеров обуви/одежды/роста ребёнка в `users.settings` через `config.validate_user_settings` + `database.save_user_settings`, с `upsert_telegram_user` при первом обращении); в `_format_tg_sizes_summary` и `build_price_comparison_markdown` сохранённые размеры пользователя поднимаются в начало списка и отмечаются символом `✓` (например `✓42`, `✓рост 104`).
+  - `tests/domain/test_sizes.py`: добавлен `TelegramSizesCommandTest` (парсинг `/sizes`, приоритет + `✓` сверх лимита 6 размеров, сквозной сценарий `process_telegram_update` сохранения/чтения/сброса во временной БД).
+  - `version.py` (`6.53.0`), `CHANGELOG.md` (с разделом `### Для пользователей`), `ROADMAP_AND_LOG.md`.
+- **Проверки:**
+  - **Локально:**
+    - `venv/bin/python3 -m unittest tests.domain.test_sizes tests.domain.test_telegram_price_upload tests.core.test_settings tests.core.test_release_notes tests.core.test_unittest_discovery_contract` — **57 OK** (`2.181 с`).
+    - `venv/bin/python3 -m unittest discover -s tests/notifications -t . -p "test_*.py"` — **357 OK** (`12.462 с`).
+    - `venv/bin/python3 release_gate.py secrets` — **`ok: true`, `findings: []`**.
+  - **Стенд (`kzph-stand`, порт `35539`):**
+    - Образ `sha256:2aa4f4e79475e167d8ed8eed18a2ffa144bf6646ab6f52cdcaa581070916e2ae`, `Status=running`, `Health=healthy`, `Restarts=0`, `StartedAt=2026-11-22T17:03:18.889798912Z`.
+    - `/api/version` = `6.53.0`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`).
+    - `5/5` SHA256 (`telegram_bot.py`, `tests/domain/test_sizes.py`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`) совпали локально, в checkout стенда (`e59804cb5c`) и внутри контейнера `kzph-stand`.
+    - Чистый контейнер (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`): таргетированный набор — **57 OK** (`3.526 с`); `pins` — **`ok: true`, `checked: 25`**.
+  - **Не запускалось на конечном SHA `e59804c`:** полный Linux-набор (~3 400 тестов, на `v6.52.2` был 3 396 OK) и полный Deno/frontend-прогон (HTML/JS в `v6.53.0` не менялись).
+- **Сырые доказательства (`docs/audit_evidence/2026-11-22-v6530-antigravity-stand/`):** `local_tests_secrets_sha.txt`, `sha_image_health_pins_tests.txt`.
+- **Остаётся вживую:** проверка владельцем реальных команд `/sizes 42 L рост 104`, `/search кроссовки 42`, `/прайс` в стендовом Telegram-боте; плановая волна «одежда» (`Kari`, `Intertop`, `KIMEX`, «Детский мир», около `06:15` Almaty 23.11).
+- **Следующий точный шаг:** **Codex** — аудит `v6.53.0` (`e59804c`).
+
+## CODEX_ACCEPTED_LIVE_PENDING v6.52.2 — различие чипов и aria проверены (2026-11-22, Asia/Almaty)
+
+- **Срез:** `ccabd7e`, принят в проверенном объёме; новых замечаний нет. Активный фильтр и «Мой размер» различаются CSS, aria-pressed соответствует фильтру.
+- **Независимо:**priorityVM PASS,5syncVM PASS, повторный клик/aria и121 комбинация PASS. SHA5файлов×3 совпали, pins25.
+- **Полные авторские прогоны конечногоSHA:**3396LinuxOK/467.837с;48/48frontendPASS с точным совпадением tracked-наборов. Свежего удалённого опроса/визуального прогона аудитор не делал; сверены evidence healthy6.52.2/image `a7836a3814d5764dd3dc3bc4b7e4f867951fbd4c9140bab9e52a220df4251862`.
+- **Остаётся:** реальныйTelegram и плановая волна одежды23.11 около06:15Asia/Almaty; затем решение владельца о выпуске. Production не менялся.
+- **Отчёт:** [ACCEPTANCE_2026-11-22_V6522_CODEX.md](ACCEPTANCE_2026-11-22_V6522_CODEX.md); evidence `docs/audit_evidence/2026-11-22-v6522-codex/`.
+
+## STAND_DEPLOYED v6.52.2 — визуальное различие активного фильтра и «Моего размера» на чипах карточек — Antigravity (2026-11-22 21:22, Asia/Almaty)
+
+- **Статус:** коммит `ccabd7e` (`v6.52.2` поверх `4af39bf` / `v6.52.1`) выложен на стенд через git bundle (`fast-forward` `c729511fc5..ccabd7ecd4`, локальная правка `docker-compose.stand.yml` сохранена) и проверен. **Готово к проверке Codex / Claude.** Push в `origin/main` не выполнялся, прод не трогался.
+- **Что сделано (`v6.52.2`):**
+  - `web/templates/search_first.html`: визуально разведены `.offer-size-chip.is-my-size` (мягкая заливка `color-mix(in srgb, var(--primary) 14%, transparent)` + цветная рамка и текст `var(--primary)`) и `.card-size-btn.active` (сплошная заливка `var(--primary)` + белый текст; при совпадении `.is-my-size.active` добавлено внешнее кольцо `box-shadow`); добавлен атрибут `aria-pressed` на `button.card-size-btn`.
+  - `tests/frontend/test_frontend_user_sizes.cjs`: добавлена проверка `aria-pressed="true"` и отличия `getComputedStyle(activeBtn).backgroundColor` от `.is-my-size:not(.active)`.
+  - `version.py` (`6.52.2`), `CHANGELOG.md` (с разделом `### Для пользователей`), `ROADMAP_AND_LOG.md`.
+- **Проверки:**
+  - **Локально:**
+    - Deno + Playwright / `node:vm`: все **48/48** tracked браузерных наборов — **PASS** (`failed=0`), включая `test_frontend_card_sizes_priority.cjs` (**PASS**), `test_frontend_user_sizes_sync.cjs` (**5/5 PASS**), `test_frontend_user_sizes.cjs` (**PASS**, включая `aria-pressed="true"` и отличие фонов) и `test_frontend_search_first.cjs` (**PASS**).
+    - `tests.domain.test_sizes`, `tests.core.test_settings`, `tests.core.test_release_notes`, `tests.core.test_unittest_discovery_contract` — **45 OK** (`1.923 с`).
+    - `release_gate.py secrets` — **`ok: true`, `findings: []`**.
+  - **Стенд (`kzph-stand`, порт `35539`):**
+    - Образ `sha256:a7836a3814d5764dd3dc3bc4b7e4f867951fbd4c9140bab9e52a220df4251862`, `Status=running`, `Health=healthy`, `Restarts=0`, `StartedAt=2026-11-22T16:22:21.90037995Z`.
+    - `/api/version` = `6.52.2`, `/api/health` = `ok` (`queue_size=0`, `dead_letters=0`, `rejected=0`, `redis_active=true`, `worker_running=true`).
+    - `5/5` SHA256 (`web/templates/search_first.html`, `tests/frontend/test_frontend_user_sizes.cjs`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`) совпали локально, в checkout стенда (`ccabd7ecd4`) и внутри контейнера `kzph-stand`.
+    - Чистый контейнер (`--network none --cpus 2 --tmpfs /app/data:rw,size=512m`): **полный Linux-набор — 3 396 OK (`467.837 с`)**, контрактные тесты — **7 OK** (`1.345 с`); `pins` — **`ok: true`, `checked: 25`**.
+- **Сырые доказательства (`docs/audit_evidence/2026-11-22-v6522-antigravity-stand/`):** `local_tests_and_secrets.txt`, `local_sha256.txt`, `sha_image_health_pins_tests.txt`, `clean_container_full_suite.txt`, `frontend_all.txt`.
+- **Остаётся вживую:** проверка владельцем реального `/прайс` и `/search кроссовки 42` в стендовом Telegram-боте; плановая волна «одежда» (`Kari`, `Intertop`, `KIMEX`, «Детский мир», около `06:15` Almaty 23.11).
+- **Следующий точный шаг:** **Codex** — быстрая сверка `v6.52.2` (`ccabd7e`).
+
 ## CODEX_ACCEPTED_LIVE_PENDING v6.52.1 — стендовая сверка закрыта (2026-11-22, Asia/Almaty)
 
 - **Итог:** `c729511`/6.52.1 принят в проверенном объёме; SZ-06 закрыт. Новых правок кода после независимой приёмки нет.

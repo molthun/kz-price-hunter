@@ -1,0 +1,37 @@
+== STAND
+image=sha256:ca57a7b0fc0cfb7cc2e319702a7bfcfc3070cf7ade175471e4f7120727aa48f0 health=healthy restarts=0 started=2026-11-22T17:20:40.225974878Z
+{"version": "6.53.2", "app_name": "KZ Price Hunter", "release_date": "2026-11-22", "author": "Advanced Agentic Coding"}
+{"status": "ok", "db": "ok", "queue": "ok", "queue_size": 0, "dead_letters": 0, "rejected": 0, "redis_active": true, "worker_running": true}
+e78dc240b2680639 checkout telegram_bot.py
+e78dc240b2680639 container telegram_bot.py
+49fa99104e1282a2 checkout tests/domain/test_sizes.py
+49fa99104e1282a2 container tests/domain/test_sizes.py
+59523eb7340a2b02 checkout version.py
+59523eb7340a2b02 container version.py
+63a738070addcddf checkout CHANGELOG.md
+63a738070addcddf container CHANGELOG.md
+66e39a991df5dc17 checkout ROADMAP_AND_LOG.md
+66e39a991df5dc17 container ROADMAP_AND_LOG.md
+Ran 2 tests in 0.816s
+
+OK
+Ran 3400 tests in 645.449s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+== LOCAL
+Ran 3400 tests in 236.528s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+e78dc240b2680639 local telegram_bot.py
+49fa99104e1282a2 local tests/domain/test_sizes.py
+59523eb7340a2b02 local version.py
+63a738070addcddf local CHANGELOG.md
+66e39a991df5dc17 local ROADMAP_AND_LOG.md
+
+[exited with code 0]

@@ -1,0 +1,20 @@
+{
+ "before": {
+  "offer_price_history": 648191,
+  "price_observations": 508266,
+  "users": 7
+ },
+ "offer_price_history_added": 836810,
+ "price_observations_added": 936782,
+ "products_aggregates_updated": 145210,
+ "users_added": 1,
+ "users_settings_filled": {},
+ "after": {
+  "offer_price_history": 1485001,
+  "price_observations": 1445048,
+  "users": 8
+ },
+ "dry_run": false,
+ "quick_check": "ok",
+ "secs": 33
+}
