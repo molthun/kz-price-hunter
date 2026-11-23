@@ -1,0 +1,21 @@
+6.56.1 (ab66fa8), Claude, 23.11.2026
+== Regression proof: new race tests on 6.56.0 reaper -> FAILED (failures=2); on 6.56.1 -> 10/10 OK
+== Linux clean container (separate image, removed; live untouched)
+sha256:69079a29adfbf0da2ac07072eff9bac9ee2aefab335b58475371cb75997c5c77
+Ran 3432 tests in 550.988s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+image removed
+live: kzph-stand Up 23 minutes (healthy)
+== Local (git archive)
+Ran 3432 tests in 236.258s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+== Frontend (Deno + Playwright + Chrome)
+frontend pass=49 fail=0
