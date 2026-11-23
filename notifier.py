@@ -653,6 +653,18 @@ def send_watch_digest(
         return DeliveryResult("retry", None, type(e).__name__)
 
 
+def _delivery_still_current(conn, delivery_id, event_id) -> bool:
+    """Задание ещё ждёт отправки, а его срабатывание не снято (SW-03)."""
+    row = conn.execute("SELECT status FROM notification_outbox WHERE id = ?", (delivery_id,)).fetchone()
+    if not row or row[0] != "pending":
+        return False
+    if event_id is not None:
+        ev = conn.execute("SELECT status FROM watch_events WHERE id = ?", (event_id,)).fetchone()
+        if ev is not None and ev[0] == "cancelled":
+            return False
+    return True
+
+
 def _deliver_watch(item, payload, counts) -> tuple:
     """Отправка задания по наблюдению.
 
@@ -682,6 +694,12 @@ def _deliver_watch(item, payload, counts) -> tuple:
                 ).fetchone()
             if row and row[0] is not None:
                 current = (row[0],)
+        # SW-03: задание могли снять уже после того, как воркер его забрал (смена размера наблюдения).
+        # Аренда claim_notification статус не меняет, поэтому отмена видна здесь, до передачи в Telegram.
+        still_pending = _delivery_still_current(conn, item["id"], payload.get("event_id"))
+    if not still_pending:
+        counts["cancelled"] += 1
+        return False, None
     # Наблюдение удалено или выключено, человек отключил Telegram, цена уже другая — сообщение неактуально
     if (not user or user["is_blocked"] or bot_unreachable(user)
             or not user["settings"].get("telegram_notify_enabled")
@@ -706,6 +724,9 @@ def _deliver_watch(item, payload, counts) -> tuple:
     fresh, stale = [(item, payload)], []
     for other, other_payload in extra_items:
         with get_connection() as conn:
+            if not _delivery_still_current(conn, other["id"], other_payload.get("event_id")):
+                counts["cancelled"] += 1     # снято после выборки сводки (SW-03): статус уже итоговый
+                continue
             price = conn.execute("SELECT current_price FROM products WHERE id = ?",
                                  (str((other_payload.get("product") or {}).get("id") or ""),)).fetchone()
             if not price:
@@ -741,8 +762,12 @@ def _deliver_watch(item, payload, counts) -> tuple:
         with get_connection() as conn:
             for done in payloads:
                 conn.execute("UPDATE watch_events SET status = 'sent' WHERE id = ?", (done.get("event_id"),))
-            # Одноразовое наблюдение выключается ПОСЛЕ отправки: своё сообщение оно должно успеть доставить
-            conn.execute("UPDATE watches SET is_active = 0 WHERE id = ? AND repeat_mode = 0", (watch["id"],))
+            # Одноразовое наблюдение выключается ПОСЛЕ отправки: своё сообщение оно должно успеть доставить.
+            # SW-03: только то самое срабатывание — если пока шла отправка наблюдение взвели заново
+            # (сменили размер), fired_at и target_size уже другие, и новое ожидание не гасим.
+            conn.execute("UPDATE watches SET is_active = 0 WHERE id = ? AND repeat_mode = 0 "
+                         "AND fired_at IS ? AND target_size IS ?",
+                         (watch["id"], watch["fired_at"], watch["target_size"]))
             conn.commit()
         return True, None
     if result.status == "permanent":
