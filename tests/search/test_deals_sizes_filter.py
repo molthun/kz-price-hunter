@@ -130,5 +130,136 @@ class DealsV2SizesApiTest(AioHTTPTestCase):
         self.assertEqual(data["total"], 0)
 
 
+def _seed_same_number_other_kind(db_path: str):
+    """DS-01: куртка с номерным размером 42 и кеды в смешанной категории «Скидки»."""
+    now = datetime.now(timezone.utc).isoformat()
+    with patch.object(database, "DB_PATH", db_path):
+        with database.get_connection() as conn:
+            rows = [
+                ("kimex_jacket_42", "KIMEX", "Куртка KIMEX женская", "KIMEX: 👗 Женская одежда", 30000, 50000),
+                ("intertop_kedy_42", "Интертоп", "Кеды Converse", "Интертоп: 🔥 Скидки и распродажи", 20000, 32000),
+                ("intertop_puhovik_42", "Интертоп", "Пуховик зимний", "Интертоп: 🔥 Скидки и распродажи", 40000, 70000),
+            ]
+            for pid, shop, title, cat, cur_p, old_p in rows:
+                conn.execute(
+                    """
+                    INSERT INTO products
+                        (id, shop, title, category, url, image_url, current_price, first_seen_price,
+                         old_price_on_site, min_price, max_price, canonical_key, created_at, updated_at, city, is_active)
+                    VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, 'Алматы', 1)
+                    """,
+                    (pid, shop, title, cat, f"https://example.kz/{pid}", cur_p, old_p, old_p, cur_p, old_p, pid, now, now),
+                )
+                for sz in ("40", "42", "44"):
+                    conn.execute(
+                        "INSERT INTO offer_sizes (offer_id, product_id, size, updated_at) VALUES (?, ?, ?, ?)",
+                        (f"off_{pid}", pid, sz, now),
+                    )
+            conn.commit()
+
+
+class OfferSizeKindTest(unittest.TestCase):
+    def test_category_decides_and_mixed_category_falls_back_to_title(self):
+        from domain.sizes import offer_size_kind
+        self.assertEqual(offer_size_kind("Kari: 👠 Женская обувь", "Сапоги"), "shoe")
+        self.assertEqual(offer_size_kind("KIMEX: 👟 Мужские кроссовки", ""), "shoe")
+        self.assertEqual(offer_size_kind("Интертоп: 👕 Мужская одежда", "Куртка"), "apparel")
+        self.assertEqual(offer_size_kind("Детский мир: 👕 Одежда и обувь", "Комбинезон зимний"), "apparel")
+        self.assertEqual(offer_size_kind("Детский мир: 👕 Одежда и обувь", "Ботинки детские"), "shoe")
+        self.assertEqual(offer_size_kind("Интертоп: 🔥 Скидки и распродажи", "Кеды Converse"), "shoe")
+        self.assertEqual(offer_size_kind("Интертоп: 🔥 Скидки и распродажи", "Пуховик"), "apparel")
+        self.assertEqual(offer_size_kind("Интертоп: 🔥 Скидки и распродажи", "Marco Tozzi Бoтильоны"), "shoe")  # латинская o
+        for title in ("Tamaris Ботфорты", "Tommy Hilfiger Тапки", "Caprice Слингбэки", "Тапочки FUTURINO Home"):
+            self.assertEqual(offer_size_kind("Интертоп: 🔥 Скидки и распродажи", title), "shoe", title)
+        self.assertEqual(offer_size_kind("Kari: 💍 Ювелирные украшения", "Ювелирное кольцо"), "apparel")
+        self.assertEqual(offer_size_kind("Kari: 🧣 Женские аксессуары", "Шапка-ушанка"), "apparel")
+        self.assertEqual(offer_size_kind(None, None), "apparel")
+
+
+class DealsProfileSizesKindTest(unittest.TestCase):
+    """DS-01: профильный размер сохраняет вид — обувь 42 не находит куртку 42."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.db_path = Path(self._tmp.name) / "test_deals_kinds.db"
+        _seed_deals_with_sizes(self.db_path)
+        _seed_same_number_other_kind(self.db_path)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _pids(self, **kw):
+        with patch.object(database, "DB_PATH", self.db_path):
+            res = database.get_store_deals(**kw)
+        return {d["product_id"] for d in res["deals"]}, res
+
+    def test_shoe_42_matches_only_shoes(self):
+        pids, res = self._pids(profile_sizes={"shoe": "42", "clothing": "", "kids_height": ""})
+        self.assertEqual(pids, {"kari_shoe_42", "intertop_kedy_42"})
+        self.assertEqual(res["total"], 2)
+        self.assertTrue(all(d["size_kind"] == "shoe" for d in res["deals"]))
+
+    def test_clothing_l_and_height_104_match_only_apparel(self):
+        pids, _ = self._pids(profile_sizes={"shoe": "", "clothing": "L", "kids_height": "рост 104"})
+        self.assertEqual(pids, {"kimex_jacket_l", "detmir_kids_104"})
+
+    def test_full_profile_never_returns_jacket_or_puhovik_42(self):
+        pids, _ = self._pids(profile_sizes={"shoe": "42", "clothing": "L", "kids_height": "104"})
+        self.assertEqual(pids, {"kari_shoe_42", "intertop_kedy_42", "kimex_jacket_l", "detmir_kids_104"})
+        self.assertNotIn("kimex_jacket_42", pids)
+        self.assertNotIn("intertop_puhovik_42", pids)
+
+    def test_generic_sizes_param_keeps_its_contract(self):
+        pids, _ = self._pids(sizes=["42"])
+        self.assertEqual(pids, {"kari_shoe_42", "kimex_jacket_42", "intertop_kedy_42", "intertop_puhovik_42"})
+
+    def test_empty_or_invalid_profile_returns_empty_not_catalog(self):
+        for profile in ({"shoe": "", "clothing": "", "kids_height": ""},
+                        {"shoe": "L", "clothing": "42", "kids_height": "abc"}):
+            pids, res = self._pids(profile_sizes=profile)
+            self.assertEqual(pids, set(), profile)
+            self.assertEqual(res["total"], 0)
+
+    def test_no_filter_attaches_size_kind(self):
+        _, res = self._pids()
+        kinds = {d["product_id"]: d["size_kind"] for d in res["deals"]}
+        self.assertEqual(kinds["kimex_jacket_42"], "apparel")
+        self.assertEqual(kinds["intertop_kedy_42"], "shoe")
+
+
+class DealsV2ProfileSizesApiTest(AioHTTPTestCase):
+    async def get_application(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.db_path = Path(self._tmp.name) / "test_deals_kinds_api.db"
+        _seed_deals_with_sizes(self.db_path)
+        _seed_same_number_other_kind(self.db_path)
+        app = web.Application()
+        app.router.add_get("/api/v2/deals", server.deals_v2_handler)
+        app.router.add_get("/api/deals", server.deals_handler)
+        return app
+
+    async def tearDownAsync(self):
+        await super().tearDownAsync()
+        self._tmp.cleanup()
+
+    async def test_v2_typed_shoe_size_excludes_jacket_42(self):
+        with patch.object(database, "DB_PATH", self.db_path):
+            resp = await self.client.get("/api/v2/deals?shoe_size=42&clothing_size=&kids_height=")
+            self.assertEqual(resp.status, 200)
+            data = await resp.json()
+        pids = {d["product_id"] for d in data["deals"]}
+        self.assertEqual(pids, {"kari_shoe_42", "intertop_kedy_42"})
+        self.assertTrue(all(d["size_kind"] == "shoe" for d in data["deals"]))
+
+    async def test_v1_typed_full_profile(self):
+        with patch.object(database, "DB_PATH", self.db_path):
+            resp = await self.client.get(
+                "/api/deals?shoe_size=42&clothing_size=L&kids_height=%D1%80%D0%BE%D1%81%D1%82+104")
+            self.assertEqual(resp.status, 200)
+            data = await resp.json()
+        pids = {d["product_id"] for d in data["deals"]}
+        self.assertEqual(pids, {"kari_shoe_42", "intertop_kedy_42", "kimex_jacket_l", "detmir_kids_104"})
+
+
 if __name__ == "__main__":
     unittest.main()

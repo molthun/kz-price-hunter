@@ -75,6 +75,38 @@ _DECIMAL_COMMA_RE = re.compile(r"(?<!\d)(\d{2}),([05])(?!\d)")
 _NON_APPAREL_UNIT_RE = re.compile(r"(?iu)^\s*(?:дюйм\w*|\"|''|см\b|мм\b|inch\w*)")
 
 
+# Обувь для вида размерной сетки (DS-01): поисковый контекст плюс виды, которые в нём не нужны.
+_SHOE_KIND_EXTRA_RE = re.compile(
+    r"(?iu)\b(?:ботильон\w*|ботфорт\w*|тапк\w*|тапоч\w*|слингбэк\w*|мюли|эспадрил\w*|сникер\w*|шлёп\w*)\b"
+)
+# Латинские двойники кириллицы в названиях источников («Бoтильоны» с латинской o)
+_LATIN_LOOKALIKES = str.maketrans("aceopxyABCEHKMOPTX", "асеорхуАВСЕНКМОРТХ")
+
+
+def _is_shoe_text(text: str) -> bool:
+    folded = text.translate(_LATIN_LOOKALIKES)
+    return bool(_SHOE_CONTEXT_RE.search(folded) or _SHOE_KIND_EXTRA_RE.search(folded))
+
+
+def offer_size_kind(category: Any, title: Any) -> str:
+    """Вид размерной сетки предложения: «shoe» (обувь) или «apparel» (одежда и прочее), DS-01.
+
+    Номер 42 у кроссовок и у куртки — разные размеры. Категория решает, если однозначна;
+    смешанные категории («Одежда и обувь», «Скидки и распродажи») решаются по названию.
+    """
+    cat = str(category or "")
+    name = str(title or "")
+    cat_shoe = _is_shoe_text(cat)
+    cat_cloth = bool(_CLOTHING_CONTEXT_RE.search(cat))
+    if cat_shoe and not cat_cloth:
+        return "shoe"
+    if cat_cloth and not cat_shoe:
+        return "apparel"
+    if _is_shoe_text(name) and not _CLOTHING_CONTEXT_RE.search(name):
+        return "shoe"
+    return "apparel"
+
+
 def normalize_size_token(raw: Any) -> Optional[str]:
     """Приводит одиночный токен размера к каноническому виду или возвращает None."""
     if raw is None:
