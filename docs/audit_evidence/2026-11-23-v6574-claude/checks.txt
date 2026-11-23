@@ -1,0 +1,21 @@
+6.57.4 (d8b3dab), Claude, 23.11.2026
+== Regression proof: SizeWatchTopicDeliveryTest on 6.57.3 notifier.py -> FAILED (size change inside createForumTopic: instant and digest); topic delivery and fallback tests pass on both by design. On 6.57.4 -> test_size_watches 22/22; tests/notifications 357 OK
+== Linux clean container (separate image, removed; live untouched)
+sha256:5069817c0a2097988ba0aa30e38f495ccb7ad203671119f30fdf7d631616e004
+Ran 3457 tests in 559.983s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+image removed
+live: kzph-stand Up 3 hours (healthy)
+== Local (git archive)
+Ran 3457 tests in 236.828s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+== Frontend
+frontend pass=50 fail=0
