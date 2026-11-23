@@ -1,0 +1,9 @@
+Выкладка 6.56.2 на живой сервер по слову владельца, 23.11.2026 15:51–15:52Z (Claude)
+Копия БД: ~/kzph-migration/live_before_6562_20261123T1551Z.db quick_check ok users 8 offers 294458 products 294350 offer_price_history 1497711 (9 с); активных offers до выкладки 175589
+Checkout: 9d3f84d -> 54516a3 (ff-only из bundle; включает 6.56.0, 6.56.1, 6.56.2); live override совпадает с deploy/
+Контейнер: image sha256:4c2af356a5a7…67f2 healthy restarts=0 started 15:52:24Z, порт 35540, restart unless-stopped
+Снаружи: /api/version 6.56.2; health ok; / /deals /api/deals /api/products?q=кроссовки /api/me — 200; «Мои размеры» обувь 42 — 3899, только shoe; POST /api/auth/bot-start 200; shdev -> 301 shop
+Первый проход очистки (журнал): «Фоново списано 156 устаревших предложений (кандидатов 19682, пачек 4, каталог 156, пропущено обновлённых 0)»
+  Активных после прохода 175433 (-156). Все 156 — истёкший expires_at: website 155 (возраст наблюдения 41–94 ч), forte 1 (30 ч).
+  Оценка по копии 14:48 была 372; за час до выкладки обходы заново подтвердили 1768 предложений, прежняя очистка прошла свою пачку — отсюда разница.
+Журнал 15 мин: 0 строк error/traceback; Telegram-бот запущен; restarts=0.
