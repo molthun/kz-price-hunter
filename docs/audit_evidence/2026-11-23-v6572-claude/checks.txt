@@ -1,0 +1,21 @@
+6.57.2 (64069ea), Claude, 23.11.2026
+== Regression proof: SizeWatchDeliveryRaceTest on 6.57.1 notifier.py -> FAILED (failures=3: change after claim before send, change during send, change after digest claim); on 6.57.2 -> test_size_watches 14/14; tests/notifications 357 OK
+== Linux clean container (separate image, removed; live untouched)
+sha256:3c83ab27a5d3bb53886de51bb5819f0f795c7bd887d2f3ed6b864881ea974649
+Ran 3449 tests in 559.564s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+image removed
+live: kzph-stand Up 2 hours (healthy)
+== Local (git archive)
+Ran 3449 tests in 233.566s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+== Frontend
+frontend pass=50 fail=0
