@@ -600,6 +600,27 @@ TRUSTED_PROXIES = tuple(x.strip() for x in os.getenv("TRUSTED_PROXIES", "").spli
 # APP_URL remains a compatible default for existing single-origin deployments.
 PUBLIC_ORIGIN = (os.getenv("PUBLIC_ORIGIN", "").strip() or APP_URL).rstrip("/")
 
+
+def parse_canonical_redirect_hosts(raw: str) -> tuple:
+    """Разбирает список старых/дополнительных хостов для 301-редиректа на PUBLIC_ORIGIN."""
+    from urllib.parse import urlparse
+    hosts = []
+    seen = set()
+    for part in (raw or "").split(","):
+        token = part.strip()
+        if not token:
+            continue
+        parsed = urlparse(token if "://" in token else f"http://{token}")
+        host = (parsed.hostname or "").strip().lower()
+        if host and host not in seen:
+            seen.add(host)
+            hosts.append(host)
+    return tuple(hosts)
+
+
+# Optional comma-separated hostnames (e.g. legacy alias domain) to 301-redirect to PUBLIC_ORIGIN.
+CANONICAL_REDIRECT_HOSTS = parse_canonical_redirect_hosts(os.getenv("CANONICAL_REDIRECT_HOSTS", ""))
+
 def _read_settings_file():
     if SETTINGS_FILE.exists():
         try:

@@ -3,6 +3,17 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.54.0] - 2026-11-23
+
+### Для пользователей
+- 🔗 Старые ссылки на `shdev.molthun.ru` автоматически перенаправляются на основной адрес `shop.molthun.ru` с сохранением открытого товара, поиска и фильтров — вход через Telegram, избранное, наблюдения и «Мои размеры» работают без ошибок.
+
+### Добавлено
+- `config.py`: `parse_canonical_redirect_hosts()` и переменная `CANONICAL_REDIRECT_HOSTS` (список старых/дополнительных доменов через запятую).
+- `web/server.py`: middleware `canonical_host_redirect_middleware` — для `GET`/`HEAD` запросов с хостов из `CANONICAL_REDIRECT_HOSTS` отдаёт `301 Moved Permanently` на `PUBLIC_ORIGIN` с сохранением пути и query, защитой от цикла редиректов, защитой от protocol-relative open-redirect (`//evil.example`) и учётом `X-Forwarded-Host` только от `TRUSTED_PROXIES`. `POST`/`PUT`/`DELETE` не редиректятся.
+- `.env.example`, `deploy/docker-compose.live.yml`: добавлена переменная `CANONICAL_REDIRECT_HOSTS` (в live-дополнении по умолчанию `shdev.molthun.ru`).
+- `tests/web/test_canonical_redirect.py`: 10 тестов на парсинг хостов, редирект GET/HEAD с путём и query, защиту от цикла, доверенные/недоверенные прокси, защиту от open-redirect, отсутствие редиректа на POST и на localhost healthcheck.
+
 ## [6.53.2] - 2026-11-22
 
 ### Для пользователей

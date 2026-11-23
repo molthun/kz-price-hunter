@@ -7017,6 +7017,61 @@ async def _telemetry_guarded(request, handler):
         raise
 
 
+def _extract_request_hostname(request: web.Request) -> str:
+    """Возвращает нормализованный hostname запроса (X-Forwarded-Host только от доверенного прокси)."""
+    from urllib.parse import urlparse
+    import auth as auth_mod
+
+    raw_host = ""
+    if auth_mod.trusted_proxy(request.remote or ""):
+        xfh = (request.headers.get("X-Forwarded-Host") or "").split(",", 1)[0].strip()
+        if xfh:
+            raw_host = xfh
+    if not raw_host:
+        raw_host = (request.host or "").strip()
+    if not raw_host:
+        return ""
+    try:
+        return (urlparse(f"http://{raw_host}").hostname or "").strip().lower()
+    except ValueError:
+        return ""
+
+
+def _build_canonical_redirect_url(request: web.Request, target_origin: str) -> str:
+    """Строит безопасный канонический URL на target_origin с сохранением пути и query."""
+    raw_path = (request.raw_path or "/").replace("\r", "").replace("\n", "")
+    path_part, sep, query_part = raw_path.partition("?")
+    clean_path = "/" + path_part.lstrip("/\\")
+    return f"{target_origin}{clean_path}{sep}{query_part}"
+
+
+@web.middleware
+async def canonical_host_redirect_middleware(request: web.Request, handler):
+    """301-редирект со старых хостов (CANONICAL_REDIRECT_HOSTS) на канонический PUBLIC_ORIGIN."""
+    import config as cfg_mod
+    import auth as auth_mod
+    from urllib.parse import urlparse
+
+    redirect_hosts = getattr(cfg_mod, "CANONICAL_REDIRECT_HOSTS", ()) or ()
+    if not redirect_hosts or request.method not in ("GET", "HEAD"):
+        return await handler(request)
+
+    target_origin = auth_mod.normalized_origin(getattr(cfg_mod, "PUBLIC_ORIGIN", "") or "")
+    if not target_origin:
+        return await handler(request)
+
+    target_host = (urlparse(target_origin).hostname or "").strip().lower()
+    req_host = _extract_request_hostname(request)
+    if not req_host or not target_host or req_host == target_host:
+        return await handler(request)
+
+    if req_host in redirect_hosts:
+        location = _build_canonical_redirect_url(request, target_origin)
+        raise web.HTTPMovedPermanently(location=location, headers={"Vary": "Host"})
+
+    return await handler(request)
+
+
 async def _init_thread_pool(app):
     from concurrent.futures import ThreadPoolExecutor
     from config import worker_thread_count
@@ -7032,7 +7087,7 @@ def create_app():
     diagnostics.mark_process_start()
     init_db()
     app = web.Application(
-        middlewares=[telemetry_middleware, auth_middleware, gzip_middleware],
+        middlewares=[telemetry_middleware, canonical_host_redirect_middleware, auth_middleware, gzip_middleware],
         client_max_size=16 * 1024 * 1024,
     )
     app.on_startup.append(_init_thread_pool)

@@ -1,5 +1,9 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 23.11.2026 — 6.54.0: Канонический 301-редирект со старых доменов (`CANONICAL_REDIRECT_HOSTS` → `PUBLIC_ORIGIN`)
+
+- Добавлен middleware `canonical_host_redirect_middleware` в `web/server.py` и переменная `CANONICAL_REDIRECT_HOSTS` в `config.py` / `.env.example` / `deploy/docker-compose.live.yml`: GET/HEAD запросы со старых адресов (например `shdev.molthun.ru`) перенаправляются 301 на `PUBLIC_ORIGIN` с сохранением пути и query, защитой от цикла и open-redirect, учётом `X-Forwarded-Host` только от `TRUSTED_PROXIES`.
+
 ## 22.11.2026 — 6.53.2: SZ-07 до конца — неверная дробь в `/sizes` не меняет профиль (стенд)
 
 - Возврат Codex по 6.53.1: `37,75`/`37,05` больше не разносятся по обуви и росту; число с запятой разбирается целиком. Сквозные регрессии подтверждают неизменность прежних полей.
