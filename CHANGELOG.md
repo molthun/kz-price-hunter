@@ -3,6 +3,15 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.56.0] - 2026-11-23
+
+### Для пользователей
+- 🧹 Устаревшие товары, снятые с витрины, больше не остаются «призраками» в поиске Telegram-бота (`/search`) — выдача на сайте и в боте всегда согласована.
+
+### Исправлено
+- `domain/freshness_v2.py`: `reap_expired_offers()` при переводе устаревших офферов в архив (`offers.is_active = 0`) теперь в той же транзакции (чанками по 500) синхронно деактивирует парные legacy-записи в `products` (`products.is_active = 0` для `off_<id>`), если таблица `products` присутствует; в `dry_run=True` ничего не меняет; добавляет `legacy_products_deactivated` в результат и телеметрию. Устраняет причину накопления рассинхрона между `offers` и `products` (как было с `Меломан` и `Forte Market`).
+- Тесты: `TestFreshnessReaperLegacySync` в `tests/core/test_freshness_reaper.py` (синхронное списание `offers` + `products`, сохранение свежих, `dry_run`, работа на чистой v2-схеме без таблицы `products`).
+
 ## [6.55.1] - 2026-11-23
 
 ### Для пользователей

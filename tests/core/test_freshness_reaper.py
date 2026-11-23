@@ -435,3 +435,132 @@ class TestFreshnessEndpoints(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(direct_series)
         self.assertEqual(direct_series["latest_price"], 399000.0)
 
+
+class TestFreshnessReaperLegacySync(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.db_path = Path(self.temp_dir.name) / "test_reaper_sync.db"
+        self.patcher = patch("database.DB_PATH", self.db_path)
+        self.patcher.start()
+        init_db()
+        conn = get_connection()
+        try:
+            init_schema_v2(conn)
+            conn.commit()
+        finally:
+            conn.close()
+        self.now = datetime.datetime(2026, 11, 23, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+    def tearDown(self):
+        self.patcher.stop()
+        self.temp_dir.cleanup()
+
+    def _seed_pair(self, conn, pid: str, observed_at: str):
+        s_repo = SellerRepository(conn)
+        s_repo.save_or_update(Seller(id="s1", slug="shop-1", name="Shop 1"))
+        p_repo = ProductRepository(conn)
+        p_repo.save_or_update(
+            CanonicalProduct(
+                id="cp_" + pid,
+                canonical_key="key_" + pid,
+                title="Product " + pid,
+                category="Одежда",
+            )
+        )
+        ch_repo = ChannelRepository(conn)
+        ch_repo.save_or_update(
+            Channel(id="ch_web", seller_id="s1", channel_type=ChannelType.WEBSITE, name="Site")
+        )
+        o_repo = OfferRepository(conn)
+        o_repo.save_or_update(
+            Offer(
+                id="off_" + pid,
+                product_id="cp_" + pid,
+                seller_id="s1",
+                channel_id="ch_web",
+                external_sku="SKU-" + pid,
+                url="https://shop1.kz/" + pid,
+                price=10000.0,
+                city="Алматы",
+                observed_at=observed_at,
+                is_active=True,
+            )
+        )
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO products
+                (id, shop, title, category, url, current_price, first_seen_price,
+                 min_price, max_price, canonical_key, created_at, updated_at, city, is_active)
+            VALUES (?, 'Shop 1', ?, 'Одежда', ?, 10000, 10000, 10000, 10000, ?, ?, ?, 'Алматы', 1)
+            """,
+            (pid, "Product " + pid, "https://shop1.kz/" + pid, "key_" + pid, observed_at, observed_at),
+        )
+        conn.commit()
+
+    def test_reap_deactivates_paired_legacy_products_and_keeps_fresh(self):
+        conn = get_connection()
+        try:
+            old_ts = _utc_iso(self.now - datetime.timedelta(days=10))
+            fresh_ts = _utc_iso(self.now - datetime.timedelta(hours=2))
+            self._seed_pair(conn, "legacy_old", old_ts)
+            self._seed_pair(conn, "legacy_fresh", fresh_ts)
+
+            dry = reap_expired_offers(conn, now=self.now, dry_run=True)
+            self.assertEqual(dry["total_reaped"], 1)
+            self.assertEqual(dry["legacy_products_deactivated"], 0)
+            self.assertEqual(
+                conn.execute("SELECT is_active FROM products WHERE id = 'legacy_old'").fetchone()[0],
+                1,
+            )
+
+            res = reap_expired_offers(conn, now=self.now, dry_run=False)
+            self.assertEqual(res["total_reaped"], 1)
+            self.assertEqual(res["legacy_products_deactivated"], 1)
+            self.assertEqual(
+                conn.execute("SELECT is_active FROM offers WHERE id = 'off_legacy_old'").fetchone()[0],
+                0,
+            )
+            self.assertEqual(
+                conn.execute("SELECT is_active FROM products WHERE id = 'legacy_old'").fetchone()[0],
+                0,
+            )
+            self.assertEqual(
+                conn.execute("SELECT is_active FROM products WHERE id = 'legacy_fresh'").fetchone()[0],
+                1,
+            )
+        finally:
+            conn.close()
+
+    def test_reap_works_without_legacy_products_table(self):
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        try:
+            init_schema_v2(conn)
+            s_repo = SellerRepository(conn)
+            s_repo.save_or_update(Seller(id="s1", slug="shop-1", name="Shop 1"))
+            p_repo = ProductRepository(conn)
+            p_repo.save_or_update(CanonicalProduct(id="cp1", canonical_key="k1", title="T1", category="Одежда"))
+            ch_repo = ChannelRepository(conn)
+            ch_repo.save_or_update(Channel(id="ch_web", seller_id="s1", channel_type=ChannelType.WEBSITE, name="Site"))
+            o_repo = OfferRepository(conn)
+            o_repo.save_or_update(
+                Offer(
+                    id="off_only_v2",
+                    product_id="cp1",
+                    seller_id="s1",
+                    channel_id="ch_web",
+                    external_sku="SKU-1",
+                    url="https://shop1.kz/1",
+                    price=10000.0,
+                    city="Алматы",
+                    observed_at=_utc_iso(self.now - datetime.timedelta(days=10)),
+                    is_active=True,
+                )
+            )
+            conn.commit()
+            res = reap_expired_offers(conn, now=self.now, dry_run=False)
+            self.assertEqual(res["total_reaped"], 1)
+            self.assertEqual(res["legacy_products_deactivated"], 0)
+        finally:
+            conn.close()
+

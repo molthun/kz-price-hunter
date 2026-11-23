@@ -381,18 +381,43 @@ def reap_expired_offers(
             by_source_type[stype] = by_source_type.get(stype, 0) + 1
 
     total_reaped = len(reaped_ids)
+    legacy_products_deactivated = 0
 
     if total_reaped > 0 and not dry_run:
-        # Пакетное обновление списанных офферов
-        placeholders = ",".join("?" for _ in reaped_ids)
-        update_sql = f"""
-            UPDATE offers
-            SET is_active = 0,
-                expires_at = COALESCE(expires_at, ?),
-                updated_at = ?
-            WHERE id IN ({placeholders})
-        """
-        cur.execute(update_sql, [now_iso, now_iso, *reaped_ids])
+        # Пакетное обновление списанных офферов (чанками, чтобы не упереться в лимит bind-параметров)
+        for i in range(0, len(reaped_ids), 500):
+            chunk = reaped_ids[i : i + 500]
+            placeholders = ",".join("?" for _ in chunk)
+            update_sql = f"""
+                UPDATE offers
+                SET is_active = 0,
+                    expires_at = COALESCE(expires_at, ?),
+                    updated_at = ?
+                WHERE id IN ({placeholders})
+            """
+            cur.execute(update_sql, [now_iso, now_iso, *chunk])
+
+        # Синхронно переводим в архив парные legacy-строки products (off_<product_id>),
+        # чтобы списанные офферы не оставались активными «призраками» в Telegram /search и старых выборках.
+        legacy_pids = [
+            oid[4:] for oid in reaped_ids
+            if isinstance(oid, str) and oid.startswith("off_") and len(oid) > 4
+        ]
+        if legacy_pids:
+            has_products_table = cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'products'"
+            ).fetchone()
+            if has_products_table:
+                for i in range(0, len(legacy_pids), 500):
+                    p_chunk = legacy_pids[i : i + 500]
+                    p_placeholders = ",".join("?" for _ in p_chunk)
+                    cur.execute(
+                        f"UPDATE products SET is_active = 0 WHERE is_active = 1 AND id IN ({p_placeholders})",
+                        p_chunk,
+                    )
+                    if cur.rowcount and cur.rowcount > 0:
+                        legacy_products_deactivated += cur.rowcount
+
         conn.commit()
 
         # Телеметрия списания
@@ -403,6 +428,7 @@ def reap_expired_offers(
                 count=total_reaped,
                 details={
                     "reaped_count": total_reaped,
+                    "legacy_products_deactivated": legacy_products_deactivated,
                     "scanned_candidates": len(rows),
                     "by_reason": by_reason,
                     "by_source_type": by_source_type,
@@ -416,6 +442,7 @@ def reap_expired_offers(
         "ok": True,
         "scanned_candidates": len(rows),
         "total_reaped": total_reaped,
+        "legacy_products_deactivated": legacy_products_deactivated,
         "by_reason": by_reason,
         "by_source_type": by_source_type,
         "dry_run": dry_run,
