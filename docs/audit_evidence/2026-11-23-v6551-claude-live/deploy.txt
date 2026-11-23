@@ -1,0 +1,13 @@
+Выкладка 6.55.1 на живой сервер по слову владельца, 23.11.2026 14:48–14:49Z (Claude)
+Копия БД: ~/kzph-migration/live_before_6551_20261123T1448Z.db quick_check ok users 8 offers 294451 products 294343 offer_price_history 1497630 (7 с)
+Checkout: 6e42252 -> 9d3f84d (ff-only из bundle); docker-compose.live.yml совпадает с deploy/; compose config: CANONICAL shdev, порт 35540, restart unless-stopped
+Контейнер: image sha256:b0ceddeced6d…31bc4 healthy restarts=0 started 14:49:22Z
+Снаружи:
+  /api/version 6.55.1; /api/health ok (db/queue ok, worker running)
+  /api/v2/deals?limit=100: total 65891, на странице size_kind shoe 7 / apparel 93
+  shoe_size=42 (профиль, только обувь): total 3899, страница 100/100 shoe, одежды нет
+  sizes=42 (общий параметр, контракт прежний): total 4009 (22 shoe / 78 apparel на странице) -> 110 необувных «42» больше не попадают в «Мои размеры»
+  clothing_size=L: total 1611, страница 100/100 apparel
+  пустой профиль: total 0 (не весь каталог)
+  shdev/deals?size=42 -> 301 https://shop.molthun.ru/deals?size=42; / 200, /deals 200, /api/me 200, POST /api/auth/bot-start 200
+Журнал 10 мин: 0 строк error/traceback; Telegram-бот запущен.
