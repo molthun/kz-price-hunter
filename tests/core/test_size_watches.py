@@ -257,6 +257,148 @@ class SizeWatchRearmTest(unittest.TestCase):
         self.assertEqual(self._outbox()[-1], ("pending", None, "появился размер 42"))
 
 
+class SizeWatchDeliveryRaceTest(unittest.TestCase):
+    """SW-03: смена размера после того, как отправщик забрал задание из очереди."""
+
+    USER = 301
+    BASE = {"kind": "product", "target": "cp_kari_100", "title": "Кроссовки Kari Runner",
+            "condition": "size_in_stock", "cooldown_hours": 0, "quiet_from": "00:00", "quiet_to": "00:00",
+            "repeat": False}
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.db_path = Path(self._tmp.name) / "test_size_delivery.db"
+        self._patcher = patch.object(database, "DB_PATH", self.db_path)
+        self._patcher.start()
+        database.init_db()
+        database.upsert_telegram_user({"id": self.USER, "first_name": "S"})
+        database.save_user_settings(self.USER, {"telegram_notify_enabled": True})
+        database.save_or_update_products_batch([
+            {"id": pid, "title": "Кроссовки Kari Runner", "price": 20000, "shop": "Kari", "city": "Алматы",
+             "url": f"https://kari.example/{pid}", "category": "Kari: 👟 Обувь"} for pid in ("kari_100", "kari_101")])
+        self.t0 = datetime.datetime(2026, 11, 23, 10, 0, 0, tzinfo=datetime.timezone.utc)
+
+    def tearDown(self):
+        self._patcher.stop()
+        self._tmp.cleanup()
+
+    def _offer(self, sizes, pid="kari_100"):
+        return {"id": pid, "canonical_product_id": "cp_" + pid, "title": "Кроссовки Kari Runner",
+                "shop": "Kari", "city": "Алматы", "current_price": 20000, "is_available": True,
+                "available_sizes": list(sizes)}
+
+    def _at(self, minutes):
+        return self.t0 + datetime.timedelta(minutes=minutes)
+
+    def _fire_41(self, extra=None):
+        w = database.create_watch(self.USER, {**self.BASE, "target_size": "41", **(extra or {})})
+        offers = [self._offer(["40"]), self._offer(["40"], "kari_101")]
+        database.evaluate_watches(offers, now=self._at(0))
+        offers = [self._offer(["40", "41"]), self._offer(["40", "41"], "kari_101")]
+        database.evaluate_watches(offers, now=self._at(5))
+        with database.get_connection() as conn:
+            conn.execute("UPDATE notification_outbox SET next_attempt_at = 0 WHERE status = 'pending'")
+            conn.commit()
+        return w
+
+    def _watch(self, wid):
+        with database.get_connection() as conn:
+            return dict(conn.execute("SELECT is_active, fired_at, target_size FROM watches WHERE id = ?",
+                                     (wid,)).fetchone())
+
+    def _deliver(self, **patches):
+        import notifier
+        sent = []
+
+        def fake_send(user_id, payload):
+            sent.append(payload.get("reason"))
+            hook = patches.get("during_send")
+            if hook:
+                hook()
+            return notifier.DeliveryResult("sent")
+
+        def fake_digest(user_id, payloads):
+            sent.append([pl.get("reason") for pl in payloads])
+            return notifier.DeliveryResult("sent")
+
+        ctx = [patch.object(notifier, "get_bot_token", lambda: "token"),
+               patch.object(notifier, "send_watch_message", side_effect=fake_send),
+               patch.object(notifier, "send_watch_digest", side_effect=fake_digest)]
+        if "after_claim" in patches:
+            real_claim = database.claim_notification
+
+            def claim_then_change():
+                item = real_claim()
+                if item:
+                    patches["after_claim"]()
+                return item
+            ctx.append(patch.object(database, "claim_notification", side_effect=claim_then_change))
+        if "after_digest_claim" in patches:
+            real_digest_claim = database.claim_watch_digest
+
+            def digest_claim_then_change(*a, **kw):
+                rows = real_digest_claim(*a, **kw)
+                patches["after_digest_claim"]()
+                return rows
+            ctx.append(patch.object(database, "claim_watch_digest", side_effect=digest_claim_then_change))
+        for c in ctx:
+            c.start()
+        try:
+            notifier.deliver_pending(limit=10)
+        finally:
+            for c in reversed(ctx):
+                c.stop()
+        return sent
+
+    def _statuses(self):
+        with database.get_connection() as conn:
+            return [r[0] for r in conn.execute("SELECT status FROM notification_outbox ORDER BY id")]
+
+    def test_size_changed_after_claim_before_send_is_not_delivered(self):
+        w = self._fire_41()
+        changed = []
+        sent = self._deliver(after_claim=lambda: changed or changed.append(
+            database.update_watch(self.USER, w["id"], {"target_size": "42"})))
+        self.assertEqual(sent, [], "устаревшее сообщение о 41 не должно уйти")
+        self.assertEqual(set(self._statuses()), {"cancelled"})
+        st = self._watch(w["id"])
+        self.assertEqual((st["is_active"], st["fired_at"], st["target_size"]), (1, None, "42"))
+        # Появление 42 — новое сообщение и только после него одноразовое наблюдение выключается
+        self.assertEqual(database.evaluate_watches([self._offer(["41", "42"])], now=self._at(10)), 1)
+        with database.get_connection() as conn:
+            conn.execute("UPDATE notification_outbox SET next_attempt_at = 0 WHERE status = 'pending'")
+            conn.commit()
+        self.assertEqual(self._deliver(), ["появился размер 42"])
+        self.assertEqual(self._watch(w["id"])["is_active"], 0)
+
+    def test_size_changed_while_sending_keeps_new_watch_armed(self):
+        w = self._fire_41()
+        changed = []
+        sent = self._deliver(during_send=lambda: changed or changed.append(
+            database.update_watch(self.USER, w["id"], {"target_size": "42"})))
+        self.assertEqual(sent[0], "появился размер 41", "уже переданное в Telegram не отменить")
+        st = self._watch(w["id"])
+        self.assertEqual((st["is_active"], st["fired_at"], st["target_size"]), (1, None, "42"),
+                         "завершение отправки не гасит заново взведённое наблюдение")
+        self.assertEqual(database.evaluate_watches([self._offer(["41", "42"])], now=self._at(10)), 1)
+
+    def test_digest_drops_items_cancelled_after_digest_claim(self):
+        # Наблюдение по магазину: у каждого товара своё срабатывание, сводка собирает оба
+        w = self._fire_41({"kind": "shop", "target": "Kari", "mode": "digest", "repeat": True})
+        self.assertEqual(self._statuses(), ["pending", "pending"])
+        changed = []
+        sent = self._deliver(after_digest_claim=lambda: changed or changed.append(
+            database.update_watch(self.USER, w["id"], {"target_size": "42"})))
+        # Первое задание проверено до смены и уходит одно; второе снято — в сводку не попадает
+        self.assertEqual(sent, ["появился размер 41"])
+        self.assertEqual(self._statuses(), ["sent", "cancelled"])
+        st = self._watch(w["id"])
+        self.assertEqual((st["is_active"], st["target_size"]), (1, "42"))
+        with database.get_connection() as conn:
+            ev = [r[0] for r in conn.execute("SELECT status FROM watch_events ORDER BY id")]
+        self.assertEqual(ev, ["sent", "cancelled"], "снятое срабатывание не помечается отправленным")
+
+
 def json_reason(payload):
     import json
     return json.loads(payload).get("reason")
