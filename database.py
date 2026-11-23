@@ -5192,6 +5192,34 @@ def _annotate_deals(deals: List[Dict[str, Any]]) -> None:
 MAX_BELIEVABLE_DISCOUNT_PCT = 90
 
 
+def _normalize_deals_sizes_filter(sizes: Optional[List[str]]) -> Optional[List[str]]:
+    """Нормализует список размеров для фильтра витрины скидок (обувь, одежда, рост ребёнка).
+
+    Возвращает None, если фильтр не задан; пустой список [], если фильтр задан,
+    но ни один токен не распознан (чтобы не отдавать весь каталог молча).
+    """
+    if sizes is None:
+        return None
+    from domain.sizes import normalize_size_token, normalize_height_sizes
+    result: List[str] = []
+    seen = set()
+    for raw in sizes:
+        token = str(raw or "").strip()
+        if not token:
+            continue
+        norm = normalize_size_token(token)
+        if not norm:
+            heights = normalize_height_sizes(token)
+            if len(heights) == 1:
+                norm = heights[0]
+        if norm and norm not in seen:
+            seen.add(norm)
+            result.append(norm)
+            if len(result) >= 20:
+                break
+    return result
+
+
 def get_store_deals(
     shop: Optional[str] = None,
     city: Optional[str] = None,
@@ -5203,10 +5231,23 @@ def get_store_deals(
     limit: int = 60,
     offset: int = 0,
     min_discount: int = 0,
+    sizes: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Возвращает агрегированную витрину акций и супер-скидок по всем магазинам Казахстана.
     Объединяет скидки сайтов магазинов (products) и межмагазинный арбитраж (alerts).
     """
+    norm_sizes = _normalize_deals_sizes_filter(sizes)
+    if norm_sizes is not None and not norm_sizes:
+        return {
+            "deals": [],
+            "total": 0,
+            "shops_summary": [{"shop": "Все", "count": 0}],
+            "type_totals": {"all": 0, "super": 0, "arbitrage": 0, "observed": 0},
+            "offset": offset,
+            "limit": limit,
+        }
+
+    size_placeholders = ",".join("?" for _ in (norm_sizes or ()))
     raw_deals: List[Dict[str, Any]] = []
     with get_connection() as conn:
         # 1. Каталожные скидки из products
@@ -5227,6 +5268,9 @@ def get_store_deals(
         if city and city != "Все":
             p_query += " AND (p.city = ? OR p.city IS NULL)"
             p_params.append(city)
+        if norm_sizes:
+            p_query += f" AND EXISTS (SELECT 1 FROM offer_sizes os WHERE os.offer_id = ('off_' || p.id) AND os.size IN ({size_placeholders}))"
+            p_params.extend(norm_sizes)
 
         for r in conn.execute(p_query, p_params):
             old_p = r["old_price"] or r["new_price"]
@@ -5274,6 +5318,9 @@ def get_store_deals(
         if city and city != "Все":
             a_query += " AND (a.city = ? OR a.city IS NULL)"
             a_params.append(city)
+        if norm_sizes:
+            a_query += f" AND EXISTS (SELECT 1 FROM offer_sizes os WHERE os.offer_id = ('off_' || p.id) AND os.size IN ({size_placeholders}))"
+            a_params.extend(norm_sizes)
 
         for r in conn.execute(a_query, a_params):
             raw_deals.append({
@@ -5374,6 +5421,24 @@ def get_store_deals(
 
     total_count = len(filtered)
     page_items = filtered[offset : offset + limit]
+
+    # Подтягиваем доступные размеры только для текущей страницы скидок (один быстрый батч-запрос)
+    if page_items:
+        offer_ids = list({f"off_{d['product_id']}" for d in page_items if d.get("product_id")})
+        sizes_by_offer: Dict[str, List[str]] = {}
+        if offer_ids:
+            from domain.sizes import sort_size_key
+            ph = ",".join("?" for _ in offer_ids)
+            with get_connection() as conn:
+                for r in conn.execute(
+                    f"SELECT offer_id, size FROM offer_sizes WHERE offer_id IN ({ph})",
+                    offer_ids,
+                ):
+                    sizes_by_offer.setdefault(r["offer_id"], []).append(r["size"])
+            sizes_by_offer = {k: sorted(set(v), key=sort_size_key) for k, v in sizes_by_offer.items()}
+        for d in page_items:
+            pid = d.get("product_id")
+            d["available_sizes"] = sizes_by_offer.get(f"off_{pid}", []) if pid else []
 
     return {
         "deals": page_items,

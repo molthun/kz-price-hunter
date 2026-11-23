@@ -678,6 +678,15 @@ async def alerts_handler(request):
     alerts = get_alerts(limit=limit, city=city, alert_type=alert_type, user_settings=user_settings_for(request))
     return web.json_response(alerts)
 
+def _parse_deals_sizes_query(request) -> Optional[List[str]]:
+    raw = request.query.get("sizes")
+    if raw is None:
+        raw = request.query.get("size")
+    if raw is None or not str(raw).strip():
+        return None
+    return [part.strip() for part in str(raw).split(",") if part.strip()]
+
+
 @routes.get("/api/deals")
 async def deals_handler(request):
     shop = request.query.get("shop", None)
@@ -688,6 +697,7 @@ async def deals_handler(request):
     sort_by = request.query.get("sort", "discount_desc")
     limit = _int_param(request, "limit", 60, minimum=1, maximum=300)
     offset = _int_param(request, "offset", 0, minimum=0, maximum=10000)
+    sizes_filter = _parse_deals_sizes_query(request)
 
     from database import get_store_deals
     data = await asyncio.to_thread(
@@ -699,7 +709,8 @@ async def deals_handler(request):
         deal_type=deal_type,
         sort_by=sort_by,
         limit=limit,
-        offset=offset
+        offset=offset,
+        sizes=sizes_filter,
     )
     return web.json_response(data)
 
@@ -1792,6 +1803,7 @@ async def deals_v2_handler(request):
     limit = _int_param(request, "limit", 20, minimum=1, maximum=100)
     offset = _int_param(request, "offset", 0, minimum=0, maximum=DEALS_MAX_OFFSET)
     seed = _int_param(request, "seed", 0, minimum=0, maximum=2147483647)
+    sizes_filter = _parse_deals_sizes_query(request)
 
     from database import get_store_deals
     raw_data = await asyncio.to_thread(
@@ -1806,6 +1818,7 @@ async def deals_v2_handler(request):
         limit=limit,
         offset=offset,
         min_discount=min_discount,
+        sizes=sizes_filter,
     )
 
     provenance_labels = {
@@ -1870,6 +1883,7 @@ async def deals_v2_handler(request):
             "is_super": d.get("discount_pct", 0) >= 30 or alert_type == "SUPER_DISCOUNT",
             "price_basis": d.get("price_basis") or "unconfirmed",
             "provenance": provenance_labels.get(d.get("price_basis"), "Основание скидки не подтверждено"),
+            "available_sizes": d.get("available_sizes") or [],
         })
 
     next_offset = offset + len(deals)
