@@ -31,6 +31,7 @@ assert(html.includes('.deal-sizes-row'), 'Missing .deal-sizes-row CSS');
 const snippet = [
   extractFunc(html, 'escapeHtml'),
   extractFunc(html, 'getSavedSizesList'),
+  extractFunc(html, 'getSavedSizesForKind'),
   extractFunc(html, 'renderDealSizesRow'),
   extractFunc(html, 'updateDealsMySizesButton'),
   extractFunc(html, 'toggleDealsMySizes'),
@@ -90,6 +91,22 @@ assert(rowHtml.includes('offer-size-chip is-my-size'), 'Saved size 42 must be hi
 assert(rowHtml.includes('>42<'), 'Saved size 42 must be visible even beyond index 5');
 assert(rowHtml.includes('+2'), 'Hidden count must be +2');
 
+// 3b. DS-01: shoe 42 is highlighted only on shoes, never on a jacket with numeric size 42
+const shoeRow = sandbox.renderDealSizesRow(['40', '42', '44'], 'shoe');
+const mineChip = (row, sz) => new RegExp('class="offer-size-chip is-my-size"[^>]*>' + sz + '<').test(row);
+assert(mineChip(shoeRow, '42'), 'Shoe 42 must be highlighted on a shoe deal: ' + shoeRow);
+const jacketRow = sandbox.renderDealSizesRow(['40', '42', '44'], 'apparel');
+assert(!jacketRow.includes('is-my-size'), 'Shoe 42 must NOT be highlighted on a jacket 42: ' + jacketRow);
+const apparelRow = sandbox.renderDealSizesRow(['M', 'L', 'рост 104'], 'apparel');
+assert(mineChip(apparelRow, 'L') && mineChip(apparelRow, 'рост 104') && !mineChip(apparelRow, 'M'), 'Clothing L and height 104 highlighted on apparel: ' + apparelRow);
+const shoeLetters = sandbox.renderDealSizesRow(['L'], 'shoe');
+assert(!shoeLetters.includes('is-my-size'), 'Clothing L must NOT be highlighted on a shoe deal');
+// 3c. DS-01: the feed sends profile sizes by kind, not one mixed list
+assert(html.includes("params.set('shoe_size'") && html.includes("params.set('clothing_size'") && html.includes("params.set('kids_height'"),
+  'Deals feed must send shoe_size/clothing_size/kids_height');
+assert(!html.includes("params.set('sizes', savedSizes.join(','))"), 'Deals feed must not send profile sizes as one mixed list');
+assert(html.includes('renderDealSizesRow(deal.available_sizes, deal.size_kind)'), 'Deal card must pass size_kind to the highlight');
+
 // 4. resetDealsFilters clears mySizesOnly
 sandbox.resetDealsFilters();
 assert.strictEqual(sandbox.DealsFeedState.mySizesOnly, false);
@@ -106,4 +123,4 @@ assert.strictEqual(sandbox.DealsFeedState.mySizesOnly, false);
 assert.strictEqual(navCalls[0], '/profile');
 assert.strictEqual(toastCalls.length, 1);
 
-console.log('PASS: test_frontend_deals_my_sizes.cjs (all 5 checks OK)');
+console.log('PASS: test_frontend_deals_my_sizes.cjs (all 7 checks OK)');

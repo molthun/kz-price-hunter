@@ -8232,9 +8232,18 @@
       return [s.shoe, s.clothing, s.kidsHeight].filter(Boolean);
     }
 
-    function renderDealSizesRow(sizes) {
+    // DS-01: номер 42 у кроссовок и у куртки — разные размеры. Обувь сравнивается только с обувью,
+    // одежда и рост — только с остальными товарами; без вида товара — со всеми сохранёнными.
+    function getSavedSizesForKind(kind) {
+      const s = getUserSizes();
+      if (kind === 'shoe') return [s.shoe].filter(Boolean);
+      if (kind === 'apparel') return [s.clothing, s.kidsHeight].filter(Boolean);
+      return getSavedSizesList();
+    }
+
+    function renderDealSizesRow(sizes, kind) {
       if (!Array.isArray(sizes) || !sizes.length) return '';
-      const mySet = new Set(getSavedSizesList());
+      const mySet = new Set(getSavedSizesForKind(kind));
       const maxVisible = 6;
       const list = sizes.map(s => String(s || '').trim()).filter(Boolean);
       if (!list.length) return '';
@@ -13560,7 +13569,10 @@
         if (DealsFeedState.mySizesOnly) {
           const savedSizes = getSavedSizesList();
           if (savedSizes.length) {
-            params.set('sizes', savedSizes.join(','));
+            const mine = getUserSizes();
+            params.set('shoe_size', mine.shoe || '');
+            params.set('clothing_size', mine.clothing || '');
+            params.set('kids_height', mine.kidsHeight || '');
           } else {
             DealsFeedState.mySizesOnly = false;
           }
@@ -13840,7 +13852,7 @@
               ${oldPriceHtml}
             </div>
 
-            ${renderDealSizesRow(deal.available_sizes)}
+            ${renderDealSizesRow(deal.available_sizes, deal.size_kind)}
 
             <div class="deal-reel-meta-row">
               ${savingsHtml}

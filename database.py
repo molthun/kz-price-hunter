@@ -5220,6 +5220,49 @@ def _normalize_deals_sizes_filter(sizes: Optional[List[str]]) -> Optional[List[s
     return result
 
 
+def _normalize_deals_profile_sizes(profile: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Размеры профиля с сохранением их вида для «Скидок в моих размерах» (DS-01).
+
+    Обувь сравнивается только с обувью, одежда и рост — только с остальными товарами:
+    номер 42 у кроссовок и у куртки — разные размеры. None — фильтр не задан;
+    {"shoe": None, "apparel": []} — задан, но ничего не распознано (пустая выдача).
+    """
+    if profile is None:
+        return None
+    from domain.sizes import normalize_size_token, normalize_height_sizes
+    shoe = normalize_size_token(str(profile.get("shoe") or "").strip())
+    if shoe and not shoe[0].isdigit():
+        shoe = None
+    apparel: List[str] = []
+    cloth = normalize_size_token(str(profile.get("clothing") or "").strip())
+    if cloth and not cloth[0].isdigit() and not cloth.startswith("рост"):
+        apparel.append(cloth)
+    raw_kids = str(profile.get("kids_height") or "").strip()
+    if raw_kids:
+        kids = normalize_size_token(raw_kids)
+        if not (kids and kids.startswith("рост")):
+            heights = normalize_height_sizes(raw_kids)
+            kids = heights[0] if len(heights) == 1 else None
+        if kids and kids not in apparel:
+            apparel.append(kids)
+    return {"shoe": shoe, "apparel": apparel}
+
+
+def _deals_profile_sizes_clause(profile_sizes: Dict[str, Any]) -> Tuple[str, List[Any]]:
+    parts: List[str] = []
+    params: List[Any] = []
+    if profile_sizes.get("shoe"):
+        parts.append("(os.size = ? AND kz_size_kind(p.category, p.title) = 'shoe')")
+        params.append(profile_sizes["shoe"])
+    apparel = profile_sizes.get("apparel") or []
+    if apparel:
+        parts.append(f"(os.size IN ({','.join('?' for _ in apparel)}) AND kz_size_kind(p.category, p.title) <> 'shoe')")
+        params.extend(apparel)
+    clause = (" AND EXISTS (SELECT 1 FROM offer_sizes os WHERE os.offer_id = ('off_' || p.id) AND ("
+              + " OR ".join(parts) + "))")
+    return clause, params
+
+
 def get_store_deals(
     shop: Optional[str] = None,
     city: Optional[str] = None,
@@ -5232,12 +5275,15 @@ def get_store_deals(
     offset: int = 0,
     min_discount: int = 0,
     sizes: Optional[List[str]] = None,
+    profile_sizes: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Возвращает агрегированную витрину акций и супер-скидок по всем магазинам Казахстана.
     Объединяет скидки сайтов магазинов (products) и межмагазинный арбитраж (alerts).
     """
     norm_sizes = _normalize_deals_sizes_filter(sizes)
-    if norm_sizes is not None and not norm_sizes:
+    norm_profile = _normalize_deals_profile_sizes(profile_sizes)
+    profile_empty = norm_profile is not None and not norm_profile["shoe"] and not norm_profile["apparel"]
+    if (norm_sizes is not None and not norm_sizes) or profile_empty:
         return {
             "deals": [],
             "total": 0,
@@ -5249,7 +5295,10 @@ def get_store_deals(
 
     size_placeholders = ",".join("?" for _ in (norm_sizes or ()))
     raw_deals: List[Dict[str, Any]] = []
+    from domain.sizes import offer_size_kind
     with get_connection() as conn:
+        if norm_profile:
+            conn.create_function("kz_size_kind", 2, offer_size_kind, deterministic=True)
         # 1. Каталожные скидки из products
         p_query = f"""
             SELECT p.id, p.shop, p.title, p.category, p.city, p.url, p.image_url,
@@ -5271,6 +5320,10 @@ def get_store_deals(
         if norm_sizes:
             p_query += f" AND EXISTS (SELECT 1 FROM offer_sizes os WHERE os.offer_id = ('off_' || p.id) AND os.size IN ({size_placeholders}))"
             p_params.extend(norm_sizes)
+        if norm_profile:
+            clause, clause_params = _deals_profile_sizes_clause(norm_profile)
+            p_query += clause
+            p_params.extend(clause_params)
 
         for r in conn.execute(p_query, p_params):
             old_p = r["old_price"] or r["new_price"]
@@ -5321,6 +5374,10 @@ def get_store_deals(
         if norm_sizes:
             a_query += f" AND EXISTS (SELECT 1 FROM offer_sizes os WHERE os.offer_id = ('off_' || p.id) AND os.size IN ({size_placeholders}))"
             a_params.extend(norm_sizes)
+        if norm_profile:
+            clause, clause_params = _deals_profile_sizes_clause(norm_profile)
+            a_query += clause
+            a_params.extend(clause_params)
 
         for r in conn.execute(a_query, a_params):
             raw_deals.append({
@@ -5439,6 +5496,7 @@ def get_store_deals(
         for d in page_items:
             pid = d.get("product_id")
             d["available_sizes"] = sizes_by_offer.get(f"off_{pid}", []) if pid else []
+            d["size_kind"] = offer_size_kind(d.get("category"), d.get("title"))
 
     return {
         "deals": page_items,
