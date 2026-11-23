@@ -1,0 +1,29 @@
+== REMOTE
+== BUILD
+sha256:17250b51616986373441e9d4d9f2b58f99344f984760be98ba3670fb2c8c3cc0
+== COMPOSE CONFIG (clean .env from example)
+12:      CANONICAL_REDIRECT_HOSTS: ""
+12:      CANONICAL_REDIRECT_HOSTS: old.example.kz
+== SMOKE alias set
+old.example.kz 301 https://shop.example.kz/deals?size=42&q=a
+shop.example.kz 200 None
+== SMOKE alias empty
+old.example.kz 200 None
+shop.example.kz 200 None
+== FULL SUITE clean container
+Ran 3413 tests in 531.992s
+
+OK
+image removed
+== LIVE untouched
+kzph-stand Up 13 hours (healthy) kzph-stand:local
+== LOCAL
+Ran 3413 tests in 231.512s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+  "note": "Ключи и токены не должны попадать в репозиторий даже в комментариях"
+
+[exited with code 0]
