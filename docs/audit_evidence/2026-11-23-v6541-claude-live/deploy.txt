@@ -1,0 +1,13 @@
+Выкладка 6.54.1 на живой сервер по слову владельца, 23.11.2026 10:23–10:25Z (Claude)
+Копия БД: ~/kzph-migration/live_before_6541_20261123T1023Z.db quick_check ok users 8 offers 294245 products 294137 offer_price_history 1494109 (7 с)
+Checkout: 930b224 -> 6e42252 (ff-only из bundle); docker-compose.live.yml заменён копией deploy/ (прежний сохранён как ~/kzph-migration/live.yml.before-6541)
+compose config: CANONICAL_REDIRECT_HOSTS=shdev.molthun.ru, PUBLIC_ORIGIN задан, порт 35540, restart unless-stopped, ACCESS_GUEST_MINUTES=180 сохранён; TRUSTED_PROXIES задан
+Контейнер: image sha256:75b000b0ac94…d9f8 healthy restarts=0 started 10:24:37Z, порты 35539/35540
+Снаружи:
+  /api/version 6.54.1; /api/health ok (db/queue ok, worker running)
+  HEAD shdev/deals?size=42 -> 301 https://shop.molthun.ru/deals?size=42 (Vary: Host); shdev/ -> 301 https://shop.molthun.ru/
+  shop/deals?size=42 -> 200; POST shdev/api/version -> 405 (не редиректится)
+  shop / 200, /deals 200, /api/deals?size=42 200, /api/products?q=кроссовки 200, /api/me 200, POST /api/auth/bot-start (Origin shop) 200
+  shop с клиентским X-Forwarded-Host: shdev.molthun.ru -> 301 https://shop.molthun.ru/deals: DSM пропускает клиентский заголовок, не перезаписывает.
+    Цель всегда PUBLIC_ORIGIN + путь, поэтому подмена ведёт только на тот же канонический адрес (без open-redirect).
+Журнал 10 мин: 0 строк error/traceback; Telegram-бот запущен.
