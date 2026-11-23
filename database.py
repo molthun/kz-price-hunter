@@ -5550,6 +5550,25 @@ _WATCH_FILTER_COLUMNS = {"shops": ("shops",), "item_conditions": ("item_conditio
                          "sellers": ("sellers",), "channels": ("channels",)}
 
 
+def _rearm_watch_for_new_size(conn, watch_id: int) -> None:
+    """Смена размера — новое наблюдение по сути (SW-01).
+
+    Одноразовое наблюдение снова взводится, память наличия сбрасывается, а неотправленные
+    сообщения о прежнем размере снимаются: пользователь их больше не ждёт.
+    """
+    conn.execute("UPDATE watches SET fired_at = NULL WHERE id = ?", (int(watch_id),))
+    conn.execute("DELETE FROM watch_state WHERE watch_id = ?", (int(watch_id),))
+    cancelled = [r[0] for r in conn.execute(
+        "SELECT -alert_id FROM notification_outbox WHERE status = 'pending' AND alert_id IN "
+        "(SELECT -id FROM watch_events WHERE watch_id = ?)", (int(watch_id),))]
+    if cancelled:
+        conn.execute("UPDATE notification_outbox SET status = 'cancelled', last_error = 'watch size changed' "
+                     "WHERE status = 'pending' AND alert_id IN (SELECT -id FROM watch_events WHERE watch_id = ?)",
+                     (int(watch_id),))
+        conn.execute(f"UPDATE watch_events SET status = 'cancelled' WHERE id IN ({','.join('?' * len(cancelled))})",
+                     cancelled)
+
+
 def create_watch(user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
     """Создаёт наблюдение пользователя.
 
@@ -5577,7 +5596,7 @@ def create_watch(user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
             conn.execute(f"UPDATE watches SET is_active = 1, fired_at = NULL{assignments} WHERE id = ?",
                          (*scope.values(), existing["id"]))
             if "target_size" in scope and scope["target_size"] != existing["target_size"]:
-                conn.execute("DELETE FROM watch_state WHERE watch_id = ?", (existing["id"],))
+                _rearm_watch_for_new_size(conn, existing["id"])
             conn.commit()
             row = _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (existing["id"],)).fetchone())
             row["already_existed"] = True
@@ -5617,6 +5636,10 @@ def update_watch(user_id: int, watch_id: int, data: Dict[str, Any]) -> Optional[
             "kind", "target", "title", "condition", "threshold", "target_size", "size", "city", "shops",
             "item_conditions", "sellers", "channels", "mode",
             "quiet_from", "quiet_to", "timezone", "cooldown_hours", "repeat", "is_active")})
+        # SW-02: псевдоним size — то же поле. Сохранённый target_size не должен его перекрывать.
+        if "size" in data and "target_size" not in data:
+            merged["target_size"] = data["size"]
+        merged.pop("size", None)
         clean = w.normalize(merged)
         conn.execute("""
             UPDATE watches SET kind=?, target=?, title=?, condition=?, threshold=?, target_size=?, city=?, shops=?,
@@ -5633,7 +5656,7 @@ def update_watch(user_id: int, watch_id: int, data: Dict[str, Any]) -> Optional[
               clean["timezone"], clean["cooldown_hours"], clean["repeat"], clean["is_active"],
               int(watch_id), int(user_id)))
         if clean["target_size"] != current["target_size"]:
-            conn.execute("DELETE FROM watch_state WHERE watch_id = ?", (int(watch_id),))
+            _rearm_watch_for_new_size(conn, int(watch_id))
         conn.commit()
         return _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (int(watch_id),)).fetchone())
 
@@ -5822,9 +5845,14 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                 # Чтение состояния, решение и запись события — одна транзакция на запись: два
                 # одновременных обхода не создадут два сообщения об одном снижении (P07 G02)
                 conn.execute("BEGIN IMMEDIATE")
-                fresh = conn.execute("SELECT is_active, fired_at, last_sent_at, repeat_mode FROM watches "
-                                     "WHERE id = ?", (watch["id"],)).fetchone()
+                fresh = conn.execute("SELECT is_active, fired_at, last_sent_at, repeat_mode, target_size "
+                                     "FROM watches WHERE id = ?", (watch["id"],)).fetchone()
                 if not fresh or not fresh["is_active"] or (not fresh["repeat_mode"] and fresh["fired_at"]):
+                    conn.rollback()
+                    continue
+                # SW-01: размер сменили во время обхода — снимок наблюдения устарел. Ни событие, ни память
+                # наличия по прежнему размеру не пишем; новый размер проверит следующий обход.
+                if (fresh["target_size"] or None) != (watch.get("target_size") or None):
                     conn.rollback()
                     continue
                 state = _watch_states(conn, watch["id"], scope_id)
