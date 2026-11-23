@@ -1,0 +1,21 @@
+6.57.1 (211ab8a), Claude, 23.11.2026
+== Regression proof: SizeWatchRearmTest on 6.57.0 database.py -> FAILED (failures=4: update rearm, repeated create rearm, size alias, size change mid-scan); 5th (other fields keep size) passes on both by design. On 6.57.1 -> test_size_watches 11/11; watches suites 129 OK
+== Linux clean container (separate image, removed; live untouched)
+sha256:cdefbfb3afdc67e1bc090bc28cee4cf56f56494a6c3bf6b8b53a1983fb8c35cc
+Ran 3446 tests in 640.311s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+image removed
+live: kzph-stand Up About an hour (healthy)
+== Local (git archive)
+Ran 3446 tests in 234.307s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+== Frontend (Deno + Playwright + Chrome)
+frontend pass=50 fail=0
