@@ -1,0 +1,22 @@
+6.58.3 (d2639bd), Claude, 24.11.2026
+== Regression proof: on 6.58.2 local_search.py -> FAILED (failures=3: seller false/true match, approved vs not-approved-seller in size_in_stock and new_offer); JS seller checks fail on 6.58.2 template
+  on 6.58.3: test_empty_search_watch 10/10; test_frontend_empty_search_actions 10/10; related search/watch suites 81 OK
+== Linux clean container (separate image, removed; live untouched)
+sha256:88089d8ced8f6d3feef5835abd65dca19f2492c30067ff38b2f5c2f3509cbff1
+Ran 3467 tests in 470.514s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+image removed
+live: kzph-stand Up About an hour (healthy)
+== Local (git archive)
+Ran 3467 tests in 234.505s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+== Frontend
+frontend pass=51 fail=0
