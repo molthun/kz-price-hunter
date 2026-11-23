@@ -1236,8 +1236,22 @@ def matches_watch(target, offer):
         memory = {k: v for k, v in {**inferred, **attrs}.items() if k in _MEMORY_KEYS}
         if memory:
             query = _strip_memory_phrases(query, memory) or query
+        gift = spec.get('gift')
+        if gift is not None and not isinstance(gift, bool):
+            return False
         conn = get_connection()
         try:
+            # ES-04: «с подарком» — свойство предложения, как в выдаче (o.has_gift = 1)
+            if gift:
+                has_gift = offer.get('has_gift')
+                if has_gift is None:
+                    ids = [str(v) for v in (offer.get('offer_id'), offer.get('id')) if v]
+                    ids += ['off_' + i for i in ids if not i.startswith('off_')]
+                    row = conn.execute(f"SELECT MAX(COALESCE(has_gift, 0)) FROM offers WHERE id IN ({','.join('?' * len(ids))})",
+                                       ids).fetchone() if ids else None
+                    has_gift = row[0] if row else None
+                if not has_gift:
+                    return False
             repo = SearchRepository(conn); repo.attribute_filters = attrs
             query, _ = apply_semantics(repo, original, query, category, inferred)
             cat_sql, params = repo._category_filter(category)

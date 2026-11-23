@@ -254,7 +254,25 @@ vm.runInNewContext(snippet, sandbox);
   sandbox.renderLocalSearchHelp({ total_products: 12, local_ai: { status: 'ok' }, search_help: { watch_target: serverTarget } });
   assert(!helpBox.children.some(el => el.tagName === 'BUTTON'), 'AI hides watch button too');
 
-  console.log('PASS: test_frontend_empty_search_actions.cjs (all 9 checks OK)');
+  // 10. ES-04: «С подарком» и «Продавец» переходят в наблюдение (своя цель и цель сервера)
+  const giftSeller = { query: 'кроссовки Nike', city: 'Все', attributes: {}, gift: true, seller: 'approved-seller' };
+  const own = sandbox.buildSearchWatchPayload(giftSeller, { total_products: 0 });
+  assert.strictEqual(JSON.parse(own.target.slice('@local-search:'.length)).gift, true);
+  assert.deepStrictEqual(Array.from(own.sellers), ['approved-seller']);
+  const merged = sandbox.buildSearchWatchPayload(giftSeller,
+    { search_help: { watch_target: '@local-search:{"max_price":30000,"query":"nike"}' } });
+  const mergedSpec = JSON.parse(merged.target.slice('@local-search:'.length));
+  assert.strictEqual(mergedSpec.gift, true, 'gift added to the server target');
+  assert.strictEqual(mergedSpec.max_price, 30000, 'server conditions kept');
+  assert.deepStrictEqual(Array.from(merged.sellers), ['approved-seller']);
+  const plain = sandbox.buildSearchWatchPayload({ query: 'x', attributes: {}, gift: false, seller: '' }, {});
+  assert.strictEqual(JSON.parse(plain.target.slice('@local-search:'.length)).gift, null);
+  assert.deepStrictEqual(Array.from(plain.sellers), []);
+  const keepServer = '@local-search:{"query":"nike"}';
+  assert.strictEqual(sandbox.buildSearchWatchPayload({ query: 'x', attributes: {} },
+    { search_help: { watch_target: keepServer } }).target, keepServer, 'server target untouched without gift');
+
+  console.log('PASS: test_frontend_empty_search_actions.cjs (all 10 checks OK)');
 })().catch(err => {
   console.error(err);
   process.exit(1);

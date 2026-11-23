@@ -18,10 +18,10 @@ from repositories.schema_v2 import init_schema_v2
 from tests.search.test_card_attributes_consistency import seed
 
 
-def frontend_payload(query, city, size, max_price=None, min_price=None, condition=None):
+def frontend_payload(query, city, size, max_price=None, min_price=None, condition=None, gift=False, seller=None):
     spec = {
         "attributes": {"size": size} if size else {},
-        "brand": None, "category": None, "inferred_attributes": {}, "kind": None,
+        "brand": None, "category": None, "gift": True if gift else None, "inferred_attributes": {}, "kind": None,
         "max_price": max_price, "min_price": min_price, "model": None,
         "original_query": query, "query": query,
     }
@@ -29,6 +29,7 @@ def frontend_payload(query, city, size, max_price=None, min_price=None, conditio
         "kind": "search", "target": "@local-search:" + json.dumps(spec, ensure_ascii=False),
         "title": query, "condition": "size_in_stock" if size else "new_offer", "repeat": False,
         "item_conditions": [condition] if condition else [], "city": city,
+        "sellers": [seller] if seller else [],
         "cooldown_hours": 0, "quiet_from": "00:00", "quiet_to": "00:00",
     }
     if size:
@@ -56,12 +57,13 @@ class EmptySearchWatchKeepsConditionsTest(unittest.TestCase):
         self._p.stop()
         self._tmp.cleanup()
 
-    def offer(self, price, condition, sizes):
+    def offer(self, price, condition, sizes, seller="shop", **extra):
         self.n += 1
         return {"id": f"onike1_{self.n}", "offer_id": f"onike1_{self.n}", "canonical_product_id": "nike1",
                 "product_id": "nike1", "title": "Кроссовки Nike Air Zoom", "shop": "Shop", "city": "Астана",
                 "current_price": price, "is_available": True, "condition": condition,
-                "item_condition": condition, "available_sizes": list(sizes)}
+                "item_condition": condition, "available_sizes": list(sizes),
+                "seller_slug": seller, "seller_id": seller, "seller_name": seller.title(), **extra}
 
     def events(self):
         with database.get_connection() as conn:
@@ -107,6 +109,43 @@ class EmptySearchWatchKeepsConditionsTest(unittest.TestCase):
                                           "city": "Астана", "cooldown_hours": 0,
                                           "quiet_from": "00:00", "quiet_to": "00:00"})
         self.assertEqual(database.evaluate_watches([self.offer(60000, "used", ["42"])], now=self.now), 1)
+
+
+    def test_gift_filter_false_and_true_match(self):
+        """ES-04: «С подарком» — без подарка нет уведомления, с подарком есть (поле предложения и БД)."""
+        database.create_watch(self.USER, frontend_payload("кроссовки Nike", "Астана", "42", max_price=30000, gift=True))
+        t = self.now
+        for offer, why in ((self.offer(25000, "new", ["42"], has_gift=0), "без подарка"),
+                           (self.offer(25000, "new", ["42"]), "признак неизвестен и в БД нет — не подарок")):
+            t += datetime.timedelta(minutes=5)
+            self.assertEqual(database.evaluate_watches([offer], now=t), 0, why)
+        t += datetime.timedelta(minutes=5)
+        self.assertEqual(database.evaluate_watches([self.offer(25000, "new", ["41", "42"], has_gift=1)], now=t), 1)
+
+    def test_gift_read_from_offers_table_when_offer_dict_lacks_it(self):
+        database.create_watch(self.USER, frontend_payload("кроссовки Nike", "Астана", "", max_price=30000, gift=True))
+        with database.get_connection() as conn:
+            conn.execute("UPDATE offers SET has_gift = 1 WHERE id = 'onike1'")
+            conn.commit()
+        stored = {"id": "onike1", "offer_id": "onike1", "canonical_product_id": "nike1", "product_id": "nike1",
+                  "title": "Кроссовки Nike Air Zoom", "shop": "Shop", "city": "Астана", "current_price": 25000,
+                  "is_available": True, "condition": "new", "available_sizes": [], "seller_slug": "shop"}
+        self.assertEqual(database.evaluate_watches([stored], now=self.now), 1)
+
+    def test_seller_filter_false_and_true_match(self):
+        """ES-04: «Продавец» — чужой продавец не уведомляет, нужный уведомляет."""
+        database.create_watch(self.USER, frontend_payload("кроссовки Nike", "Астана", "42", max_price=30000,
+                                                          seller="approved-seller"))
+        t = self.now + datetime.timedelta(minutes=5)
+        self.assertEqual(database.evaluate_watches([self.offer(25000, "new", ["42"], seller="other-seller")], now=t), 0)
+        t += datetime.timedelta(minutes=5)
+        self.assertEqual(database.evaluate_watches([self.offer(25000, "new", ["42"], seller="approved-seller")], now=t), 1)
+
+    def test_old_payload_without_gift_and_seller_reproduces_es04(self):
+        """Цель 6.58.1 без gift и sellers пропускает товар без подарка от другого продавца."""
+        database.create_watch(self.USER, frontend_payload("кроссовки Nike", "Астана", "42", max_price=30000))
+        offer = self.offer(25000, "new", ["42"], seller="other-seller", has_gift=0)
+        self.assertEqual(database.evaluate_watches([offer], now=self.now), 1)
 
 
 if __name__ == "__main__":
