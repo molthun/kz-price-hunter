@@ -143,5 +143,124 @@ class SizeWatchLifecycleDbTest(unittest.TestCase):
         self.assertEqual(database.evaluate_watches([self._offer(19000, ["40", "42"])], now=self.t0 + datetime.timedelta(minutes=20)), 1)
 
 
+class SizeWatchRearmTest(unittest.TestCase):
+    """SW-01/SW-02: смена размера у сработавшего одноразового наблюдения и псевдоним size."""
+
+    BASE = {"kind": "product", "target": "cp_kari_100", "title": "Кроссовки Kari Runner",
+            "condition": "size_in_stock", "cooldown_hours": 0, "quiet_from": "00:00", "quiet_to": "00:00"}
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.db_path = Path(self._tmp.name) / "test_size_rearm.db"
+        self._patcher = patch.object(database, "DB_PATH", self.db_path)
+        self._patcher.start()
+        database.init_db()
+        self.t0 = datetime.datetime(2026, 11, 23, 10, 0, 0, tzinfo=datetime.timezone.utc)
+
+    def tearDown(self):
+        self._patcher.stop()
+        self._tmp.cleanup()
+
+    def _offer(self, sizes, price=20000):
+        return {"id": "kari_100", "canonical_product_id": "cp_kari_100", "title": "Кроссовки Kari Runner",
+                "shop": "Kari", "city": "Алматы", "current_price": price, "is_available": True,
+                "available_sizes": list(sizes)}
+
+    def _at(self, minutes):
+        return self.t0 + datetime.timedelta(minutes=minutes)
+
+    def _fired_one_shot_41(self, user_id):
+        w = database.create_watch(user_id, {**self.BASE, "target_size": "41", "repeat": False})
+        self.assertFalse(w["repeat"])
+        self.assertEqual(database.evaluate_watches([self._offer(["40"])], now=self._at(0)), 0)
+        self.assertEqual(database.evaluate_watches([self._offer(["40", "41"])], now=self._at(5)), 1)
+        with database.get_connection() as conn:
+            row = conn.execute("SELECT fired_at FROM watches WHERE id = ?", (w["id"],)).fetchone()
+            pending = conn.execute("SELECT COUNT(*) FROM notification_outbox WHERE status = 'pending'").fetchone()[0]
+        self.assertIsNotNone(row["fired_at"])
+        self.assertEqual(pending, 1)
+        return w
+
+    def _outbox(self):
+        with database.get_connection() as conn:
+            return [(r["status"], r["last_error"], json_reason(r["payload"]))
+                    for r in conn.execute("SELECT status, last_error, payload FROM notification_outbox ORDER BY id")]
+
+    def _assert_rearmed_and_fires_for_42(self, watch_id):
+        with database.get_connection() as conn:
+            row = conn.execute("SELECT fired_at, target_size, is_active FROM watches WHERE id = ?", (watch_id,)).fetchone()
+            ev_status = [r[0] for r in conn.execute(
+                "SELECT status FROM watch_events WHERE watch_id = ? ORDER BY id", (watch_id,))]
+        self.assertIsNone(row["fired_at"])
+        self.assertEqual(row["target_size"], "42")
+        self.assertEqual(row["is_active"], 1)
+        self.assertEqual(ev_status, ["cancelled"])
+        self.assertEqual(self._outbox(), [("cancelled", "watch size changed", "появился размер 41")])
+        # Размер 42 ещё не в наличии, затем появляется — ровно одно новое событие
+        self.assertEqual(database.evaluate_watches([self._offer(["40", "41"])], now=self._at(10)), 0)
+        self.assertEqual(database.evaluate_watches([self._offer(["41", "42"])], now=self._at(15)), 1)
+        self.assertEqual(self._outbox()[-1], ("pending", None, "появился размер 42"))
+
+    def test_update_watch_changes_size_rearms_and_cancels_old_pending(self):
+        w = self._fired_one_shot_41(201)
+        updated = database.update_watch(201, w["id"], {"target_size": "42"})
+        self.assertEqual(updated["target_size"], "42")
+        self._assert_rearmed_and_fires_for_42(w["id"])
+
+    def test_repeated_create_changes_size_rearms_and_cancels_old_pending(self):
+        w = self._fired_one_shot_41(202)
+        again = database.create_watch(202, {**self.BASE, "size": "42", "repeat": False})
+        self.assertTrue(again["already_existed"])
+        self._assert_rearmed_and_fires_for_42(w["id"])
+
+    def test_update_watch_size_alias_overrides_stored_target_size(self):
+        w = database.create_watch(203, {**self.BASE, "target_size": "41"})
+        updated = database.update_watch(203, w["id"], {"size": "42"})
+        self.assertEqual(updated["target_size"], "42")
+        # Явный target_size главнее псевдонима в том же запросе
+        both = database.update_watch(203, w["id"], {"target_size": "43", "size": "44"})
+        self.assertEqual(both["target_size"], "43")
+
+    def test_update_other_fields_keeps_size_and_does_not_rearm(self):
+        w = self._fired_one_shot_41(204)
+        updated = database.update_watch(204, w["id"], {"title": "Новое имя", "city": "Астана"})
+        self.assertEqual(updated["target_size"], "41")
+        with database.get_connection() as conn:
+            fired = conn.execute("SELECT fired_at FROM watches WHERE id = ?", (w["id"],)).fetchone()[0]
+        self.assertIsNotNone(fired)
+        self.assertEqual(self._outbox(), [("pending", None, "появился размер 41")])
+
+    def test_size_changed_during_scan_writes_no_event_or_state_for_old_size(self):
+        w = database.create_watch(205, {**self.BASE, "target_size": "41", "repeat": True})
+        self.assertEqual(database.evaluate_watches([self._offer(["40"])], now=self._at(0)), 0)
+
+        real_scope = database._watch_scope_id
+        changed = {"done": False}
+
+        def change_size_mid_scan(watch, offer):
+            if not changed["done"]:
+                changed["done"] = True
+                database.update_watch(205, w["id"], {"target_size": "42"})
+            return real_scope(watch, offer)
+
+        # Обход взял снимок с размером 41; пока он идёт, пользователь меняет размер на 42
+        with patch.object(database, "_watch_scope_id", side_effect=change_size_mid_scan):
+            queued = database.evaluate_watches([self._offer(["40", "41"])], now=self._at(5))
+        self.assertTrue(changed["done"])
+        self.assertEqual(queued, 0)
+        self.assertEqual(self._outbox(), [])
+        with database.get_connection() as conn:
+            states = conn.execute("SELECT COUNT(*) FROM watch_state WHERE watch_id = ?", (w["id"],)).fetchone()[0]
+        self.assertEqual(states, 0)
+        # Следующий обход видит размер 42 впервые и сообщает о нём
+        self.assertEqual(database.evaluate_watches([self._offer(["41", "42"])], now=self._at(10)), 1)
+        self.assertEqual(self._outbox()[-1], ("pending", None, "появился размер 42"))
+
+
+def json_reason(payload):
+    import json
+    return json.loads(payload).get("reason")
+
+
 if __name__ == "__main__":
     unittest.main()
