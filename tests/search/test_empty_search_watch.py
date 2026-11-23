@@ -23,13 +23,12 @@ def frontend_payload(query, city, size, max_price=None, min_price=None, conditio
         "attributes": {"size": size} if size else {},
         "brand": None, "category": None, "gift": True if gift else None, "inferred_attributes": {}, "kind": None,
         "max_price": max_price, "min_price": min_price, "model": None,
-        "original_query": query, "query": query,
+        "original_query": query, "query": query, "seller": seller,
     }
     payload = {
         "kind": "search", "target": "@local-search:" + json.dumps(spec, ensure_ascii=False),
         "title": query, "condition": "size_in_stock" if size else "new_offer", "repeat": False,
         "item_conditions": [condition] if condition else [], "city": city,
-        "sellers": [seller] if seller else [],
         "cooldown_hours": 0, "quiet_from": "00:00", "quiet_to": "00:00",
     }
     if size:
@@ -140,6 +139,40 @@ class EmptySearchWatchKeepsConditionsTest(unittest.TestCase):
         self.assertEqual(database.evaluate_watches([self.offer(25000, "new", ["42"], seller="other-seller")], now=t), 0)
         t += datetime.timedelta(minutes=5)
         self.assertEqual(database.evaluate_watches([self.offer(25000, "new", ["42"], seller="approved-seller")], now=t), 1)
+
+    def test_seller_is_exact_like_search_not_substring(self):
+        """ES-04: approved-seller не совпадает с not-approved-seller при всех остальных подходящих условиях."""
+        for size in ("42", ""):
+            with self.subTest(mode="size_in_stock" if size else "new_offer"):
+                with database.get_connection() as conn:
+                    for t in ("notification_outbox", "watch_events", "watch_state", "watches"):
+                        conn.execute(f"DELETE FROM {t}")
+                    conn.commit()
+                database.create_watch(self.USER, frontend_payload("кроссовки Nike", "Астана", size, max_price=30000,
+                                                                  condition="new", gift=True,
+                                                                  seller="approved-seller"))
+                sizes = ["42"] if size else []
+                t = self.now + datetime.timedelta(minutes=5)
+                self.assertEqual(database.evaluate_watches(
+                    [self.offer(25000, "new", sizes, seller="not-approved-seller", has_gift=1)], now=t), 0)
+                t += datetime.timedelta(minutes=5)
+                self.assertEqual(database.evaluate_watches(
+                    [self.offer(25000, "new", sizes, seller="approved-seller", has_gift=1)], now=t), 1)
+
+    def test_seller_read_from_db_when_offer_dict_lacks_it(self):
+        database.create_watch(self.USER, frontend_payload("кроссовки Nike", "Астана", "", max_price=30000, seller="shop"))
+        stored = {"id": "onike1", "offer_id": "onike1", "canonical_product_id": "nike1", "product_id": "nike1",
+                  "title": "Кроссовки Nike Air Zoom", "shop": "Shop", "city": "Астана", "current_price": 25000,
+                  "is_available": True, "condition": "new", "available_sizes": []}
+        self.assertEqual(database.evaluate_watches([stored], now=self.now), 1)
+
+    def test_manual_watch_sellers_keep_historical_substring(self):
+        """Ручные наблюдения (поле sellers) по-прежнему принимают вхождение — их семантика не меняется."""
+        import watches
+        w = watches.normalize({"kind": "search", "target": "кроссовки", "condition": "new_offer",
+                               "sellers": ["approved-seller"]})
+        offer = {"id": "x", "seller_slug": "not-approved-seller", "title": "кроссовки"}
+        self.assertTrue(any(ws in offer["seller_slug"] for ws in w["sellers"]))
 
     def test_old_payload_without_gift_and_seller_reproduces_es04(self):
         """Цель 6.58.1 без gift и sellers пропускает товар без подарка от другого продавца."""
