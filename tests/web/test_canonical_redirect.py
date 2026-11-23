@@ -1,7 +1,7 @@
+from tests import test_support  # noqa: F401
+
 import unittest
 from unittest.mock import patch
-
-from tests import test_support  # noqa: F401
 
 from aiohttp import web
 from aiohttp.test_utils import AioHTTPTestCase
@@ -148,6 +148,24 @@ class CanonicalHostRedirectMiddlewareTest(AioHTTPTestCase):
              patch.object(config, "CANONICAL_REDIRECT_HOSTS", ("shdev.molthun.ru",)):
             resp = await self.client.get("/", headers={"Host": "shdev.molthun.ru"}, allow_redirects=False)
             self.assertEqual(resp.status, 200)
+
+
+class CanonicalRedirectComposeContractTest(unittest.TestCase):
+    """CR-01: a self-hosted install must receive CANONICAL_REDIRECT_HOSTS from .env."""
+
+    ROOT = __import__("pathlib").Path(__file__).resolve().parents[2]
+
+    def test_main_compose_passes_variable_with_blank_default(self):
+        text = (self.ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+        self.assertIn("- CANONICAL_REDIRECT_HOSTS=${CANONICAL_REDIRECT_HOSTS:-}", text)
+
+    def test_env_example_declares_variable(self):
+        text = (self.ROOT / ".env.example").read_text(encoding="utf-8")
+        self.assertRegex(text, r"(?m)^CANONICAL_REDIRECT_HOSTS=$")
+
+    def test_live_override_passes_variable(self):
+        text = (self.ROOT / "deploy" / "docker-compose.live.yml").read_text(encoding="utf-8")
+        self.assertIn("CANONICAL_REDIRECT_HOSTS: ${CANONICAL_REDIRECT_HOSTS:-shdev.molthun.ru}", text)
 
 
 if __name__ == "__main__":

@@ -31,6 +31,8 @@ ADMIN_TELEGRAM_IDS=
 
 Для публичной установки замените оба адреса на свой HTTPS-origin, без пути. `docker compose` читает `.env` для подстановки в compose. Не коммитьте заполненный файл.
 
+Если сайт раньше открывался по другому адресу, перечислите старые хосты через запятую в `CANONICAL_REDIRECT_HOSTS` (например `CANONICAL_REDIRECT_HOSTS=old.example.kz`). Запросы GET/HEAD к ним получат `301` на `PUBLIC_ORIGIN` с тем же путём и query; пустое значение выключает перенаправление. Если перед приложением стоит прокси, он должен сам задавать `X-Forwarded-Host`, а его адрес должен быть в `TRUSTED_PROXIES`.
+
 ```bash
 docker compose up -d --build kz-price-hunter
 docker compose ps kz-price-hunter

@@ -18,6 +18,8 @@ services:
       - PUBLIC_ORIGIN=${PUBLIC_ORIGIN:-}
       # Exact observed proxy peer IP/CIDR, not the public NAT address.
       - TRUSTED_PROXIES=${TRUSTED_PROXIES:-}
+      # Old/alias hostnames (comma-separated) answered with 301 to PUBLIC_ORIGIN; blank = off.
+      - CANONICAL_REDIRECT_HOSTS=${CANONICAL_REDIRECT_HOSTS:-}
       - ALLOW_DEV_LOGIN=0
       # Токен диагностики (/diag и /api/diag). Пока пуст — обе страницы отвечают 404.
       # Значение держать в .env рядом с compose, в git не класть. См. docs/DIAGNOSTICS.md

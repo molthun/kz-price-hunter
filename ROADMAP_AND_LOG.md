@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 23.11.2026 — 6.54.1: исправления CR-01/CR-02 по 6.54.0 (Claude)
+
+- Основной `docker-compose.yml` передаёт `CANONICAL_REDIRECT_HOSTS` (пустой по умолчанию); `docs/INSTALL.md` описывает настройку старых адресов.
+- `test_support` — первый импорт `tests/web/test_canonical_redirect.py`; добавлены 3 проверки передачи переменной через compose.
+
 ## 23.11.2026 — 6.54.0: Канонический 301-редирект со старых доменов (`CANONICAL_REDIRECT_HOSTS` → `PUBLIC_ORIGIN`)
 
 - Добавлен middleware `canonical_host_redirect_middleware` в `web/server.py` и переменная `CANONICAL_REDIRECT_HOSTS` в `config.py` / `.env.example` / `deploy/docker-compose.live.yml`: GET/HEAD запросы со старых адресов (например `shdev.molthun.ru`) перенаправляются 301 на `PUBLIC_ORIGIN` с сохранением пути и query, защитой от цикла и open-redirect, учётом `X-Forwarded-Host` только от `TRUSTED_PROXIES`.
