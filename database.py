@@ -4915,8 +4915,14 @@ def finish_notification(delivery_id, status, attempts=0, error=None, retry_after
     else:
         delay = max(1.0, min(3600, 60 * 2 ** min(attempts, 6)))
     with get_connection() as conn:
-        conn.execute("""UPDATE notification_outbox SET status=?,next_attempt_at=?,last_error=? WHERE id=?""",
-            (status, time.time() + delay, error, delivery_id))
+        if status in ("pending", "failed"):
+            # SW-03: повтор или неудача не возвращают в работу задание, которое сняли, пока шла отправка
+            conn.execute("""UPDATE notification_outbox SET status=?,next_attempt_at=?,last_error=?
+                            WHERE id=? AND status <> 'cancelled'""",
+                         (status, time.time() + delay, error, delivery_id))
+        else:
+            conn.execute("""UPDATE notification_outbox SET status=?,next_attempt_at=?,last_error=? WHERE id=?""",
+                (status, time.time() + delay, error, delivery_id))
         conn.commit()
 
 

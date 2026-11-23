@@ -747,10 +747,18 @@ def _deliver_watch(item, payload, counts) -> tuple:
         finish_notification(other["id"], "cancelled")
         counts["cancelled"] += 1
 
+    # SW-03: последняя проверка всего набора прямо перед Telegram, включая первое задание —
+    # его могли снять, пока собиралась сводка
+    with get_connection() as conn:
+        current_fresh = [(d, pl) for d, pl in fresh if _delivery_still_current(conn, d["id"], pl.get("event_id"))]
+    counts["cancelled"] += len(fresh) - len(current_fresh)
+    fresh = current_fresh
+    if not fresh:
+        return False, None
     deliveries = [d for d, _ in fresh]
     payloads = [pl for _, pl in fresh]
     result = send_watch_digest(user["id"], payloads) if len(payloads) > 1 \
-        else send_watch_message(user["id"], payload)
+        else send_watch_message(user["id"], payloads[0])
     if isinstance(result, bool):  # совместимость с подменами в тестах
         result = DeliveryResult("sent" if result else "retry", None, None if result else "Telegram delivery failed")
     if result:

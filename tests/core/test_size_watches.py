@@ -315,7 +315,7 @@ class SizeWatchDeliveryRaceTest(unittest.TestCase):
             hook = patches.get("during_send")
             if hook:
                 hook()
-            return notifier.DeliveryResult("sent")
+            return patches["result"] if "result" in patches else notifier.DeliveryResult("sent")
 
         def fake_digest(user_id, payloads):
             sent.append([pl.get("reason") for pl in payloads])
@@ -389,14 +389,38 @@ class SizeWatchDeliveryRaceTest(unittest.TestCase):
         changed = []
         sent = self._deliver(after_digest_claim=lambda: changed or changed.append(
             database.update_watch(self.USER, w["id"], {"target_size": "42"})))
-        # Первое задание проверено до смены и уходит одно; второе снято — в сводку не попадает
-        self.assertEqual(sent, ["появился размер 41"])
-        self.assertEqual(self._statuses(), ["sent", "cancelled"])
+        # Сняты оба задания, включая первое: до вызова Telegram дело не дошло — ничего не уходит
+        self.assertEqual(sent, [])
+        self.assertEqual(self._statuses(), ["cancelled", "cancelled"])
         st = self._watch(w["id"])
         self.assertEqual((st["is_active"], st["target_size"]), (1, "42"))
         with database.get_connection() as conn:
             ev = [r[0] for r in conn.execute("SELECT status FROM watch_events ORDER BY id")]
-        self.assertEqual(ev, ["sent", "cancelled"], "снятое срабатывание не помечается отправленным")
+        self.assertEqual(ev, ["cancelled", "cancelled"])
+
+    def test_retry_after_cancel_during_send_keeps_task_cancelled(self):
+        import notifier
+        for result in (notifier.DeliveryResult("retry", None, "сеть"),
+                       notifier.DeliveryResult("permanent", None, "bot blocked")):
+            with self.subTest(result=result.status):
+                with database.get_connection() as conn:
+                    conn.execute("DELETE FROM notification_outbox")
+                    conn.execute("DELETE FROM watch_events")
+                    conn.execute("DELETE FROM watches")
+                    conn.execute("DELETE FROM watch_state")
+                    conn.execute("DELETE FROM users WHERE id <> ?", (self.USER,))
+                    conn.commit()
+                database.upsert_telegram_user({"id": self.USER, "first_name": "S"})
+                database.save_user_settings(self.USER, {"telegram_notify_enabled": True})
+                w = self._fire_41()
+                changed = []
+                sent = self._deliver(result=result, during_send=lambda: changed or changed.append(
+                    database.update_watch(self.USER, w["id"], {"target_size": "42"})))
+                self.assertEqual(sent, ["появился размер 41"])
+                self.assertEqual(self._statuses(), ["cancelled"],
+                                 "повтор/неудача не возвращают в очередь задание, снятое во время отправки")
+                st = self._watch(w["id"])
+                self.assertEqual((st["is_active"], st["fired_at"], st["target_size"]), (1, None, "42"))
 
 
 def json_reason(payload):
