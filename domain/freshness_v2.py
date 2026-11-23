@@ -338,9 +338,8 @@ def reap_expired_offers(
     """
     rows = cur.execute(query, (now_iso, now_iso, safe_batch)).fetchall()
 
-    reaped_ids: List[str] = []
-    by_reason: Dict[str, int] = {"ttl_expired": 0, "source_threshold_expired": 0}
-    by_source_type: Dict[str, int] = {}
+    # Кандидаты со снимком прочитанного состояния: списываем только то, что не изменилось после чтения (FR-01)
+    candidates: List[Dict[str, Any]] = []
 
     for row in rows:
         row_dict = dict(row)
@@ -375,30 +374,53 @@ def reap_expired_offers(
                 stype = eval_res.source_type
 
         if is_reap:
-            reaped_ids.append(oid)
-            if reason:
-                by_reason[reason] = by_reason.get(reason, 0) + 1
-            by_source_type[stype] = by_source_type.get(stype, 0) + 1
+            candidates.append({
+                "id": oid,
+                "reason": reason,
+                "source_type": stype,
+                "observed_at": row_dict.get("observed_at"),
+                "expires_at": row_dict.get("expires_at"),
+            })
 
-    total_reaped = len(reaped_ids)
     legacy_products_deactivated = 0
 
-    if total_reaped > 0 and not dry_run:
-        # Пакетное обновление списанных офферов (чанками, чтобы не упереться в лимит bind-параметров)
-        for i in range(0, len(reaped_ids), 500):
-            chunk = reaped_ids[i : i + 500]
-            placeholders = ",".join("?" for _ in chunk)
-            update_sql = f"""
+    if candidates and not dry_run:
+        # FR-01: между выборкой и записью сканер мог заново подтвердить предложение (новые observed_at/expires_at).
+        # Условное обновление по прочитанному состоянию: свежее предложение не трогаем. После первого UPDATE
+        # соединение держит блокировку записи до commit, поэтому сканер не вклинится до конца списания.
+        reaped: List[Dict[str, Any]] = []
+        for cand in candidates:
+            cur.execute(
+                """
                 UPDATE offers
                 SET is_active = 0,
                     expires_at = COALESCE(expires_at, ?),
                     updated_at = ?
-                WHERE id IN ({placeholders})
-            """
-            cur.execute(update_sql, [now_iso, now_iso, *chunk])
+                WHERE id = ?
+                  AND is_active = 1
+                  AND observed_at IS ?
+                  AND expires_at IS ?
+                """,
+                (now_iso, now_iso, cand["id"], cand["observed_at"], cand["expires_at"]),
+            )
+            if cur.rowcount == 1:
+                reaped.append(cand)
+    else:
+        reaped = candidates
 
-        # Синхронно переводим в архив парные legacy-строки products (off_<product_id>),
-        # чтобы списанные офферы не оставались активными «призраками» в Telegram /search и старых выборках.
+    reaped_ids: List[str] = [c["id"] for c in reaped]
+    by_reason: Dict[str, int] = {"ttl_expired": 0, "source_threshold_expired": 0}
+    by_source_type: Dict[str, int] = {}
+    for cand in reaped:
+        if cand["reason"]:
+            by_reason[cand["reason"]] = by_reason.get(cand["reason"], 0) + 1
+        by_source_type[cand["source_type"]] = by_source_type.get(cand["source_type"], 0) + 1
+    total_reaped = len(reaped_ids)
+    skipped_refreshed = len(candidates) - total_reaped if not dry_run else 0
+
+    if candidates and not dry_run:
+        # Синхронно переводим в архив парные legacy-строки products (off_<product_id>) — только для фактически
+        # списанных предложений, чтобы они не оставались «призраками» в Telegram /search и старых выборках.
         legacy_pids = [
             oid[4:] for oid in reaped_ids
             if isinstance(oid, str) and oid.startswith("off_") and len(oid) > 4
@@ -429,6 +451,7 @@ def reap_expired_offers(
                 details={
                     "reaped_count": total_reaped,
                     "legacy_products_deactivated": legacy_products_deactivated,
+                    "skipped_refreshed": skipped_refreshed,
                     "scanned_candidates": len(rows),
                     "by_reason": by_reason,
                     "by_source_type": by_source_type,
@@ -443,6 +466,7 @@ def reap_expired_offers(
         "scanned_candidates": len(rows),
         "total_reaped": total_reaped,
         "legacy_products_deactivated": legacy_products_deactivated,
+        "skipped_refreshed": skipped_refreshed,
         "by_reason": by_reason,
         "by_source_type": by_source_type,
         "dry_run": dry_run,

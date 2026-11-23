@@ -531,6 +531,103 @@ class TestFreshnessReaperLegacySync(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_reap_skips_offer_refreshed_by_scanner_between_read_and_write(self):
+        """FR-01: сканер во втором соединении подтверждает предложение после выборки очистки."""
+        import domain.freshness_v2 as fv2
+
+        old_ts = _utc_iso(self.now - datetime.timedelta(days=10))
+        fresh_ts = _utc_iso(self.now - datetime.timedelta(minutes=5))
+        conn = get_connection()
+        try:
+            self._seed_pair(conn, "legacy_race", old_ts)
+            self._seed_pair(conn, "legacy_stale", old_ts)
+        finally:
+            conn.close()
+
+        real_eval = fv2.evaluate_offer_freshness
+        refreshed = {"done": False}
+
+        def eval_with_scanner(*args, **kwargs):
+            if not refreshed["done"]:
+                refreshed["done"] = True
+                scanner = sqlite3.connect(str(self.db_path), timeout=5)
+                try:
+                    scanner.execute("UPDATE offers SET observed_at = ? WHERE id = 'off_legacy_race'", (fresh_ts,))
+                    scanner.execute("UPDATE products SET updated_at = ? WHERE id = 'legacy_race'", (fresh_ts,))
+                    scanner.commit()
+                finally:
+                    scanner.close()
+            return real_eval(*args, **kwargs)
+
+        conn = get_connection()
+        try:
+            with patch.object(fv2, "evaluate_offer_freshness", side_effect=eval_with_scanner):
+                res = reap_expired_offers(conn, now=self.now, dry_run=False)
+        finally:
+            conn.close()
+
+        self.assertTrue(refreshed["done"])
+        self.assertEqual(res["scanned_candidates"], 2)
+        self.assertEqual(res["total_reaped"], 1)
+        self.assertEqual(res["skipped_refreshed"], 1)
+        self.assertEqual(res["legacy_products_deactivated"], 1)
+        self.assertEqual(res["by_reason"]["source_threshold_expired"], 1)
+        self.assertEqual(sum(res["by_source_type"].values()), 1)
+        self.assertEqual(res["reaped_ids_sample"], ["off_legacy_stale"])
+
+        check = sqlite3.connect(str(self.db_path))
+        try:
+            state = dict(check.execute("SELECT id, is_active FROM offers WHERE id LIKE 'off_legacy_%'").fetchall())
+            products = dict(check.execute("SELECT id, is_active FROM products WHERE id LIKE 'legacy_%'").fetchall())
+        finally:
+            check.close()
+        self.assertEqual(state, {"off_legacy_race": 1, "off_legacy_stale": 0})
+        self.assertEqual(products, {"legacy_race": 1, "legacy_stale": 0})
+
+    def test_reap_skips_offer_deactivated_or_ttl_extended_concurrently(self):
+        """FR-01: новый expires_at или уже снятое предложение не считаются списанными этой очисткой."""
+        import domain.freshness_v2 as fv2
+
+        old_ts = _utc_iso(self.now - datetime.timedelta(days=10))
+        conn = get_connection()
+        try:
+            self._seed_pair(conn, "legacy_ttl", old_ts)
+            self._seed_pair(conn, "legacy_gone", old_ts)
+        finally:
+            conn.close()
+
+        real_eval = fv2.evaluate_offer_freshness
+        state = {"done": False}
+
+        def eval_with_scanner(*args, **kwargs):
+            if not state["done"]:
+                state["done"] = True
+                other = sqlite3.connect(str(self.db_path), timeout=5)
+                try:
+                    future = _utc_iso(self.now + datetime.timedelta(days=3))
+                    other.execute("UPDATE offers SET expires_at = ? WHERE id = 'off_legacy_ttl'", (future,))
+                    other.execute("UPDATE offers SET is_active = 0 WHERE id = 'off_legacy_gone'")
+                    other.commit()
+                finally:
+                    other.close()
+            return real_eval(*args, **kwargs)
+
+        conn = get_connection()
+        try:
+            with patch.object(fv2, "evaluate_offer_freshness", side_effect=eval_with_scanner):
+                res = reap_expired_offers(conn, now=self.now, dry_run=False)
+            self.assertEqual(res["total_reaped"], 0)
+            self.assertEqual(res["skipped_refreshed"], 2)
+            self.assertEqual(res["legacy_products_deactivated"], 0)
+            self.assertEqual(
+                conn.execute("SELECT is_active FROM offers WHERE id = 'off_legacy_ttl'").fetchone()[0], 1)
+            self.assertEqual(
+                dict(conn.execute("SELECT id, is_active FROM products WHERE id LIKE 'legacy_%'").fetchall()),
+                {"legacy_ttl": 1, "legacy_gone": 1},
+            )
+        finally:
+            conn.close()
+
     def test_reap_works_without_legacy_products_table(self):
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
