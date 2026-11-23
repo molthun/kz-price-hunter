@@ -1,0 +1,21 @@
+6.57.3 (64a95a3), Claude, 23.11.2026
+== Regression proof: on 6.57.2 code -> FAILED (failures=3: digest cancelled after digest claim, retry after cancel during send, permanent after cancel during send); on 6.57.3 -> test_size_watches 15/15; tests/notifications 357 OK
+== Linux clean container (separate image, removed; live untouched)
+sha256:20b48403768effb3bbd4a228f9cafe9078b79489d78f7b156e70e00006f71544
+Ran 3450 tests in 575.538s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+image removed
+live: kzph-stand Up 2 hours (healthy)
+== Local (git archive)
+Ran 3450 tests in 232.161s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+== Frontend
+frontend pass=50 fail=0
