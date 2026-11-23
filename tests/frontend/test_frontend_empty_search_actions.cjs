@@ -257,17 +257,20 @@ vm.runInNewContext(snippet, sandbox);
   // 10. ES-04: «С подарком» и «Продавец» переходят в наблюдение (своя цель и цель сервера)
   const giftSeller = { query: 'кроссовки Nike', city: 'Все', attributes: {}, gift: true, seller: 'approved-seller' };
   const own = sandbox.buildSearchWatchPayload(giftSeller, { total_products: 0 });
-  assert.strictEqual(JSON.parse(own.target.slice('@local-search:'.length)).gift, true);
-  assert.deepStrictEqual(Array.from(own.sellers), ['approved-seller']);
+  const ownSpec = JSON.parse(own.target.slice('@local-search:'.length));
+  assert.strictEqual(ownSpec.gift, true);
+  assert.strictEqual(ownSpec.seller, 'approved-seller', 'seller is part of the exact target');
+  assert.strictEqual(own.sellers, undefined, 'no fuzzy watch-level sellers filter');
   const merged = sandbox.buildSearchWatchPayload(giftSeller,
     { search_help: { watch_target: '@local-search:{"max_price":30000,"query":"nike"}' } });
   const mergedSpec = JSON.parse(merged.target.slice('@local-search:'.length));
   assert.strictEqual(mergedSpec.gift, true, 'gift added to the server target');
   assert.strictEqual(mergedSpec.max_price, 30000, 'server conditions kept');
-  assert.deepStrictEqual(Array.from(merged.sellers), ['approved-seller']);
+  assert.strictEqual(mergedSpec.seller, 'approved-seller', 'seller added to the server target');
+  assert.strictEqual(merged.sellers, undefined);
   const plain = sandbox.buildSearchWatchPayload({ query: 'x', attributes: {}, gift: false, seller: '' }, {});
   assert.strictEqual(JSON.parse(plain.target.slice('@local-search:'.length)).gift, null);
-  assert.deepStrictEqual(Array.from(plain.sellers), []);
+  assert.strictEqual(JSON.parse(plain.target.slice('@local-search:'.length)).seller, null);
   const keepServer = '@local-search:{"query":"nike"}';
   assert.strictEqual(sandbox.buildSearchWatchPayload({ query: 'x', attributes: {} },
     { search_help: { watch_target: keepServer } }).target, keepServer, 'server target untouched without gift');
