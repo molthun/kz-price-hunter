@@ -510,10 +510,13 @@ def send_telegram_alert(
 def send_watch_message(
     chat_id: int,
     payload: Dict[str, Any],
-    message_thread_id: Optional[int] = None
+    message_thread_id: Optional[int] = None,
+    *,
+    topic_resolved: bool = False,
 ) -> DeliveryResult:
     """Сообщение по личному наблюдению (P07 / V2): что сработало и почему — в первой же строке."""
-    if message_thread_id is None:
+    # topic_resolved: тему уже подготовил вызывающий (SW-03) — None значит «в общий диалог», без второй попытки
+    if message_thread_id is None and not topic_resolved:
         message_thread_id = get_or_create_forum_topic(chat_id, "watches")
 
     product = payload.get("product") or {}
@@ -612,14 +615,17 @@ DIGEST_LINES = 10        # длинное письмо не читают: ост
 def send_watch_digest(
     chat_id: int,
     payloads: List[Dict[str, Any]],
-    message_thread_id: Optional[int] = None
+    message_thread_id: Optional[int] = None,
+    *,
+    topic_resolved: bool = False,
 ) -> DeliveryResult:
     """Одно сообщение по наблюдению в режиме сводки: сколько сработало и что именно.
 
     Режим «сводка» обещает человеку одно письмо, а не отложенную пачку, поэтому накопленные
     срабатывания собираются в один текст.
     """
-    if message_thread_id is None:
+    # topic_resolved: тему уже подготовил вызывающий (SW-03) — None значит «в общий диалог», без второй попытки
+    if message_thread_id is None and not topic_resolved:
         message_thread_id = get_or_create_forum_topic(chat_id, "watches")
 
     first = payloads[0]
@@ -747,8 +753,11 @@ def _deliver_watch(item, payload, counts) -> tuple:
         finish_notification(other["id"], "cancelled")
         counts["cancelled"] += 1
 
+    # Тема в личном чате (TG-11) создаётся отдельным сетевым вызовом — до финальной проверки, чтобы
+    # между проверкой и sendMessage не оставалось сетевых ожиданий (SW-03)
+    thread_id = get_or_create_forum_topic(user["id"], "watches")
     # SW-03: последняя проверка всего набора прямо перед Telegram, включая первое задание —
-    # его могли снять, пока собиралась сводка
+    # его могли снять, пока собиралась сводка или создавалась тема
     with get_connection() as conn:
         current_fresh = [(d, pl) for d, pl in fresh if _delivery_still_current(conn, d["id"], pl.get("event_id"))]
     counts["cancelled"] += len(fresh) - len(current_fresh)
@@ -757,8 +766,8 @@ def _deliver_watch(item, payload, counts) -> tuple:
         return False, None
     deliveries = [d for d, _ in fresh]
     payloads = [pl for _, pl in fresh]
-    result = send_watch_digest(user["id"], payloads) if len(payloads) > 1 \
-        else send_watch_message(user["id"], payloads[0])
+    result = send_watch_digest(user["id"], payloads, thread_id, topic_resolved=True) if len(payloads) > 1 \
+        else send_watch_message(user["id"], payloads[0], thread_id, topic_resolved=True)
     if isinstance(result, bool):  # совместимость с подменами в тестах
         result = DeliveryResult("sent" if result else "retry", None, None if result else "Telegram delivery failed")
     if result:
