@@ -310,14 +310,14 @@ class SizeWatchDeliveryRaceTest(unittest.TestCase):
         import notifier
         sent = []
 
-        def fake_send(user_id, payload):
+        def fake_send(user_id, payload, *a, **kw):
             sent.append(payload.get("reason"))
             hook = patches.get("during_send")
             if hook:
                 hook()
             return patches["result"] if "result" in patches else notifier.DeliveryResult("sent")
 
-        def fake_digest(user_id, payloads):
+        def fake_digest(user_id, payloads, *a, **kw):
             sent.append([pl.get("reason") for pl in payloads])
             return notifier.DeliveryResult("sent")
 
@@ -421,6 +421,99 @@ class SizeWatchDeliveryRaceTest(unittest.TestCase):
                                  "повтор/неудача не возвращают в очередь задание, снятое во время отправки")
                 st = self._watch(w["id"])
                 self.assertEqual((st["is_active"], st["fired_at"], st["target_size"]), (1, None, "42"))
+
+
+class SizeWatchTopicDeliveryTest(SizeWatchDeliveryRaceTest):
+    """SW-03 + TG-11: финальная проверка после подготовки темы; подменён только Telegram API."""
+
+    def setUp(self):
+        super().setUp()
+        import notifier
+        notifier._unsupported_topics_chats.clear()
+        self._env = patch.dict("os.environ", {"TELEGRAM_TOPICS": "on"})
+        self._env.start()
+        self.calls = []
+
+    def tearDown(self):
+        self._env.stop()
+        import notifier
+        notifier._unsupported_topics_chats.clear()
+        super().tearDown()
+
+    @staticmethod
+    def _resp(status=200, body=None):
+        class R:
+            status_code = status
+
+            @staticmethod
+            def json():
+                return body if body is not None else {"ok": True, "result": {"message_id": 77}}
+        return R()
+
+    def _run(self, on_create=None, create_status=200):
+        import notifier
+
+        def fake_api(method, payload, **kw):
+            self.calls.append((method, dict(payload)))
+            if method == "createForumTopic":
+                if on_create:
+                    on_create()
+                if create_status != 200:
+                    return self._resp(create_status, {"ok": False})
+                return self._resp(200, {"ok": True, "result": {"message_thread_id": 555}})
+            return self._resp()
+
+        with patch.object(notifier, "get_bot_token", lambda: "token"), \
+                patch.object(notifier, "telegram_api", side_effect=fake_api):
+            notifier.deliver_pending(limit=10)
+
+    def _sends(self):
+        return [p for m, p in self.calls if m in ("sendMessage", "sendPhoto", "sendRichMessage")]
+
+    def _events(self):
+        with database.get_connection() as conn:
+            return [r[0] for r in conn.execute("SELECT status FROM watch_events ORDER BY id")]
+
+    def _change_to_42(self, wid):
+        done = []
+        return lambda: done or done.append(database.update_watch(self.USER, wid, {"target_size": "42"}))
+
+    def test_size_change_inside_create_topic_sends_nothing_instant_and_digest(self):
+        for extra in ({}, {"kind": "shop", "target": "Kari", "mode": "digest", "repeat": True}):
+            with self.subTest(mode=extra.get("mode", "instant")):
+                with database.get_connection() as conn:
+                    for t in ("notification_outbox", "watch_events", "watches", "watch_state", "user_telegram_topics"):
+                        conn.execute(f"DELETE FROM {t}")
+                    conn.commit()
+                self.calls.clear()
+                w = self._fire_41(extra)
+                self._run(on_create=self._change_to_42(w["id"]))
+                self.assertIn("createForumTopic", [m for m, _ in self.calls])
+                self.assertEqual(self._sends(), [], "после смены размера sendMessage не вызывается")
+                self.assertEqual(set(self._statuses()), {"cancelled"})
+                self.assertEqual(set(self._events()), {"cancelled"})
+                st = self._watch(w["id"])
+                self.assertEqual((st["is_active"], st["target_size"]), (1, "42"))
+
+    def test_delivery_into_created_topic(self):
+        self._fire_41()
+        self._run()
+        methods = [m for m, _ in self.calls]
+        self.assertEqual(methods.count("createForumTopic"), 1)
+        sends = self._sends()
+        self.assertEqual(len(sends), 1)
+        self.assertEqual(sends[0].get("message_thread_id"), 555)
+        self.assertEqual(self._statuses(), ["sent"])
+
+    def test_topic_creation_error_falls_back_to_main_chat_once(self):
+        self._fire_41()
+        self._run(create_status=500)
+        methods = [m for m, _ in self.calls]
+        self.assertEqual(methods.count("createForumTopic"), 1, "без второй попытки создать тему")
+        sends = self._sends()
+        self.assertEqual(len(sends), 1)
+        self.assertNotIn("message_thread_id", sends[0])
+        self.assertEqual(self._statuses(), ["sent"])
 
 
 def json_reason(payload):
