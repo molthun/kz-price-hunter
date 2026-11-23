@@ -1,5 +1,9 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 23.11.2026 — 6.57.0: Умные уведомления о появлении размера (`SIZE_IN_STOCK` + `target_size`)
+
+- В наблюдения (`watches.py`, `database.py`, `web/templates/search_first.html`) добавлено условие `size_in_stock` («появился нужный размер») и опциональный фильтр `target_size` для ценовых наблюдений, с защитой от повторного спама через `watch_state.was_available` и быстрыми чипами из «Моих размеров» в модальном окне подписки.
+
 ## 23.11.2026 — 6.56.2: фоновая очистка проходит всю очередь и пишет итог (Claude, находка Codex)
 
 - Исправлены имена полей в `freshness_reaper_background_worker`; курсор `after_id`/`last_id` и `reap_expired_offers_full_pass`; на копии живой БД полный проход — 372 списания против 34.

@@ -7466,6 +7466,16 @@
                 </div>
               </div>
             </div>
+            <div class="watch-radio-option">
+              <label>
+                <input type="radio" name="watchCondition" value="size_in_stock" onchange="onWatchConditionChange(this.value)" />
+                <span>👟 Появился нужный размер в наличии:</span>
+              </label>
+              <div id="watchSizeInputWrapper" style="display: none; margin-top: 8px; margin-left: 24px;">
+                <input type="text" id="watchTargetSizeInput" class="filter-input-text" style="max-width: 180px;" placeholder="Например: 42, L, рост 104" autocomplete="off" />
+                <div id="watchSizeQuickChips" class="watch-quick-chips" hidden></div>
+              </div>
+            </div>
           </div>
 
           <div class="watch-channel-info">
@@ -14777,6 +14787,9 @@
       if (anyDropRadio) anyDropRadio.checked = true;
       const wrapper = document.getElementById('targetPriceInputWrapper');
       if (wrapper) wrapper.style.display = 'none';
+      const sizeWrapper = document.getElementById('watchSizeInputWrapper');
+      if (sizeWrapper) sizeWrapper.style.display = 'none';
+      populateWatchSizeQuickChips();
       const quickChips = document.getElementById('watchQuickChips');
       if (quickChips) quickChips.hidden = curPrice <= 0;
       renderWatchModalExisting(product.target);
@@ -14847,9 +14860,34 @@
       if (typeof TelegramApp !== 'undefined') TelegramApp.updateBackButton();
     }
 
+    function populateWatchSizeQuickChips() {
+      const box = document.getElementById('watchSizeQuickChips');
+      const inp = document.getElementById('watchTargetSizeInput');
+      const saved = typeof getSavedSizesList === 'function' ? getSavedSizesList() : [];
+      if (inp) inp.value = saved.length ? saved[0] : '';
+      if (!box) return;
+      if (!saved.length) {
+        box.innerHTML = '';
+        box.hidden = true;
+        return;
+      }
+      box.innerHTML = saved.map(sz =>
+        '<button type="button" class="watch-quick-chip" data-size="' + escapeHtml(sz) + '"' +
+        ' onclick="setWatchTargetSize(this.dataset.size)">' + escapeHtml(sz) + '</button>'
+      ).join('');
+      box.hidden = false;
+    }
+
+    function setWatchTargetSize(sz) {
+      const inp = document.getElementById('watchTargetSizeInput');
+      if (inp) inp.value = String(sz || '').trim();
+    }
+
     function onWatchConditionChange(val) {
       const wrapper = document.getElementById('targetPriceInputWrapper');
       if (wrapper) wrapper.style.display = val === 'target_price' ? 'block' : 'none';
+      const sizeWrapper = document.getElementById('watchSizeInputWrapper');
+      if (sizeWrapper) sizeWrapper.style.display = val === 'size_in_stock' ? 'block' : 'none';
     }
 
     function showWatchFormError(message, withLogin = false) {
@@ -14890,6 +14928,14 @@
           return;
         }
         payload.threshold = threshold;
+      } else if (condition === 'size_in_stock') {
+        const szEl = document.getElementById('watchTargetSizeInput');
+        const targetSize = String(szEl ? szEl.value : '').trim();
+        if (!targetSize) {
+          showWatchFormError('Укажите размер (например: 42, 37.5, L или рост 104).');
+          return;
+        }
+        payload.target_size = targetSize;
       }
 
       const submitBtn = document.getElementById('watchSubmitBtn');

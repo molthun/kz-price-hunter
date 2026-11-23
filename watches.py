@@ -36,6 +36,7 @@ DROP_KZT = "drop_kzt"            # снижение не меньше задан
 ANY_DROP = "any_drop"            # любое снижение цены
 BEST_PRICE = "best_price"        # цена ниже всего, что видели по этому наблюдению
 BACK_IN_STOCK = "back_in_stock"  # товар снова появился в продаже
+SIZE_IN_STOCK = "size_in_stock"  # появился нужный размер товара
 DISCOUNT_PCT = "discount_pct"    # скидка в находке не меньше заданной (для сделок и арбитража)
 ANY_FIND = "any_find"            # любая находка по этому наблюдению
 
@@ -48,7 +49,7 @@ BETTER_CHANNEL = "better_channel"# появление более выгодно�
 BETTER_SELLER = "better_seller"  # появление продавца с лучшей ценой или условием
 
 CONDITIONS = (TARGET_PRICE, DROP_PCT, DROP_KZT, ANY_DROP, BEST_PRICE, BACK_IN_STOCK,
-              DISCOUNT_PCT, ANY_FIND, PRICE_DROP, NEW_OFFER, NEW_SELLER,
+              SIZE_IN_STOCK, DISCOUNT_PCT, ANY_FIND, PRICE_DROP, NEW_OFFER, NEW_SELLER,
               NEW_USED_OFFER, BETTER_CHANNEL, BETTER_SELLER)
 
 # B09: Межпродавцовые условия отслеживаются в скоупе канонического товара (с учётом города и состояния).
@@ -78,6 +79,7 @@ LABELS = {
     DISCOUNT_PCT: "скидка не меньше", ANY_FIND: "любая находка",
     TARGET_PRICE: "цена не выше", DROP_PCT: "снижение в процентах", DROP_KZT: "снижение в тенге",
     ANY_DROP: "любое снижение", BEST_PRICE: "лучшая цена за всё время", BACK_IN_STOCK: "снова в продаже",
+    SIZE_IN_STOCK: "появился размер",
     PRICE_DROP: "снижение цены", NEW_OFFER: "новое предложение", NEW_SELLER: "новый продавец",
     NEW_USED_OFFER: "появление б/у", BETTER_CHANNEL: "более выгодный канал", BETTER_SELLER: "лучшая цена у другого продавца",
 }
@@ -188,12 +190,32 @@ def normalize(data: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Каналы передаются списком")
     clean_channels = sorted({ch.strip().lower() for ch in raw_channels if ch.strip()})
 
+    # Опциональный размер (обувь, одежда, рост ребёнка); обязателен для condition=size_in_stock
+    raw_target_size = data.get("target_size")
+    if raw_target_size is None:
+        raw_target_size = data.get("size")
+    clean_target_size = None
+    if raw_target_size is not None and str(raw_target_size).strip():
+        from domain.sizes import normalize_size_token, normalize_height_sizes
+        size_text = str(raw_target_size).strip()
+        norm_sz = normalize_size_token(size_text)
+        if not norm_sz:
+            heights = normalize_height_sizes(size_text)
+            if len(heights) == 1:
+                norm_sz = heights[0]
+        if not norm_sz:
+            raise ValueError(f"Некорректный размер: «{size_text}» (пример: 42, 37.5, L, рост 104)")
+        clean_target_size = norm_sz
+    if condition == SIZE_IN_STOCK and not clean_target_size:
+        raise ValueError("Укажите размер, появление которого нужно отслеживать")
+
     return {
         "kind": kind,
         "target": target,
         "title": str(data.get("title") or target).strip()[:200],
         "condition": condition,
         "threshold": threshold,
+        "target_size": clean_target_size,
         "city": str(data.get("city") or "").strip() or None,
         "shops": sorted({s.strip() for s in shops if s.strip()}),
         "item_conditions": clean_conditions,
@@ -246,6 +268,14 @@ def matches(watch: Dict[str, Any], offer: Dict[str, Any]) -> bool:
     if watch_conditions:
         offer_cond = str(offer.get("condition") or offer.get("item_condition") or "new").strip().lower()
         if offer_cond not in watch_conditions:
+            return False
+
+    # Фильтр по размеру для ценовых наблюдений: для SIZE_IN_STOCK наличие проверяет condition_met,
+    # чтобы evaluate_watches фиксировал переходы «нет → появился» в watch_state.was_available.
+    watch_size = (watch.get("target_size") or "").strip()
+    if watch_size and watch.get("condition") != SIZE_IN_STOCK:
+        offer_sizes = offer.get("available_sizes") or []
+        if watch_size not in offer_sizes:
             return False
 
     kind, target = watch["kind"], str(watch["target"]).lower()
@@ -312,6 +342,14 @@ def condition_met(watch: Dict[str, Any], offer: Dict[str, Any],
         # В памяти наблюдения признак хранится числом, поэтому сравниваем по значению, а не по тождеству
         if available and state.get("was_available") in (False, 0):
             return True, "товар снова в продаже"
+        return False, ""
+
+    if condition == SIZE_IN_STOCK:
+        target_size = (watch.get("target_size") or "").strip()
+        offer_sizes = offer.get("available_sizes") or []
+        size_present = bool(available and target_size and target_size in offer_sizes)
+        if size_present and state.get("was_available") in (False, 0, None):
+            return True, f"появился размер {target_size}"
         return False, ""
 
     if not available:
@@ -510,9 +548,14 @@ def describe(watch: Dict[str, Any]) -> str:
             rule = f"снижение от {th} %" if th <= 100 else f"снижение от {th:,} ₸".replace(",", " ")
         else:
             rule = "любое снижение цены"
+    elif condition == SIZE_IN_STOCK:
+        sz = (watch.get("target_size") or "").strip()
+        rule = f"появился размер {sz}" if sz else LABELS[SIZE_IN_STOCK]
     else:
         rule = LABELS.get(condition, condition)
     where = []
+    if watch.get("target_size") and condition != SIZE_IN_STOCK:
+        where.append(f"размер: {watch['target_size']}")
     if watch.get("city"):
         where.append(watch["city"])
     if watch.get("shops"):

@@ -1609,6 +1609,7 @@ def _create_schema(cursor) -> None:
     _add_column(cursor, "watches", "item_conditions", "TEXT NOT NULL DEFAULT '[]'")
     _add_column(cursor, "watches", "sellers", "TEXT NOT NULL DEFAULT '[]'")
     _add_column(cursor, "watches", "channels", "TEXT NOT NULL DEFAULT '[]'")
+    _add_column(cursor, "watches", "target_size", "TEXT")
     # Память наблюдения по каждому предложению: цена последнего отправленного сообщения не даёт
     # повторно уведомлять об одном и том же (возврат цены к прежнему значению — не новость)
     cursor.execute("""
@@ -5544,7 +5545,7 @@ def list_watches(user_id: int, only_active: bool = False) -> List[Dict[str, Any]
 # не должен молча сбрасывать доставку или расширять подписку. Явный [] снимает соответствующий фильтр.
 _WATCH_SCOPE_COLUMNS = {"title": "title", "city": "city", "mode": "mode", "quiet_from": "quiet_from",
                         "quiet_to": "quiet_to", "timezone": "timezone", "cooldown_hours": "cooldown_hours",
-                        "repeat": "repeat_mode"}
+                        "repeat": "repeat_mode", "target_size": "target_size"}
 _WATCH_FILTER_COLUMNS = {"shops": ("shops",), "item_conditions": ("item_conditions", "conditions"),
                          "sellers": ("sellers",), "channels": ("channels",)}
 
@@ -5567,12 +5568,16 @@ def create_watch(user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
                                  clean["threshold"])).fetchone()
         if existing:
             scope = {column: clean[field] for field, column in _WATCH_SCOPE_COLUMNS.items() if field in data}
+            if "size" in data and "target_size" not in data:
+                scope["target_size"] = clean["target_size"]
             for column, names in _WATCH_FILTER_COLUMNS.items():
                 if any(name in data for name in names):
                     scope[column] = json.dumps(clean[column], ensure_ascii=False)
             assignments = "".join(f", {column} = ?" for column in scope)
             conn.execute(f"UPDATE watches SET is_active = 1, fired_at = NULL{assignments} WHERE id = ?",
                          (*scope.values(), existing["id"]))
+            if "target_size" in scope and scope["target_size"] != existing["target_size"]:
+                conn.execute("DELETE FROM watch_state WHERE watch_id = ?", (existing["id"],))
             conn.commit()
             row = _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (existing["id"],)).fetchone())
             row["already_existed"] = True
@@ -5582,12 +5587,12 @@ def create_watch(user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
             raise ValueError(f"Больше {w.MAX_WATCHES_PER_USER} наблюдений не поддерживается — "
                              f"удалите ненужные")
         conn.execute("""
-            INSERT INTO watches (user_id, kind, target, title, condition, threshold, city, shops,
+            INSERT INTO watches (user_id, kind, target, title, condition, threshold, target_size, city, shops,
                                  item_conditions, sellers, channels, mode,
                                  quiet_from, quiet_to, timezone, cooldown_hours, repeat_mode, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (int(user_id), clean["kind"], clean["target"], clean["title"], clean["condition"], clean["threshold"],
-              clean["city"], json.dumps(clean["shops"], ensure_ascii=False),
+              clean["target_size"], clean["city"], json.dumps(clean["shops"], ensure_ascii=False),
               json.dumps(clean["item_conditions"], ensure_ascii=False),
               json.dumps(clean["sellers"], ensure_ascii=False),
               json.dumps(clean["channels"], ensure_ascii=False),
@@ -5609,16 +5614,17 @@ def update_watch(user_id: int, watch_id: int, data: Dict[str, Any]) -> Optional[
             return None
         merged = _watch_row(current)
         merged.update({k: v for k, v in data.items() if k in (
-            "kind", "target", "title", "condition", "threshold", "city", "shops",
+            "kind", "target", "title", "condition", "threshold", "target_size", "size", "city", "shops",
             "item_conditions", "sellers", "channels", "mode",
             "quiet_from", "quiet_to", "timezone", "cooldown_hours", "repeat", "is_active")})
         clean = w.normalize(merged)
         conn.execute("""
-            UPDATE watches SET kind=?, target=?, title=?, condition=?, threshold=?, city=?, shops=?,
+            UPDATE watches SET kind=?, target=?, title=?, condition=?, threshold=?, target_size=?, city=?, shops=?,
                    item_conditions=?, sellers=?, channels=?, mode=?,
                    quiet_from=?, quiet_to=?, timezone=?, cooldown_hours=?, repeat_mode=?, is_active=?
             WHERE id = ? AND user_id = ?
-        """, (clean["kind"], clean["target"], clean["title"], clean["condition"], clean["threshold"], clean["city"],
+        """, (clean["kind"], clean["target"], clean["title"], clean["condition"], clean["threshold"],
+              clean["target_size"], clean["city"],
               json.dumps(clean["shops"], ensure_ascii=False),
               json.dumps(clean["item_conditions"], ensure_ascii=False),
               json.dumps(clean["sellers"], ensure_ascii=False),
@@ -5626,6 +5632,8 @@ def update_watch(user_id: int, watch_id: int, data: Dict[str, Any]) -> Optional[
               clean["mode"], clean["quiet_from"], clean["quiet_to"],
               clean["timezone"], clean["cooldown_hours"], clean["repeat"], clean["is_active"],
               int(watch_id), int(user_id)))
+        if clean["target_size"] != current["target_size"]:
+            conn.execute("DELETE FROM watch_state WHERE watch_id = ?", (int(watch_id),))
         conn.commit()
         return _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (int(watch_id),)).fetchone())
 
@@ -5798,6 +5806,11 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                 continue
             price = int(offer.get("current_price") or 0)
             available = 1 if offer.get("is_available", True) else 0
+            if watch["condition"] == w.SIZE_IN_STOCK:
+                target_sz = (watch.get("target_size") or "").strip()
+                effective_available = 1 if (available and target_sz and target_sz in (offer.get("available_sizes") or [])) else 0
+            else:
+                effective_available = available
 
             seller_key = str(offer.get("seller_slug") or offer.get("seller_id") or offer.get("seller_name") or offer.get("shop") or "").strip().lower()
             channel_key = str(offer.get("channel_type") or offer.get("channel_id") or offer.get("channel") or "").strip().lower()
@@ -5845,7 +5858,7 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                             known_sellers = excluded.known_sellers,
                             known_channels = excluded.known_channels,
                             known_offers = excluded.known_offers
-                    """, (watch["id"], scope_id, price, price or None, available, moment.isoformat(),
+                    """, (watch["id"], scope_id, price, price or None, effective_available, moment.isoformat(),
                           sellers_json, channels_json, offers_json))
                     conn.commit()
                     continue
@@ -5888,7 +5901,7 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                         known_sellers = excluded.known_sellers,
                         known_channels = excluded.known_channels,
                         known_offers = excluded.known_offers
-                """, (watch["id"], scope_id, price, price, price or None, available, moment.isoformat(),
+                """, (watch["id"], scope_id, price, price, price or None, effective_available, moment.isoformat(),
                       sellers_json, channels_json, offers_json))
                 # Одноразовое наблюдение помечается сработавшим, но остаётся включённым до отправки:
                 # выключение прямо здесь отменило бы его собственное сообщение (G01)
