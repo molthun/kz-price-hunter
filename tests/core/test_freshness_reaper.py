@@ -628,6 +628,98 @@ class TestFreshnessReaperLegacySync(unittest.TestCase):
         finally:
             conn.close()
 
+    def _seed_queue_blocked_by_not_yet_expired(self, conn):
+        """Первые по id кандидаты прошли грубый фильтр «старше 24 ч», но порог сайта (168 ч) не истёк."""
+        not_yet = _utc_iso(self.now - datetime.timedelta(hours=30))
+        stale = _utc_iso(self.now - datetime.timedelta(days=10))
+        for i in range(4):
+            self._seed_pair(conn, f"a_wait_{i}", not_yet)
+        for i in range(5):
+            self._seed_pair(conn, f"z_stale_{i}", stale)
+
+    def test_full_pass_reaps_queue_behind_not_yet_expired_candidates(self):
+        from domain.freshness_v2 import reap_expired_offers_full_pass
+
+        conn = get_connection()
+        try:
+            self._seed_queue_blocked_by_not_yet_expired(conn)
+            # Пачка без курсора видит только первые по id — их списывать рано
+            first = reap_expired_offers(conn, now=self.now, batch_size=3, dry_run=True)
+            self.assertEqual(first["total_reaped"], 0)
+            self.assertEqual(first["scanned_candidates"], 3)
+
+            res = reap_expired_offers_full_pass(conn, now=self.now, batch_size=3)
+            self.assertTrue(res["complete"])
+            self.assertEqual(res["total_reaped"], 5)
+            self.assertEqual(res["legacy_products_deactivated"], 5)
+            self.assertEqual(res["scanned_candidates"], 9)
+            self.assertEqual(res["batches"], 4)  # 3 полные пачки + пустая, подтверждающая конец очереди
+            active = dict(conn.execute("SELECT id, is_active FROM offers").fetchall())
+            self.assertTrue(all(active[f"off_a_wait_{i}"] == 1 for i in range(4)))
+            self.assertTrue(all(active[f"off_z_stale_{i}"] == 0 for i in range(5)))
+
+            again = reap_expired_offers_full_pass(conn, now=self.now, batch_size=3)
+            self.assertEqual(again["total_reaped"], 0)
+            self.assertTrue(again["complete"])
+        finally:
+            conn.close()
+
+    def test_full_pass_respects_max_batches(self):
+        from domain.freshness_v2 import reap_expired_offers_full_pass
+
+        conn = get_connection()
+        try:
+            self._seed_queue_blocked_by_not_yet_expired(conn)
+            res = reap_expired_offers_full_pass(conn, now=self.now, batch_size=3, max_batches=1)
+            self.assertFalse(res["complete"])
+            self.assertEqual(res["batches"], 1)
+            self.assertEqual(res["total_reaped"], 0)
+        finally:
+            conn.close()
+
+    def test_background_worker_runs_full_pass_and_logs_count(self):
+        import asyncio
+        import io
+        from contextlib import redirect_stdout
+        import domain.freshness_v2 as fv2
+        from web.server import freshness_reaper_background_worker
+
+        conn = get_connection()
+        try:
+            self._seed_queue_blocked_by_not_yet_expired(conn)
+        finally:
+            conn.close()
+
+        real_full_pass = fv2.reap_expired_offers_full_pass
+        calls = []
+
+        def small_batches(c, **kw):
+            calls.append(kw)
+            kw["batch_size"] = 3
+            return real_full_pass(c, now=self.now, **{k: v for k, v in kw.items() if k != "now"})
+
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+            if len(sleeps) > 1:
+                raise asyncio.CancelledError
+
+        out = io.StringIO()
+        with patch.object(fv2, "reap_expired_offers_full_pass", side_effect=small_batches), \
+                patch("asyncio.sleep", side_effect=fake_sleep), redirect_stdout(out):
+            asyncio.run(freshness_reaper_background_worker(None))
+
+        self.assertEqual(len(calls), 1)
+        self.assertIn("Фоново списано 5 устаревших предложений", out.getvalue())
+        self.assertIn("каталог 5", out.getvalue())
+        check = sqlite3.connect(str(self.db_path))
+        try:
+            n = check.execute("SELECT COUNT(*) FROM offers WHERE id LIKE 'off_z_stale_%' AND is_active = 0").fetchone()[0]
+        finally:
+            check.close()
+        self.assertEqual(n, 5)
+
     def test_reap_works_without_legacy_products_table(self):
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row

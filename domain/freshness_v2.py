@@ -304,6 +304,7 @@ def reap_expired_offers(
     now: Optional[datetime.datetime] = None,
     batch_size: int = 500,
     dry_run: bool = False,
+    after_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Периодический списатель (Reaper) устаревших офферов (S2-E25, KZ Price Hunter 2.0).
@@ -315,6 +316,9 @@ def reap_expired_offers(
 
     Обновляет expires_at (если был NULL) и updated_at на метку времени списания.
     Поддерживает dry_run для предварительной оценки.
+
+    Кандидаты выбираются по возрастанию id. after_id продолжает проход с места прошлой пачки,
+    поэтому ещё не просроченные кандидаты не перекрывают остальную очередь; last_id в ответе — курсор.
     """
     moment = utc_now(now)
     now_iso = moment.isoformat()
@@ -334,9 +338,12 @@ def reap_expired_offers(
             OR
             ((julianday(?) - julianday(COALESCE(o.observed_at, '1970-01-01'))) * 24.0 > 24.0)
           )
+          AND (? IS NULL OR o.id > ?)
+        ORDER BY o.id
         LIMIT ?
     """
-    rows = cur.execute(query, (now_iso, now_iso, safe_batch)).fetchall()
+    rows = cur.execute(query, (now_iso, now_iso, after_id, after_id, safe_batch)).fetchall()
+    last_id = dict(rows[-1]).get("id") if rows else None
 
     # Кандидаты со снимком прочитанного состояния: списываем только то, что не изменилось после чтения (FR-01)
     candidates: List[Dict[str, Any]] = []
@@ -464,6 +471,7 @@ def reap_expired_offers(
     return {
         "ok": True,
         "scanned_candidates": len(rows),
+        "last_id": last_id,
         "total_reaped": total_reaped,
         "legacy_products_deactivated": legacy_products_deactivated,
         "skipped_refreshed": skipped_refreshed,
@@ -474,6 +482,43 @@ def reap_expired_offers(
         "reaped_ids_sample": reaped_ids[:100],
         "executed_at": now_iso,
     }
+
+
+def reap_expired_offers_full_pass(
+    conn: Any,
+    *,
+    now: Optional[datetime.datetime] = None,
+    batch_size: int = 5000,
+    max_batches: int = 1000,
+) -> Dict[str, Any]:
+    """Полный проход очереди списания пачками по id (фоновая задача, FR-01 follow-up).
+
+    Каждая пачка — отдельная короткая транзакция записи; проход идёт до последнего кандидата,
+    а не обрывается на пачке, где списывать было нечего. max_batches — предохранитель.
+    """
+    moment = utc_now(now)
+    totals: Dict[str, Any] = {
+        "batches": 0,
+        "scanned_candidates": 0,
+        "total_reaped": 0,
+        "legacy_products_deactivated": 0,
+        "skipped_refreshed": 0,
+        "complete": False,
+    }
+    cursor_id: Optional[str] = None
+    safe_batch = max(1, min(int(batch_size or 5000), 5000))
+    for _ in range(max(1, int(max_batches))):
+        res = reap_expired_offers(conn, now=moment, batch_size=safe_batch, dry_run=False, after_id=cursor_id)
+        totals["batches"] += 1
+        totals["scanned_candidates"] += res.get("scanned_candidates", 0)
+        totals["total_reaped"] += res.get("total_reaped", 0)
+        totals["legacy_products_deactivated"] += res.get("legacy_products_deactivated", 0)
+        totals["skipped_refreshed"] += res.get("skipped_refreshed", 0)
+        cursor_id = res.get("last_id")
+        if res.get("scanned_candidates", 0) < safe_batch or not cursor_id:
+            totals["complete"] = True
+            break
+    return totals
 
 
 def get_freshness_stats(

@@ -6836,23 +6836,23 @@ async def freshness_reaper_background_worker(app):
         try:
             def _reap_in_thread():
                 from database import get_connection
-                from domain.freshness_v2 import reap_expired_offers
+                from domain.freshness_v2 import reap_expired_offers_full_pass
                 conn = get_connection()
-                total_reaped = 0
                 try:
-                    while True:
-                        res = reap_expired_offers(conn, batch_size=5000, dry_run=False)
-                        reaped = res.get("reaped_count", 0)
-                        total_reaped += reaped
-                        if reaped == 0 or res.get("candidates_examined", 0) < 5000:
-                            break
-                    return total_reaped
+                    return reap_expired_offers_full_pass(conn, batch_size=5000)
                 finally:
                     conn.close()
 
-            reaped = await asyncio.to_thread(_reap_in_thread)
-            if reaped > 0:
-                print(f"[Freshness Reaper] Фоново списано {reaped} устаревших предложений")
+            res = await asyncio.to_thread(_reap_in_thread)
+            # Прежде задача читала несуществующие reaped_count/candidates_examined: всегда 0,
+            # проход обрывался на первой пачке и журнал молчал.
+            if res.get("total_reaped", 0) > 0 or not res.get("complete", True):
+                print(
+                    f"[Freshness Reaper] Фоново списано {res.get('total_reaped', 0)} устаревших предложений "
+                    f"(кандидатов {res.get('scanned_candidates', 0)}, пачек {res.get('batches', 0)}, "
+                    f"каталог {res.get('legacy_products_deactivated', 0)}, пропущено обновлённых "
+                    f"{res.get('skipped_refreshed', 0)}{'' if res.get('complete', True) else ', проход не завершён'})"
+                )
         except asyncio.CancelledError:
             break
         except Exception as e:
