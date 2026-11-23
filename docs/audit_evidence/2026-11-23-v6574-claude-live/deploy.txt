@@ -1,0 +1,10 @@
+Выкладка 6.57.4 на живой сервер по слову владельца, 23.11.2026 18:31–18:32Z (Claude)
+Копия БД: ~/kzph-migration/live_before_6574_20261123T1831Z.db quick_check ok users 8 offers 294556 products 294448 offer_price_history 1499220 (8 с)
+До выкладки: watches 0, pending outbox 0 — миграция колонки ничьих наблюдений не затрагивает
+Checkout: 54516a3 -> 52f5453 (ff-only из bundle; включает 6.57.0–6.57.4); live override совпадает с deploy/
+Контейнер: image sha256:d3a71c115bee…5f6c healthy restarts=0 started 18:32:09Z, порт 35540, restart unless-stopped
+Снаружи: /api/version 6.57.4; health ok; / /deals /api/deals /api/products?q=кроссовки /api/me — 200; /api/me/watches без входа — 401 (как положено)
+  «Мои размеры» обувь 42 — 3899, только shoe; POST /api/auth/bot-start 200; shdev -> 301 shop; страница содержит size_in_stock (3 вхождения)
+База: колонка watches.target_size создана
+Журнал 10 мин: 0 строк error/traceback; Telegram-бот запущен.
+Не проверено: живой сценарий создания уведомления о размере через Telegram/сайт с входом (нужен вход владельца).
