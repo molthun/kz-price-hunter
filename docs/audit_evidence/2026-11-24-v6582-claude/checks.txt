@@ -1,0 +1,25 @@
+6.58.2 (de124cb; includes 6.58.1 213a231), Claude, 24.11.2026
+== Regression proof:
+  ES-01 old 6.58.0 plain payload reproduces (used 60000 queued); structured payload skips used/expensive/wrong size, fires for new Nike 42 <= 30000
+  ES-04 gift test on 6.58.1 local_search.py -> FAILED; seller is a watch filter that existed, frontend did not send it (JS check fails on 6.58.1 template)
+  test_empty_search_watch 7/7; test_frontend_empty_search_actions 10/10 (fails on 6.58.0 and 6.58.1 templates)
+== Linux clean container (separate image, removed; live untouched)
+sha256:ffb48d178a83a70925fb9ec66ac04935006e806d132aca8c3eddca43a09abbd4
+Ran 3464 tests in 468.217s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+image removed
+live: kzph-stand Up 44 minutes (healthy)
+== Local (git archive)
+Ran 3464 tests in 235.620s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+== Frontend (Deno + Playwright + Chrome)
+frontend pass=51 fail=0
+Note: a superseded 6.58.1 full run was stopped and its test container/image removed from the host.
