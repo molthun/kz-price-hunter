@@ -1,0 +1,23 @@
+6.56.2 (32e6009), Claude, 23.11.2026
+== Regression proof: new tests on 6.56.1 code -> FAILED (errors=3: no full pass / worker reads wrong fields); on 6.56.2 -> 17/17 OK (reaper + category_filtering)
+== Live DB copy estimate (read-only, live_before_6551_20261123T1448Z.db, throwaway container)
+active offers 175798; old behaviour one batch: 5000 candidates -> 34 reaped; full pass: 4 batches, 19981 candidates -> 372 reaped
+== Linux clean container (separate image, removed; live untouched)
+sha256:874989426929f900c4a358e3bf1b50e9a6985c464746a0df786c6f761fff5747
+Ran 3435 tests in 550.261s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+image removed
+live: kzph-stand Up 45 minutes (healthy)
+== Local (git archive)
+Ran 3435 tests in 234.636s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+== Frontend
+frontend pass=49 fail=0
