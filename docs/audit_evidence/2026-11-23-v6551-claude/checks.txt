@@ -1,0 +1,24 @@
+6.55.1 (0e34f5b), Claude, 23.11.2026
+== Linux clean container (separate image sha256:79cb473f…, removed; live kzph-stand untouched)
+sha256:79cb473fb3ca9b0bef4590b3d3735c95985a589b16ec717f10f1c1de81e400c3
+Ran 3428 tests in 545.579s
+
+OK
+{
+  "ok": true,
+  "checked": 25,
+image removed
+live: kzph-stand Up 4 hours (healthy)
+== Local (git archive)
+Ran 3428 tests in 235.685s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+== Frontend (Deno + Playwright 1.63.0, all git-tracked tests/frontend/*.cjs)
+frontend pass=49 fail=0
+Note: an earlier run gave 45 FAIL because the local Playwright install in the scratchpad was wiped by cleanup (Cannot find module 'playwright'); reinstalled, rerun 49/49.
+== Live DB classifier check (read-only, inline code, temp files removed)
+numeric-size offers 20227: shoe 18446 (KIMEX 488, Kari 16417, Интертоп 1440, Детский мир 101), apparel 1781 (Kari 1499 incl. 1422 jewelry rings, Интертоп 252, Детский мир 30)
+apparel non-jewelry titles with shoe-like words: only 'Носки', 'Комбинезон' (category word match) — correct
