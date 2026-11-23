@@ -6820,6 +6820,7 @@
               <button class="btn-apply-filters" id="resultsEmptyAction" type="button" style="display:inline-block; width:auto; padding:8px 20px;">Сбросить фильтры</button>
               <button class="btn-live-web-search" id="resultsLiveWebSearchBtn" type="button" onclick="triggerLiveWebSearch()" style="display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg, #0284c7, #2563eb); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; width:auto; padding:8px 20px; box-shadow:0 2px 6px rgba(37,99,235,0.25);">🌐 Проверить магазины Казахстана (SearXNG)</button>
             </div>
+            <div id="resultsEmptyExtraActions" class="empty-actions-wrap" style="display:none; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px;"></div>
           </div>
 
           <!-- Product Cards Container -->
@@ -11193,14 +11194,111 @@
     }
 
     // Каждое состояние задаёт весь свой текст и действие: прошлое состояние DOM не наследуется
-    function showResultsMessage(title, desc, actionLabel, action) {
+    function showResultsMessage(title, desc, actionLabel, action, extraActions) {
       const emptyEl = document.getElementById('resultsEmpty');
       emptyEl.querySelector('.state-title').textContent = title;
       emptyEl.querySelector('.state-desc').textContent = desc;
       const actionEl = document.getElementById('resultsEmptyAction');
       actionEl.textContent = actionLabel;
       actionEl.onclick = action;
+      const extraBox = document.getElementById('resultsEmptyExtraActions');
+      if (extraBox) {
+        extraBox.replaceChildren();
+        const list = Array.isArray(extraActions) ? extraActions : [];
+        if (list.length) {
+          list.forEach(item => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn-secondary-action';
+            btn.setAttribute('data-empty-action', item.id || '');
+            btn.textContent = item.label || '';
+            btn.onclick = () => item.run && item.run(btn);
+            extraBox.appendChild(btn);
+          });
+          extraBox.style.display = 'flex';
+        } else {
+          extraBox.style.display = 'none';
+        }
+      }
       emptyEl.style.display = 'block';
+    }
+
+    function buildEmptySearchActions(state, data, user) {
+      const actions = [];
+      const st = state || {};
+      const attrs = st.attributes && typeof st.attributes === 'object' ? st.attributes : {};
+      const cityName = st.city && st.city !== 'Все' ? st.city : '';
+      const activeSize = String(attrs.size || '').trim();
+      const query = String(st.query || '').trim();
+
+      if (cityName) {
+        actions.push({
+          id: 'all_cities',
+          label: '🌍 Проверить все города',
+          run: () => onCityChanged('Все'),
+        });
+      }
+      if (activeSize) {
+        actions.push({
+          id: 'clear_size',
+          label: '👟 Сбросить размер ' + activeSize,
+          run: () => {
+            if (AppState.attributes) delete AppState.attributes.size;
+            AppState.page = 1;
+            updateSearchUrl();
+            executeSearch();
+          },
+        });
+      }
+      const otherAttrKeys = Object.keys(attrs).filter(k => k !== 'size' && attrs[k]);
+      const hasOtherFilters = Boolean(
+        st.category || st.brand || st.model || st.seller || st.condition || st.kind ||
+        st.minPrice || st.maxPrice || otherAttrKeys.length
+      );
+      if (hasOtherFilters) {
+        actions.push({
+          id: 'reset_filters',
+          label: '🔄 Сбросить фильтры',
+          run: () => resetAllFilters(),
+        });
+      }
+      const aiHelpVisible = Boolean(
+        data && data.local_ai && !(data.local_ai.status === 'disabled' && !data.local_ai.cached_plan)
+      );
+      const aiHasWatch = Boolean(aiHelpVisible && data.search_help && data.search_help.watch_target);
+      if (query && user && !aiHasWatch) {
+        actions.push({
+          id: 'watch_search',
+          label: activeSize ? '🔔 Уведомить о появлении (' + activeSize + ')' : '🔔 Уведомить о появлении',
+          run: async (btn) => {
+            if (btn) btn.disabled = true;
+            const safeTarget = query.slice(0, 200);
+            const payload = {
+              kind: 'search',
+              target: safeTarget,
+              title: safeTarget,
+              condition: activeSize ? 'size_in_stock' : 'new_offer',
+              repeat: false,
+              city: cityName || null,
+            };
+            if (activeSize) payload.target_size = activeSize;
+            let result;
+            try {
+              result = await WatchManager.create(payload);
+            } catch (e) {
+              result = { error: 'network' };
+            }
+            if (result && result.error) {
+              if (btn) btn.disabled = false;
+              showToast(result.error === 'guest' ? 'Войдите через Telegram для уведомлений.' : 'Не удалось сохранить уведомление.');
+            } else {
+              if (btn) btn.textContent = '✓ Уведомление включено';
+              await WatchManager.load();
+            }
+          },
+        });
+      }
+      return actions;
     }
 
     function showResultsError(title, desc) {
@@ -11575,8 +11673,10 @@
           desc = 'В нашем каталоге пока нет предложений по этим условиям' + (cityName ? ' для ' + cityName : '') + '. Уточните название или характеристики товара.';
         }
 
+        const emptyExtraActions = buildEmptySearchActions(AppState, data, typeof currentUser !== 'undefined' ? currentUser : null);
         showResultsMessage('Сейчас подходящих предложений нет', desc,
-          'Уточнить запрос', () => { const input = document.getElementById('resultsSearchInput'); input.focus(); input.select(); });
+          'Уточнить запрос', () => { const input = document.getElementById('resultsSearchInput'); input.focus(); input.select(); },
+          emptyExtraActions);
         return;
       }
 
