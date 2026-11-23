@@ -2136,6 +2136,37 @@
       color: #ffffff;
     }
 
+    .deal-my-sizes-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 12px;
+      min-height: 34px;
+      border-radius: 999px;
+      border: 1px solid var(--primary);
+      background: color-mix(in srgb, var(--primary) 10%, transparent);
+      color: var(--primary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+
+    .deal-my-sizes-pill.active {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 30%, transparent);
+    }
+
+    .deal-sizes-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      margin: 4px 0 8px;
+    }
+
     .profile-sizes-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -6950,6 +6981,7 @@
             <button class="deal-type-pill" data-type="all" data-min-discount="50" onclick="setDealsType(this, 'all', 50)">💥 50%+</button>
             <button class="deal-type-pill" data-type="arbitrage" data-min-discount="0" onclick="setDealsType(this, 'arbitrage', 0)">⚖️ Арбитраж</button>
             <button class="deal-type-pill" data-type="observed" data-min-discount="0" onclick="setDealsType(this, 'observed', 0)">✓ Проверенные</button>
+            <button type="button" id="dealsMySizesBtn" class="deal-my-sizes-pill" aria-pressed="false" onclick="toggleDealsMySizes()" title="Показать скидки только в ваших размерах">👟 Мои размеры</button>
           </div>
         </div>
 
@@ -8195,6 +8227,69 @@
         '<span class="card-sizes-label">Размеры:</span>' + chips + more + '</div>';
     }
 
+    function getSavedSizesList() {
+      const s = getUserSizes();
+      return [s.shoe, s.clothing, s.kidsHeight].filter(Boolean);
+    }
+
+    function renderDealSizesRow(sizes) {
+      if (!Array.isArray(sizes) || !sizes.length) return '';
+      const mySet = new Set(getSavedSizesList());
+      const maxVisible = 6;
+      const list = sizes.map(s => String(s || '').trim()).filter(Boolean);
+      if (!list.length) return '';
+      const priority = list.filter(s => mySet.has(s));
+      const keepSet = new Set(priority.slice(0, maxVisible));
+      for (const s of list) {
+        if (keepSet.size >= maxVisible) break;
+        keepSet.add(s);
+      }
+      const visible = list.filter(s => keepSet.has(s));
+      const hiddenCount = Math.max(0, list.length - visible.length);
+      const chips = visible.map(sz => {
+        const mine = mySet.has(sz);
+        const cls = 'offer-size-chip' + (mine ? ' is-my-size' : '');
+        return '<span class="' + cls + '"' +
+          (mine ? ' title="Ваш размер в наличии"' : '') + '>' + escapeHtml(sz) + '</span>';
+      }).join('');
+      const more = hiddenCount > 0
+        ? '<span class="offer-size-chip card-size-more">+' + hiddenCount + '</span>'
+        : '';
+      return '<div class="deal-sizes-row" aria-label="Размеры в наличии">' + chips + more + '</div>';
+    }
+
+    function updateDealsMySizesButton() {
+      const btn = document.getElementById('dealsMySizesBtn');
+      if (!btn) return;
+      const saved = getSavedSizesList();
+      const active = Boolean(typeof DealsFeedState !== 'undefined' && DealsFeedState.mySizesOnly && saved.length);
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      if (saved.length) {
+        btn.textContent = '👟 Мои размеры (' + saved.join(', ') + ')';
+        btn.title = active
+          ? 'Показаны скидки в ваших размерах — нажмите, чтобы показать все'
+          : 'Фильтровать скидки по вашим размерам: ' + saved.join(', ');
+      } else {
+        btn.textContent = '👟 Мои размеры';
+        btn.title = 'Укажите ваши размеры в профиле, чтобы фильтровать скидки';
+      }
+    }
+
+    function toggleDealsMySizes() {
+      const saved = getSavedSizesList();
+      if (!DealsFeedState.mySizesOnly && !saved.length) {
+        if (typeof showToast === 'function') {
+          showToast('Укажите «Мои размеры» в профиле (или командой /sizes в боте), чтобы включить фильтр.');
+        }
+        if (typeof navigateTo === 'function') navigateTo('/profile');
+        return;
+      }
+      DealsFeedState.mySizesOnly = !DealsFeedState.mySizesOnly;
+      updateDealsMySizesButton();
+      loadDealsFeed(true);
+    }
+
     function syncUserSizesFromServer(settings) {
       const src = settings && typeof settings === 'object' ? settings : {};
       const hasShoe = Object.prototype.hasOwnProperty.call(src, 'preferred_shoe_size');
@@ -8208,6 +8303,7 @@
         kidsHeight: hasKids ? String(src.preferred_kids_height || '') : '',
       });
       syncProfileSizesUI();
+      updateDealsMySizesButton();
     }
 
     // SY-01 (6.46.1): сохранения идут строго по очереди — следующий запрос уходит только после ответа на
@@ -13413,6 +13509,7 @@
       minDiscount: 0,
       sort: 'random',
       category: 'Все',
+      mySizesOnly: false,
       items: [],
       offset: 0,
       limit: 20,
@@ -13460,6 +13557,15 @@
         if (DealsFeedState.category && DealsFeedState.category !== 'Все') params.set('category', DealsFeedState.category);
         if (DealsFeedState.type && DealsFeedState.type !== 'all') params.set('type', DealsFeedState.type);
         if (DealsFeedState.minDiscount && DealsFeedState.minDiscount > 0) params.set('min_discount', DealsFeedState.minDiscount);
+        if (DealsFeedState.mySizesOnly) {
+          const savedSizes = getSavedSizesList();
+          if (savedSizes.length) {
+            params.set('sizes', savedSizes.join(','));
+          } else {
+            DealsFeedState.mySizesOnly = false;
+          }
+        }
+        updateDealsMySizesButton();
         params.set('sort', DealsFeedState.sort || 'random');
         if (DealsFeedState.sort === 'random') {
           params.set('seed', DealsFeedState.seed);
@@ -13733,6 +13839,8 @@
               <span class="deal-price-current">${formatPrice(deal.new_price)}</span>
               ${oldPriceHtml}
             </div>
+
+            ${renderDealSizesRow(deal.available_sizes)}
 
             <div class="deal-reel-meta-row">
               ${savingsHtml}
@@ -14235,6 +14343,8 @@
       DealsFeedState.minDiscount = 0;
       DealsFeedState.sort = 'random';
       DealsFeedState.category = 'Все';
+      DealsFeedState.mySizesOnly = false;
+      updateDealsMySizesButton();
       const catSelect = document.getElementById('dealsCategorySelect');
       if (catSelect) catSelect.value = 'Все';
       const sortSelect = document.getElementById('dealsSortSelect');
