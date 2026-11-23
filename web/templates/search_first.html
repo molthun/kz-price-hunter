@@ -11238,6 +11238,20 @@
         return Number.isFinite(n) && n > 0 ? n : null;
       };
       let target = typeof info.watch_target === 'string' && info.watch_target.startsWith('@local-search:') ? info.watch_target : '';
+      // ES-04: «с подарком» проверяется у предложения внутри цели — добавляем его и в цель сервера
+      if (target && st.gift) {
+        try {
+          const serverSpec = JSON.parse(target.slice('@local-search:'.length));
+          if (serverSpec && typeof serverSpec === 'object') {
+            serverSpec.gift = true;
+            const sorted = {};
+            Object.keys(serverSpec).sort().forEach(k => { sorted[k] = serverSpec[k]; });
+            target = '@local-search:' + JSON.stringify(sorted);
+          }
+        } catch (e) {
+          target = '';
+        }
+      }
       if (!target) {
         const cleanAttrs = {};
         Object.keys(attrs).sort().forEach(k => {
@@ -11248,6 +11262,7 @@
           attributes: cleanAttrs,
           brand: st.brand || null,
           category: st.category || null,
+          gift: st.gift ? true : null,
           inferred_attributes: {},
           kind: st.kind || null,
           max_price: num(st.max_price),
@@ -11270,6 +11285,8 @@
         condition: size ? 'size_in_stock' : 'new_offer',
         repeat: false,
         item_conditions: itemConditions,
+        // ES-04: продавец из фильтра — тот же фильтр наблюдения, что у ручной подписки
+        sellers: st.seller ? [String(st.seller).trim().slice(0, 100)] : [],
         city: city || null,
       };
       if (size) payload.target_size = size;
