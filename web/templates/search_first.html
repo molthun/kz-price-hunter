@@ -11223,6 +11223,77 @@
       emptyEl.style.display = 'block';
     }
 
+    // ES-01/ES-03: одно наблюдение «уведомить о появлении» для обеих кнопок пустой выдачи.
+    // Цель — структурированный поиск (@local-search:) с ценой, категорией и характеристиками: та же
+    // проверка, что в выдаче. Цель сервера (помощник) главнее; без неё она собирается из фильтров.
+    function buildSearchWatchPayload(state, data) {
+      const st = state || {};
+      const info = (data && data.search_help) || {};
+      const attrs = st.attributes && typeof st.attributes === 'object' ? st.attributes : {};
+      const selected = (data && data.selected_attributes && typeof data.selected_attributes === 'object') ? data.selected_attributes : {};
+      const query = String(st.query || '').trim().slice(0, 200);
+      const size = String(attrs.size || selected.size || '').trim();
+      const num = v => {
+        const n = Number(String(v == null ? '' : v).replace(/\s+/g, ''));
+        return Number.isFinite(n) && n > 0 ? n : null;
+      };
+      let target = typeof info.watch_target === 'string' && info.watch_target.startsWith('@local-search:') ? info.watch_target : '';
+      if (!target) {
+        const cleanAttrs = {};
+        Object.keys(attrs).sort().forEach(k => {
+          const v = attrs[k];
+          if (v !== undefined && v !== null && String(v).trim()) cleanAttrs[k] = String(v).trim().slice(0, 80);
+        });
+        const spec = {
+          attributes: cleanAttrs,
+          brand: st.brand || null,
+          category: st.category || null,
+          inferred_attributes: {},
+          kind: st.kind || null,
+          max_price: num(st.max_price),
+          min_price: num(st.min_price),
+          model: st.model || null,
+          original_query: query,
+          query: query,
+        };
+        target = '@local-search:' + JSON.stringify(spec);
+      }
+      const cond = String(st.condition || '').trim().toLowerCase();
+      const serverConds = Array.isArray(info.watch_conditions) ? info.watch_conditions : [];
+      const itemConditions = serverConds.length ? serverConds
+        : (['new', 'used', 'refurbished'].includes(cond) ? [cond] : []);
+      const city = info.watch_city || (st.city && st.city !== 'Все' ? st.city : null);
+      const payload = {
+        kind: 'search',
+        target: target,
+        title: query || 'Поиск',
+        condition: size ? 'size_in_stock' : 'new_offer',
+        repeat: false,
+        item_conditions: itemConditions,
+        city: city || null,
+      };
+      if (size) payload.target_size = size;
+      return payload;
+    }
+
+    async function createSearchWatchFromEmpty(btn, state, data, doneLabel) {
+      if (btn) btn.disabled = true;
+      let result;
+      try {
+        result = await WatchManager.create(buildSearchWatchPayload(state, data));
+      } catch (e) {
+        result = { error: 'network' };
+      }
+      if (!result || result.error) {
+        if (btn) btn.disabled = false;
+        showToast(result && result.error === 'guest' ? 'Войдите через Telegram для уведомлений.' : 'Не удалось сохранить уведомление.');
+        return false;
+      }
+      if (btn) btn.textContent = doneLabel || '✓ Уведомление включено';
+      await WatchManager.load();
+      return true;
+    }
+
     function buildEmptySearchActions(state, data, user) {
       const actions = [];
       const st = state || {};
@@ -11251,9 +11322,10 @@
         });
       }
       const otherAttrKeys = Object.keys(attrs).filter(k => k !== 'size' && attrs[k]);
+      // ES-02: те же поля, что в запросе и в resetAllFilters (min_price/max_price, gift, in_stock)
       const hasOtherFilters = Boolean(
         st.category || st.brand || st.model || st.seller || st.condition || st.kind ||
-        st.minPrice || st.maxPrice || otherAttrKeys.length
+        st.min_price || st.max_price || st.gift || st.in_stock || otherAttrKeys.length
       );
       if (hasOtherFilters) {
         actions.push({
@@ -11266,36 +11338,16 @@
         data && data.local_ai && !(data.local_ai.status === 'disabled' && !data.local_ai.cached_plan)
       );
       const aiHasWatch = Boolean(aiHelpVisible && data.search_help && data.search_help.watch_target);
-      if (query && user && !aiHasWatch) {
+      // ES-03: как у кнопки помощника — только когда по запросу вообще ничего нет (не пустая страница
+      // при ненулевом общем счётчике), и без дубля, если кнопку уже показал помощник
+      const nothingFound = !(data && Number(data.total_products) > 0);
+      if (query && user && nothingFound && !aiHasWatch) {
+        // Сохраняется то, что написано на кнопке: условия на момент показа, а не после других нажатий
+        const snapshot = { ...st, attributes: { ...attrs } };
         actions.push({
           id: 'watch_search',
           label: activeSize ? '🔔 Уведомить о появлении (' + activeSize + ')' : '🔔 Уведомить о появлении',
-          run: async (btn) => {
-            if (btn) btn.disabled = true;
-            const safeTarget = query.slice(0, 200);
-            const payload = {
-              kind: 'search',
-              target: safeTarget,
-              title: safeTarget,
-              condition: activeSize ? 'size_in_stock' : 'new_offer',
-              repeat: false,
-              city: cityName || null,
-            };
-            if (activeSize) payload.target_size = activeSize;
-            let result;
-            try {
-              result = await WatchManager.create(payload);
-            } catch (e) {
-              result = { error: 'network' };
-            }
-            if (result && result.error) {
-              if (btn) btn.disabled = false;
-              showToast(result.error === 'guest' ? 'Войдите через Telegram для уведомлений.' : 'Не удалось сохранить уведомление.');
-            } else {
-              if (btn) btn.textContent = '✓ Уведомление включено';
-              await WatchManager.load();
-            }
-          },
+          run: (btn) => createSearchWatchFromEmpty(btn, snapshot, data, '✓ Уведомление включено'),
         });
       }
       return actions;
@@ -12195,15 +12247,11 @@
       if (!data.total_products && info.watch_target && currentUser) {
         const button = document.createElement('button'); button.className = 'btn-secondary-action';
         button.style.marginTop = '8px'; button.textContent = 'Уведомить о появлении';
-        button.onclick = async () => {
-          button.disabled = true;
-          const result = await WatchManager.create({kind:'search',target:info.watch_target,
-            title:AppState.query,condition:'new_offer',repeat:false,
-            item_conditions:info.watch_conditions || [],
-            city:info.watch_city || (AppState.city && AppState.city !== 'Все' ? AppState.city : null)});
-          if (result.error) { button.disabled = false; showToast('Не удалось сохранить уведомление. Повторите.'); }
-          else { button.textContent = 'Уведомление включено'; await WatchManager.load(); }
-        };
+        // ES-03: тот же конструктор, что у кнопки пустой выдачи — с размером, ценой и состоянием
+        const aiSize = String(((AppState.attributes || {}).size) || ((data.selected_attributes || {}).size) || '').trim();
+        if (aiSize) button.textContent = 'Уведомить о появлении (' + aiSize + ')';
+        const aiSnapshot = { ...AppState, attributes: { ...(AppState.attributes || {}) } };
+        button.onclick = () => createSearchWatchFromEmpty(button, aiSnapshot, data, 'Уведомление включено');
         box.append(button);
       }
     }
