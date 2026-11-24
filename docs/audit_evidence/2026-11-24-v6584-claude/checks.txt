@@ -9,4 +9,9 @@ OK
   "findings": [],
 == Frontend
 frontend pass=51 fail=0
-== Linux clean container: NOT RUN — stand host 192.168.28.25 unreachable from this Mac (ssh timeout, ping loss); public site answered 6.57.4, health 200
+== Linux clean container (separate image sha256:789b85b0…, removed; live untouched; run after host became reachable again)
+Ran 3468 tests in 470.810s
+
+OK
+pins: {"ok": true, "checked": 25}
+live: kzph-stand Up 14 hours (healthy)
