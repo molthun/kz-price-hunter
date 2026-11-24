@@ -1247,15 +1247,21 @@ def matches_watch(target, offer):
             # ES-04: продавец из фасета выдачи — точное равенство, как в поиске
             # (o.seller_id = ? OR s.slug = ? OR s.name = ?), а не подстрока ручного фильтра sellers
             if seller:
-                keys = {str(offer.get(k) or '').strip() for k in ('seller_id', 'seller_slug', 'seller_name')} - {''}
+                # Канонический продавец того же предложения из БД главнее полей вызывающего: обход витрин
+                # кладёт в seller_slug идентификатор, а в seller_name — имя канала. Поля предложения —
+                # только запасной путь, когда записи о нём ещё нет.
+                # Только своё предложение: у обхода витрин id — товар, а offer_id — само предложение
+                own = offer.get('offer_id') or offer.get('id')
+                ids = [str(own)] if own else []
+                ids += ['off_' + i for i in ids if not i.startswith('off_')]
+                keys = set()
+                if ids:
+                    for row in conn.execute(
+                            f"SELECT o.seller_id, s.slug, s.name FROM offers o LEFT JOIN sellers s ON s.id = o.seller_id "
+                            f"WHERE o.id IN ({','.join('?' * len(ids))})", ids):
+                        keys |= {str(v).strip() for v in row if v}
                 if not keys:
-                    ids = [str(v) for v in (offer.get('offer_id'), offer.get('id')) if v]
-                    ids += ['off_' + i for i in ids if not i.startswith('off_')]
-                    if ids:
-                        for row in conn.execute(
-                                f"SELECT o.seller_id, s.slug, s.name FROM offers o LEFT JOIN sellers s ON s.id = o.seller_id "
-                                f"WHERE o.id IN ({','.join('?' * len(ids))})", ids):
-                            keys |= {str(v).strip() for v in row if v}
+                    keys = {str(offer.get(k) or '').strip() for k in ('seller_id', 'seller_slug', 'seller_name')} - {''}
                 if seller.strip() not in keys:
                     return False
             # ES-04: «с подарком» — свойство предложения, как в выдаче (o.has_gift = 1)

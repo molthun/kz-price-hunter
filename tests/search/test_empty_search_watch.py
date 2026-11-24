@@ -181,5 +181,66 @@ class EmptySearchWatchKeepsConditionsTest(unittest.TestCase):
         self.assertEqual(database.evaluate_watches([offer], now=self.now), 1)
 
 
+class ShowcaseSyncSellerWatchTest(unittest.TestCase):
+    """ES-04: штатный обход витрины Kaspi кладёт в seller_slug ID, а в seller_name имя канала.
+
+    Подменён только ответ сканера. Наблюдение по фасету продавца сравнивает канонические ID, slug и имя
+    продавца этого предложения из БД — и не совпадает с именем канала или чужим slug с общим началом.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.db_path = Path(self._tmp.name) / "es04_showcase.db"
+        self._p = patch.object(database, "DB_PATH", self.db_path)
+        self._p.start()
+        database.init_db()
+        with database.get_connection() as conn:
+            init_schema_v2(conn)
+            conn.execute("INSERT INTO sellers (id, name, slug, created_at, updated_at) "
+                         "VALUES ('s_nike', 'Nike Official', 'nike-store', '2026-01-01', '2026-01-01')")
+            conn.execute("INSERT INTO sellers (id, name, slug, created_at, updated_at) "
+                         "VALUES ('s_other', 'Other Shop', 'other-shop', '2026-01-01', '2026-01-01')")
+            conn.execute("INSERT INTO channels (id, seller_id, channel_type, name, base_url, created_at) "
+                         "VALUES ('ch_kaspi', 's_nike', 'kaspi', 'Витрина Kaspi Nike', "
+                         "'https://kaspi.kz/shop/info/merchant/nikestore/', '2026-01-01')")
+            conn.commit()
+
+    def tearDown(self):
+        self._p.stop()
+        self._tmp.cleanup()
+
+    def test_slug_id_and_name_match_channel_name_and_foreign_slug_do_not(self):
+        import asyncio
+        from domain.channel_sync import sync_channel_showcase
+        from scrapers.showcase_scanners import KaspiShowcaseScanner, ShowcaseOffer
+
+        cases = {"nike-store": True, "s_nike": True, "Nike Official": True,
+                 "Витрина Kaspi Nike": False, "nike": False, "other-shop": False}
+        users = {}
+        for n, seller in enumerate(cases, start=500):
+            database.upsert_telegram_user({"id": n, "first_name": "U"})
+            w = database.create_watch(n, frontend_payload("кроссовки Nike", None, "", max_price=60000, seller=seller))
+            users[w["id"]] = seller
+
+        offer = ShowcaseOffer(marketplace="kaspi", merchant_id="nikestore", external_sku="sku_nike_1",
+                              title="Кроссовки Nike Air Zoom Pegasus", price=45000.0,
+                              url="https://kaspi.kz/shop/p/nike1", city="Алматы", in_stock=True)
+
+        async def run():
+            conn = database.get_connection()
+            try:
+                with patch.object(KaspiShowcaseScanner, "scan_merchant_showcase", return_value=[offer]):
+                    return await sync_channel_showcase(conn, "ch_kaspi")
+            finally:
+                conn.close()
+
+        result = asyncio.run(run())
+        self.assertTrue(result["ok"])
+        with database.get_connection() as conn:
+            fired = {users[r[0]] for r in conn.execute("SELECT DISTINCT watch_id FROM watch_events")}
+        self.assertEqual(fired, {s for s, ok in cases.items() if ok},
+                         "по slug, ID и имени продавца — да; по имени канала и чужому slug — нет")
+
+
 if __name__ == "__main__":
     unittest.main()
