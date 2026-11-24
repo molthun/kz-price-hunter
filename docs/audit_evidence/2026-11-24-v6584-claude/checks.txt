@@ -1,0 +1,12 @@
+6.58.4 (e8f498d), Claude, 24.11.2026
+== Regression proof: ShowcaseSyncSellerWatchTest (real sync_channel_showcase, only Kaspi scanner patched) on 6.58.3 local_search.py -> FAILED; on 6.58.4 -> OK; related suites (empty-search watch, showcase scanners, watch/search consistency, audit fixes, watches v2) 72 OK
+== Local (git archive)
+Ran 3468 tests in 344.415s
+
+OK
+{
+  "ok": true,
+  "findings": [],
+== Frontend
+frontend pass=51 fail=0
+== Linux clean container: NOT RUN — stand host 192.168.28.25 unreachable from this Mac (ssh timeout, ping loss); public site answered 6.57.4, health 200
