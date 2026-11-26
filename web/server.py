@@ -1403,6 +1403,7 @@ async def search_v2_handler(request):
             kind=kind,
             attributes=attributes,
         )
+        phase = (request.query.get("phase") or "").strip().lower()
         import local_search
         if local_search.enabled():
             from database import get_connection
@@ -1415,6 +1416,16 @@ async def search_v2_handler(request):
             categories = await asyncio.to_thread(_context)
             # Толкование раскладки выбирается один раз по буквальным совпадениям каталога (LS-01)
             corrected = await asyncio.to_thread(local_search.choose_layout_query, arguments, attributes)
+            if phase == "preview" and search_query and not resolved_barcode_info:
+                peeked, is_ready = local_search.peek_understanding(
+                    search_query, categories, corrected_query=corrected, start_background=True
+                )
+                understanding = dict(peeked)
+                understanding['corrected_query'] = corrected
+                data = await asyncio.to_thread(
+                    local_search.search_sync, arguments, understanding, attributes, not is_ready
+                )
+                return web.json_response(data, status=500 if data.get('outcome') == 'ERROR' else 200)
             understanding = dict(await local_search.understand(search_query, categories, corrected_query=corrected))
             understanding['corrected_query'] = corrected
             data = await asyncio.to_thread(local_search.search_sync, arguments, understanding, attributes)
@@ -1433,6 +1444,8 @@ async def search_v2_handler(request):
             return web.json_response(data, status=500 if data.get('outcome') == 'ERROR' else 200)
         resp = await asyncio.to_thread(_run_search_v2_sync, **arguments)
         data = resp.to_dict()
+        data['search_phase'] = 'final'
+        data['ai_pending'] = False
         if resolved_barcode_info:
             await _apply_barcode_matches(data, query, resolved_barcode_info)
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200

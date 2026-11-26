@@ -1,0 +1,40 @@
+Быстрый первый результат поиска — кандидат v6.60.0 (Antigravity, 27.11.2026)
+База: fc75d88 (6.59.7), ветка feat/fast-first-search, отдельный checkout /Users/molthun/Documents/kz-price-hunter-fast-search
+Окружение замеров: изолированная временная SQLite (300 товаров: обувь с размером 42, смартфоны S24/S24+/S24 Ultra, зимние шины), штатный web.server.search_v2_handler без сетевого сокета, имитация локальной модели qwen3-vl:8b-instruct (mock call_local_api).
+
+=== 1. Замер этапов поиска на базе fc75d88 (N=15) ===
+- catalog_context(conn):     p50=0.85 ms, p95=1.11 ms
+- choose_layout_query:       p50=0.00 ms, p95=0.00 ms
+- search_sync(SQLite):       p50=14.88 ms, p95=15.75 ms
+
+=== 2. Сравнение До (fc75d88) vs После (v6.60.0, двухфазный preview -> final) ===
+- cold_1call (модель 400ms, N=10):
+    До:    first_cards p50=472.72 ms (p95=478.36 ms) | final p50=472.72 ms (p95=478.36 ms)
+    После: first_cards p50=16.71 ms  (p95=72.38 ms)  | final p50=466.35 ms (p95=477.11 ms)
+- cold_2calls (1-й вызов 400ms + 2-й уточняющий 300ms, N=10):
+    До:    first_cards p50=774.12 ms (p95=795.86 ms) | final p50=774.12 ms (p95=795.86 ms)
+    После: first_cards p50=16.88 ms  (p95=17.87 ms)  | final p50=771.69 ms (p95=780.65 ms)
+- warm_cache (_plans hit, N=15):
+    До:    first_cards p50=39.05 ms  (p95=39.91 ms)  | final p50=39.05 ms  (p95=39.91 ms)
+    После: first_cards p50=39.55 ms  (p95=43.09 ms)  | final p50=39.55 ms  (p95=43.09 ms) [1 запрос, сразу final]
+- unavailable (отказ модели 50ms, N=10):
+    До:    first_cards p50=96.32 ms  (p95=97.45 ms)  | final p50=96.32 ms  (p95=97.45 ms)
+    После: first_cards p50=15.05 ms  (p95=15.36 ms)  | final p50=94.50 ms  (p95=95.07 ms)
+- Контрольный сценарий delay_10s (задержка модели 10s, N=1):
+    До:    first_cards=10074.5 ms (total=100) | final=10074.5 ms
+    После: first_cards=15.1 ms (total=100, search_phase=preview) | final=10074.0 ms (total=100, search_phase=final)
+
+=== 3. Автоматические проверки кандидата v6.60.0 ===
+- Python (13 модулей поиска и контрактов, включая tests/search/test_fast_first_search.py): 139 OK (11.980 s)
+  Проверены: контрольный сценарий с задержанной моделью (1 вызов LLM через _pending, 1 запись аналитики и спроса, 0 записей в preview), прогретый кеш (1 запрос), паритет фильтров (город, цена, продавец, размер 42, точный вариант Galaxy S24+), пустое превью без преждевременного watch_target и отказ модели.
+- JS (Deno, 4 набора, 26 проверок):
+  - test_frontend_fast_first_search.cjs: PASS (5/5 — мгновенное превью, пустое превью без заглушки/наблюдения, гонка устаревшего ответа A не перезаписывает B, фолбэк при 504/сбое ИИ, прогретый кеш за 1 fetch)
+  - test_frontend_empty_search_actions.cjs: PASS (10/10)
+  - test_frontend_size_watch_modal.cjs: PASS (4/4)
+  - test_frontend_deals_my_sizes.cjs: PASS (7/7)
+- release_gate.py secrets: ok=true, findings=[]
+- git diff --check: чисто
+
+=== 4. Что не запускалось ===
+- Полный Linux-набор в чистом контейнере, живой Chrome/Playwright с реальной Ollama (qwen3-vl:8b-instruct).
+- Основной checkout (/Users/molthun/Documents/kz-price-hunter), origin/main (6a68c98) и живой сервер (6.58.4) не менялись.
