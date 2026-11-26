@@ -59,6 +59,10 @@ def _looks_like_wrong_layout_token(token: str) -> str | None:
     """Конвертирует одиночный токен из QWERTY в ЙЦУКЕН только при явных признаках ошибочной раскладки."""
     if len(token) < 3 or not _LATIN_LAYOUT_TOKEN_RE.match(token):
         return None
+    # Заглавная не в начале слова — признак бренда или аббревиатуры (Dr.Martens, G.Skill, NZXT),
+    # а не набора в чужой раскладке (LS-01).
+    if any(ch.isupper() for ch in token[1:]):
+        return None
     has_layout_punct = bool(_LAYOUT_PUNCT_RE.search(token))
     no_en_vowels = len(token) >= 4 and not _EN_VOWELS_RE.search(token)
     cluster_match = _EN_CONSONANT_CLUSTER_RE.search(token)
@@ -99,6 +103,54 @@ def fix_wrong_keyboard_layout(query: str) -> str | None:
         converted.append(ru)
         changed = True
     return ' '.join(converted) if changed else None
+
+
+def _literal_total(conn, arguments, selected_attributes):
+    """Сколько товаров находит буквальный запрос при тех же городе и фильтрах, что у выдачи."""
+    from domain.search_core import SearchCore
+    from repositories.search_repo import SearchRepository
+    args = dict(arguments)
+    attrs = dict(selected_attributes or {})
+    if 'size' not in attrs and args.get('query'):
+        from domain.sizes import extract_size_from_query
+        detected_size, cleaned_q = extract_size_from_query(args['query'])
+        if detected_size:
+            attrs['size'] = detected_size
+            if cleaned_q:
+                args['query'] = cleaned_q
+    args['attributes'] = attrs
+    repo = SearchRepository(conn)
+    repo.attribute_filters = attrs
+    res = SearchCore(repo).search(**args)
+    return res.total_products if res.outcome != 'ERROR' else 0
+
+
+def _choose_layout(conn, arguments, selected_attributes):
+    """Одно толкование раскладки для модели, выдачи, цели наблюдения и спроса (LS-01).
+
+    Исправление применяется, только если буквальный запрос не находит ни одного товара
+    с учётом города и действующих фильтров."""
+    corrected = fix_wrong_keyboard_layout(arguments.get('query') or '')
+    if not corrected:
+        return None
+    try:
+        if _literal_total(conn, arguments, selected_attributes) > 0:
+            return None
+    except Exception:
+        return None
+    return corrected
+
+
+def choose_layout_query(arguments, selected_attributes):
+    """Выбор толкования до вызова модели: исправленный запрос или None (буквальный)."""
+    if not fix_wrong_keyboard_layout(arguments.get('query') or ''):
+        return None
+    from database import get_connection
+    conn = get_connection()
+    try:
+        return _choose_layout(conn, arguments, selected_attributes)
+    finally:
+        conn.close()
 
 
 def _norm(text):
@@ -699,7 +751,7 @@ def _narrows(refined, plan, categories):
     return bool(parent) and parent == plan['category_id']
 
 
-async def understand(query, categories):
+async def understand(query, categories, corrected_query=None):
     import config
     from ai_service import call_local_api
     if not enabled() or not query.strip():
@@ -711,7 +763,9 @@ async def understand(query, categories):
     base, model = cfg.get('local_api_base'), cfg.get('local_model')
     if not base or not model:
         return {'status': 'unavailable'}
-    fixed_layout = fix_wrong_keyboard_layout(query)
+    # Раскладку выбирает вызывающий (choose_layout_query) по буквальным совпадениям каталога:
+    # модель получает то же толкование, что выдача и записанный спрос (LS-01).
+    fixed_layout = corrected_query or None
     effective_query = fixed_layout or query
     context = json.dumps(categories, ensure_ascii=False, sort_keys=True)
     key = (effective_query.casefold().strip(), hashlib.sha256(context.encode()).hexdigest(), base, model)
@@ -849,8 +903,66 @@ def apply_semantics(repo, original, query, category, inferred):
         sql, values = repo._matching_product_ids(QueryParser.parse(query).clean_query, conditions, params, None, category)
         repo.product_scope = list(dict.fromkeys(verified + [r[0] for r in repo.conn.execute(sql, values)]))
         repo.inferred_attribute_filters = inferred
+        repo.rank_query = query  # ранжирование по точной модели из текста покупателя
         query = ''
     return query, verified
+
+
+_GROUNDING_STOPWORDS = {
+    'для', 'без', 'или', 'как', 'что', 'это', 'под', 'над', 'при', 'про', 'очень', 'самый', 'самая',
+    'самое', 'самые', 'какой', 'какая', 'какое', 'какие', 'нужен', 'нужна', 'нужно', 'нужны', 'хочу',
+    'купить', 'куплю', 'недорого', 'дешево', 'дёшево', 'дешевый', 'дешёвый', 'хороший', 'хорошая',
+    'хорошее', 'хорошие', 'лучший', 'лучшая', 'лучшее', 'лучшие', 'новый', 'новая', 'новое', 'новые',
+    'with', 'for', 'the', 'and', 'best', 'good', 'cheap', 'new',
+}
+
+
+def _grounding_words(query):
+    return [w for w in re.findall(r'[0-9a-zа-я]+', _norm(query))
+            if len(w) >= 4 and w not in _GROUNDING_STOPWORDS and not w.isdigit()]
+
+
+def _grounding_stems(words):
+    # Короткая основа ловит словоформы в названии раздела: «обуви» ~ «обувь».
+    return [w[:max(4, len(w) - 2)] if re.search(r'[а-я]', w) else w for w in words]
+
+
+def _query_grounded_in_category(repo, cats, query, category_id, offer_args):
+    """Опора запроса на раздел для подсказки «товары из раздела» (LS-04).
+
+    Уверенность модели сама по себе не доказательство: вымышленный «квантовый синхрофазотрон»
+    не должен показывать стиральный порошок. Подсказка допускается, если хотя бы одно содержательное
+    слово запроса встречается в названии, синонимах раздела (с подразделами) или в названиях
+    его товаров, доступных при тех же городе и фильтрах."""
+    words = _grounding_words(query)
+    if not words:
+        return False
+    stems = _grounding_stems(words)
+    try:
+        mapper = cats.get_mapper()
+        subtree = mapper.get_subtree_ids(category_id) or [category_id]
+        names = []
+        for cid in subtree:
+            c = mapper.get_by_id(cid)
+            if c:
+                names.append(_norm(c.name))
+                names.extend(_norm(a) for a in c.aliases)
+    except Exception:
+        names = []
+    if any(stem in name for stem in stems for name in names):
+        return True
+    keys = ('city', 'condition', 'channel_type', 'seller_type', 'seller_id', 'installment', 'gift',
+            'in_stock', 'delivery', 'min_price', 'max_price')
+    conditions, params = repo._offer_filter(**{k: offer_args.get(k) for k in keys})
+    # Каждое слово отдельно, с синонимами и словоформами самого поиска («экран» -> «монитор»)
+    for word in words:
+        try:
+            sql, values = repo._matching_product_ids(word, conditions, params, None, category_id)
+            if repo.conn.execute(f'SELECT 1 FROM ({sql}) LIMIT 1', values).fetchone():
+                return True
+        except Exception:
+            continue
+    return False
 
 
 def search_sync(arguments, understanding, selected_attributes):
@@ -862,11 +974,14 @@ def search_sync(arguments, understanding, selected_attributes):
     from repositories.category_repo import CategoryRepository
     from repositories.catalog_expansion_repo import CatalogExpansionRepository
     original = arguments['query']
-    fixed_layout = understanding.get('corrected_query') or fix_wrong_keyboard_layout(original)
-    effective_original = fixed_layout or original
     plan = understanding.get('plan')
     conn = get_connection()
     try:
+        if 'corrected_query' in understanding:
+            fixed_layout = understanding.get('corrected_query') or None
+        else:
+            fixed_layout = _choose_layout(conn, arguments, selected_attributes)
+        effective_original = fixed_layout or original
         cats = CategoryRepository(conn)
         cached_plan = False
         if not plan:
@@ -953,7 +1068,8 @@ def search_sync(arguments, understanding, selected_attributes):
         fallback_args = None
         has_specific_model_code = bool(re.search(r'\b[A-Za-z0-9]*\d+[A-Za-z0-9]*\b', original))
         is_known_standard_category = bool(inferred_category and not inferred_category.startswith('ai_') and cats.get_by_id(inferred_category))
-        if res.total_products == 0 and is_known_standard_category and not selected_category and not has_specific_model_code:
+        if (res.total_products == 0 and is_known_standard_category and not selected_category and not has_specific_model_code
+                and _query_grounded_in_category(repo, cats, effective_original, inferred_category, search_args)):
             fallback_args = dict(search_args)
             fallback_args['query'] = ''
             fallback_args['category'] = inferred_category

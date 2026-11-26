@@ -170,7 +170,7 @@ class LocalSearchLayoutAndPlanGuardIntegrationTest(unittest.TestCase):
              patch("config.get_ai_config", return_value={"local_api_base": "http://127.0.0.1:11434/v1", "local_model": "qwen"}), \
              patch("local_ai.pause_reason", return_value=None), \
              patch("ai_service.call_local_api", new=AsyncMock(side_effect=fake_call)):
-            res = asyncio.run(local_search.understand("rhjccjdrb", categories))
+            res = asyncio.run(local_search.understand("rhjccjdrb", categories, corrected_query="кроссовки"))
 
         self.assertEqual(res["status"], "ok")
         self.assertEqual(res.get("corrected_query"), "кроссовки")
@@ -218,6 +218,45 @@ class LocalSearchLayoutAndPlanGuardIntegrationTest(unittest.TestCase):
         loaded = self.repo.saved_plan("стиральная машина")
         self.assertIsNotNone(loaded)
         self.assertEqual(loaded["category_id"], "appliances")
+
+    def test_saved_plan_skips_newer_unverified_deleted_and_corrupt_rows(self):
+        plan = {
+            "category_id": "shoes",
+            "category_name": "Обувь",
+            "search_query": "ботинки",
+            "confidence": 0.95,
+            "fields": [],
+            "attributes": {},
+        }
+        valid = self.repo.propose("ботинки", "Астана", plan)
+        self.repo.propose("ботинки", "Алматы", {**plan, "unverified_fallback": True})
+        self.assertEqual(self.repo.saved_plan("ботинки"), plan)
+
+        self.repo.propose("ботинки", "Актобе", {**plan, "confidence": float("nan")})
+        deleted = self.repo.propose("ботинки", "Караганда", {**plan, "category_id": "appliances"})
+        self.repo.delete(deleted["id"])
+        corrupt = self.repo.propose("ботинки", "Шымкент", plan)
+        self.conn.execute("UPDATE catalog_expansions SET plan_json='not json' WHERE id=?", (corrupt["id"],))
+        self.conn.commit()
+        self.assertEqual(self.repo.saved_plan("ботинки"), plan)
+        self.repo.delete(valid["id"])
+        self.assertIsNone(self.repo.saved_plan("ботинки"))
+
+    def test_saved_plan_uses_valid_alias_when_exact_row_is_unverified(self):
+        plan = {
+            "category_id": "shoes",
+            "category_name": "Обувь",
+            "search_query": "ботинки",
+            "confidence": 0.95,
+            "fields": [],
+            "attributes": {},
+        }
+        source = self.repo.propose("зимние ботинки", None, plan)
+        self.repo.set_scope(source["id"], "ботинки", 1)
+        self.repo.propose("ботинки", None, {**plan, "confidence": 0, "unverified_fallback": True})
+        self.assertEqual(self.repo.saved_plan("ботинки"), plan)
+        self.repo.delete(source["id"])
+        self.assertIsNone(self.repo.saved_plan("ботинки"))
 
 
 if __name__ == "__main__":

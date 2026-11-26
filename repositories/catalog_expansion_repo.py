@@ -114,19 +114,28 @@ class CatalogExpansionRepository:
         ident = hashlib.sha256((clean + '\n' + city).encode()).hexdigest()[:24]
         stamp = now()
         initial_status = 'approved' if auto_approve else 'proposed'
+        new_json = json.dumps(plan, ensure_ascii=False)
+        existing = self.conn.execute('SELECT plan_json, status FROM catalog_expansions WHERE id=?', (ident,)).fetchone()
+        upgrade = 0
+        if existing and existing[1] != 'deleted':
+            old_is_stub = self.is_demand_stub(self._loads(existing[0]))
+            if self.is_demand_stub(plan) and not old_is_stub:
+                new_json = existing[0]  # заглушка не затирает план модели
+            elif old_is_stub and not self.is_demand_stub(plan) and auto_approve and existing[1] != 'checking':
+                upgrade = 1  # план модели заменяет заглушку и в уже одобренной заявке
         self.conn.execute(
             """INSERT INTO catalog_expansions(id,query,city,plan_json,status,created_at,updated_at)
             VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
             demand=CASE WHEN status='deleted' THEN 1 ELSE demand+1 END, updated_at=excluded.updated_at,
             created_at=CASE WHEN status='deleted' THEN excluded.created_at ELSE created_at END,
             generation=generation+CASE WHEN status='deleted' THEN 1 ELSE 0 END,
-            plan_json=CASE WHEN status IN ('proposed','deleted') THEN excluded.plan_json ELSE plan_json END,
+            plan_json=CASE WHEN status IN ('proposed','deleted') OR ?=1 THEN excluded.plan_json ELSE plan_json END,
             status=CASE
                 WHEN status='deleted' THEN excluded.status
                 WHEN status='proposed' AND ?=1 THEN 'approved'
                 ELSE status
             END""",
-            (ident, clean, city, json.dumps(plan, ensure_ascii=False), initial_status, stamp, stamp, 1 if auto_approve else 0))
+            (ident, clean, city, new_json, initial_status, stamp, stamp, upgrade, 1 if auto_approve else 0))
         self._commit()
         return self.get(ident)
 
@@ -173,7 +182,10 @@ class CatalogExpansionRepository:
             raise ValueError('Проверка уже идёт; дождитесь результата')
         # После сбоя проверка продолжается с места остановки, а не с начала.
         resume = approve and row['status'] == 'failed' and row['scan_offset'] > 0
-        if approve:
+        if approve and self.is_demand_stub(row['plan']):
+            # Заглушка спроса: одобрение разрешает только буквальный опрос магазинов (LS-03).
+            status = 'approved'
+        elif approve:
             from domain.category import Category
             from repositories.category_repo import CategoryRepository
             repo = CategoryRepository(self.conn)
@@ -208,10 +220,17 @@ class CatalogExpansionRepository:
         # A crashed worker is retried after its bounded lease, not left RUNNING forever.
         cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
         self.conn.execute("UPDATE catalog_expansions SET status='approved' WHERE status='checking' AND updated_at<?", (cutoff,))
-        cur = self.conn.execute("""UPDATE catalog_expansions SET status='checking', generation=generation+1, attempts=attempts+1,updated_at=?
-            WHERE id=(SELECT id FROM catalog_expansions WHERE status='approved'
-            ORDER BY demand DESC, updated_at ASC LIMIT 1) AND status='approved' RETURNING id""", (now(),))
-        row = cur.fetchone()
+        # ИИ-классификация только для заявок с планом модели: заглушки спроса остаются 'approved'
+        # для буквального опроса магазинов (claim_batch_for_crawl) и не запускают классификацию (LS-03).
+        row = None
+        for ident, raw in self.conn.execute("""SELECT id, plan_json FROM catalog_expansions WHERE status='approved'
+                ORDER BY demand DESC, updated_at ASC""").fetchall():
+            if self.is_demand_stub(self._loads(raw)):
+                continue
+            row = self.conn.execute("""UPDATE catalog_expansions SET status='checking', generation=generation+1,
+                attempts=attempts+1, updated_at=? WHERE id=? AND status='approved' RETURNING id""", (now(), ident)).fetchone()
+            if row:
+                break
         self._commit()
         return self.get(row[0]) if row else None
 
@@ -294,44 +313,68 @@ class CatalogExpansionRepository:
             self.conn.execute('DELETE FROM local_search_intents WHERE updated_at<?',(cutoff,))
             self._commit()
 
-    @staticmethod
-    def _is_trusted_saved_plan(plan):
-        if not isinstance(plan, dict):
-            return False
-        if plan.get('unverified_fallback'):
-            return False
+    _LEGACY_STUB_KEYS = frozenset({'category_id', 'category_name', 'search_query', 'confidence', 'fields', 'attributes'})
+
+    @classmethod
+    def is_demand_stub(cls, plan):
+        """Заявка только фиксирует спрос, плана модели в ней нет (LS-03).
+
+        Новые заглушки помечены unverified_fallback. Прежние (6.28.18–6.59.0) записывались без ответа
+        модели ровно с шестью ключами, confidence=1.0 и пустыми полями; план модели всегда содержит
+        parent_id и clarification. Заглушка не создаёт раздел и не уходит в ИИ-классификацию —
+        допустим только буквальный опрос магазинов."""
+        if not isinstance(plan, dict) or plan.get('unverified_fallback'):
+            return True
         cat_id = plan.get('category_id')
-        if not cat_id or cat_id == 'uncategorized':
-            return False
-        try:
-            if float(plan.get('confidence') or 0.0) < 0.85:
-                return False
-        except (TypeError, ValueError):
-            return False
-        # Прежняя заглушка demand-capture без ответа модели (до 6.59.0):
-        # category_id='appliances', category_name='Каталог', fields=[]
+        if not isinstance(cat_id, str) or not cat_id or cat_id == 'uncategorized':
+            return True
         if cat_id == 'appliances' and plan.get('category_name') == 'Каталог' and not plan.get('fields'):
-            return False
-        return True
+            return True
+        return (set(plan) == cls._LEGACY_STUB_KEYS and plan.get('confidence') == 1.0
+                and not plan.get('fields') and not plan.get('attributes'))
+
+    @staticmethod
+    def _loads(raw):
+        try:
+            return json.loads(raw)
+        except (TypeError, ValueError):
+            return None
+
+    @classmethod
+    def _decode_saved_plan(cls, raw):
+        plan = cls._loads(raw)
+        if not isinstance(plan, dict) or cls.is_demand_stub(plan):
+            return None
+        confidence = plan.get('confidence')
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0.85 <= confidence <= 1.0:
+            return None
+        return plan
 
     def saved_plan(self, query):
         import search_analytics as sa
         clean = sa.storable_text(query)
-        row = self.conn.execute("SELECT plan_json FROM catalog_expansions WHERE query=? AND status!='rejected' ORDER BY updated_at DESC LIMIT 1",
-                                (clean,)).fetchone()
-        if row:
-            parsed = json.loads(row[0])
-            return parsed if self._is_trusted_saved_plan(parsed) else None
-        if not clean or len(clean.split())>2 or re.search(r'\d',clean):
+        if not clean:
+            return None
+        exact = self.conn.execute("""SELECT plan_json FROM catalog_expansions
+            WHERE query=? AND status NOT IN ('rejected', 'deleted') ORDER BY updated_at DESC""", (clean,))
+        for (raw,) in exact:
+            plan = self._decode_saved_plan(raw)
+            if plan is not None:
+                return plan
+        if len(clean.split()) > 2 or re.search(r'\d', clean):
             return None
         relations = {'не','нет','без','кроме','для','вместо','not','without','for'}
-        rows = self.conn.execute("SELECT plan_json,query FROM catalog_expansions WHERE (scan_text=? OR EXISTS(SELECT 1 FROM json_each(source_queries) WHERE value=?)) AND status!='rejected' ORDER BY updated_at DESC",(clean,clean)).fetchall()
+        rows = self.conn.execute("""SELECT plan_json, query FROM catalog_expansions
+            WHERE (scan_text=? OR EXISTS(SELECT 1 FROM json_each(source_queries) WHERE value=?))
+              AND status NOT IN ('rejected', 'deleted') ORDER BY updated_at DESC""", (clean, clean))
         plans = []
+        words = set(clean.split())
         for raw, original in rows:
-            if set(clean.split()).issubset(set(original.split())) and not relations.intersection(original.split()):
-                parsed = json.loads(raw)
-                if self._is_trusted_saved_plan(parsed):
-                    plans.append(parsed)
+            original_words = set(original.split())
+            if words.issubset(original_words) and not relations.intersection(original_words):
+                plan = self._decode_saved_plan(raw)
+                if plan is not None:
+                    plans.append(plan)
         return plans[0] if plans and len({p['category_id'] for p in plans})==1 else None
 
     def verified_products(self, query, category_id=None):

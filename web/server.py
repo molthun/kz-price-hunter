@@ -1413,7 +1413,10 @@ async def search_v2_handler(request):
                 finally:
                     conn.close()
             categories = await asyncio.to_thread(_context)
-            understanding = await local_search.understand(search_query, categories)
+            # Толкование раскладки выбирается один раз по буквальным совпадениям каталога (LS-01)
+            corrected = await asyncio.to_thread(local_search.choose_layout_query, arguments, attributes)
+            understanding = dict(await local_search.understand(search_query, categories, corrected_query=corrected))
+            understanding['corrected_query'] = corrected
             data = await asyncio.to_thread(local_search.search_sync, arguments, understanding, attributes)
             # Если по штрихкоду с исходной категорией ничего не найдено - снимаем категорийный фильтр
             if resolved_barcode_info and (not data.get("items") or len(data.get("items")) == 0):

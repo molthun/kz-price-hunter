@@ -276,7 +276,8 @@ class SizeWatchDeliveryRaceTest(unittest.TestCase):
         database.save_or_update_products_batch([
             {"id": pid, "title": "Кроссовки Kari Runner", "price": 20000, "shop": "Kari", "city": "Алматы",
              "url": f"https://kari.example/{pid}", "category": "Kari: 👟 Обувь"} for pid in ("kari_100", "kari_101")])
-        self.t0 = datetime.datetime(2026, 11, 23, 10, 0, 0, tzinfo=datetime.timezone.utc)
+        # The real sender expires old events before it reaches the delivery race.
+        self.t0 = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1)
 
     def tearDown(self):
         self._patcher.stop()

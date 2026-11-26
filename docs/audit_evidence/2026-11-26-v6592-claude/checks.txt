@@ -1,0 +1,12 @@
+6.59.2, Claude, 26.11.2026 (working tree on top of b9a0ef3 + Codex 6.59.1 edits)
+== Regression proof: tests/search/test_local_search_ls_fixes.py on 6.59.0 code (git archive b9a0ef3) -> FAILED (LS-01/03/04, Pro/Pro Max, S24/S24+, PS5); on 6.59.2 -> 20 OK
+== Local, macOS, Python 3.14.7 (repo venv)
+Ran 3496 tests in 237.017s
+OK
+== Frontend (Deno + playwright 1.63.0 + Chrome), all tests/frontend/*.cjs
+frontend pass=51 fail=0
+== Linux clean container on stand host (separate image kzph-candidate:6592-claude sha256:93a473c2…, --network none, tmpfs data; image and dir removed after run; live kzph-stand untouched)
+Ran 3496 tests in 599.647s
+OK
+== release_gate.py secrets --root . -> ok, findings []
+== Live 6.58.4 in owner's Chrome, read-only, Astana: Dr.Martens -> shoes fallback 15955; "квантовый синхрофазотрон" -> tools_repair fallback; iPhone 15 Pro 256 -> Pro Max 6.3 > Pro 6.2; Galaxy S24 -> S24+ first; PS5 -> 0-1 (remote), PlayStation 5 -> 33; "экран" in monitors -> 0

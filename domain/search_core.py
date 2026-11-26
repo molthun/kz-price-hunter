@@ -29,6 +29,16 @@ logger = logging.getLogger("kz_price_hunter.search_core")
 from domain.purchasability import offer_expired, offer_purchasable, utc_now  # noqa: E402,F401
 
 
+_MODEL_VARIANT_WORDS = frozenset({"max", "plus", "ultra", "mini", "lite", "pro", "fe"})
+_VARIANT_ALIASES = {"плюс": "plus", "макс": "max", "про": "pro", "ультра": "ultra", "мини": "mini"}
+
+
+def _variant_words(text: str) -> set:
+    """Слова варианта модели; «S24+» считается вариантом Plus."""
+    text = re.sub(r"(?<=[0-9a-zа-яё])\+", " plus", (text or "").lower())
+    return {_VARIANT_ALIASES.get(w, w) for w in re.findall(r"[0-9a-zа-яё]+", text)}
+
+
 class SearchOutcome:
     FOUND = "FOUND"
     WEAK_MATCH = "WEAK_MATCH"
@@ -441,7 +451,16 @@ class SearchCore:
             total_offers_count = 0
 
             # Extract numeric tokens from query to check model consistency (e.g. 5090 vs 5070)
-            query_num_tokens = set(re.findall(r"\b\d{2,5}\b", parsed.clean_query))
+            # Выдача по подтверждённой области (apply_semantics) идёт с пустым текстом; точность модели
+            # оценивается по тексту покупателя, иначе «iPhone 15 Pro» уступал «Pro Max» (аудит 26.11)
+            rank_text = getattr(self.search_repo, "rank_query", None)
+            rank_parsed = QueryParser.parse(rank_text) if rank_text and not parsed.clean_query else parsed
+            query_num_tokens = set(re.findall(r"\b\d{2,5}\b", rank_parsed.clean_query))
+            # Слова варианта модели, которых нет в запросе: «iPhone 15 Pro» не должен уступать «Pro Max»,
+            # «Galaxy S24» — «S24+». Берётся сырой текст: разбор запроса может убрать «+».
+            variant_source = rank_text if rank_text and not parsed.clean_query else query
+            query_words = _variant_words(variant_source)
+            query_has_model_code = bool(re.search(r"\d", rank_parsed.clean_query))
 
             for item in raw_items:
                 product = item["product"]
@@ -656,7 +675,7 @@ class SearchCore:
 
                 # Model exact match bonus: model tokens (e.g. 5090, 16 pro)
                 has_model_match = False
-                if product.model and product.model.lower() in parsed.clean_query.lower():
+                if product.model and product.model.lower() in rank_parsed.clean_query.lower():
                     rel_score += 15.0
                     has_model_match = True
                 elif any(nt in prod_model_lower or nt in prod_title_lower for nt in query_num_tokens):
@@ -669,8 +688,15 @@ class SearchCore:
                     if q_num not in prod_num_tokens:
                         rel_score -= 25.0
 
+                # Несовпадение варианта модели при запросе с кодом модели
+                if query_has_model_code:
+                    prod_words = _variant_words(f"{prod_title_lower} {prod_model_lower}")
+                    # Лишний вариант («Pro Max» на «15 Pro») или отсутствующий запрошенный («S24» на «S24+»)
+                    if (_MODEL_VARIANT_WORDS & prod_words) ^ (_MODEL_VARIANT_WORDS & query_words):
+                        rel_score -= 8.0
+
                 # Attribute match bonuses (e.g. 256gb)
-                for attr_val in parsed.attributes.values():
+                for attr_val in rank_parsed.attributes.values():
                     if attr_val.lower() in prod_text:
                         rel_score += 5.0
 
