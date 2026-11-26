@@ -198,12 +198,24 @@ async function scenario(browser,{width,height,scheme}){
  await cardsVisible('Товар город');
  assert.equal(apiCalls.at(-1).get('city'),'Алматы',`${label}: без city тот же результат, что и после reload`);
  assert.equal(await page.inputValue('#globalCitySelect'),'Алматы');
+ assert.equal(await page.evaluate(()=>localStorage.getItem('kz_hunter_city')),null,`${label}: ссылка с city не меняет выбор пользователя`);
  await page.selectOption('#globalCitySelect','Шымкент');
  await page.waitForFunction(()=>decodeURIComponent(location.search).includes('city=Шымкент'));
  await cardsVisible('Товар город');
  await page.goBack();
  await cardsVisible('Товар город');
- assert.equal(await page.inputValue('#globalCitySelect'),'Алматы',`${label}: назад восстанавливает город`);
+ // 6.59.3: ссылка без city — город, выбранный пользователем; «Назад» и reload дают одно и то же
+ assert.equal(await page.inputValue('#globalCitySelect'),'Шымкент',`${label}: назад без city — выбранный город`);
+ assert.equal(apiCalls.at(-1).get('city'),'Шымкент');
+ await page.reload();
+ await cardsVisible('Товар город');
+ assert.equal(await page.inputValue('#globalCitySelect'),'Шымкент',`${label}: reload без city — выбранный город`);
+ assert.equal(apiCalls.at(-1).get('city'),'Шымкент');
+ await page.goto(BASE+'/search?q=город&city=Астана');
+ await cardsVisible('Товар город');
+ assert.equal(await page.inputValue('#globalCitySelect'),'Астана',`${label}: city в ссылке важнее выбранного`);
+ assert.equal(await page.evaluate(()=>localStorage.getItem('kz_hunter_city')),'Шымкент');
+ await page.evaluate(()=>{localStorage.removeItem('kz_hunter_city');localStorage.removeItem('kzph_city');});
 
  // SF1-04, SF1-10: условия и история
  await page.goto(BASE+'/product/p1?city=Алматы');

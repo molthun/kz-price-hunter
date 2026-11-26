@@ -8441,6 +8441,20 @@
       }
     }
 
+    // Город, выбранный пользователем (селектор, профиль, геолокация). Ссылки с city его не меняют.
+    function savedUserCity() {
+      try {
+        return localStorage.getItem('kz_hunter_city') || localStorage.getItem('kzph_city') || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Ссылка без city: тот же город при переходе внутри страницы, после reload и по «Назад».
+    function cityForLinkWithoutCity() {
+      return savedUserCity() || DEFAULT_CITY;
+    }
+
     function initCity() {
       const params = new URLSearchParams(window.location.search);
       const urlCity = params.get('city');
@@ -8452,13 +8466,11 @@
       const isSearch = pathname === '/search' || params.has('q') || params.has('cat') || params.has('category');
       const isProduct = pathname.startsWith('/product/') || pathname.startsWith('/offer/');
       if (isSearch || isProduct) {
-        setCity(DEFAULT_CITY, false);
+        // 6.59.3: ссылка без city открывается в городе, который пользователь выбрал сам, а не в Алматы
+        setCity(cityForLinkWithoutCity(), false);
         return;
       }
-      let savedCity = null;
-      try {
-        savedCity = localStorage.getItem('kz_hunter_city') || localStorage.getItem('kzph_city');
-      } catch (e) {}
+      const savedCity = savedUserCity();
       if (savedCity) {
         setCity(savedCity, false);
       } else {
@@ -10359,7 +10371,7 @@
       if (params.get('city')) {
         setCity(params.get('city'), false);
       } else if (isSearch || isProduct || isOffer) {
-        setCity(DEFAULT_CITY, false);
+        setCity(cityForLinkWithoutCity(), false);
       }
 
       if (isProduct || isOffer) {

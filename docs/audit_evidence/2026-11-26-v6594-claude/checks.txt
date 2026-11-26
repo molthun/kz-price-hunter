@@ -1,0 +1,16 @@
+6.59.4 (Claude, 26.11.2026), поверх незакоммиченной 6.59.3 Codex, macOS локально
+- venv/bin/python -m unittest discover -s tests -t . : Ran 3498 tests in 232.394s — OK
+- Регрессия test_plus_word_finds_titles_written_with_plus_sign на search_repo.py 6.59.3: FAILED (failures=3); с правкой — OK
+- tests/frontend/*.cjs (все из git ls-files, Deno + playwright 1.63.0, Chrome): см. итог ниже
+- git diff --check: ok
+Не проверено: чистый Linux-контейнер, реальная модель, живой сайт (нужна выкладка).
+[exited with code 0]
+
+LS-04 P2 (дополнение 6.59.4):
+- venv/bin/python -m unittest discover -s tests -t . : Ran 3501 tests in 225.580s — OK
+- UngroundedRewriteApiTest (штатный /api/v2/search через aiohttp TestClient, call_local_api подменён ответом Codex: «стиральный порошок», appliances, 0.96): 3 OK; с отключённым _rewrite_grounded — FAILED (failures=2)
+- tests/frontend/*.cjs после LS-04: [exited with code 0]
+
+Linux, чистый контейнер на хосте стенда (отдельный образ kzph-candidate:6594-claude sha256:890f5b5c9d2a…, --network none, tmpfs /app/data; образ и каталог удалены; живой kzph-stand не тронут, healthy):
+- Ran 3501 tests in 495.417s — OK
+- Первая попытка дала 3 ERROR (UnicodeDecodeError) из-за служебных файлов macOS `._*` в архиве; архив пересобран с COPYFILE_DISABLE=1, файлов `._*` 0.

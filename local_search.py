@@ -122,19 +122,23 @@ def _literal_total(conn, arguments, selected_attributes):
     repo = SearchRepository(conn)
     repo.attribute_filters = attrs
     res = SearchCore(repo).search(**args)
-    return res.total_products if res.outcome != 'ERROR' else 0
+    return res.total_products if res.outcome != 'ERROR' else None
 
 
 def _choose_layout(conn, arguments, selected_attributes):
     """Одно толкование раскладки для модели, выдачи, цели наблюдения и спроса (LS-01).
 
-    Исправление применяется, только если буквальный запрос не находит ни одного товара
-    с учётом города и действующих фильтров."""
+    Если каталог знает буквальный запрос, сохраняем его и при пустой выдаче по фильтрам.
+    Проверка без фильтров нужна только для выбора текста поиска и наблюдения."""
     corrected = fix_wrong_keyboard_layout(arguments.get('query') or '')
     if not corrected:
         return None
     try:
-        if _literal_total(conn, arguments, selected_attributes) > 0:
+        if _literal_total(conn, arguments, selected_attributes) != 0:
+            return None
+        # Например, обувь Dr.Martens есть в другом городе или стоит дороже лимита.
+        # Пользователю всё равно нужно наблюдение за Dr.Martens с его фильтрами.
+        if _literal_total(conn, {'query': arguments['query'], 'limit': 1}, {}) != 0:
             return None
     except Exception:
         return None
@@ -965,6 +969,43 @@ def _query_grounded_in_category(repo, cats, query, category_id, offer_args):
     return False
 
 
+def _rewrite_tokens(text):
+    """Содержательные токены для сверки переписанного запроса: без служебных слов и голых чисел."""
+    return [t for t in re.findall(r'[0-9a-zа-я]+', _norm(text))
+            if len(t) >= 2 and t not in _GROUNDING_STOPWORDS and not t.isdigit()]
+
+
+def _tokens_near(a, b):
+    from repositories.search_repo import TOKEN_SYNONYMS
+    if a == b or b in TOKEN_SYNONYMS.get(a, ()) or a in TOKEN_SYNONYMS.get(b, ()):
+        return True
+    if len(a) < 4 or len(b) < 4:
+        return False  # короткие коды («rtx», «ps5») — только точное совпадение
+    if a[:4] == b[:4]:
+        return True  # словоформа или усечение: «зимняя» -> «зимн», «кросовки» -> «кроссовки»
+    import difflib
+    return difflib.SequenceMatcher(None, a, b).ratio() >= 0.75  # опечатка
+
+
+def _rewrite_grounded(repo, cats, original, plan):
+    """Опора текста и раздела модели на запрос покупателя (LS-04, P2 приёмки Codex 26.11).
+
+    Уверенная модель может заменить «квантовый синхрофазотрон» на «стиральный порошок» — тогда
+    выдача, сохранённое намерение и цель наблюдения ушли бы к чужому товару. Переписанный текст
+    принимается, если хотя бы один его токен совпадает с токеном запроса (опечатка, словоформа,
+    синоним поиска), либо сам запрос опирается на выбранный раздел (название, синонимы раздела или
+    названия его товаров во всём каталоге: «удобная обувь» -> «кроссовки», «экран» -> монитор)."""
+    rewritten = _rewrite_tokens(plan.get('search_query') or '')
+    source = _rewrite_tokens(original)
+    if rewritten and any(_tokens_near(r, o) for r in rewritten for o in source):
+        return True
+    category_id = plan.get('category_id')
+    if not category_id or not cats.get_by_id(category_id):
+        return False
+    # Опора на раздел проверяется по всему каталогу: фильтр города или цены не делает запрос выдуманным
+    return _query_grounded_in_category(repo, cats, original, category_id, {})
+
+
 def search_sync(arguments, understanding, selected_attributes):
     """All SQL reads/attributes/counts/facets share one connection and one filter."""
     from database import get_connection
@@ -994,6 +1035,11 @@ def search_sync(arguments, understanding, selected_attributes):
                     # Keep confirmed intent + literal words, never broaden using an unsafe rewrite.
                     plan = {**plan,'search_query':effective_original,'attributes':{}}
             cached_plan = bool(plan)
+        rewrite_rejected = False
+        if plan and not _rewrite_grounded(SearchRepository(conn), cats, effective_original, plan):
+            # Неподтверждённая подмена: ищем текст покупателя, намерение не сохраняется,
+            # цель наблюдения и спрос остаются за исходным запросом
+            plan, cached_plan, rewrite_rejected = None, False, True
         selected_category = arguments.get('category')
         inferred_category = None
         attrs = dict(selected_attributes)
@@ -1092,6 +1138,8 @@ def search_sync(arguments, understanding, selected_attributes):
         data['selected_attributes'] = {**inferred_attrs, **attrs}
         data['local_ai'] = {k: v for k, v in understanding.items() if k != 'plan'}
         data['local_ai']['cached_plan'] = cached_plan
+        if rewrite_rejected:
+            data['local_ai']['rewrite_rejected'] = True
         if fixed_layout:
             data['local_ai']['corrected_query'] = fixed_layout
         clarification_msg = (plan or {}).get('clarification', '')

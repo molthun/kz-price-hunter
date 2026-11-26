@@ -87,11 +87,24 @@ class LayoutLiteralPriorityTest(_Fixture):
         self.assertIn("dr.martens", self._demand())
         self.assertNotIn("вкюьфкеуты", self._demand())
 
-    def test_literal_check_respects_city_and_filters(self):
+    def test_catalog_match_preserves_literal_interpretation_across_filters(self):
         args = {"query": "dr.martens", "city": "Астана", "category": None, "limit": 20}
         with patch("database.get_connection", side_effect=self._get_conn):
             self.assertIsNone(local_search.choose_layout_query(args, {}))
-            self.assertEqual(local_search.choose_layout_query({**args, "max_price": 1000}, {}), "вкюьфкеуты")
+            self.assertIsNone(local_search.choose_layout_query({**args, "max_price": 1000}, {}))
+
+    def test_filtered_out_literal_match_preserves_watch_and_demand(self):
+        for filters in ({"city": "Алматы"}, {"city": "Астана", "max_price": 1000}):
+            with self.subTest(filters=filters):
+                data = self._search("dr.martens", **filters)
+                self.assertEqual(data["total_products"], 0)
+                self.assertIsNone(data["local_ai"].get("corrected_query"))
+                spec = self._watch_spec(data)
+                self.assertEqual(spec["query"], "dr.martens")
+                self.assertEqual(spec["max_price"], filters.get("max_price"))
+                self.assertEqual(data["search_help"]["watch_city"], filters["city"])
+        self.assertIn("dr.martens", self._demand())
+        self.assertNotIn("вкюьфкеуты", self._demand())
 
     def test_server_path_keeps_literal_query_for_model(self):
         data, prompts = self._server_path("dr.martens", {"search_query": "dr.martens", "category_id": "shoes",
@@ -288,6 +301,27 @@ class ExactModelVariantRankingTest(_Fixture):
         self.assertEqual(order("Samsung Galaxy S24")[0], "s24")
         self.assertEqual(order("Samsung Galaxy S24+")[0], "s24p")
 
+    def test_plus_word_finds_titles_written_with_plus_sign(self):
+        # Живой сайт 26.11: «Galaxy S24 Plus» не находил ни одного «S24+» — в индексе нет знака «+».
+        for pid, title in (("s24p", "Смартфон Samsung Galaxy S24+ 5G 12/512GB Onyx Black"),
+                           ("s24pw", "Смартфон Samsung Galaxy S24 Plus 8/256GB Violet"),
+                           ("s24u", "Смартфон Samsung Galaxy S24 Ultra 12/256GB Gray"),
+                           ("s24", "Смартфон Samsung Galaxy S24 8/128GB Cobalt")):
+            ProductRepository(self.conn).save_or_update(CanonicalProduct(
+                id=pid, canonical_key="k_" + pid, title=title, category="phones", brand="Samsung"))
+            OfferRepository(self.conn).save_or_update(Offer(
+                id=f"o_{pid}", product_id=pid, seller_id="s1", channel_id="c1", external_sku=f"sku_{pid}",
+                url=f"http://ex.com/{pid}", price=400000, condition="new", city="Астана"))
+        self.conn.commit()
+        for q in ("Samsung Galaxy S24 Plus", "galaxy s24 plus", "Galaxy S24 плюс"):
+            with self.subTest(q=q):
+                data = self._search(q)
+                ids = {i["product"]["id"] for i in data["items"]}
+                self.assertEqual(ids, {"s24p", "s24pw"}, q)
+                self.assertEqual(data["total_products"], 2)
+        # Plus без кода модели перед ним — обычное слово, требуется как раньше
+        self.assertEqual({i["product"]["id"] for i in self._search("iPhone 15 Pro Max 256")["items"]}, {"ip15pm"})
+
 
 class LiveSiteFindingsTest(_Fixture):
     def test_ps5_finds_playstation_5(self):
@@ -321,3 +355,86 @@ class LiveSiteFindingsTest(_Fixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+POISONED = {"search_query": "стиральный порошок", "category_id": "appliances", "category_name": "Бытовая техника",
+            "parent_id": None, "confidence": 0.96, "attributes": {}, "fields": [], "clarification": ""}
+
+
+class UngroundedRewriteApiTest(_Fixture, unittest.IsolatedAsyncioTestCase):
+    """LS-04 P2 (приёмка Codex 26.11): уверенная подмена текста моделью через штатный /api/v2/search."""
+
+    def setUp(self):
+        _Fixture.setUp(self)
+
+    async def _api(self, query, answer, **params):
+        from aiohttp import web
+        from aiohttp.test_utils import TestClient, TestServer
+        import web.server as srv
+
+        async def fake_call(prompt, base, model, api_key, timeout=18.0, **kw):
+            return answer
+
+        with patch("database.get_connection", side_effect=self._get_conn), \
+             patch.dict(os.environ, {"LOCAL_SEARCH_ENABLED": "1"}), \
+             patch("config.get_ai_config", return_value={"local_api_base": "http://127.0.0.1:11434/v1", "local_model": "qwen"}), \
+             patch("local_ai.pause_reason", return_value=None), \
+             patch("ai_service.call_local_api", new=AsyncMock(side_effect=fake_call)):
+            app = web.Application()
+            app.add_routes([web.get("/api/v2/search", srv.search_v2_handler)])
+            client = TestClient(TestServer(app))
+            await client.start_server()
+            try:
+                res = await client.get("/api/v2/search", params={"q": query, **params})
+                return res.status, await res.json()
+            finally:
+                await client.close()
+
+    def _intents(self):
+        return {r[0]: json.loads(r[1]) for r in self.conn.execute("SELECT query, plan_json FROM local_search_intents")}
+
+    async def test_confident_substitution_shows_nothing_and_keeps_watch_target(self):
+        status, data = await self._api("квантовый синхрофазотрон", POISONED, city="Астана")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["total_products"], 0)
+        self.assertNotIn("p_app", [i["product"]["id"] for i in data["items"]])
+        self.assertFalse(data["search_help"]["is_fallback"])
+        self.assertTrue(data["local_ai"].get("rewrite_rejected"))
+        spec = self._watch_spec(data)
+        self.assertEqual(spec["query"], "квантовый синхрофазотрон")
+        self.assertIsNone(spec.get("category"))
+        self.assertNotIn("квантовый синхрофазотрон", self._intents(), "подмена не сохраняется как намерение")
+        status, plan = self._demand()["квантовый синхрофазотрон"]
+        self.assertTrue(local_search_repo().is_demand_stub(plan), plan)
+
+    async def test_useful_rewrites_still_apply(self):
+        cases = [
+            # опечатка: текст модели близок к запросу
+            ("кросовки", {**POISONED, "search_query": "кроссовки", "category_id": "shoes", "category_name": "Обувь"}, "p_shoe"),
+            # смысловой переход внутри раздела, на который опирается запрос
+            ("удобная обувь", {**POISONED, "search_query": "кроссовки", "category_id": "shoes", "category_name": "Обувь"}, "p_shoe"),
+            # синоним поиска
+            ("порошок дофи", {**POISONED, "search_query": "стиральный порошок doffi"}, "p_app"),
+        ]
+        for query, answer, pid in cases:
+            with self.subTest(query=query):
+                local_search._plans.clear()
+                status, data = await self._api(query, answer, city="Астана")
+                self.assertEqual(status, 200)
+                self.assertIn(pid, [i["product"]["id"] for i in data["items"]], data["search_help"])
+                self.assertFalse(data["local_ai"].get("rewrite_rejected", False))
+                self.assertEqual(self._watch_spec(data)["query"], answer["search_query"])
+
+    async def test_poisoned_cached_intent_is_ignored(self):
+        from repositories.catalog_expansion_repo import CatalogExpansionRepository
+        CatalogExpansionRepository(self.conn).save_intent("квантовый синхрофазотрон", dict(POISONED))
+        self.conn.commit()
+        status, data = await self._api("квантовый синхрофазотрон", None, city="Астана")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["total_products"], 0)
+        self.assertEqual(self._watch_spec(data)["query"], "квантовый синхрофазотрон")
+
+
+def local_search_repo():
+    from repositories.catalog_expansion_repo import CatalogExpansionRepository
+    return CatalogExpansionRepository

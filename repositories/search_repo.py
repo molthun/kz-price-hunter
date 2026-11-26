@@ -236,6 +236,41 @@ class SearchRepository(BaseRepository):
             result.update(SearchRepository._cat_cache.get(cid, set()))
         return result
 
+    _PLUS_WORDS = frozenset({"plus", "плюс"})
+
+    @classmethod
+    def _plus_variant_codes(cls, text: str) -> List[str]:
+        """
+        Коды моделей, за которыми в запросе идёт слово Plus: «S24 Plus» → ["s24"].
+        В названиях вариант часто пишут знаком («S24+»), а FTS знак «+» не индексирует.
+        """
+        tokens = re.sub(r'[^\w\-\s]', ' ', text or '').lower().split()
+        return [prev for prev, t in zip(tokens, tokens[1:])
+                if t in cls._PLUS_WORDS and any(ch.isdigit() for ch in prev)]
+
+    @classmethod
+    def _is_plus_after_code(cls, tokens: List[str], i: int) -> bool:
+        return (i > 0 and tokens[i] in cls._PLUS_WORDS
+                and any(ch.isdigit() for ch in tokens[i - 1]))
+
+    @classmethod
+    def _plus_variant_filter(cls, text: str, alias: str = "p") -> tuple[str, list]:
+        """
+        Условие «товар — вариант Plus этого кода»: «S24+», «S24 +», «S24 Plus», «S24Plus», «S24 Плюс».
+        Слово Plus после кода не требуется от FTS и LIKE по отдельности — его проверяет это условие.
+        """
+        parts: List[str] = []
+        params: list = []
+        for code in cls._plus_variant_codes(text):
+            pats = [f"%{code}+%", f"%{code} +%", f"%{code} plus%", f"%{code}plus%",
+                    f"%{code} плюс%", f"%{code} Плюс%", f"%{code} ПЛЮС%"]
+            cols = (f"LOWER({alias}.title)", f"LOWER(COALESCE({alias}.model, ''))")
+            parts.append("(" + " OR ".join(f"{col} LIKE ?" for col in cols for _ in pats) + ")")
+            params.extend(pats + pats)
+        if not parts:
+            return "", []
+        return "AND " + " AND ".join(parts), params
+
     @classmethod
     def _build_fts_query(cls, text: str, operator: str = "AND") -> str:
         """
@@ -249,7 +284,9 @@ class SearchRepository(BaseRepository):
             return ""
 
         parts = []
-        for t in tokens:
+        for i, t in enumerate(tokens):
+            if cls._is_plus_after_code(tokens, i):
+                continue  # «S24 Plus»: вариант проверяет _plus_variant_filter, «+» в индексе нет
             if t in TOKEN_SYNONYMS:
                 alts = [t] + TOKEN_SYNONYMS[t]
                 alts_expr = " OR ".join([f'"{alt}"*' for alt in alts])
@@ -580,7 +617,9 @@ class SearchRepository(BaseRepository):
         where_clauses = ["1=1"]
         like_params: list = []
 
-        for t in tokens:
+        for i, t in enumerate(tokens):
+            if SearchRepository._is_plus_after_code(tokens, i):
+                continue  # см. _plus_variant_filter
             sub_tokens = [t]
             if t in TOKEN_SYNONYMS:
                 sub_tokens.extend(TOKEN_SYNONYMS[t])
@@ -621,6 +660,9 @@ class SearchRepository(BaseRepository):
         brand_sql, brand_params = self._brand_filter(brand)
         model_sql, model_params = self._model_filter(model)
         kind_sql, kind_params = self._kind_filter(kind)
+        plus_sql, plus_params = self._plus_variant_filter(search_text)
+        kind_sql = f"{kind_sql} {plus_sql}".strip()
+        kind_params = kind_params + plus_params
 
         fts_query = self._build_fts_query(search_text) if search_text else ""
         if fts_query:
@@ -738,6 +780,10 @@ class SearchRepository(BaseRepository):
         brand_filter_sql, brand_filter_params = self._brand_filter(brand)
         model_filter_sql, model_filter_params = self._model_filter(model)
         kind_filter_sql, kind_filter_params = self._kind_filter(kind)
+        plus_sql, plus_params = self._plus_variant_filter(search_text)
+        if plus_sql:
+            kind_filter_sql = f"{kind_filter_sql} {plus_sql}".strip()
+            kind_filter_params = kind_filter_params + plus_params
 
         # Исполнения одной модели — одна карточка: в выдаче остаётся самое дешёвое из подходящих.
         # Цена считается только у товаров с семейством, остальные остаются одни в своей группе.
