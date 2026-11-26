@@ -457,3 +457,56 @@ class UngroundedRewriteApiTest(_Fixture, unittest.IsolatedAsyncioTestCase):
 def local_search_repo():
     from repositories.catalog_expansion_repo import CatalogExpansionRepository
     return CatalogExpansionRepository
+
+
+class ConstraintAdjectiveApiTest(_Fixture, unittest.IsolatedAsyncioTestCase):
+    """LS-04 (приёмка Codex `3203803`): прилагательное-требование не теряется при переписывании моделью."""
+    _api = UngroundedRewriteApiTest._api
+
+    def setUp(self):
+        _Fixture.setUp(self)
+        for pid, title, cat in (("p_kids", "Кроссовки детские Kari Kids", "shoes"),
+                                ("p_wet", "Кроссовки непромокаемые мембранные Kari", "shoes"),
+                                ("p_nophos", "Стиральный порошок бесфосфатный Doffi Eco", "appliances")):
+            ProductRepository(self.conn).save_or_update(CanonicalProduct(
+                id=pid, canonical_key="k_" + pid, title=title, category=cat, brand="Kari"))
+            OfferRepository(self.conn).save_or_update(Offer(
+                id="o_" + pid, product_id=pid, seller_id="s1", channel_id="c1", external_sku="sku_" + pid,
+                url="http://ex.com/" + pid, price=20000, condition="new", city="Астана"))
+        self.conn.commit()
+
+    SHOES = {**POISONED, "category_id": "shoes", "category_name": "Обувь", "search_query": "кроссовки"}
+
+    async def test_constraint_adjective_stays_in_results_and_watch(self):
+        cases = [("непромокаемые кроссовки", self.SHOES, "p_wet", ("p_shoe", "p_kids")),
+                 ("детские кроссовки", self.SHOES, "p_kids", ("p_shoe", "p_wet")),
+                 ("бесфосфатный порошок", {**POISONED, "search_query": "стиральный порошок"}, "p_nophos", ("p_app",))]
+        for query, answer, want, unwanted in cases:
+            with self.subTest(query=query):
+                local_search._plans.clear()
+                status, data = await self._api(query, answer, city="Астана")
+                self.assertEqual(status, 200)
+                ids = [i["product"]["id"] for i in data["items"]]
+                self.assertIn(want, ids)
+                for pid in unwanted:
+                    self.assertNotIn(pid, ids)
+                self.assertFalse(data["search_help"]["is_fallback"])
+                target = data["search_help"]["watch_target"]
+                self.assertIn(query.split()[0], self._watch_spec(data)["query"])
+                with patch("database.get_connection", side_effect=self._get_conn):
+                    self.assertTrue(local_search.matches_watch(target, {"product_id": want, "current_price": 1}))
+                    for pid in unwanted:
+                        self.assertFalse(local_search.matches_watch(target, {"product_id": pid, "current_price": 1}), pid)
+
+    async def test_vague_adjective_is_still_dropped(self):
+        status, data = await self._api("удобные кроссовки", self.SHOES, city="Астана")
+        self.assertEqual(self._watch_spec(data)["query"], "кроссовки")
+        self.assertTrue({"p_shoe", "p_kids", "p_wet"} <= {i["product"]["id"] for i in data["items"]})
+
+    def test_adjective_kept_by_applied_filter_is_not_restored(self):
+        self.assertEqual(local_search._restore_dropped_qualifiers("кроссовки", "детские кроссовки", {"age": "Детские"}),
+                         "кроссовки")
+        self.assertEqual(local_search._restore_dropped_qualifiers("кроссовки", "детские кроссовки", {}),
+                         "детские кроссовки")
+        self.assertEqual(local_search._restore_dropped_qualifiers("ноутбук", "ноутбук оперативная память 16 ГБ", {}),
+                         "ноутбук")

@@ -90,15 +90,16 @@ class PlusVariantWatchTest(unittest.TestCase):
         return queued
 
     def test_watch_from_results_and_from_empty_results_queues_only_plus(self):
-        for city in ("Алматы", "Астана"):  # предложения в Алматы; в Астане выдача пустая
-            with self.subTest(city=city):
-                data = self._search("Galaxy S24 Plus", city)
-                found = {i["product"]["id"] for i in data["items"]}
-                self.assertEqual(found, PLUS if city == "Алматы" else set())
-                target = data["search_help"]["watch_target"]
-                for pid in PHONES:
-                    self.assertEqual(local_search.matches_watch(target, self._offer(pid, city)), pid in PLUS, pid)
-                self.assertEqual(self._queued_for(target, city), PLUS)
+        for query in ("Galaxy S24 Plus", "Galaxy S24+", "Galaxy S24 +"):
+            for city in ("Алматы", "Астана"):  # в Астане выдача пустая
+                with self.subTest(query=query, city=city):
+                    data = self._search(query, city)
+                    found = {i["product"]["id"] for i in data["items"]}
+                    self.assertEqual(found, PLUS if city == "Алматы" else set())
+                    target = data["search_help"]["watch_target"]
+                    for pid in PHONES:
+                        self.assertEqual(local_search.matches_watch(target, self._offer(pid, city)), pid in PLUS, pid)
+                    self.assertEqual(self._queued_for(target, city), PLUS)
 
     def test_plain_s24_watch_still_matches_every_s24(self):
         # Без слова Plus поведение прежнее: вариант не навязывается
@@ -118,13 +119,21 @@ class PlusVariantWatchTest(unittest.TestCase):
             plan = {"search_query": "Galaxy S24 Plus", "category_id": "phones", "category_name": "Смартфоны",
                     "parent_id": None, "confidence": 0.95, "fields": [], "attributes": {}, "clarification": ""}
             repo = CatalogExpansionRepository(conn)
-            req = repo.propose("Galaxy S24 Plus", None, plan)
-            repo.add_match(req["id"], "s24p")  # модель подтвердила только S24+
+            for query in ("Galaxy S24 Plus", "Galaxy S24+"):
+                req = repo.propose(query, None, plan)
+                repo.add_match(req["id"], "s24p")
+                repo.add_match(req["id"], "s24")  # старое ошибочное подтверждение
             conn.commit()
         data = self._search("Galaxy S24 Plus", "Алматы", {"status": "ok", "plan": plan})
         self.assertEqual({i["product"]["id"] for i in data["items"]}, PLUS)
         target = data["search_help"]["watch_target"]
         self.assertEqual(self._queued_for(target, "Алматы"), PLUS)
+
+        data = self._search("Galaxy S24+", "Алматы", {
+            "status": "ok", "plan": {**plan, "search_query": "Galaxy S24"},
+        })
+        self.assertEqual({i["product"]["id"] for i in data["items"]}, PLUS)
+        self.assertEqual(self._queued_for(data["search_help"]["watch_target"], "Алматы"), PLUS)
 
 
 if __name__ == "__main__":

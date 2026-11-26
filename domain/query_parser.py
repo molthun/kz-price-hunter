@@ -12,6 +12,11 @@ from typing import Any, Dict, List, Optional, Tuple
 from domain.models import Condition, ChannelType
 
 
+def normalize_model_plus(text: str) -> str:
+    """Keep a numeric model's Plus suffix as a word when punctuation is removed."""
+    return re.sub(r"(?<!\w)([\w-]*\d[\w-]*)[ \t]*\+(?![\w+])", r"\1 plus", text)
+
+
 # ---------------------------------------------------------------------------
 # Kazakhstan City Mapping (Russian, Kazakh, Translit)
 # ---------------------------------------------------------------------------
@@ -414,7 +419,7 @@ class QueryParser:
                     attributes["diaper_size"] = sz_norm_map[raw_token]
 
         # 5. City extraction & Preposition cleanup
-        words = re.findall(r"[\w\-]+", text)
+        words = re.findall(r"[\w\-]+", normalize_model_plus(text))
         clean_words: List[str] = []
         city_prepositions = {"в", "по", "на", "из", "c"}
 

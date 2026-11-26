@@ -404,6 +404,12 @@ def _rewrite_loses_constraints(query, search, attrs):
     have = Counter(re.findall(r'\d+', _strip_memory_phrases(search, attrs)))
     if need - have:
         return True
+    if '+' in query:
+        from domain.query_parser import QueryParser
+        from repositories.search_repo import SearchRepository
+        expected_plus = set(SearchRepository._plus_variant_codes(QueryParser.parse(query).clean_query))
+        if expected_plus.difference(SearchRepository._plus_variant_codes(QueryParser.parse(search).clean_query)):
+            return True
     return any(re.search(r'\b' + v + r'\b', query, re.I) and not re.search(r'\b' + v + r'\b', search, re.I)
                for v in _VARIANT_WORDS)
 
@@ -1037,6 +1043,42 @@ def _plan_spec_tokens(plan):
     return tokens
 
 
+# Оценочные прилагательные: «удобная обувь», «качественный порошок» — проверить по карточке нельзя,
+# их потеря при переписывании не теряет требование к товару
+_VAGUE_QUALIFIER_STEMS = (
+    'удобн', 'хорош', 'лучш', 'качествен', 'красив', 'недорог', 'дешев', 'бюджетн', 'нормальн',
+    'классн', 'крут', 'стильн', 'модн', 'приятн', 'интересн', 'отличн', 'надежн', 'популярн', 'топов',
+    'обычн', 'простой', 'прост', 'любой', 'любая', 'любое', 'любые', 'нужн', 'подходящ', 'оригинальн',
+    'современн', 'практичн', 'универсальн', 'достойн', 'шикарн', 'классическ',
+)
+
+
+def _is_vague_qualifier(word):
+    return _is_qualifier(word) and word.startswith(_VAGUE_QUALIFIER_STEMS)
+
+
+def _restore_dropped_qualifiers(search, original, applied_attrs):
+    """Проверяемое требование из прилагательного запроса остаётся условием текста (LS-04, приёмка `3203803`).
+
+    «непромокаемые кроссовки», «детские кроссовки», «бесфосфатный порошок»: модель отдаёт «кроссовки»
+    или «порошок», и без этого выдача и цель наблюдения теряли ограничение. Прилагательное возвращается
+    в текст, если его нет ни в тексте модели, ни в применённом фильтре (значение признака, например
+    «Детские»). Оценочные слова («удобная», «качественный») не возвращаются."""
+    have = _rewrite_tokens(search)
+    for value in (applied_attrs or {}).values():
+        have += _rewrite_tokens(str(value))
+    tokens = _rewrite_tokens(original)
+    # Прилагательное при слове характеристики («оперативная память», «внутренний накопитель») —
+    # часть характеристики, она проверяется своими правилами (память — фильтром или текстом)
+    spec_bound = {w for w, nxt in zip(tokens, tokens[1:]) if nxt in _SPEC_WORDS}
+    missing = [w for w in dict.fromkeys(tokens)
+               if _is_qualifier(w) and not _is_vague_qualifier(w) and w not in _GROUNDING_STOPWORDS
+               and w not in spec_bound and not any(_tokens_near(w, h) for h in have)]
+    if not missing:
+        return search
+    return ' '.join(missing + [search]).strip()
+
+
 def _rewrite_grounded(repo, cats, original, plan):
     """Опора текста и раздела модели на запрос покупателя (LS-04, P2 приёмок Codex 26.11).
 
@@ -1138,6 +1180,9 @@ def search_sync(arguments, understanding, selected_attributes):
                 search_args['query'] = _restore_unapplied_memory(search_args['query'], effective_original, grounded, memory)
                 if memory:
                     search_args['query'] = _strip_memory_phrases(search_args['query'], memory) or search_args['query']
+                # Требование-прилагательное без применённого фильтра остаётся в тексте (LS-04)
+                search_args['query'] = _restore_dropped_qualifiers(
+                    search_args['query'], effective_original, {**inferred_attrs, **attrs})
                 # Подтверждённые моделью товары не теряются из-за слова запроса, которого нет в названии:
                 # зимняя шина «Ice Blazer с шипами» находится и по «зимняя резина».
                 # Keep deterministic condition/price/city constraints from the original query.
@@ -1603,7 +1648,8 @@ def matches_watch(target, offer):
             clean = QueryParser.parse(query).clean_query
             fts = repo._build_fts_query(clean)
             # LS-05: то же условие варианта, что в выдаче («S24 Plus» — только S24+ и S24 Plus)
-            plus_sql, plus_params = repo._plus_variant_filter(clean)
+            variant_text = clean or getattr(repo, 'rank_query', '')
+            plus_sql, plus_params = repo._plus_variant_filter(variant_text)
             if plus_sql:
                 cat_sql += ' ' + plus_sql; params.extend(plus_params)
             if fts:

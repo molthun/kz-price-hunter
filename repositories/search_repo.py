@@ -14,6 +14,7 @@ import time
 from typing import Any, Dict, List, Optional, Set
 
 from domain.models import CanonicalProduct
+from domain.query_parser import normalize_model_plus
 from repositories.base import BaseRepository
 
 logger = logging.getLogger("kz_price_hunter.repositories.search")
@@ -244,7 +245,7 @@ class SearchRepository(BaseRepository):
         Коды моделей, за которыми в запросе идёт слово Plus: «S24 Plus» → ["s24"].
         В названиях вариант часто пишут знаком («S24+»), а FTS знак «+» не индексирует.
         """
-        tokens = re.sub(r'[^\w\-\s]', ' ', text or '').lower().split()
+        tokens = re.sub(r'[^\w\-\s]', ' ', normalize_model_plus(text or '')).lower().split()
         return [prev for prev, t in zip(tokens, tokens[1:])
                 if t in cls._PLUS_WORDS and any(ch.isdigit() for ch in prev)]
 
@@ -660,7 +661,7 @@ class SearchRepository(BaseRepository):
         brand_sql, brand_params = self._brand_filter(brand)
         model_sql, model_params = self._model_filter(model)
         kind_sql, kind_params = self._kind_filter(kind)
-        plus_sql, plus_params = self._plus_variant_filter(search_text)
+        plus_sql, plus_params = self._plus_variant_filter(search_text or getattr(self, 'rank_query', ''))
         kind_sql = f"{kind_sql} {plus_sql}".strip()
         kind_params = kind_params + plus_params
 
@@ -780,7 +781,7 @@ class SearchRepository(BaseRepository):
         brand_filter_sql, brand_filter_params = self._brand_filter(brand)
         model_filter_sql, model_filter_params = self._model_filter(model)
         kind_filter_sql, kind_filter_params = self._kind_filter(kind)
-        plus_sql, plus_params = self._plus_variant_filter(search_text)
+        plus_sql, plus_params = self._plus_variant_filter(search_text or getattr(self, 'rank_query', ''))
         if plus_sql:
             kind_filter_sql = f"{kind_filter_sql} {plus_sql}".strip()
             kind_filter_params = kind_filter_params + plus_params

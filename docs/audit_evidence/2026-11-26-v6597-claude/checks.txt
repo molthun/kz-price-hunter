@@ -1,0 +1,7 @@
+6.59.7 (Claude, 26.11.2026), поверх 6.59.6 Codex; LS-04 (прилагательные-требования) из приёмки 3203803
+== ConstraintAdjectiveApiTest на local_search.py из 3203803 (+ 6.59.6 Codex в остальных файлах): FAILED (failures=3, errors=1); с правкой — OK
+== Локально, macOS, Python 3.14.7 (venv): Ran 3508 tests in 224.879s — OK
+== Фронтенд (Deno + playwright 1.63.0 + Chrome), все tests/frontend/*.cjs из git: pass=51 fail=0
+== Linux, чистый контейнер на хосте стенда (образ kzph-candidate:6597-claude sha256:c4f960bd35cc…, --network none, tmpfs /app/data, архив COPYFILE_DISABLE=1, файлов ._* 0; образ, каталог и логи удалены; живой kzph-stand не тронут, healthy):
+   Ran 3508 tests in 494.955s — OK
+Не проверено: реальная модель, живой сайт (нужна выкладка).
