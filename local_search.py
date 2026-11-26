@@ -40,6 +40,66 @@ _FLAG_EVIDENCE = {
 }
 _SIZE_KEYS = {'width', 'profile', 'diameter', 'size', 'tire_size'}
 
+_LAYOUT_EN_TO_RU = str.maketrans(
+    "qwertyuiop[]asdfghjkl;'zxcvbnm,./`QWERTYUIOP{}ASDFGHJKL:\"ZXCVBNM<>?~",
+    "йцукенгшщзхъфывапролджэячсмитьбю.ёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ,Ё",
+)
+_CYRILLIC_RE = re.compile(r'[А-Яа-яЁё]')
+_LATIN_LAYOUT_TOKEN_RE = re.compile(r"^[A-Za-z\[\];',.`]+$")
+_RU_VOWELS_RE = re.compile(r'[аеёиоуыэюя]')
+_EN_VOWELS_RE = re.compile(r'[aeiouy]', re.IGNORECASE)
+_EN_CONSONANT_CLUSTER_RE = re.compile(r'[bcdfghjklmnpqrstvwxz]{4,}', re.IGNORECASE)
+_EN_NORMAL_CLUSTERS = ('sch', 'tch', 'ght', 'str', 'chr', 'phr', 'thr', 'ngth', 'rlds', 'ckst', 'mpst', 'ndst')
+_LAYOUT_PUNCT_RE = re.compile(r"[\[\];',.`]")
+_BAD_RU_START_RE = re.compile(r'^[ъьы]')
+_BAD_RU_DOUBLE_RE = re.compile(r'(ъъ|ьь|ыы|йй)')
+
+
+def _looks_like_wrong_layout_token(token: str) -> str | None:
+    """Конвертирует одиночный токен из QWERTY в ЙЦУКЕН только при явных признаках ошибочной раскладки."""
+    if len(token) < 3 or not _LATIN_LAYOUT_TOKEN_RE.match(token):
+        return None
+    has_layout_punct = bool(_LAYOUT_PUNCT_RE.search(token))
+    no_en_vowels = len(token) >= 4 and not _EN_VOWELS_RE.search(token)
+    cluster_match = _EN_CONSONANT_CLUSTER_RE.search(token)
+    bad_en_cluster = bool(
+        cluster_match
+        and not any(ok in cluster_match.group(0).lower() for ok in _EN_NORMAL_CLUSTERS)
+    )
+    if not (has_layout_punct or no_en_vowels or bad_en_cluster):
+        return None
+    ru = token.translate(_LAYOUT_EN_TO_RU).lower()
+    if not re.match(r'^[а-яё]+$', ru):
+        return None
+    if not _RU_VOWELS_RE.search(ru) or _BAD_RU_START_RE.match(ru) or _BAD_RU_DOUBLE_RE.search(ru):
+        return None
+    return ru
+
+
+def fix_wrong_keyboard_layout(query: str) -> str | None:
+    """Исправляет ошибочную английскую раскладку (QWERTY→ЙЦУКЕН) без порчи брендов и кодов моделей.
+
+    Возвращает исправленную строку или None, если запрос не похож на ошибочную раскладку.
+    """
+    text = (query or '').strip()
+    if not text or _CYRILLIC_RE.search(text):
+        return None
+    tokens = text.split()
+    converted = []
+    changed = False
+    for tok in tokens:
+        if re.match(r'^\d+([.,]\d+)?$', tok):
+            converted.append(tok)
+            continue
+        ru = _looks_like_wrong_layout_token(tok)
+        if ru is None:
+            # Если среди слов есть нормальное английское слово/код модели (iPhone 15, Nike, RTX 4070),
+            # не смешиваем языки и не переводим запрос.
+            return None
+        converted.append(ru)
+        changed = True
+    return ' '.join(converted) if changed else None
+
 
 def _norm(text):
     return str(text).casefold().replace('ё', 'е')
@@ -651,15 +711,26 @@ async def understand(query, categories):
     base, model = cfg.get('local_api_base'), cfg.get('local_model')
     if not base or not model:
         return {'status': 'unavailable'}
+    fixed_layout = fix_wrong_keyboard_layout(query)
+    effective_query = fixed_layout or query
     context = json.dumps(categories, ensure_ascii=False, sort_keys=True)
-    key = (query.casefold().strip(), hashlib.sha256(context.encode()).hexdigest(), base, model)
+    key = (effective_query.casefold().strip(), hashlib.sha256(context.encode()).hexdigest(), base, model)
     cached = _plans.get(key)
     if cached:
-        return {**cached, 'cached': True}
+        out = {**cached, 'cached': True}
+        if fixed_layout:
+            out['corrected_query'] = fixed_layout
+        return out
     if _failures.get((base, model)):
-        return {'status': 'unavailable'}
+        out = {'status': 'unavailable'}
+        if fixed_layout:
+            out['corrected_query'] = fixed_layout
+        return out
     if key in _pending:
-        return await asyncio.shield(_pending[key])
+        res = await asyncio.shield(_pending[key])
+        if fixed_layout and isinstance(res, dict):
+            return {**res, 'corrected_query': fixed_layout}
+        return res
 
     async def run():
         started = time.monotonic()
@@ -693,21 +764,28 @@ fields: от 3 до 8 основных фильтров ВСЕЙ категор�
 fields=[{"key":"season","label":"Сезон"},{"key":"width","label":"Ширина"},
 {"key":"profile","label":"Профиль"},{"key":"diameter","label":"Диаметр"},{"key":"studs","label":"Шипы"}].
 Не смешивай автомобильные шины с шинами для пил. Для неоднозначного запроса задай короткий clarification.
+Если запрос явно не относится к потребительским товарам розничных магазинов (например, вымышленный предмет, ядерный реактор, живое животное, услуга), не подставляй случайный раздел — верни category_id=null, confidence=0.0 и короткое пояснение в clarification.
 Формат: {"search_query":"...","category_id":"...","category_name":"...","parent_id":null,
 "confidence":0.95,"attributes":{},"fields":[],"clarification":""}.
-Категории: ''' + prompt_cats + '\nЗапрос (JSON-строка): ' + json.dumps(query, ensure_ascii=False)
+Категории: ''' + prompt_cats + '\nЗапрос (JSON-строка): ' + json.dumps(effective_query, ensure_ascii=False)
         try:
             raw = await call_local_api(prompt, base, model, cfg.get('local_api_key') or '', timeout=18.0)
-            plan = clean_plan(raw, query, categories)
+            plan = clean_plan(raw, effective_query, categories)
             if plan is None:
                 # Модель не ответила (таймаут, ошибка, занятая очередь) — предохранитель на 15 секунд.
                 # Ответ был, но неразборчив для этого запроса — не отказ модели: помощник не выключаем
                 # для всех остальных запросов.
                 if raw is None:
                     _failures[(base, model)] = True
-                    return {'status': 'unavailable'}
+                    out = {'status': 'unavailable'}
+                    if fixed_layout:
+                        out['corrected_query'] = fixed_layout
+                    return out
                 # Модель ответила, но раздел однозначно не определён: честно сообщаем это, ищем буквально.
-                return {'status': 'unclear'}
+                out = {'status': 'unclear'}
+                if fixed_layout:
+                    out['corrected_query'] = fixed_layout
+                return out
             if len(plan['fields']) < 3 and time.monotonic() - started < 10:
                 try:
                     # A short second task prevents a broad existing bucket from hiding a new product type.
@@ -723,7 +801,7 @@ fields=[{"key":"season","label":"Сезон"},{"key":"width","label":"Ширин
                         'сохрани все числа, марку и точную модель. Например тахеометр вместо геодезический тахеометр. '
                         'key — осмысленный код характеристики латиницей, label — её русское название. '
                         'Существующие разделы: '+json.dumps([{k:c[k] for k in ('id','name')} for c in categories],ensure_ascii=False)+
-                        '\nЗапрос: '+json.dumps(query,ensure_ascii=False))
+                        '\nЗапрос: '+json.dumps(effective_query,ensure_ascii=False))
                     schema = await call_local_api(schema_prompt, base, model, cfg.get('local_api_key') or '',
                                                   timeout=min(8,18-(time.monotonic()-started)))
                     if isinstance(schema, dict):
@@ -733,17 +811,22 @@ fields=[{"key":"season","label":"Сезон"},{"key":"width","label":"Ширин
                         if schema.get('new_category_name'):
                             merged.update(category_id='new', category_name=schema['new_category_name'],
                                           parent_id=schema.get('parent_id') or plan['category_id'])
-                        refined = clean_plan(merged, query, categories)
+                        refined = clean_plan(merged, effective_query, categories)
                         if refined and _narrows(refined, plan, categories):
                             plan = refined
                 except Exception:
                     pass
             result = {'status': 'ok', 'model': model, 'cached': False, 'plan': plan}
             _plans[key] = result
+            if fixed_layout:
+                return {**result, 'corrected_query': fixed_layout}
             return result
         except Exception:
             _failures[(base, model)] = True
-            return {'status': 'unavailable'}
+            out = {'status': 'unavailable'}
+            if fixed_layout:
+                out['corrected_query'] = fixed_layout
+            return out
         finally:
             _pending.pop(key, None)
 
@@ -779,6 +862,8 @@ def search_sync(arguments, understanding, selected_attributes):
     from repositories.category_repo import CategoryRepository
     from repositories.catalog_expansion_repo import CatalogExpansionRepository
     original = arguments['query']
+    fixed_layout = understanding.get('corrected_query') or fix_wrong_keyboard_layout(original)
+    effective_original = fixed_layout or original
     plan = understanding.get('plan')
     conn = get_connection()
     try:
@@ -786,18 +871,20 @@ def search_sync(arguments, understanding, selected_attributes):
         cached_plan = False
         if not plan:
             intent_repo = CatalogExpansionRepository(conn)
-            plan = intent_repo.cached_intent(original)
+            plan = intent_repo.cached_intent(effective_original)
             if not plan:
-                plan = intent_repo.saved_plan(original)
+                plan = intent_repo.saved_plan(effective_original)
                 if plan:
                     # Legacy job plans may predate preservation of semantic constraints.
                     # Keep confirmed intent + literal words, never broaden using an unsafe rewrite.
-                    plan = {**plan,'search_query':original,'attributes':{}}
+                    plan = {**plan,'search_query':effective_original,'attributes':{}}
             cached_plan = bool(plan)
         selected_category = arguments.get('category')
         inferred_category = None
         attrs = dict(selected_attributes)
         search_args = dict(arguments)
+        if fixed_layout:
+            search_args['query'] = fixed_layout
         inferred_attrs = {}
         verified = []
         if plan and plan['confidence'] >= 0.85:
@@ -805,7 +892,7 @@ def search_sync(arguments, understanding, selected_attributes):
             compatible = not selected_category or (known and selected_category in (known.id, known.name))
             if known and compatible:
                 if not cached_plan:
-                    CatalogExpansionRepository(conn).save_intent(original,plan)
+                    CatalogExpansionRepository(conn).save_intent(effective_original,plan)
                 inferred_category = known.id
                 search_args['category'] = selected_category or known.id
                 search_args['query'] = plan['search_query']
@@ -814,9 +901,9 @@ def search_sync(arguments, understanding, selected_attributes):
                 populated = {r[0] for r in conn.execute('SELECT DISTINCT pa.key FROM product_search_attributes pa '
                     'JOIN canonical_products p ON p.id=pa.product_id WHERE pa.source_title=p.title ' + cat_sql, cat_params)}
                 # Сохранённые до 6.40.16 планы могли содержать выдуманные признаки — проверяются заново
-                grounded = grounded_attributes(plan['attributes'], original, plan.get('fields') or ())
+                grounded = grounded_attributes(plan['attributes'], effective_original, plan.get('fields') or ())
                 plan_keys = {f.get('key') for f in plan.get('fields') or () if isinstance(f, dict)}
-                for k, v in explicit_memory_attributes(original, plan_keys).items():
+                for k, v in explicit_memory_attributes(effective_original, plan_keys).items():
                     grounded.setdefault(k, v)
                 inferred_attrs = {k:v for k,v in grounded.items() if k in populated and k not in attrs}
                 # Память, ставшая фильтром по заполненному полю, убирается из текста: «оперативная
@@ -824,16 +911,16 @@ def search_sync(arguments, understanding, selected_attributes):
                 memory = {k: inferred_attrs[k] for k in _MEMORY_KEYS if k in inferred_attrs}
                 memory.update({k: attrs[k] for k in _MEMORY_KEYS if k in attrs})
                 # Сохранённый план мог потерять номер модели, совпавший с объёмом памяти (R21-02)
-                if _rewrite_loses_constraints(original, search_args['query'], grounded):
-                    search_args['query'] = original
+                if _rewrite_loses_constraints(effective_original, search_args['query'], grounded):
+                    search_args['query'] = effective_original
                 # Память без заполненного поля остаётся условием текста (R21-03)
-                search_args['query'] = _restore_unapplied_memory(search_args['query'], original, grounded, memory)
+                search_args['query'] = _restore_unapplied_memory(search_args['query'], effective_original, grounded, memory)
                 if memory:
                     search_args['query'] = _strip_memory_phrases(search_args['query'], memory) or search_args['query']
                 # Подтверждённые моделью товары не теряются из-за слова запроса, которого нет в названии:
                 # зимняя шина «Ice Blazer с шипами» находится и по «зимняя резина».
                 # Keep deterministic condition/price/city constraints from the original query.
-                parsed = QueryParser.parse(original)
+                parsed = QueryParser.parse(effective_original)
                 for key, value in [('city', parsed.detected_city), ('condition', parsed.condition),
                                    ('min_price', parsed.min_price), ('max_price', parsed.max_price),
                                    ('brand', parsed.detected_brand), ('channel_type', parsed.channel_type)]:
@@ -852,7 +939,7 @@ def search_sync(arguments, understanding, selected_attributes):
         # применяет семантику сам (R21-01 — раньше в цель уходил неочищенный текст модели)
         watch_query = search_args['query']
         if inferred_category:
-            search_args['query'], verified = apply_semantics(repo, original, search_args['query'],
+            search_args['query'], verified = apply_semantics(repo, effective_original, search_args['query'],
                                                              search_args.get('category'), inferred_attrs)
         res = SearchCore(repo).search(**search_args)
         verified_ids = set(verified)
@@ -889,12 +976,16 @@ def search_sync(arguments, understanding, selected_attributes):
         data['selected_attributes'] = {**inferred_attrs, **attrs}
         data['local_ai'] = {k: v for k, v in understanding.items() if k != 'plan'}
         data['local_ai']['cached_plan'] = cached_plan
+        if fixed_layout:
+            data['local_ai']['corrected_query'] = fixed_layout
         clarification_msg = (plan or {}).get('clarification', '')
-        if plan and (_asks_known(clarification_msg, plan.get('attributes') or {}, plan.get('fields') or (), original) or (
+        if plan and (_asks_known(clarification_msg, plan.get('attributes') or {}, plan.get('fields') or (), effective_original) or (
                 set(plan.get('attributes') or {}) & set(_MEMORY_KEYS) and re.search(r'памят|озу', _norm(clarification_msg)))):
             clarification_msg = ''
         if fallback_applied:
             clarification_msg = f'По запросу «{original}» точных совпадений в каталоге не найдено. Показаны товары из раздела «{cat.name if cat else inferred_category}».'
+        elif fixed_layout and not clarification_msg:
+            clarification_msg = f'Показаны результаты для «{fixed_layout}» (исправлена раскладка).'
         data['search_help'] = {
             'category_id': inferred_category, 'category_name': cat.name if cat else (plan or {}).get('category_name'),
             'clarification': clarification_msg, 'expansion': None,
@@ -915,20 +1006,21 @@ def search_sync(arguments, understanding, selected_attributes):
         # Фиксация поискового спроса в расширении каталога:
         # - Запросы без достаточного числа товаров (<15) или с новыми фильтрами автоматически одобряются для обхода (auto_approve=True).
         # - Остальные запросы регистрируются со статусом 'proposed' и накоплением demand, чтобы администратор видел весь реальный спрос в /admin.
-        if res.outcome != 'ERROR' and original and len(original.strip()) >= 2:
+        if res.outcome != 'ERROR' and effective_original and len(effective_original.strip()) >= 2:
             is_scarce = res.total_products < 15
             missing_fields = bool(plan and any(f['key'] not in (cat.attributes_schema if cat else {}) for f in plan.get('fields', [])))
             auto_approve = is_scarce or bool(plan and plan.get('confidence', 0) >= 0.85 and missing_fields)
             eff_plan = plan or {
-                'category_id': inferred_category or (cat.id if cat else 'appliances'),
+                'category_id': inferred_category or (cat.id if cat else 'uncategorized'),
                 'category_name': cat.name if cat else (inferred_category or 'Каталог'),
-                'search_query': original,
-                'confidence': 1.0,
+                'search_query': effective_original,
+                'confidence': 0.0,
+                'unverified_fallback': True,
                 'fields': [],
                 'attributes': {}
             }
             request = CatalogExpansionRepository(conn).propose(
-                original, res.parsed_query.detected_city, eff_plan, auto_approve=auto_approve
+                effective_original, res.parsed_query.detected_city, eff_plan, auto_approve=auto_approve
             )
             if request:
                 data['search_help']['expansion'] = {k: request[k] for k in ('id', 'status', 'message')}

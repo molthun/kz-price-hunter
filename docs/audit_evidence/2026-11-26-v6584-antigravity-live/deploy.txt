@@ -1,0 +1,11 @@
+Выкладка 6.58.4 на живой сервер по поручению владельца, 26.11.2026 14:38–14:40Z (Antigravity)
+CI для origin/main (6a68c98): CI ✓ (7m20s), Build and Push Docker Image ✓ (7m56s); код 6a68c98 совпадает с e8f498d вне docs/
+До выкладки: image sha256:d3a71c115bee…5f6c (6.57.4), checkout 52f5453, watches 0, pending outbox 0
+Копия БД: ~/kzph-migration/live_before_6584_20261126T143821Z.db (3487 MB, 7 с), quick_check ok, users 8, offers 299307, products 299199, offer_price_history 1553882, watches 0, pending_outbox 0
+Checkout: 52f5453 -> e8f498d (ff-only из временного bundle; включает 6.58.0–6.58.4); docker-compose.live.yml совпадает с deploy/docker-compose.live.yml; локальная правка docker-compose.stand.yml сохранена
+Сборка: docker compose -f docker-compose.stand.yml -f docker-compose.live.yml build app && up -d app; release_gate.py pins 25/25 ok
+Контейнер: image sha256:d10850c7c9f6…a989 running healthy restarts=0 started 14:39:35Z, restart_policy unless-stopped, порты 35539/35540; старый прод и Watchtower не запущены
+Снаружи: /api/version 6.58.4; /api/health ok (db ok, queue ok, redis_active true, worker_running true); / /deals /api/deals /api/products?q=кроссовки /api/me — 200; /api/me/watches без входа — 401; POST /api/auth/bot-start без Origin — 403 (CSRF), с Origin shop — 200; shdev/deals?size=42 -> 301 https://shop.molthun.ru/deals?size=42; HTML содержит resultsEmptyExtraActions (2), buildEmptySearchActions (2), size_in_stock (4)
+Журнал: 0 строк error/traceback/exception/critical; Redis, Single DB-Writer Worker, AutoScan, ChannelSync и Telegram-бот запущены
+Откат: схема БД в 6.58.x не менялась; возможен возврат на прежний image sha256:d3a71c115bee…5f6c / checkout 52f5453; согласованная копия БД — live_before_6584_20261126T143821Z.db
+Не проверено: живой сценарий создания уведомления из пустой выдачи и уведомления о размере под авторизованным пользователем (нужен вход владельца).

@@ -294,19 +294,44 @@ class CatalogExpansionRepository:
             self.conn.execute('DELETE FROM local_search_intents WHERE updated_at<?',(cutoff,))
             self._commit()
 
+    @staticmethod
+    def _is_trusted_saved_plan(plan):
+        if not isinstance(plan, dict):
+            return False
+        if plan.get('unverified_fallback'):
+            return False
+        cat_id = plan.get('category_id')
+        if not cat_id or cat_id == 'uncategorized':
+            return False
+        try:
+            if float(plan.get('confidence') or 0.0) < 0.85:
+                return False
+        except (TypeError, ValueError):
+            return False
+        # Прежняя заглушка demand-capture без ответа модели (до 6.59.0):
+        # category_id='appliances', category_name='Каталог', fields=[]
+        if cat_id == 'appliances' and plan.get('category_name') == 'Каталог' and not plan.get('fields'):
+            return False
+        return True
+
     def saved_plan(self, query):
         import search_analytics as sa
         clean = sa.storable_text(query)
         row = self.conn.execute("SELECT plan_json FROM catalog_expansions WHERE query=? AND status!='rejected' ORDER BY updated_at DESC LIMIT 1",
                                 (clean,)).fetchone()
         if row:
-            return json.loads(row[0])
+            parsed = json.loads(row[0])
+            return parsed if self._is_trusted_saved_plan(parsed) else None
         if not clean or len(clean.split())>2 or re.search(r'\d',clean):
             return None
         relations = {'не','нет','без','кроме','для','вместо','not','without','for'}
         rows = self.conn.execute("SELECT plan_json,query FROM catalog_expansions WHERE (scan_text=? OR EXISTS(SELECT 1 FROM json_each(source_queries) WHERE value=?)) AND status!='rejected' ORDER BY updated_at DESC",(clean,clean)).fetchall()
-        plans = [json.loads(raw) for raw,original in rows if set(clean.split()).issubset(set(original.split()))
-                 and not relations.intersection(original.split())]
+        plans = []
+        for raw, original in rows:
+            if set(clean.split()).issubset(set(original.split())) and not relations.intersection(original.split()):
+                parsed = json.loads(raw)
+                if self._is_trusted_saved_plan(parsed):
+                    plans.append(parsed)
         return plans[0] if plans and len({p['category_id'] for p in plans})==1 else None
 
     def verified_products(self, query, category_id=None):

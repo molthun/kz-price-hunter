@@ -1,0 +1,23 @@
+Этап 1 (живая диагностика 26.11.2026) + локальный кандидат v6.59.0 (Antigravity)
+
+=== 1. Живой прогон локального ИИ (qwen3-vl:8b-instruct, shop.molthun.ru v6.58.4) ===
+- exact_model ("iPhone 15 Pro 256"): 5.00s (srv 57ms), total=2, outcome=FOUND, ai=ok (cached=True), top: iPhone 15 Pro 256Gb
+- colloquial_astana ("зимняя резина", astana): 2.60s (srv 163ms), total=28, outcome=WEAK_MATCH, ai=ok, attrs={season: Зимние}, clarif="Укажите размер, например 205/55 R16..."
+- typo_fresh ("смартфон самсун галакси"): 6.79s (srv 65ms), total=174, outcome=FOUND, ai=ok (cached=False), top: Samsung Galaxy
+- keyboard_layout ("rhjccjdrb"): 16.62s (srv 474ms), total=8933, outcome=WEAK_MATCH, ai=unclear (cached_plan=True) -> ДЕФЕКТ: fallback в Бытовую технику (стиральный порошок, холодильники) из-за фейкового eff_plan (appliances, confidence=1.0)
+- ambiguous ("зимняя куртка"): 5.55s (srv 319ms), total=41, outcome=FOUND, ai=ok, cat=clothing
+- unsupported_zero ("ядерный реактор"): 12.89s (srv 483ms), total=5007, outcome=WEAK_MATCH, ai=ok -> ДЕФЕКТ: модель выбрала tools_repair и показала 5007 полок/стремянок
+- with_size ("кроссовки 42"): 4.45s (srv 133ms), total=408, outcome=FOUND, ai=ok, attrs={size: 42}, cat=shoes
+- zero_with_city_size ("зимние ботинки 47", astana): 9.41s (srv 44ms), total=10, outcome=FOUND, ai=ok, attrs={season: Зимние, size: 47}
+
+=== 2. Read-only диагностика каталога (копия live_before_6584_20261126T143821Z.db) ===
+- Активных предложений: 176 073 (неактивных: 123 234), 37 активных продавцов
+- Необновляющийся источник (>72ч / 0 активных): mechta («Мечта», 0 активных, 3 153 неактивных, last_obs 2026-11-13)
+- Размеры (активные): kari 18 681/41 117, intertop 2 576/6 874, kimex 509/509, detmir 312/5 246
+- Качество: zero_or_neg_price=0, old_price_lt_price=4, no_image=165 (fortemarket 158, marwin 4, arbuz 1, french_house 1, sulpak 1), discount_gt_85pct=153 (flip 85, detmir 42, sulpak 19, askona 5, intertop 2)
+
+=== 3. Локальные проверки кандидата v6.59.0 ===
+- Целевой набор (10 модулей поиска и контрактов, включая 6 новых тестов test_local_search_layout_and_plan_guard.py): 102 OK (9.919 s)
+- release_gate.py secrets: ok=true, findings=[]
+- git diff --check: чисто
+- Не запускалось: полный Linux-набор в чистом контейнере, живой браузер. Живой сервер (6.58.4) и origin/main (6a68c98) не менялись.
