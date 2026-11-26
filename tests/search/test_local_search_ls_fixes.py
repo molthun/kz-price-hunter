@@ -407,6 +407,19 @@ class UngroundedRewriteApiTest(_Fixture, unittest.IsolatedAsyncioTestCase):
         status, plan = self._demand()["квантовый синхрофазотрон"]
         self.assertTrue(local_search_repo().is_demand_stub(plan), plan)
 
+    async def test_shared_type_word_with_changed_purpose_is_rejected(self):
+        # Повторная приёмка Codex `f76c5d5`: общее слово «порошок» не делает подмену назначения уточнением
+        q = "порошок для огнетушителя"
+        status, data = await self._api(q, POISONED, city="Астана")
+        self.assertEqual(status, 200)
+        self.assertNotIn("p_app", [i["product"]["id"] for i in data["items"]])
+        self.assertTrue(data["local_ai"].get("rewrite_rejected"))
+        spec = self._watch_spec(data)
+        self.assertEqual(spec["query"], q)
+        self.assertIsNone(spec.get("category"))
+        self.assertNotIn(q, self._intents())
+        self.assertTrue(local_search_repo().is_demand_stub(self._demand()[q][1]))
+
     async def test_useful_rewrites_still_apply(self):
         cases = [
             # опечатка: текст модели близок к запросу
@@ -415,6 +428,11 @@ class UngroundedRewriteApiTest(_Fixture, unittest.IsolatedAsyncioTestCase):
             ("удобная обувь", {**POISONED, "search_query": "кроссовки", "category_id": "shoes", "category_name": "Обувь"}, "p_shoe"),
             # синоним поиска
             ("порошок дофи", {**POISONED, "search_query": "стиральный порошок doffi"}, "p_app"),
+            # сужение без потери слов запроса
+            ("порошок", {**POISONED, "search_query": "стиральный порошок"}, "p_app"),
+            # размер ушёл в признак, слово «размер» — характеристика
+            ("кроссовки размер 42", {**POISONED, "search_query": "кроссовки 42", "category_id": "shoes",
+                                     "category_name": "Обувь"}, "p_shoe"),
         ]
         for query, answer, pid in cases:
             with self.subTest(query=query):
@@ -423,7 +441,8 @@ class UngroundedRewriteApiTest(_Fixture, unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(status, 200)
                 self.assertIn(pid, [i["product"]["id"] for i in data["items"]], data["search_help"])
                 self.assertFalse(data["local_ai"].get("rewrite_rejected", False))
-                self.assertEqual(self._watch_spec(data)["query"], answer["search_query"])
+                # цель наблюдения — текст модели (размер уходит в признак наблюдения)
+                self.assertEqual(self._watch_spec(data)["query"], answer["search_query"].replace(" 42", ""))
 
     async def test_poisoned_cached_intent_is_ignored(self):
         from repositories.catalog_expansion_repo import CatalogExpansionRepository

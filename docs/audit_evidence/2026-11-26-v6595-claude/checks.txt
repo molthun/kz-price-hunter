@@ -1,0 +1,9 @@
+6.59.5 (Claude, 26.11.2026), исправления по повторной приёмке Codex f76c5d5 (LS-04, LS-05)
+== Регрессии на коде f76c5d5 (git archive HEAD + новые тесты): FAILED (failures=3)
+   test_shared_type_word_with_changed_purpose_is_rejected; test_watch_from_results_and_from_empty_results_queues_only_plus (Алматы, Астана)
+   С правкой: tests.search.test_local_search_ls_fixes + test_plus_variant_watch — 29 OK
+== Локально, macOS, Python 3.14.7 (venv): Ran 3505 tests in 224.959s — OK
+== Фронтенд (Deno + playwright 1.63.0 + Chrome), все tests/frontend/*.cjs из git: pass=51 fail=0
+== Linux, чистый контейнер на хосте стенда (образ kzph-candidate:6595-claude sha256:6ba8632148d0…, --network none, tmpfs /app/data, архив с COPYFILE_DISABLE=1, файлов ._* 0; образ, каталог и логи удалены; живой kzph-stand не тронут, healthy):
+   Ran 3505 tests in 490.390s — OK
+Не проверено: реальная модель, живой сайт (нужна выкладка).

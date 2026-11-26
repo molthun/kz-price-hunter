@@ -931,6 +931,33 @@ def _grounding_stems(words):
     return [w[:max(4, len(w) - 2)] if re.search(r'[а-я]', w) else w for w in words]
 
 
+def _category_names(cats, category_id):
+    try:
+        mapper = cats.get_mapper()
+        names = []
+        for cid in mapper.get_subtree_ids(category_id) or [category_id]:
+            c = mapper.get_by_id(cid)
+            if c:
+                names.append(_norm(c.name))
+                names.extend(_norm(a) for a in c.aliases)
+        return names
+    except Exception:
+        return []
+
+
+def _word_grounded_in_category(repo, names, word, category_id, conditions, params):
+    """Слово встречается в названии или синонимах раздела (с подразделами) либо в названиях его
+    товаров — с синонимами и словоформами самого поиска («экран» -> «монитор»)."""
+    stem = _grounding_stems([word])[0]
+    if any(stem in name for name in names):
+        return True
+    try:
+        sql, values = repo._matching_product_ids(word, conditions, params, None, category_id)
+        return bool(repo.conn.execute(f'SELECT 1 FROM ({sql}) LIMIT 1', values).fetchone())
+    except Exception:
+        return False
+
+
 def _query_grounded_in_category(repo, cats, query, category_id, offer_args):
     """Опора запроса на раздел для подсказки «товары из раздела» (LS-04).
 
@@ -941,32 +968,11 @@ def _query_grounded_in_category(repo, cats, query, category_id, offer_args):
     words = _grounding_words(query)
     if not words:
         return False
-    stems = _grounding_stems(words)
-    try:
-        mapper = cats.get_mapper()
-        subtree = mapper.get_subtree_ids(category_id) or [category_id]
-        names = []
-        for cid in subtree:
-            c = mapper.get_by_id(cid)
-            if c:
-                names.append(_norm(c.name))
-                names.extend(_norm(a) for a in c.aliases)
-    except Exception:
-        names = []
-    if any(stem in name for stem in stems for name in names):
-        return True
+    names = _category_names(cats, category_id)
     keys = ('city', 'condition', 'channel_type', 'seller_type', 'seller_id', 'installment', 'gift',
             'in_stock', 'delivery', 'min_price', 'max_price')
     conditions, params = repo._offer_filter(**{k: offer_args.get(k) for k in keys})
-    # Каждое слово отдельно, с синонимами и словоформами самого поиска («экран» -> «монитор»)
-    for word in words:
-        try:
-            sql, values = repo._matching_product_ids(word, conditions, params, None, category_id)
-            if repo.conn.execute(f'SELECT 1 FROM ({sql}) LIMIT 1', values).fetchone():
-                return True
-        except Exception:
-            continue
-    return False
+    return any(_word_grounded_in_category(repo, names, w, category_id, conditions, params) for w in words)
 
 
 def _rewrite_tokens(text):
@@ -975,35 +981,89 @@ def _rewrite_tokens(text):
             if len(t) >= 2 and t not in _GROUNDING_STOPWORDS and not t.isdigit()]
 
 
-def _tokens_near(a, b):
-    from repositories.search_repo import TOKEN_SYNONYMS
-    if a == b or b in TOKEN_SYNONYMS.get(a, ()) or a in TOKEN_SYNONYMS.get(b, ()):
-        return True
+_TRANSLIT = str.maketrans({'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ж': 'zh', 'з': 'z',
+                           'и': 'i', 'й': 'i', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p',
+                           'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'c', 'ч': 'ch',
+                           'ш': 'sh', 'щ': 'sch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'})
+
+
+def _similar(a, b):
     if len(a) < 4 or len(b) < 4:
-        return False  # короткие коды («rtx», «ps5») — только точное совпадение
+        return a == b  # короткие коды («rtx», «ps5») — только точное совпадение
     if a[:4] == b[:4]:
         return True  # словоформа или усечение: «зимняя» -> «зимн», «кросовки» -> «кроссовки»
     import difflib
     return difflib.SequenceMatcher(None, a, b).ratio() >= 0.75  # опечатка
 
 
-def _rewrite_grounded(repo, cats, original, plan):
-    """Опора текста и раздела модели на запрос покупателя (LS-04, P2 приёмки Codex 26.11).
-
-    Уверенная модель может заменить «квантовый синхрофазотрон» на «стиральный порошок» — тогда
-    выдача, сохранённое намерение и цель наблюдения ушли бы к чужому товару. Переписанный текст
-    принимается, если хотя бы один его токен совпадает с токеном запроса (опечатка, словоформа,
-    синоним поиска), либо сам запрос опирается на выбранный раздел (название, синонимы раздела или
-    названия его товаров во всём каталоге: «удобная обувь» -> «кроссовки», «экран» -> монитор)."""
-    rewritten = _rewrite_tokens(plan.get('search_query') or '')
-    source = _rewrite_tokens(original)
-    if rewritten and any(_tokens_near(r, o) for r in rewritten for o in source):
+def _tokens_near(a, b):
+    from repositories.search_repo import TOKEN_SYNONYMS
+    if a == b:
         return True
+    for x, y in ((a, b), (b, a)):
+        if any(y in str(alt).split() for alt in TOKEN_SYNONYMS.get(x, ())):
+            return True
+    if _similar(a, b):
+        return True
+    # Транслитерация: «дофи» ~ «doffi», «найк» ~ «nike»
+    return _similar(a.translate(_TRANSLIT), b.translate(_TRANSLIT))
+
+
+_QUALIFIER_ENDINGS = ('ого', 'его', 'ому', 'ему', 'ыми', 'ими', 'ый', 'ий', 'ой', 'ая', 'яя', 'ое', 'ее',
+                      'ые', 'ие', 'ую', 'юю', 'ых', 'их', 'ым', 'им')
+
+
+def _is_qualifier(word):
+    """Русское прилагательное («квантовый», «удобная»): его потеря сужает, а не меняет товар."""
+    return len(word) >= 5 and bool(re.fullmatch(r'[а-я]+', word)) and word.endswith(_QUALIFIER_ENDINGS)
+
+
+# Слова характеристик и единиц: модель переносит их в фильтры (память, размер, цвет, сезон)
+_SPEC_WORDS = frozenset({
+    'гб', 'gb', 'тб', 'tb', 'мб', 'mb', 'гц', 'hz', 'вт', 'мач', 'mah', 'дюйм', 'дюйма', 'дюймов',
+    'память', 'памяти', 'памятью', 'озу', 'ram', 'ssd', 'hdd', 'накопитель', 'накопителем',
+    'размер', 'размера', 'размеры', 'размере', 'рост', 'роста', 'цвет', 'цвета', 'цвете', 'цветом',
+    'диагональ', 'диагональю', 'объем', 'объема', 'объемом', 'сезон', 'сезона',
+})
+
+
+def _plan_spec_tokens(plan):
+    tokens = []
+    for value in (plan.get('attributes') or {}).values():
+        tokens += _rewrite_tokens(str(value))
+    for field in plan.get('fields') or ():
+        if isinstance(field, dict):
+            tokens += _rewrite_tokens(f"{field.get('key', '')} {field.get('label', '')}".replace('_', ' '))
+    return tokens
+
+
+def _rewrite_grounded(repo, cats, original, plan):
+    """Опора текста и раздела модели на запрос покупателя (LS-04, P2 приёмок Codex 26.11).
+
+    Уверенная модель может заменить «квантовый синхрофазотрон» или «порошок для огнетушителя» на
+    «стиральный порошок» — тогда выдача, сохранённое намерение и цель наблюдения уходят к чужому
+    товару. Общего слова мало: важно, что модель выбросила. Каждое содержательное слово запроса,
+    кроме прилагательных и слов характеристик, должно остаться в тексте или признаках модели
+    (совпадение, словоформа, опечатка, синоним поиска, транслитерация) либо опираться на выбранный раздел — его название, синонимы
+    или названия его товаров во всём каталогу («удобная обувь» -> «кроссовки», «экран» -> монитор).
+    Иначе это подмена назначения товара, а не уточнение."""
+    rewritten = _rewrite_tokens(plan.get('search_query') or '')
+    kept = rewritten + _plan_spec_tokens(plan)
+    dropped = [o for o in dict.fromkeys(_rewrite_tokens(original))
+               if o not in _SPEC_WORDS and not _is_qualifier(o) and not any(_tokens_near(o, r) for r in kept)]
     category_id = plan.get('category_id')
-    if not category_id or not cats.get_by_id(category_id):
+    known = bool(category_id and cats.get_by_id(category_id))
+    if not rewritten:
+        # Пустой текст модели — весь раздел: нужна опора самого запроса на раздел
+        return known and _query_grounded_in_category(repo, cats, original, category_id, {})
+    if not dropped:
+        return True
+    if not known:
         return False
     # Опора на раздел проверяется по всему каталогу: фильтр города или цены не делает запрос выдуманным
-    return _query_grounded_in_category(repo, cats, original, category_id, {})
+    names = _category_names(cats, category_id)
+    conditions, params = repo._offer_filter()
+    return all(_word_grounded_in_category(repo, names, w, category_id, conditions, params) for w in dropped)
 
 
 def search_sync(arguments, understanding, selected_attributes):
@@ -1540,7 +1600,12 @@ def matches_watch(target, offer):
                     return False
                 part, values = getattr(repo,'_'+name+'_filter')(val)
                 cat_sql += ' ' + part; params.extend(values)
-            fts = repo._build_fts_query(QueryParser.parse(query).clean_query)
+            clean = QueryParser.parse(query).clean_query
+            fts = repo._build_fts_query(clean)
+            # LS-05: то же условие варианта, что в выдаче («S24 Plus» — только S24+ и S24 Plus)
+            plus_sql, plus_params = repo._plus_variant_filter(clean)
+            if plus_sql:
+                cat_sql += ' ' + plus_sql; params.extend(plus_params)
             if fts:
                 return bool(conn.execute('''SELECT 1 FROM canonical_products p
                     JOIN canonical_products_fts f ON f.rowid=p.rowid
