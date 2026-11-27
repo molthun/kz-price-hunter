@@ -6867,6 +6867,14 @@
               <input type="radio" name="filterCondition" value="USED" onchange="applyCurrentFilters(true)" />
               <span>Б/у</span>
             </label>
+            <label class="filter-checkbox-label">
+              <input type="radio" name="filterCondition" value="OPEN_BOX" onchange="applyCurrentFilters(true)" />
+              <span>Витринные / вскрытые</span>
+            </label>
+            <label class="filter-checkbox-label">
+              <input type="radio" name="filterCondition" value="REFURBISHED" onchange="applyCurrentFilters(true)" />
+              <span>Восстановленные</span>
+            </label>
           </div>
 
           <div class="filter-group">
@@ -12543,13 +12551,18 @@
 
       // 4. Condition
       if (AppState.condition && AppState.condition !== 'ALL') {
-        const condLabel = AppState.condition === 'NEW' ? 'Новое' : (AppState.condition === 'USED' ? 'Б/у' : AppState.condition);
+        const condLabel = {
+          NEW: 'Новое',
+          USED: 'Б/у',
+          OPEN_BOX: 'Витринные / вскрытые',
+          REFURBISHED: 'Восстановленные',
+        }[AppState.condition] || AppState.condition;
         chips.push({
           label: 'Состояние',
           value: condLabel,
           onRemove: () => {
-            AppState.condition = 'ALL';
-            document.querySelectorAll('input[name="filterCondition"]').forEach(r => { r.checked = (r.value === 'ALL'); });
+            AppState.condition = '';
+            document.querySelectorAll('input[name="filterCondition"]').forEach(r => { r.checked = (r.value === ''); });
             AppState.page = 1; updateSearchUrl(); executeSearch();
           }
         });
@@ -12938,7 +12951,7 @@
       AppState.max_price = maxP;
 
       const cond = document.querySelector('input[name="filterCondition"]:checked');
-      AppState.condition = cond ? cond.value : '';
+      if (cond) AppState.condition = cond.value;
 
       AppState.gift = document.getElementById('filterGift').checked;
       AppState.in_stock = document.getElementById('filterInStock').checked;

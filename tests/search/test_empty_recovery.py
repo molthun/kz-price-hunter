@@ -455,6 +455,20 @@ class EmptyRecoveryTest(unittest.TestCase):
                 id="o_s24_used", product_id="p_s24_used", seller_id="s3", channel_id="c_s3",
                 external_sku="sku_s24_used", url="http://ex.kz/s24-used", price=190000.0, condition="USED", city="Астана",
             ))
+            ProductRepository(conn).save_or_update(CanonicalProduct(
+                id="p_s24_ob", canonical_key="k_s24_ob", title="Смартфон Samsung Galaxy S23 FE витринный", category="phones", brand="Samsung"
+            ))
+            OfferRepository(conn).save_or_update(Offer(
+                id="o_s24_ob", product_id="p_s24_ob", seller_id="s3", channel_id="c_s3",
+                external_sku="sku_s24_ob", url="http://ex.kz/s24-ob", price=210000.0, condition="OPEN_BOX", city="Астана",
+            ))
+            ProductRepository(conn).save_or_update(CanonicalProduct(
+                id="p_s24_ref", canonical_key="k_s24_ref", title="Смартфон Samsung Galaxy S22 восстановленный", category="phones", brand="Samsung"
+            ))
+            OfferRepository(conn).save_or_update(Offer(
+                id="o_s24_ref", product_id="p_s24_ref", seller_id="s3", channel_id="c_s3",
+                external_sku="sku_s24_ref", url="http://ex.kz/s24-ref", price=175000.0, condition="REFURBISHED", city="Астана",
+            ))
             conn.commit()
         finally:
             conn.close()
@@ -462,23 +476,27 @@ class EmptyRecoveryTest(unittest.TestCase):
         async def scenario():
             with patch.dict(os.environ, {"LOCAL_SEARCH_ENABLED": "0"}), \
                  patch("database.get_connection", side_effect=self._get_conn):
-                d = json.loads((await web_server.search_v2_handler(_FakeReq(
-                    {"q": "Galaxy S25 новый", "category": "phones", "city": "Астана", "limit": "20"},
-                    remote="10.2.0.28",
-                ))).text)
-                self.assertEqual(d["total_products"], 0)
-                cat_act = (d.get("search_help") or {}).get("category_action")
-                self.assertIsNotNone(cat_act)
-                self.assertEqual(cat_act["condition"], "NEW")
-                self.assertEqual(cat_act["count"], 1)
+                for idx, (q_text, expected_cond, expected_pid) in enumerate((
+                    ("Galaxy S25 новый", "NEW", "p_s24_new"),
+                    ("Galaxy S25 витринный", "OPEN_BOX", "p_s24_ob"),
+                    ("Galaxy S25 восстановленный", "REFURBISHED", "p_s24_ref"),
+                ), start=28):
+                    d = json.loads((await web_server.search_v2_handler(_FakeReq(
+                        {"q": q_text, "category": "phones", "city": "Астана", "limit": "20"},
+                        remote=f"10.2.0.{idx}",
+                    ))).text)
+                    self.assertEqual(d["total_products"], 0, msg=q_text)
+                    cat_act = (d.get("search_help") or {}).get("category_action")
+                    self.assertIsNotNone(cat_act, msg=q_text)
+                    self.assertEqual(cat_act["condition"], expected_cond, msg=q_text)
+                    self.assertEqual(cat_act["count"], 1, msg=q_text)
 
-                # Переход с condition=NEW возвращает ровно 1 новый телефон
-                d_new = json.loads((await web_server.search_v2_handler(_FakeReq(
-                    {"q": "", "category": "phones", "city": "Астана", "condition": "NEW", "limit": "20"},
-                    remote="10.2.0.29",
-                ))).text)
-                self.assertEqual(d_new["total_products"], 1)
-                self.assertEqual([it["product"]["id"] for it in d_new["items"]], ["p_s24_new"])
+                    d_follow = json.loads((await web_server.search_v2_handler(_FakeReq(
+                        {"q": "", "category": "phones", "city": "Астана", "condition": expected_cond, "limit": "20"},
+                        remote=f"10.2.1.{idx}",
+                    ))).text)
+                    self.assertEqual(d_follow["total_products"], 1, msg=q_text)
+                    self.assertEqual([it["product"]["id"] for it in d_follow["items"]], [expected_pid], msg=q_text)
 
         asyncio.run(scenario())
 

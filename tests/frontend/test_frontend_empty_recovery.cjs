@@ -82,6 +82,8 @@ function createHarness(fetchImpl) {
     { name: 'filterCondition', value: '', checked: true },
     { name: 'filterCondition', value: 'NEW', checked: false },
     { name: 'filterCondition', value: 'USED', checked: false },
+    { name: 'filterCondition', value: 'OPEN_BOX', checked: false },
+    { name: 'filterCondition', value: 'REFURBISHED', checked: false },
   ];
   const cityCalls = [];
   const watchCalls = [];
@@ -483,7 +485,66 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`PASS (${passed}/8) test_frontend_empty_recovery.cjs`);
+  // 9. ER-02: template has OPEN_BOX and REFURBISHED radios, and both are preserved across applyCurrentFilters until explicitly cleared
+  {
+    assert.ok(html.includes('name="filterCondition" value="OPEN_BOX"'), 'Missing OPEN_BOX radio in search_first.html');
+    assert.ok(html.includes('name="filterCondition" value="REFURBISHED"'), 'Missing REFURBISHED radio in search_first.html');
+    for (const [condVal, radioIdx] of [['OPEN_BOX', 3], ['REFURBISHED', 4]]) {
+      const h = createHarness(async () => ({
+        ok: true, status: 200,
+        json: async () => ({ search_phase: 'final', ai_pending: false, total_products: 1, items: [] }),
+      }));
+      h.AppState.query = condVal === 'OPEN_BOX' ? 'Galaxy S25 витринный' : 'Galaxy S25 восстановленный';
+      h.AppState.city = 'Астана';
+      h.AppState.condition = '';
+      h.AppState.max_price = '';
+      h.AppState.seller = '';
+      h.els.filterMaxPrice.value = '';
+
+      const actions = h.ctx.buildEmptySearchActions(
+        h.AppState,
+        {
+          total_products: 0,
+          recovery_actions: [],
+          local_ai: { status: 'disabled' },
+          search_help: {
+            category_action: {
+              id: 'open_category',
+              relax: 'category',
+              category_id: 'phones',
+              category_name: 'Смартфоны',
+              city: 'Астана',
+              min_price: null,
+              max_price: null,
+              condition: condVal,
+              count: 1,
+              count_unit: 'products',
+              label: 'Посмотреть раздел «Смартфоны» — 1 товар',
+            },
+          },
+        },
+        { id: 7 }
+      );
+      const catAct = actions.find((a) => a.id === 'open_category');
+      assert.ok(catAct);
+      catAct.run();
+      assert.equal(h.AppState.condition, condVal);
+      assert.equal(h.condRadios[radioIdx].checked, true);
+      assert.equal(h.condRadios[0].checked, false);
+
+      // Re-applying filters without edits preserves condition
+      h.ctx.applyCurrentFilters(true);
+      assert.equal(h.AppState.condition, condVal);
+
+      // Explicit switch to "Все" clears condition
+      h.condRadios.forEach((r, idx) => { r.checked = (idx === 0); });
+      h.ctx.applyCurrentFilters(true);
+      assert.equal(h.AppState.condition, '');
+    }
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/9) test_frontend_empty_recovery.cjs`);
 }
 
 runTests().catch((err) => {

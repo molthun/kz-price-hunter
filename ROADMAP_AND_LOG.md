@@ -1,5 +1,9 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.66.3: Полная поддержка всех состояний (OPEN_BOX, REFURBISHED) в фильтре состояния (остаток ER-02)
+
+- `web/templates/search_first.html`: добавлены радиокнопки `OPEN_BOX` и `REFURBISHED` в `filterCondition`, подписи в чипах фильтров и защита `applyCurrentFilters()`; расширены регрессии в `tests/search/test_empty_recovery.py` и `tests/frontend/test_frontend_empty_recovery.cjs`.
+
 ## 28.11.2026 — 6.66.2: Синхронизация радиокнопок состояния при открытии раздела (приёмка Codex ER-02)
 
 - `web/templates/search_first.html`: `open_category` синхронизирует `input[name="filterCondition"]` с `AppState.condition`; добавлены регрессии в `tests/search/test_empty_recovery.py` и `tests/frontend/test_frontend_empty_recovery.cjs`.
