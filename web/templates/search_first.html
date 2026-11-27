@@ -6394,6 +6394,26 @@
       background: var(--primary, #2563eb);
       color: #fff;
     }
+    .local-ai-retry-btn {
+      margin-top: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-subtle);
+      color: var(--text-main);
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .local-ai-retry-btn:hover {
+      border-color: var(--primary, #2563eb);
+      background: var(--primary, #2563eb);
+      color: #fff;
+    }
     .tire-size-panel {
       display: flex;
       flex-direction: column;
@@ -11613,6 +11633,26 @@
     }
 
     function showResultsError(title, desc) {
+      AppState.resultItems = [];
+      const cardsEl = document.getElementById('productCardsContainer');
+      if (cardsEl) cardsEl.innerHTML = '';
+      const pEl = document.getElementById('paginationBar');
+      if (pEl) {
+        pEl.style.display = 'none';
+        pEl.innerHTML = '';
+      }
+      const helpEl = document.getElementById('localSearchHelp');
+      if (helpEl) {
+        if (typeof helpEl.replaceChildren === 'function') helpEl.replaceChildren();
+        else helpEl.innerHTML = '';
+        helpEl.style.display = 'none';
+      }
+      const webEl = document.getElementById('resultsLiveWebSearchContainer');
+      if (webEl) webEl.style.display = 'none';
+      const emptyEl = document.getElementById('resultsEmpty');
+      if (emptyEl && typeof emptyEl.setAttribute === 'function') {
+        emptyEl.setAttribute('data-results-state', 'error');
+      }
       showResultsMessage(title, desc, 'Повторить', () => executeSearch());
     }
 
@@ -12176,9 +12216,19 @@
         }
 
         const emptyExtraActions = buildEmptySearchActions(AppState, data, typeof currentUser !== 'undefined' ? currentUser : null);
-        showResultsMessage('Сейчас подходящих предложений нет', desc,
-          'Уточнить запрос', () => { const input = document.getElementById('resultsSearchInput'); input.focus(); input.select(); },
-          emptyExtraActions);
+        const emptyElBox = document.getElementById('resultsEmpty');
+        if (emptyElBox && typeof emptyElBox.setAttribute === 'function') {
+          emptyElBox.setAttribute('data-results-state', unavailable ? 'ai-unavailable' : 'empty');
+        }
+        if (unavailable) {
+          showResultsMessage('Помощник временно недоступен', desc,
+            'Повторить', () => executeSearch(),
+            emptyExtraActions);
+        } else {
+          showResultsMessage('Сейчас подходящих предложений нет', desc,
+            'Уточнить запрос', () => { const input = document.getElementById('resultsSearchInput'); if (input) { input.focus(); input.select(); } },
+            emptyExtraActions);
+        }
         return;
       }
 
@@ -12714,6 +12764,15 @@
         (category ? 'Ищем: ' + category + '.' : 'Запрос обработан помощником.');
       box.append(line);
       if (isPending) return;
+      if (status === 'unavailable' && Number(data.total_products) > 0) {
+        const retryBtn = document.createElement('button');
+        retryBtn.type = 'button';
+        retryBtn.className = 'local-ai-retry-btn';
+        retryBtn.setAttribute('data-ai-retry', '1');
+        retryBtn.textContent = 'Повторить';
+        retryBtn.onclick = () => executeSearch();
+        box.append(retryBtn);
+      }
       if (info.clarification) {
         const question = document.createElement('p'); question.textContent = info.clarification; box.append(question);
       }

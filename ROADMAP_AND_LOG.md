@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.67.0: Разделение сбоев поиска/ИИ и пустой выдачи + действие «Повторить»
+
+- `web/templates/search_first.html`: `showResultsError()` очищает старые карточки/пагинацию/помощника/веб-поиск (`data-results-state="error"`); при `local_ai.status === 'unavailable'` на пустой выдаче показывается «Помощник временно недоступен» + «Повторить» (`data-results-state="ai-unavailable"`), а при наличии карточек — кнопка «Повторить» (`data-ai-retry="1"`) в `#localSearchHelp`.
+- Тесты: добавлен `tests/frontend/test_frontend_search_error_and_ai_retry.cjs` (6 сценариев).
+
 ## 28.11.2026 — 6.66.3: Полная поддержка всех состояний (OPEN_BOX, REFURBISHED) в фильтре состояния (остаток ER-02)
 
 - `web/templates/search_first.html`: добавлены радиокнопки `OPEN_BOX` и `REFURBISHED` в `filterCondition`, подписи в чипах фильтров и защита `applyCurrentFilters()`; расширены регрессии в `tests/search/test_empty_recovery.py` и `tests/frontend/test_frontend_empty_recovery.cjs`.

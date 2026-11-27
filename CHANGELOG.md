@@ -3,6 +3,19 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.67.0] - 2026-11-28
+
+### Для пользователей
+- 🔄 Сбой сервиса поиска и временная недоступность ИИ-помощника больше не смешиваются с пустой выдачей: при ошибке поиска старые карточки и пагинация очищаются и показывается понятное сообщение с кнопкой **«Повторить»**.
+- 🤖 Если ИИ-помощник временно недоступен, а каталог вернул товары, в блоке помощника появилась кнопка **«Повторить»**; если товаров нет, вместо «Сейчас подходящих предложений нет» показывается «Помощник временно недоступен» с кнопкой **«Повторить»** и доступными действиями каталога.
+
+### Добавлено и изменено
+- `web/templates/search_first.html`:
+  - `showResultsError()` очищает `#productCardsContainer`, скрывает и очищает `#paginationBar`, `#localSearchHelp`, `#resultsLiveWebSearchContainer`, сбрасывает `AppState.resultItems` и выставляет `data-results-state="error"`.
+  - `renderSearchResults()` при `items.length === 0` и `local_ai.status === 'unavailable'` выставляет `data-results-state="ai-unavailable"`, заголовок «Помощник временно недоступен» и основную кнопку «Повторить» (`executeSearch()`), сохраняя действия восстановления каталога.
+  - `renderLocalSearchHelp()` при `status === 'unavailable'` и `total_products > 0` добавляет кнопку «Повторить» (`.local-ai-retry-btn`, `data-ai-retry="1"`), без дублирования при пустой выдаче.
+- Тесты: добавлен `tests/frontend/test_frontend_search_error_and_ai_retry.cjs` (6 сценариев).
+
 ## [6.66.3] - 2026-11-28
 
 ### Для пользователей
