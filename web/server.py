@@ -1475,6 +1475,7 @@ async def search_v2_handler(request):
         data = resp.to_dict()
         data['search_phase'] = 'final'
         data['ai_pending'] = False
+        data['recovery_actions'] = list(getattr(resp, 'recovery_actions', []) or [])
         if resolved_barcode_info:
             await _apply_barcode_matches(data, query, resolved_barcode_info)
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200
@@ -1647,8 +1648,9 @@ def _run_search_v2_sync(
 
     conn = get_connection()
     try:
-        core = SearchCore(SearchRepository(conn))
-        resp = core.search(
+        repo = SearchRepository(conn)
+        core = SearchCore(repo)
+        search_kwargs = dict(
             query=query,
             city=city,
             condition=condition,
@@ -1670,6 +1672,14 @@ def _run_search_v2_sync(
             kind=kind,
             attributes=attributes,
         )
+        resp = core.search(**search_kwargs)
+        if resp.total_products == 0 and resp.outcome != "ERROR":
+            import local_search
+            resp.recovery_actions = local_search.compute_empty_recovery_actions(
+                conn, search_kwargs, search_kwargs, repo=repo
+            )
+        else:
+            resp.recovery_actions = []
         try:
             from repositories.search_analytics_repo import SearchAnalyticsRepository
             from domain.search_analytics import SearchEvent

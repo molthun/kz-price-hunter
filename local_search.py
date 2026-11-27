@@ -1205,6 +1205,69 @@ def _rewrite_grounded(repo, cats, original, plan):
     return all(_word_grounded_in_category(repo, names, w, category_id, conditions, params) for w in dropped)
 
 
+def _pluralize_products_ru(n: int) -> str:
+    n_abs = abs(int(n))
+    mod100 = n_abs % 100
+    mod10 = n_abs % 10
+    if 11 <= mod100 <= 14:
+        return 'товаров'
+    if mod10 == 1:
+        return 'товар'
+    if 2 <= mod10 <= 4:
+        return 'товара'
+    return 'товаров'
+
+
+def compute_empty_recovery_actions(conn, arguments, search_args, repo=None):
+    """Проверяет до трёх единичных ослаблений для итоговой пустой выдачи: город, цена, продавец.
+
+    Использует штатный SearchCore и те же ограничения (размер, вариант модели, подарок, состояние,
+    характеристики, семантическую область), не пишет аналитику и спрос и не меняет исходный ответ.
+    """
+    from domain.search_core import SearchCore
+    from repositories.search_repo import SearchRepository
+
+    probes = []
+    city_val = str(arguments.get('city') or '').strip()
+    if city_val and city_val != 'Все':
+        probes.append(('all_cities', 'city', 'Во всех городах', {'city': None}))
+    if arguments.get('min_price') is not None or arguments.get('max_price') is not None:
+        probes.append(('clear_price', 'price', 'Без ограничения цены', {'min_price': None, 'max_price': None}))
+    if str(arguments.get('seller_id') or '').strip():
+        probes.append(('clear_seller', 'seller', 'У всех продавцов', {'seller_id': None}))
+
+    if not probes:
+        return []
+
+    actions = []
+    for act_id, relax_key, prefix, overrides in probes:
+        probe_repo = SearchRepository(conn)
+        if repo is not None:
+            probe_repo.attribute_filters = dict(getattr(repo, 'attribute_filters', {}) or {})
+            probe_repo.inferred_attribute_filters = dict(getattr(repo, 'inferred_attribute_filters', {}) or {})
+            if getattr(repo, 'verified_scope', None) is not None:
+                probe_repo.verified_scope = list(repo.verified_scope)
+            if getattr(repo, 'product_scope', None) is not None:
+                probe_repo.product_scope = list(repo.product_scope)
+            if getattr(repo, 'rank_query', None) is not None:
+                probe_repo.rank_query = repo.rank_query
+        probe_args = {**search_args, **overrides, 'limit': 1, 'page': 1, 'offset': None}
+        try:
+            probe_res = SearchCore(probe_repo).search(**probe_args)
+            cnt = int(probe_res.total_products or 0)
+        except Exception:
+            cnt = 0
+        if cnt > 0:
+            actions.append({
+                'id': act_id,
+                'relax': relax_key,
+                'count': cnt,
+                'count_unit': 'products',
+                'label': f'{prefix} — {cnt} {_pluralize_products_ru(cnt)}',
+            })
+    return actions
+
+
 def search_sync(arguments, understanding, selected_attributes, preview=False):
     """All SQL reads/attributes/counts/facets share one connection and one filter."""
     from database import get_connection
@@ -1354,6 +1417,10 @@ def search_sync(arguments, understanding, selected_attributes, preview=False):
             clarification_msg = f'Показаны результаты для «{fixed_layout}» (исправлена раскладка).'
         data['search_phase'] = 'preview' if preview else 'final'
         data['ai_pending'] = bool(preview)
+        if not preview and res.total_products == 0 and res.outcome != 'ERROR':
+            data['recovery_actions'] = compute_empty_recovery_actions(conn, arguments, search_args, repo=repo)
+        else:
+            data['recovery_actions'] = []
         data['search_help'] = {
             'category_id': inferred_category, 'category_name': cat.name if cat else (plan or {}).get('category_name'),
             'clarification': clarification_msg, 'expansion': None,
