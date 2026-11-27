@@ -161,14 +161,14 @@ async function runTests() {
       h.AppState,
       {
         total_products: 0,
-        recovery_actions: [{ id: 'all_cities', relax: 'city', count: 3, label: 'Во всех городах — 3 предложения' }],
+        recovery_actions: [{ id: 'all_cities', relax: 'city', count: 3, count_unit: 'products', label: 'Во всех городах — 3 товара' }],
         local_ai: { status: 'disabled' },
       },
       { id: 7 }
     );
     const cityAct = actions.find((a) => a.id === 'all_cities');
     assert.ok(cityAct);
-    assert.equal(cityAct.label, '🌍 Во всех городах — 3 предложения');
+    assert.equal(cityAct.label, '🌍 Во всех городах — 3 товара');
     cityAct.run();
     assert.deepEqual(h.cityCalls, ['Все']);
     assert.equal(h.AppState.attributes.size, '42');

@@ -1205,17 +1205,17 @@ def _rewrite_grounded(repo, cats, original, plan):
     return all(_word_grounded_in_category(repo, names, w, category_id, conditions, params) for w in dropped)
 
 
-def _pluralize_offers_ru(n: int) -> str:
+def _pluralize_products_ru(n: int) -> str:
     n_abs = abs(int(n))
     mod100 = n_abs % 100
     mod10 = n_abs % 10
     if 11 <= mod100 <= 14:
-        return 'предложений'
+        return 'товаров'
     if mod10 == 1:
-        return 'предложение'
+        return 'товар'
     if 2 <= mod10 <= 4:
-        return 'предложения'
-    return 'предложений'
+        return 'товара'
+    return 'товаров'
 
 
 def compute_empty_recovery_actions(conn, arguments, search_args, repo=None):
@@ -1262,7 +1262,8 @@ def compute_empty_recovery_actions(conn, arguments, search_args, repo=None):
                 'id': act_id,
                 'relax': relax_key,
                 'count': cnt,
-                'label': f'{prefix} — {cnt} {_pluralize_offers_ru(cnt)}',
+                'count_unit': 'products',
+                'label': f'{prefix} — {cnt} {_pluralize_products_ru(cnt)}',
             })
     return actions
 

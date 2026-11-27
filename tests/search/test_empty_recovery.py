@@ -103,6 +103,11 @@ class EmptyRecoveryTest(unittest.TestCase):
             id="o_s24p", product_id="p_s24p", seller_id="s3", channel_id="c_s3",
             external_sku="sku_s24p", url="http://ex.kz/s24p", price=410000.0, condition="new", city="Алматы",
         ))
+        # Второй продавец для того же Galaxy S24+ в Алматы (1 товар, 2 предложения)
+        orf.save_or_update(Offer(
+            id="o_s24p_2", product_id="p_s24p", seller_id="s1", channel_id="c_s1",
+            external_sku="sku_s24p_2", url="http://ex.kz/s24p-2", price=415000.0, condition="new", city="Алматы",
+        ))
         conn.commit()
         conn.close()
         local_search._plans.clear()
@@ -182,14 +187,16 @@ class EmptyRecoveryTest(unittest.TestCase):
                 act = d["recovery_actions"][0]
                 self.assertEqual(act["id"], "all_cities")
                 self.assertEqual(act["count"], 1)
-                self.assertIn("1 предложение", act["label"])
+                self.assertEqual(act["count_unit"], "products")
+                self.assertEqual(act["label"], "Во всех городах — 1 товар")
                 # Наблюдение сохраняет исходный город Астана до клика
                 self.assertEqual(d["search_help"]["watch_city"], "Астана")
                 self.assertEqual(self._counts(), (1, 1))
 
-                # Применение действия (убираем city) даёт ровно 1 S24+ (не обычный S24)
+                # Применение действия (убираем city) даёт ровно 1 товар S24+ (с 2 предложениями от разных продавцов)
                 d_all = json.loads((await web_server.search_v2_handler(_FakeReq({"q": "Galaxy S24+", "limit": "20"}, remote="10.2.0.3"))).text)
                 self.assertEqual(d_all["total_products"], 1)
+                self.assertEqual(d_all["total_offers"], 2)
                 self.assertEqual([it["product"]["id"] for it in d_all["items"]], ["p_s24p"])
 
         asyncio.run(scenario())
