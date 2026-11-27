@@ -481,12 +481,79 @@ def explicit_memory_attributes(query, allowed_keys):
     return out
 
 
+_TIRE_SIZE_RE = re.compile(
+    r'(?<!\d)(\d{3})\s*[/\\\-xх\s]\s*(\d{2})\s*(?:[/\\\-]\s*)?(?:z?r|р)?\s*(\d{2})(?!\d)',
+    re.IGNORECASE,
+)
+
+
+def normalize_tire_size(raw):
+    """Приводит типовые записи размера шины (205/55r16, 205 55 16, 205/55 р16) к «205/55 R16»."""
+    text = str(raw or '').strip()
+    if not text:
+        return None
+    m = _TIRE_SIZE_RE.search(text)
+    if not m:
+        return None
+    w, p, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if not (135 <= w <= 355 and 25 <= p <= 90 and 12 <= d <= 24):
+        return None
+    return f'{w}/{p} R{d}'
+
+
+def _is_tire_query(query):
+    q_low = str(query or '').casefold()
+    if not q_low:
+        return False
+    if any(p in q_low for p in ('бензопил', 'электропил', 'пилы', 'пил', 'цепь')):
+        return False
+    return any(w in q_low for w in ('шина', 'шины', 'шину', 'шин', 'резина', 'резину', 'резины', 'автошин', 'tires', 'tire'))
+
+
+def _has_tire_size(query, attrs):
+    attrs = attrs or {}
+    if str(attrs.get('tire_size') or '').strip():
+        return True
+    has_w = bool(str(attrs.get('tire_width') or attrs.get('width') or '').strip())
+    has_p = bool(str(attrs.get('tire_profile') or attrs.get('profile') or '').strip())
+    has_d = bool(str(attrs.get('diameter') or '').strip())
+    if has_w and has_p and has_d:
+        return True
+    q = str(query or '')
+    if normalize_tire_size(q):
+        return True
+    if re.search(r'(?<!\d)\d{3}\s*/\s*\d{2}(?!\d)', q):
+        return True
+    return False
+
+
+def _build_tire_size_prompt(attribute_facets, max_options=6):
+    options = []
+    for facet in attribute_facets or ():
+        if not isinstance(facet, dict) or facet.get('key') != 'tire_size':
+            continue
+        for item in facet.get('values') or ():
+            val = str(item.get('value') or '').strip()
+            cnt = int(item.get('count') or 0)
+            if val and cnt > 0:
+                options.append({'value': val, 'count': cnt})
+            if len(options) >= max_options:
+                break
+        break
+    return {
+        'action_label': 'Указать размер',
+        'attribute_key': 'tire_size',
+        'placeholder': 'Например, 205/55 R16',
+        'options': options,
+    }
+
+
 def _asks_known(clarification, attrs, fields, query=''):
     """Уточнение не переспрашивает то, что уже есть в запросе (размер шины, сезон…)."""
     text = _norm(clarification)
     if not text:
         return False
-    if 'размер' in text and (_SIZE_KEYS & set(attrs) or re.search(r'\d{3}\s*/\s*\d{2}', query)):
+    if 'размер' in text and (_SIZE_KEYS & set(attrs) or re.search(r'\d{3}\s*/\s*\d{2}', query) or normalize_tire_size(query)):
         return True
     labels = {f.get('key'): f.get('label') or '' for f in fields or () if isinstance(f, dict)}
     for key in attrs:
@@ -1305,6 +1372,10 @@ def search_sync(arguments, understanding, selected_attributes, preview=False):
         selected_category = arguments.get('category')
         inferred_category = None
         attrs = dict(selected_attributes)
+        if attrs.get('tire_size'):
+            norm_ts = normalize_tire_size(attrs['tire_size'])
+            if norm_ts:
+                attrs['tire_size'] = norm_ts
         search_args = dict(arguments)
         if fixed_layout:
             search_args['query'] = fixed_layout
@@ -1395,7 +1466,14 @@ def search_sync(arguments, understanding, selected_attributes, preview=False):
         cat = cats.get_by_id(inferred_category or selected_category or '')
         if cat is None and selected_category:
             cat = cats.get_mapper().map_category(selected_category)
-        schema = dict(cat.attributes_schema) if cat else {}
+        is_tire_search = bool(
+            inferred_category == 'tires'
+            or selected_category == 'tires'
+            or (cat and cat.id == 'tires')
+            or _is_tire_query(effective_original)
+        )
+        facet_cat = cat or (cats.get_by_id('tires') if is_tire_search else None)
+        schema = dict(facet_cat.attributes_schema) if facet_cat else {}
         if plan and inferred_category:
             schema.update({f['key']: f for f in plan['fields']})
         active_args = fallback_args if fallback_applied else search_args
@@ -1408,8 +1486,9 @@ def search_sync(arguments, understanding, selected_attributes, preview=False):
         if fixed_layout:
             data['local_ai']['corrected_query'] = fixed_layout
         clarification_msg = (plan or {}).get('clarification', '')
-        if plan and (_asks_known(clarification_msg, plan.get('attributes') or {}, plan.get('fields') or (), effective_original) or (
-                set(plan.get('attributes') or {}) & set(_MEMORY_KEYS) and re.search(r'памят|озу', _norm(clarification_msg)))):
+        known_attrs = {**(plan.get('attributes') or {}), **inferred_attrs, **attrs} if plan else {**inferred_attrs, **attrs}
+        if plan and (_asks_known(clarification_msg, known_attrs, plan.get('fields') or (), effective_original) or (
+                set(known_attrs) & set(_MEMORY_KEYS) and re.search(r'памят|озу', _norm(clarification_msg)))):
             clarification_msg = ''
         if fallback_applied:
             clarification_msg = f'По запросу «{original}» точных совпадений в каталоге не найдено. Показаны товары из раздела «{cat.name if cat else inferred_category}».'
@@ -1421,11 +1500,15 @@ def search_sync(arguments, understanding, selected_attributes, preview=False):
             data['recovery_actions'] = compute_empty_recovery_actions(conn, arguments, search_args, repo=repo)
         else:
             data['recovery_actions'] = []
+        tire_size_prompt = None
+        if not preview and res.outcome != 'ERROR' and is_tire_search and not _has_tire_size(effective_original, {**inferred_attrs, **attrs}):
+            tire_size_prompt = _build_tire_size_prompt(data['attribute_facets'])
         data['search_help'] = {
             'category_id': inferred_category, 'category_name': cat.name if cat else (plan or {}).get('category_name'),
             'clarification': clarification_msg, 'expansion': None,
             'is_fallback': fallback_applied,
             'ai_pending': bool(preview),
+            'tire_size_prompt': tire_size_prompt,
         }
         if not preview and original and res.outcome != 'ERROR':
             spec = dict(query=watch_query, original_query=original, category=search_args.get('category'),

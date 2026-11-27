@@ -1,5 +1,11 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 27.11.2026 — 6.65.0: Выбор размера шин в уточнении поискового помощника
+
+- `local_search.py`, `repositories/search_repo.py`: `normalize_tire_size()`, варианты `tire_size` в `_attribute_value_variants()`, `search_help.tire_size_prompt` с фасетными опциями (включая fallback при недоступном ИИ), подавление повторного вопроса при уже заданном размере.
+- `web/templates/search_first.html`: кнопка «Указать размер» в `renderLocalSearchHelp()` с чипами из фасетов и ручным вводом (`205/55 R16`), сохранение запроса/сезона/города/цены/фильтров и передача `tire_size` в наблюдение при пустой выдаче.
+- Тесты: `tests/search/test_tire_size_prompt.py` (7 тестов), `tests/frontend/test_frontend_tire_size_prompt.cjs` (6 сценариев).
+
 ## 27.11.2026 — 6.64.0: Явные состояния внешнего поиска из пустой выдачи и защита от устаревшего ответа
 
 - `web/templates/search_first.html`: `triggerLiveWebSearch()` разделяет 4 состояния (`checking`, `found`, `empty`, `unavailable`), помечает ссылки как внешние с дисклеймером о подтверждении наличия и условий у продавца, и игнорирует/отменяет устаревший ответ при смене запроса, фильтра или города (`AbortController` + `webSearchSeq` + `getSearchContextKey()`).

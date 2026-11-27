@@ -6368,6 +6368,100 @@
       border: 1px solid var(--border-color);
       color: var(--text-muted);
     }
+    /* Tire size clarification prompt inside #localSearchHelp */
+    .tire-size-prompt {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .tire-size-toggle-btn {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--primary, #2563eb);
+      background: var(--bg-subtle);
+      color: var(--text-main);
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tire-size-toggle-btn:hover {
+      background: var(--primary, #2563eb);
+      color: #fff;
+    }
+    .tire-size-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+    }
+    .tire-size-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tire-size-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-main);
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tire-size-chip:hover {
+      border-color: var(--primary, #2563eb);
+    }
+    .tire-size-chip-count {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .tire-size-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .tire-size-input {
+      flex: 1 1 180px;
+      min-width: 0;
+      min-height: 38px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-main);
+      font-size: 0.88rem;
+    }
+    .tire-size-submit-btn {
+      min-height: 38px;
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary, #2563eb);
+      color: #fff;
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tire-size-error {
+      font-size: 0.8rem;
+      color: #dc2626;
+    }
     .web-search-cards {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -11267,19 +11361,23 @@
       const selected = (data && data.selected_attributes && typeof data.selected_attributes === 'object') ? data.selected_attributes : {};
       const query = String(st.query || '').trim().slice(0, 200);
       const size = String(attrs.size || selected.size || '').trim();
+      const tireSize = String(attrs.tire_size || selected.tire_size || '').trim();
       const num = v => {
         const n = Number(String(v == null ? '' : v).replace(/\s+/g, ''));
         return Number.isFinite(n) && n > 0 ? n : null;
       };
       let target = typeof info.watch_target === 'string' && info.watch_target.startsWith('@local-search:') ? info.watch_target : '';
       const sellerFacet = st.seller ? String(st.seller).trim().slice(0, 100) : '';
-      // ES-04: «с подарком» и продавец проверяются у предложения внутри цели — добавляем их и в цель сервера
-      if (target && (st.gift || sellerFacet)) {
+      // ES-04: «с подарком», продавец и выбранный размер шин сохраняются и в цели сервера
+      if (target && (st.gift || sellerFacet || tireSize)) {
         try {
           const serverSpec = JSON.parse(target.slice('@local-search:'.length));
           if (serverSpec && typeof serverSpec === 'object') {
             if (st.gift) serverSpec.gift = true;
             if (sellerFacet) serverSpec.seller = sellerFacet;
+            if (tireSize) {
+              serverSpec.attributes = { ...(serverSpec.attributes || {}), tire_size: tireSize };
+            }
             const sorted = {};
             Object.keys(serverSpec).sort().forEach(k => { sorted[k] = serverSpec[k]; });
             target = '@local-search:' + JSON.stringify(sorted);
@@ -11315,10 +11413,14 @@
       const itemConditions = serverConds.length ? serverConds
         : (['new', 'used', 'refurbished'].includes(cond) ? [cond] : []);
       const city = info.watch_city || (st.city && st.city !== 'Все' ? st.city : null);
+      const baseTitle = query || 'Поиск';
+      const watchTitle = tireSize && !baseTitle.toLowerCase().includes(tireSize.toLowerCase())
+        ? (baseTitle + ' (' + tireSize + ')')
+        : baseTitle;
       const payload = {
         kind: 'search',
         target: target,
-        title: query || 'Поиск',
+        title: watchTitle,
         condition: size ? 'size_in_stock' : 'new_offer',
         repeat: false,
         item_conditions: itemConditions,
@@ -11441,9 +11543,10 @@
       if (query && user && nothingFound && !aiHasWatch) {
         // Сохраняется то, что написано на кнопке: условия на момент показа, а не после других нажатий
         const snapshot = { ...st, attributes: { ...attrs } };
+        const watchBadge = activeSize || String(attrs.tire_size || ((data && data.selected_attributes) || {}).tire_size || '').trim();
         actions.push({
           id: 'watch_search',
-          label: activeSize ? '🔔 Уведомить о появлении (' + activeSize + ')' : '🔔 Уведомить о появлении',
+          label: watchBadge ? '🔔 Уведомить о появлении (' + watchBadge + ')' : '🔔 Уведомить о появлении',
           run: (btn) => createSearchWatchFromEmpty(btn, snapshot, data, '✓ Уведомление включено'),
         });
       }
@@ -12409,7 +12512,7 @@
       if (AppState.attributes && typeof AppState.attributes === 'object') {
         Object.entries(AppState.attributes).forEach(([k, v]) => {
           if (!v) return;
-          const attrLabel = labelMap[k] || k;
+          const attrLabel = labelMap[k] || (k === 'tire_size' ? 'Размер шин' : k);
           chips.push({
             label: attrLabel,
             value: v,
@@ -12505,23 +12608,133 @@
       container.style.display = container.children.length ? 'flex' : 'none';
     }
 
+    function normalizeTireSizeInput(raw) {
+      const text = String(raw == null ? '' : raw).trim();
+      if (!text) return null;
+      const m = text.match(/(?:^|[^\d])(\d{3})\s*[/\\\-xх\s]\s*(\d{2})\s*(?:[/\\\-]\s*)?(?:z?r|р)?\s*(\d{2})(?:$|[^\d])/i);
+      if (!m) return null;
+      const w = Number(m[1]), p = Number(m[2]), d = Number(m[3]);
+      if (w < 135 || w > 355 || p < 25 || p > 90 || d < 12 || d > 24) return null;
+      return `${w}/${p} R${d}`;
+    }
+
+    function applyTireSizeClarification(rawSize) {
+      const normalized = normalizeTireSizeInput(rawSize);
+      if (!normalized) return false;
+      AppState.attributes = { ...(AppState.attributes || {}), tire_size: normalized };
+      AppState.page = 1;
+      updateSearchUrl();
+      executeSearch();
+      return true;
+    }
+
     function renderLocalSearchHelp(data) {
       const box = document.getElementById('localSearchHelp'); box.replaceChildren();
       const info = data.search_help || {};
-      if (!data.local_ai || (data.local_ai.status === 'disabled' && !data.local_ai.cached_plan)) return;
+      const hasTirePrompt = Boolean(
+        info.tire_size_prompt &&
+        !(AppState.attributes && AppState.attributes.tire_size) &&
+        !(data.selected_attributes && data.selected_attributes.tire_size)
+      );
+      if ((!data.local_ai || (data.local_ai.status === 'disabled' && !data.local_ai.cached_plan)) && !hasTirePrompt) return;
       box.style.display = 'block';
-      const isPending = Boolean(data.ai_pending || info.ai_pending || data.local_ai.status === 'pending');
+      const isPending = Boolean(data.ai_pending || info.ai_pending || (data.local_ai && data.local_ai.status === 'pending'));
       const line = document.createElement('div');
       const category = info.category_name;
+      const aiStatus = data.local_ai ? data.local_ai.status : 'disabled';
       line.textContent = isPending
         ? (data.total_products > 0 ? 'Показаны быстрые результаты каталога. ИИ уточняет запрос…' : 'Ищем с ИИ-помощником…')
-        : data.local_ai.cached_plan ? 'Используем сохранённую проверку запроса и актуальные предложения каталога.' : data.local_ai.status === 'unavailable' ? 'Помощник временно недоступен. Показываем результаты каталога.' :
-        data.local_ai.status === 'unclear' ? 'Помощник не определил раздел для этого запроса. Показываем результаты каталога.' :
+        : (data.local_ai && data.local_ai.cached_plan) ? 'Используем сохранённую проверку запроса и актуальные предложения каталога.' : aiStatus === 'unavailable' ? 'Помощник временно недоступен. Показываем результаты каталога.' :
+        aiStatus === 'unclear' ? 'Помощник не определил раздел для этого запроса. Показываем результаты каталога.' :
+        aiStatus === 'disabled' ? 'Показаны результаты каталога.' :
         (category ? 'Ищем: ' + category + '.' : 'Запрос обработан помощником.');
       box.append(line);
       if (isPending) return;
       if (info.clarification) {
         const question = document.createElement('p'); question.textContent = info.clarification; box.append(question);
+      }
+      if (hasTirePrompt) {
+        const prompt = info.tire_size_prompt;
+        const wrap = document.createElement('div');
+        wrap.className = 'tire-size-prompt';
+        wrap.setAttribute('data-tire-size-prompt', '1');
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'tire-size-toggle-btn';
+        toggleBtn.textContent = prompt.action_label || 'Указать размер';
+        toggleBtn.setAttribute('aria-expanded', 'false');
+
+        const panel = document.createElement('div');
+        panel.className = 'tire-size-panel';
+        panel.style.display = 'none';
+
+        const options = Array.isArray(prompt.options) ? prompt.options : [];
+        if (options.length > 0) {
+          const optsRow = document.createElement('div');
+          optsRow.className = 'tire-size-options';
+          options.forEach(opt => {
+            const val = String((opt && opt.value) || '').trim();
+            if (!val) return;
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'tire-size-chip';
+            chip.setAttribute('data-tire-size-option', val);
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = val;
+            chip.appendChild(labelSpan);
+            if (Number(opt.count) > 0) {
+              const cntSpan = document.createElement('span');
+              cntSpan.className = 'tire-size-chip-count';
+              cntSpan.textContent = String(opt.count);
+              chip.appendChild(cntSpan);
+            }
+            chip.onclick = () => applyTireSizeClarification(val);
+            optsRow.appendChild(chip);
+          });
+          panel.appendChild(optsRow);
+        }
+
+        const form = document.createElement('form');
+        form.className = 'tire-size-form';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'tire-size-input';
+        input.placeholder = prompt.placeholder || 'Например, 205/55 R16';
+        input.setAttribute('aria-label', 'Размер шин');
+        const submitBtn = document.createElement('button');
+        submitBtn.type = 'submit';
+        submitBtn.className = 'tire-size-submit-btn';
+        submitBtn.textContent = 'Применить';
+        const errEl = document.createElement('div');
+        errEl.className = 'tire-size-error';
+        errEl.style.display = 'none';
+
+        form.onsubmit = (e) => {
+          if (e && typeof e.preventDefault === 'function') e.preventDefault();
+          const ok = applyTireSizeClarification(input.value);
+          if (!ok) {
+            errEl.textContent = 'Укажите размер в формате 205/55 R16';
+            errEl.style.display = 'block';
+          } else {
+            errEl.style.display = 'none';
+          }
+        };
+        form.appendChild(input);
+        form.appendChild(submitBtn);
+        panel.appendChild(form);
+        panel.appendChild(errEl);
+
+        toggleBtn.onclick = () => {
+          const isOpen = panel.style.display !== 'none';
+          panel.style.display = isOpen ? 'none' : 'flex';
+          toggleBtn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+          if (!isOpen && typeof input.focus === 'function') input.focus();
+        };
+
+        wrap.appendChild(toggleBtn);
+        wrap.appendChild(panel);
+        box.append(wrap);
       }
       if (info.expansion) {
         const pending = document.createElement('p');
@@ -12544,7 +12757,10 @@
         const button = document.createElement('button'); button.className = 'btn-secondary-action';
         button.style.marginTop = '8px'; button.textContent = 'Уведомить о появлении';
         // ES-03: тот же конструктор, что у кнопки пустой выдачи — с размером, ценой и состоянием
-        const aiSize = String(((AppState.attributes || {}).size) || ((data.selected_attributes || {}).size) || '').trim();
+        const aiSize = String(
+          ((AppState.attributes || {}).size) || ((data.selected_attributes || {}).size) ||
+          ((AppState.attributes || {}).tire_size) || ((data.selected_attributes || {}).tire_size) || ''
+        ).trim();
         if (aiSize) button.textContent = 'Уведомить о появлении (' + aiSize + ')';
         const aiSnapshot = { ...AppState, attributes: { ...(AppState.attributes || {}) } };
         button.onclick = () => createSearchWatchFromEmpty(button, aiSnapshot, data, 'Уведомление включено');

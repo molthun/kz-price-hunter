@@ -178,6 +178,17 @@ def _attribute_value_variants(key: str, value: str) -> list[str]:
             re.sub(r'^(?:GeForce|Radeon)\s+', '', value),
             f"NVIDIA {value}", f"AMD {value}"
         ])
+    elif key == 'tire_size':
+        m_ts = re.search(r'\b(\d{3})\s*[/\\\-xх\s]\s*(\d{2})\s*(?:[/\\\-]\s*)?(?:z?r|р)?\s*(\d{2})\b', str(value), re.IGNORECASE)
+        if m_ts:
+            w, p, d = int(m_ts.group(1)), int(m_ts.group(2)), int(m_ts.group(3))
+            if 135 <= w <= 355 and 25 <= p <= 90 and 12 <= d <= 24:
+                variants.extend([
+                    f"{w}/{p} R{d}", f"{w}/{p}R{d}",
+                    f"{w}/{p} r{d}", f"{w}/{p}r{d}",
+                    f"{w}/{p} Р{d}", f"{w}/{p}Р{d}",
+                    f"{w}/{p} ZR{d}", f"{w}/{p}ZR{d}",
+                ])
     return list(dict.fromkeys(v for v in variants if v))
 
 
