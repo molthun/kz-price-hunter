@@ -13,6 +13,18 @@ from domain.models import Condition, Offer, OfferPriceHistory, utc_now_iso
 from repositories.base import BaseRepository
 
 
+def _valid_old_price(old_price: Optional[float], price: Optional[float]) -> Optional[float]:
+    """Сохраняет old_price только когда она строго больше положительной текущей цены."""
+    if old_price is None or price is None:
+        return None
+    try:
+        old_val = float(old_price)
+        cur_val = float(price)
+        return old_val if old_val > cur_val > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
 class OfferRepository(BaseRepository):
     """
     CRUD and query operations for merchant offers and time-series prices.
@@ -58,6 +70,8 @@ class OfferRepository(BaseRepository):
             updated_at=excluded.updated_at
         """
         now = utc_now_iso()
+        valid_old = _valid_old_price(offer.old_price, offer.price)
+        offer.old_price = valid_old
         params = (
             offer.id,
             offer.product_id,
@@ -67,7 +81,7 @@ class OfferRepository(BaseRepository):
             offer.url,
             offer.image_url,
             offer.price,
-            offer.old_price,
+            valid_old,
             offer.currency,
             offer.condition,
             offer.availability,
@@ -99,6 +113,7 @@ class OfferRepository(BaseRepository):
         observed_at: Optional[str] = None,
     ) -> OfferPriceHistory:
         obs_time = observed_at or utc_now_iso()
+        valid_old = _valid_old_price(old_price, price)
         # Измерения линии берутся из предложения в момент наблюдения (V02)
         sql = """
         INSERT OR REPLACE INTO offer_price_history
@@ -106,11 +121,11 @@ class OfferRepository(BaseRepository):
         SELECT ?, ?, ?, ?, o.product_id, o.seller_id, o.channel_id, o.condition, o.city
         FROM (SELECT 1) LEFT JOIN offers o ON o.id = ?
         """
-        self.execute(sql, (offer_id, price, old_price, obs_time, offer_id))
+        self.execute(sql, (offer_id, price, valid_old, obs_time, offer_id))
         return OfferPriceHistory(
             offer_id=offer_id,
             price=price,
-            old_price=old_price,
+            old_price=valid_old,
             observed_at=obs_time,
         )
 

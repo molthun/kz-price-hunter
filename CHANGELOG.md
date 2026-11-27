@@ -3,6 +3,16 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.61.0] - 2026-11-27
+
+### Для пользователей
+- 🏷️ При росте цены товара на витрине маркетплейса прежняя меньшая цена больше не сохраняется как «старая цена» (`old_price < price`), так что в карточках и истории цен не появляются перевёрнутые старые цены.
+
+### Исправлено
+- `domain/channel_sync.py`: в `upsert_showcase_offer` вычисление `effective_old_price` теперь фиксирует прежнюю цену только при реальном снижении (`cur_row[0] > offer.price > 0`), а не при любом изменении цены (`!=`), и отбрасывает `offer.old_price <= offer.price`.
+- `repositories/offer_repo.py`: добавлена нормализация `_valid_old_price(old_price, price)` в `save_or_update` и `add_price_observation` — в `offers` и `offer_price_history` попадает только строго валидная скидка (`old_price > price > 0`).
+- Тесты: расширен `tests/domain/test_showcase_price_history.py` (рост цены на витрине очищает `old_price`, перевёрнутый `old_price <= price` отбрасывается в `channel_sync` и `OfferRepository`).
+
 ## [6.60.2] - 2026-11-27
 
 ### Для пользователей

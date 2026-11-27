@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 27.11.2026 — 6.61.0: Защита инварианта `old_price > price` на витринах и в `OfferRepository`
+
+- `domain/channel_sync.py`: при росте цены на витрине (`cur_row[0] < offer.price`) прежняя меньшая цена больше не записывается в `old_price`; `offer.old_price <= offer.price` отбрасывается.
+- `repositories/offer_repo.py`: `save_or_update` и `add_price_observation` нормализуют `old_price` через `_valid_old_price` (`old_price > price > 0`).
+
 ## 27.11.2026 — 6.60.2: Одноразовое продолжение быстрого поиска
 
 - Повторный, просроченный или неприменимый токен итоговой фазы получает HTTP 409. Самостоятельный запрос без токена проходит через штатный лимит.

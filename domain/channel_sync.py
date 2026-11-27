@@ -130,11 +130,21 @@ def upsert_showcase_offer(
     clean_raw = source_free(offer.raw_data or {})
     raw_payload = json.dumps(clean_raw, ensure_ascii=False)
 
-    # Отслеживание динамики цены при повторном наблюдении
-    effective_old_price = offer.old_price
+    # Отслеживание динамики цены при повторном наблюдении:
+    # old_price фиксируется только как реальная скидка (строго выше новой цены),
+    # при росте цены прежняя меньшая цена не записывается в old_price.
+    price_val = float(offer.price)
+    effective_old_price = None
+    if offer.old_price is not None:
+        try:
+            cand_old = float(offer.old_price)
+            if cand_old > price_val > 0:
+                effective_old_price = cand_old
+        except (TypeError, ValueError):
+            effective_old_price = None
     try:
         cur_row = conn.execute("SELECT price, old_price FROM offers WHERE id = ?", (offer_id,)).fetchone()
-        if cur_row and cur_row[0] is not None and float(cur_row[0]) != float(offer.price):
+        if cur_row and cur_row[0] is not None and float(cur_row[0]) > price_val > 0:
             if not effective_old_price:
                 effective_old_price = float(cur_row[0])
     except Exception:

@@ -293,6 +293,100 @@ class ShowcasePriceHistoryTest(unittest.TestCase):
 
         asyncio.run(_test())
 
+    def test_upsert_showcase_offer_clears_old_price_on_price_increase_and_rejects_inverted_old_price(self):
+        """При росте цены на витрине old_price очищается (не записывается меньшая прежняя цена)."""
+        conn = self._get_conn()
+        try:
+            base = dict(
+                marketplace="kaspi",
+                merchant_id="merchant_123",
+                external_sku="SKU-LG-INC",
+                title="Пылесос LG VK89309H",
+                url="https://kaspi.kz/shop/p/lg-inc",
+                image_url="http://img/1.jpg",
+                in_stock=True,
+                city="Астана",
+            )
+            # 1) Начальная цена 100 000 -> снижение до 85 000: old_price = 100 000
+            off_id = upsert_showcase_offer(
+                conn, ShowcaseOffer(price=100000.0, old_price=None, **base),
+                product_id="prod_test_vacuum", seller_id="seller_lg", channel_id="ch_kaspi_lg",
+                now_iso="2026-11-27T01:00:00Z",
+            )
+            upsert_showcase_offer(
+                conn, ShowcaseOffer(price=85000.0, old_price=None, **base),
+                product_id="prod_test_vacuum", seller_id="seller_lg", channel_id="ch_kaspi_lg",
+                now_iso="2026-11-27T02:00:00Z",
+            )
+            row = conn.execute("SELECT price, old_price FROM offers WHERE id = ?", (off_id,)).fetchone()
+            self.assertEqual(row["price"], 85000.0)
+            self.assertEqual(row["old_price"], 100000.0)
+
+            # 2) Рост цены до 110 000: old_price должен стать None (а не 85 000!)
+            upsert_showcase_offer(
+                conn, ShowcaseOffer(price=110000.0, old_price=None, **base),
+                product_id="prod_test_vacuum", seller_id="seller_lg", channel_id="ch_kaspi_lg",
+                now_iso="2026-11-27T03:00:00Z",
+            )
+            row = conn.execute("SELECT price, old_price FROM offers WHERE id = ?", (off_id,)).fetchone()
+            self.assertEqual(row["price"], 110000.0)
+            self.assertIsNone(row["old_price"])
+
+            # 3) Явно перевёрнутый old_price (90 000 < 110 000) тоже отбрасывается
+            upsert_showcase_offer(
+                conn, ShowcaseOffer(price=110000.0, old_price=90000.0, **base),
+                product_id="prod_test_vacuum", seller_id="seller_lg", channel_id="ch_kaspi_lg",
+                now_iso="2026-11-27T04:00:00Z",
+            )
+            row = conn.execute("SELECT price, old_price FROM offers WHERE id = ?", (off_id,)).fetchone()
+            self.assertIsNone(row["old_price"])
+
+            # В истории цен нет ни одной точки с old_price <= price
+            bad = conn.execute(
+                "SELECT COUNT(*) FROM offer_price_history WHERE offer_id = ? AND old_price IS NOT NULL AND old_price <= price",
+                (off_id,),
+            ).fetchone()[0]
+            self.assertEqual(bad, 0)
+        finally:
+            conn.close()
+
+    def test_offer_repository_normalizes_invalid_old_price(self):
+        """OfferRepository не записывает old_price <= price в offers и offer_price_history."""
+        from domain.models import Offer
+        from repositories.offer_repo import OfferRepository
+
+        conn = self._get_conn()
+        try:
+            repo = OfferRepository(conn)
+            off_bad = Offer(
+                id="off_inv_1", product_id="prod_test_vacuum", seller_id="seller_lg",
+                channel_id="ch_kaspi_lg", external_sku="sku-inv", url="https://ex.kz/inv",
+                price=50000.0, old_price=45000.0, condition="new", city="Астана",
+            )
+            repo.save_or_update(off_bad)
+            self.assertIsNone(off_bad.old_price)
+            row = conn.execute("SELECT price, old_price FROM offers WHERE id = 'off_inv_1'").fetchone()
+            self.assertEqual(row["price"], 50000.0)
+            self.assertIsNone(row["old_price"])
+
+            obs = repo.add_price_observation("off_inv_1", price=50000.0, old_price=50000.0, observed_at="2026-11-27T05:00:00Z")
+            self.assertIsNone(obs.old_price)
+            h_row = conn.execute("SELECT old_price FROM offer_price_history WHERE offer_id = 'off_inv_1'").fetchone()
+            self.assertIsNone(h_row["old_price"])
+
+            # Валидная скидка (old_price > price) сохраняется
+            off_good = Offer(
+                id="off_inv_1", product_id="prod_test_vacuum", seller_id="seller_lg",
+                channel_id="ch_kaspi_lg", external_sku="sku-inv", url="https://ex.kz/inv",
+                price=40000.0, old_price=50000.0, condition="new", city="Астана",
+            )
+            repo.save_or_update(off_good)
+            self.assertEqual(off_good.old_price, 50000.0)
+            row = conn.execute("SELECT old_price FROM offers WHERE id = 'off_inv_1'").fetchone()
+            self.assertEqual(row["old_price"], 50000.0)
+        finally:
+            conn.close()
+
 
 if __name__ == "__main__":
     unittest.main()
