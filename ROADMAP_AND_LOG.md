@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 27.11.2026 — 6.60.1: исправления приёмки Codex по 6.60.0 (очистка превью, `unclear` без дубля, лимит `preview -> final`)
+
+- `web/templates/search_first.html`: `renderSearchResults` очищает карточки и пагинацию превью при пустом итоге; `executeSearch` передаёт одноразовый `preview_token`.
+- `local_search.py`, `web/server.py`: одноразовый `preview_token` + `_preview_tasks` — `final` забирает завершённый `unclear` без повторного вызова модели и не падает в 429 на границе лимита (повторный/самостоятельный `final` по-прежнему лимитируется).
+
 ## 27.11.2026 — 6.60.0: Быстрый первый результат поиска (двухфазная выдача `preview` → `final`)
 
 - `local_search.py`, `web/server.py`: `peek_understanding` + `/api/v2/search?phase=preview|final` — мгновенная предварительная выдача каталога при холодном кеше с фоновым запуском модели в `_pending[key]` (без повторного вызова LLM), 1 запрос при прогретом кеше, 1 запись аналитики и спроса на поиск.

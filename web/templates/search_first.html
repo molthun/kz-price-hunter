@@ -11741,6 +11741,7 @@
 
         const finalParams = new URLSearchParams(p.toString());
         finalParams.set('phase', 'final');
+        if (data.preview_token) finalParams.set('preview_token', data.preview_token);
         try {
           const finalResp = await fetch('/api/v2/search?' + finalParams.toString(), {
             signal: ctrl.signal,
@@ -11816,6 +11817,12 @@
         if (data.ai_pending || (data.local_ai && data.local_ai.status === 'pending')) {
           return;
         }
+        cardsEl.innerHTML = '';
+        const pEl = document.getElementById('paginationBar');
+        if (pEl) {
+          pEl.style.display = 'none';
+          pEl.innerHTML = '';
+        }
         const unavailable = data.local_ai && data.local_ai.status === 'unavailable';
         const info = data.search_help || {};
         const catName = info.category_name || (data.parsed_query ? data.parsed_query.category : '');
@@ -11841,6 +11848,9 @@
           emptyExtraActions);
         return;
       }
+
+      const emptyEl = document.getElementById('resultsEmpty');
+      if (emptyEl) emptyEl.style.display = 'none';
 
       let barcodeBannerHtml = '';
       if (data.resolved_from_barcode && data.resolved_product_title) {
@@ -11964,6 +11974,7 @@
 
       if (totalPages <= 1) {
         pEl.style.display = 'none';
+        pEl.innerHTML = '';
         return;
       }
 

@@ -8,6 +8,7 @@ import json
 import math
 import os
 import re
+import secrets
 import time
 
 from bounded_cache import BoundedTTLCache
@@ -15,6 +16,8 @@ from bounded_cache import BoundedTTLCache
 _plans = BoundedTTLCache(1000, 3600)
 _failures = BoundedTTLCache(8, 15)
 _pending = {}
+_preview_tasks = BoundedTTLCache(256, 30)
+_preview_continuations = BoundedTTLCache(512, 60)
 KEY = re.compile(r'^[a-z][a-z0-9_]{0,39}$')
 WATCH_PREFIX = '@local-search:'
 
@@ -857,13 +860,56 @@ fields=[{"key":"season","label":"Сезон"},{"key":"width","label":"Ширин
     return task
 
 
+def register_preview_continuation(ip, sig, task, key):
+    """Регистрирует одноразовый токен продолжения для пары preview -> final (один учтённый поиск)."""
+    token = secrets.token_urlsafe(16)
+    _preview_continuations[token] = {
+        'ip': str(ip or ''),
+        'sig': str(sig or ''),
+        'task': task,
+        'key': key,
+        'consumed': False,
+    }
+    return token
+
+
+def consume_preview_continuation(token, ip, sig):
+    """Атомарно забирает одноразовый токен продолжения preview -> final при совпадении IP и параметров поиска."""
+    if not token:
+        return None
+    cont = _preview_continuations.get(token)
+    if not cont or cont.get('consumed'):
+        return None
+    if cont.get('ip') != str(ip or '') or cont.get('sig') != str(sig or ''):
+        return None
+    cont['consumed'] = True
+    key = cont.get('key')
+    if key is not None:
+        _preview_tasks.pop(key, None)
+    return cont
+
+
+def get_preview_task_and_key(query, categories, corrected_query=None):
+    """Возвращает (task, key) активной или недавно завершённой preview-задачи модели."""
+    import config
+    cfg = config.get_ai_config()
+    base, model = cfg.get('local_api_base'), cfg.get('local_model')
+    if not base or not model or not (query or '').strip():
+        return None, None
+    effective_query = (corrected_query or None) or query
+    key = _understand_cache_key(effective_query, categories, base, model)
+    task = _pending.get(key) or _preview_tasks.get(key)
+    return task, key
+
+
 def peek_understanding(query, categories, corrected_query=None, start_background=False):
     """Неблокирующая проверка готовности разбора локальной моделью для быстрой предварительной выдачи.
 
     Возвращает (understanding, is_ready):
     - is_ready=True: результат уже в кеше (или модель отключена/недоступна) — можно сразу отдавать final.
-    - is_ready=False: кеш холодный; при start_background=True задача модели сразу ставится в _pending[key],
-      чтобы последующий запрос phase=final дождался её без повторного вызова модели.
+    - is_ready=False: кеш холодный; при start_background=True задача модели сразу ставится в _pending[key]
+      и _preview_tasks[key], чтобы последующий запрос phase=final дождался её (включая ответ unclear)
+      без повторного вызова модели.
     """
     import config
     import local_ai
@@ -889,15 +935,18 @@ def peek_understanding(query, categories, corrected_query=None, start_background
         if fixed_layout:
             out['corrected_query'] = fixed_layout
         return out, True
-    if start_background and key not in _pending:
-        _start_understand_task(effective_query, categories, base, model, cfg.get('local_api_key') or '', key)
+    if start_background:
+        task = _pending.get(key)
+        if task is None:
+            task = _start_understand_task(effective_query, categories, base, model, cfg.get('local_api_key') or '', key)
+        _preview_tasks[key] = task
     out = {'status': 'pending', 'model': model, 'cached': False}
     if fixed_layout:
         out['corrected_query'] = fixed_layout
     return out, False
 
 
-async def understand(query, categories, corrected_query=None):
+async def understand(query, categories, corrected_query=None, consume_preview=False, preview_task=None):
     import config
     if not enabled() or not query.strip():
         return {'status': 'disabled'}
@@ -913,12 +962,26 @@ async def understand(query, categories, corrected_query=None):
     fixed_layout = corrected_query or None
     effective_query = fixed_layout or query
     key = _understand_cache_key(effective_query, categories, base, model)
+    if preview_task is not None:
+        res = await asyncio.shield(preview_task)
+        if fixed_layout and isinstance(res, dict):
+            return {**res, 'corrected_query': fixed_layout}
+        return res
     cached = _plans.get(key)
     if cached:
+        if consume_preview:
+            _preview_tasks.pop(key, None)
         out = {**cached, 'cached': True}
         if fixed_layout:
             out['corrected_query'] = fixed_layout
         return out
+    if consume_preview:
+        prev_task = _preview_tasks.pop(key, None)
+        if prev_task is not None:
+            res = await asyncio.shield(prev_task)
+            if fixed_layout and isinstance(res, dict):
+                return {**res, 'corrected_query': fixed_layout}
+            return res
     if _failures.get((base, model)):
         out = {'status': 'unavailable'}
         if fixed_layout:

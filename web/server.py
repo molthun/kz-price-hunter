@@ -1367,9 +1367,25 @@ async def search_v2_handler(request):
         except (ValueError, TypeError):
             offset = None
 
-    wait = search_limiter.retry_after(f"ip:{client_ip(request)}")
-    if wait:
-        return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
+    phase = (request.query.get("phase") or "").strip().lower()
+    preview_token = (request.query.get("preview_token") or "").strip()
+    preview_sig = json.dumps(
+        [
+            query, city, condition, channel_type, seller_type, seller_id,
+            category, brand, model, kind, delivery, installment, gift, in_stock,
+            min_price, max_price, sort_by, limit, page, offset, attributes,
+        ],
+        ensure_ascii=False, sort_keys=True,
+    )
+    import local_search
+    req_ip = client_ip(request)
+    continuation = None
+    if phase == "final" and preview_token:
+        continuation = local_search.consume_preview_continuation(preview_token, req_ip, preview_sig)
+    if continuation is None:
+        wait = search_limiter.retry_after(f"ip:{req_ip}")
+        if wait:
+            return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
 
     try:
         # Автоматический резолвинг штрихкодов товаров (EAN-13, EAN-8, UPC-A, GTIN-14)
@@ -1403,8 +1419,6 @@ async def search_v2_handler(request):
             kind=kind,
             attributes=attributes,
         )
-        phase = (request.query.get("phase") or "").strip().lower()
-        import local_search
         if local_search.enabled():
             from database import get_connection
             def _context():
@@ -1425,8 +1439,21 @@ async def search_v2_handler(request):
                 data = await asyncio.to_thread(
                     local_search.search_sync, arguments, understanding, attributes, not is_ready
                 )
+                if not is_ready:
+                    bg_task, bg_key = local_search.get_preview_task_and_key(
+                        search_query, categories, corrected_query=corrected
+                    )
+                    data['preview_token'] = local_search.register_preview_continuation(
+                        req_ip, preview_sig, bg_task, bg_key
+                    )
                 return web.json_response(data, status=500 if data.get('outcome') == 'ERROR' else 200)
-            understanding = dict(await local_search.understand(search_query, categories, corrected_query=corrected))
+            understanding = dict(await local_search.understand(
+                search_query,
+                categories,
+                corrected_query=corrected,
+                consume_preview=(phase == "final"),
+                preview_task=(continuation.get('task') if continuation else None),
+            ))
             understanding['corrected_query'] = corrected
             data = await asyncio.to_thread(local_search.search_sync, arguments, understanding, attributes)
             # Если по штрихкоду с исходной категорией ничего не найдено - снимаем категорийный фильтр

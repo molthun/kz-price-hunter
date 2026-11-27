@@ -99,11 +99,15 @@ class FastFirstSearchTest(unittest.TestCase):
         local_search._plans.clear()
         local_search._failures.clear()
         local_search._pending.clear()
+        local_search._preview_tasks.clear()
+        local_search._preview_continuations.clear()
 
     def tearDown(self):
         local_search._plans.clear()
         local_search._failures.clear()
         local_search._pending.clear()
+        local_search._preview_tasks.clear()
+        local_search._preview_continuations.clear()
         self.tmpdir.cleanup()
 
     def _get_conn(self):
@@ -265,6 +269,108 @@ class FastFirstSearchTest(unittest.TestCase):
                 self.assertEqual(f["total_products"], 0)
                 self.assertIn("watch_target", f["search_help"])
                 self.assertEqual(self._analytics_count(), 1)
+
+        asyncio.run(scenario())
+
+    def test_unclear_model_answer_completed_before_final_is_not_called_twice_and_next_search_retries(self):
+        """P2 Codex: модель успела вернуть {} (unclear) и убрать _pending до прихода final — повторного вызова нет."""
+        calls = {"n": 0}
+
+        async def unclear_model(prompt, base, model, api_key, timeout=18.0):
+            calls["n"] += 1
+            return {}
+
+        async def scenario():
+            q = {"q": "кроссовки 42", "city": "Астана", "limit": "20"}
+            with patch.dict(os.environ, {"LOCAL_SEARCH_ENABLED": "1"}), \
+                 patch("database.get_connection", side_effect=self._get_conn), \
+                 patch("config.get_ai_config", return_value={"local_api_base": "http://127.0.0.1:11434/v1", "local_model": "qwen3-vl:8b-instruct"}), \
+                 patch("local_ai.pause_reason", return_value=None), \
+                 patch("ai_service.call_local_api", new=AsyncMock(side_effect=unclear_model)):
+                p_resp = await web_server.search_v2_handler(_FakeReq({**q, "phase": "preview"}))
+                p = json.loads(p_resp.text)
+                self.assertEqual(p_resp.status, 200)
+                self.assertEqual(p["search_phase"], "preview")
+                self.assertTrue(p.get("preview_token"))
+
+                # Даём фоновой задаче завершиться и очистить _pending ДО вызова final
+                await asyncio.sleep(0.05)
+                self.assertEqual(len(local_search._pending), 0)
+                self.assertEqual(calls["n"], 1)
+
+                f_resp = await web_server.search_v2_handler(_FakeReq({**q, "phase": "final", "preview_token": p["preview_token"]}))
+                f = json.loads(f_resp.text)
+                self.assertEqual(f_resp.status, 200)
+                self.assertEqual(f["search_phase"], "final")
+                self.assertEqual(f["local_ai"]["status"], "unclear")
+                self.assertEqual(calls["n"], 1, "final не должен вызывать модель повторно после unclear в preview")
+                self.assertEqual(self._analytics_count(), 1)
+                self.assertEqual(len(self._demand_rows()), 1)
+
+                # Следующий самостоятельный поиск может повторить неясный разбор по политике
+                p2 = json.loads((await web_server.search_v2_handler(_FakeReq({**q, "phase": "preview"}))).text)
+                await asyncio.sleep(0.05)
+                f2 = json.loads((await web_server.search_v2_handler(_FakeReq({**q, "phase": "final", "preview_token": p2["preview_token"]}))).text)
+                self.assertEqual(f2["local_ai"]["status"], "unclear")
+                self.assertEqual(calls["n"], 2, "следующий самостоятельный поиск должен повторить неясный разбор")
+
+        asyncio.run(scenario())
+
+    def test_rate_limit_boundary_allows_paired_final_and_blocks_replay_or_standalone_final(self):
+        """P2 Codex: при 59/60 занятых мест preview (200) + его final (200) проходят, повтор и чужой final -> 429."""
+        async def fast_model(prompt, base, model, api_key, timeout=18.0):
+            await asyncio.sleep(0.02)
+            return {
+                "search_query": "кроссовки",
+                "category_id": "shoes",
+                "category_name": "Обувь",
+                "parent_id": None,
+                "confidence": 0.95,
+                "attributes": {},
+                "fields": [
+                    {"key": "season", "label": "Сезон"},
+                    {"key": "material", "label": "Материал"},
+                    {"key": "gender", "label": "Пол"},
+                ],
+                "clarification": "",
+            }
+
+        async def scenario():
+            ip = "198.51.100.77"
+            key = f"ip:{ip}"
+            # Заполняем 59 из 60 слотов штатного search_limiter
+            for _ in range(59):
+                self.assertEqual(web_server.search_limiter.retry_after(key), 0.0)
+
+            q = {"q": "кроссовки 42", "city": "Астана", "limit": "20"}
+            with patch.dict(os.environ, {"LOCAL_SEARCH_ENABLED": "1"}), \
+                 patch("database.get_connection", side_effect=self._get_conn), \
+                 patch("config.get_ai_config", return_value={"local_api_base": "http://127.0.0.1:11434/v1", "local_model": "qwen3-vl:8b-instruct"}), \
+                 patch("local_ai.pause_reason", return_value=None), \
+                 patch("ai_service.call_local_api", new=AsyncMock(side_effect=fast_model)):
+                # 60-й слот: preview проходит (HTTP 200)
+                r_prev = _FakeReq({**q, "phase": "preview"}); r_prev.remote = ip
+                p_resp = await web_server.search_v2_handler(r_prev)
+                self.assertEqual(p_resp.status, 200)
+                p = json.loads(p_resp.text)
+                tok = p.get("preview_token")
+                self.assertTrue(tok)
+
+                # Парный final с тем же preview_token проходит (HTTP 200) и пишет аналитику 1 раз
+                r_fin = _FakeReq({**q, "phase": "final", "preview_token": tok}); r_fin.remote = ip
+                f_resp = await web_server.search_v2_handler(r_fin)
+                self.assertEqual(f_resp.status, 200)
+                self.assertEqual(self._analytics_count(), 1)
+
+                # Повторная доставка final с тем же токеном отклоняется штатным лимитом (HTTP 429)
+                r_replay = _FakeReq({**q, "phase": "final", "preview_token": tok}); r_replay.remote = ip
+                rep_resp = await web_server.search_v2_handler(r_replay)
+                self.assertEqual(rep_resp.status, 429)
+
+                # Самостоятельный final без токена отклоняется штатным лимитом (HTTP 429)
+                r_standalone = _FakeReq({**q, "phase": "final"}); r_standalone.remote = ip
+                st_resp = await web_server.search_v2_handler(r_standalone)
+                self.assertEqual(st_resp.status, 429)
 
         asyncio.run(scenario())
 

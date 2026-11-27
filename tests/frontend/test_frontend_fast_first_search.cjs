@@ -27,26 +27,45 @@ const code = [
   extractFn(html, 'isCurrentSearchRequest'),
   extractFn(html, 'executeSearch'),
   extractFn(html, 'renderLocalSearchHelp'),
+  extractFn(html, 'renderSearchResults'),
+  extractFn(html, 'renderPagination'),
+  extractFn(html, 'showResultsMessage'),
+  extractFn(html, 'buildSearchWatchPayload'),
+  extractFn(html, 'buildEmptySearchActions'),
 ].join('\n\n');
 
 function makeEl(id) {
-  return {
+  const el = {
     id,
     style: { display: '' },
     innerHTML: '',
     textContent: '',
     value: '',
     disabled: false,
+    className: '',
+    type: '',
+    attrs: {},
     children: [],
+    setAttribute(k, v) { this.attrs[k] = v; },
     replaceChildren() { this.children = []; this.textContent = ''; },
     append(...nodes) { this.children.push(...nodes); },
+    appendChild(node) { this.children.push(node); return node; },
+    querySelector(sel) {
+      if (sel === '.state-title') return el._titleEl || (el._titleEl = makeEl('state-title'));
+      if (sel === '.state-desc') return el._descEl || (el._descEl = makeEl('state-desc'));
+      return null;
+    },
   };
+  return el;
 }
 
-function createHarness(fetchImpl) {
+function createHarness(fetchImpl, useRealRender = false) {
   const els = {
     resultsLoading: makeEl('resultsLoading'),
     resultsEmpty: makeEl('resultsEmpty'),
+    resultsEmptyAction: makeEl('resultsEmptyAction'),
+    resultsEmptyExtraActions: makeEl('resultsEmptyExtraActions'),
+    resultsCountText: makeEl('resultsCountText'),
     productCardsContainer: makeEl('productCardsContainer'),
     paginationBar: makeEl('paginationBar'),
     localSearchHelp: makeEl('localSearchHelp'),
@@ -83,21 +102,37 @@ function createHarness(fetchImpl) {
     AbortController,
     console,
     fetch: fetchImpl,
+    Favorites: { has: () => false },
+    escapeHtml: (s) => String(s == null ? '' : s),
+    upgradeImageUrl: (u) => u || '',
+    getSvgPlaceholder: () => 'data:image/svg+xml,',
+    formatPrice: (p) => String(p) + ' ₸',
+    pluralizeSellers: (n) => `${n} прод.`,
+    pluralizeOffers: (n) => `${n} предл.`,
+    getSavedSizesList: () => [],
+    renderCardSizesHtml: () => '',
+    renderCardSizesRow: () => '',
     document: {
       getElementById: (id) => els[id] || null,
       createElement: (tag) => makeEl(tag),
+      querySelectorAll: () => [],
     },
     renderResultsHeader: () => {},
-    renderSearchResults: (data) => {
-      rendered.push(data);
-      ctx.renderLocalSearchHelp(data);
-    },
+    renderFacets: () => {},
+    renderActiveFilterChips: () => {},
+    renderQuickSpecPills: () => {},
     showResultsError: (title, desc) => { errors.push({ title, desc }); },
     updateSearchUrl: () => {},
     createSearchWatchFromEmpty: () => {},
   };
   vm.createContext(ctx);
   vm.runInContext(code, ctx);
+  if (!useRealRender) {
+    ctx.renderSearchResults = (data) => {
+      rendered.push(data);
+      ctx.renderLocalSearchHelp(data);
+    };
+  }
   return { ctx, els, rendered, errors, AppState };
 }
 
@@ -300,7 +335,61 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`PASS (${passed}/5) test_frontend_fast_first_search.cjs`);
+  // 6. P2 Codex: real renderSearchResults clears preview cards and pagination when final result is empty
+  {
+    const calls = [];
+    const h = createHarness(async (url) => {
+      calls.push(url);
+      if (url.includes('phase=preview')) {
+        return {
+          ok: true, status: 200,
+          json: async () => ({
+            search_phase: 'preview',
+            ai_pending: true,
+            preview_token: 'tok-abc-123',
+            total_products: 40,
+            page: 1,
+            total_pages: 2,
+            has_prev: false,
+            has_next: true,
+            items: [
+              { product: { id: 'p_prev_1', title: 'Старая карточка превью' }, min_price: 25000, best_offer: {}, sellers_count: 1, has_new: true },
+            ],
+            local_ai: { status: 'pending' },
+            search_help: { ai_pending: true },
+          }),
+        };
+      }
+      return {
+        ok: true, status: 200,
+        json: async () => ({
+          search_phase: 'final',
+          ai_pending: false,
+          total_products: 0,
+          page: 1,
+          total_pages: 1,
+          has_prev: false,
+          has_next: false,
+          items: [],
+          local_ai: { status: 'ok' },
+          search_help: { category_name: 'Обувь', watch_target: '@local-search:{"query":"кроссовки"}', ai_pending: false },
+        }),
+      };
+    }, true);
+
+    await h.ctx.executeSearch();
+    assert.equal(calls.length, 2);
+    assert.ok(calls[1].includes('preview_token=tok-abc-123'), 'final must pass preview_token from preview');
+    assert.equal(h.els.productCardsContainer.innerHTML, '', 'preview cards HTML must be cleared on empty final');
+    assert.equal(h.els.paginationBar.style.display, 'none', 'old pagination must be hidden on empty final');
+    assert.equal(h.els.paginationBar.innerHTML, '', 'old pagination HTML must be cleared on empty final');
+    assert.equal(h.els.resultsEmpty.style.display, 'block', 'empty state must be shown on empty final');
+    const actionIds = h.els.resultsEmptyExtraActions.children.map((b) => b.attrs['data-empty-action']);
+    assert.ok(actionIds.includes('all_cities'), 'final empty state must expose final actions');
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/6) test_frontend_fast_first_search.cjs`);
 }
 
 runTests().catch((err) => {
