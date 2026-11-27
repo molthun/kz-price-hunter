@@ -11,6 +11,7 @@ from typing import List, Optional
 from domain.models import CanonicalProduct, utc_now_iso
 from repositories.base import BaseRepository
 from content_retention import source_free
+from scrapers.base import clean_product_title
 
 
 class ProductRepository(BaseRepository):
@@ -41,6 +42,9 @@ class ProductRepository(BaseRepository):
             updated_at=excluded.updated_at
         """
         now = utc_now_iso()
+        cleaned_title = clean_product_title(product.title)
+        if cleaned_title:
+            product.title = cleaned_title
         params = (
             product.id,
             product.canonical_key,
@@ -85,6 +89,7 @@ class ProductRepository(BaseRepository):
         description: Optional[str] = None,
         image_url: Optional[str] = None,
     ) -> CanonicalProduct:
+        title = clean_product_title(title) or title
         existing = self.get_by_canonical_key(canonical_key)
         if existing:
             # Enrich missing fields if present

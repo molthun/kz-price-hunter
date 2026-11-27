@@ -1,5 +1,6 @@
 """Общая основа парсеров: постраничный обход категории до конца выдачи."""
 import hashlib
+import html
 import random
 import re
 import time
@@ -242,6 +243,21 @@ class Scraper(Protocol):
         ...
 
 
+def clean_product_title(title: Any) -> str:
+    """Раскрывает HTML-сущности (&#34;, &#43;, &quot;, &amp;, &nbsp;) и нормализует пробелы в названии товара."""
+    text = str(title or "")
+    if not text:
+        return ""
+    for _ in range(2):
+        if "&" not in text:
+            break
+        unescaped = html.unescape(text)
+        if unescaped == text:
+            break
+        text = unescaped
+    return re.sub(r"\s+", " ", text.replace("\xa0", " ")).strip()
+
+
 def validate_product_item(item: Dict[str, Any], default_shop: str = "") -> Optional[Dict[str, Any]]:
     """Проверяет соответствие карточки товара контракту данных.
 
@@ -251,7 +267,7 @@ def validate_product_item(item: Dict[str, Any], default_shop: str = "") -> Optio
     if not isinstance(item, dict):
         return None
     raw_id = str(item.get("id") or "").strip()
-    title = str(item.get("title") or "").strip()
+    title = clean_product_title(item.get("title"))
     url = str(item.get("url") or "").strip()
     price = price_value(item.get("price"))
 

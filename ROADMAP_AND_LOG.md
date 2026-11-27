@@ -1,5 +1,9 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 27.11.2026 — 6.62.0: Очистка HTML-сущностей в названиях товаров (`scrapers/base.py`, `ProductRepository`)
+
+- `scrapers/base.py:clean_product_title` + `validate_product_item` и `repositories/product_repo.py` раскрывают `&#34;`, `&#43;`, `&quot;`, `&amp;`, `&nbsp;` и нормализуют пробелы во всех источниках каталога.
+
 ## 27.11.2026 — 6.61.0: Защита инварианта `old_price > price` на витринах и в `OfferRepository`
 
 - `domain/channel_sync.py`: при росте цены на витрине (`cur_row[0] < offer.price`) прежняя меньшая цена больше не записывается в `old_price`; `offer.old_price <= offer.price` отбрасывается.
