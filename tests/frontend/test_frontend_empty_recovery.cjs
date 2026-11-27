@@ -1,0 +1,280 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+const htmlPath = path.join(__dirname, '..', '..', 'web', 'templates', 'search_first.html');
+const html = fs.readFileSync(htmlPath, 'utf8');
+
+function extractFn(src, name) {
+  const re = new RegExp(`((?:async\\s+)?function\\s+${name}\\s*\\()`);
+  const m = re.exec(src);
+  assert.ok(m, `Function ${name} not found`);
+  const start = m.index;
+  let i = src.indexOf('{', start);
+  let depth = 0;
+  for (; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') {
+      depth--;
+      if (depth === 0) return src.slice(start, i + 1);
+    }
+  }
+  throw new Error(`Unbalanced braces for ${name}`);
+}
+
+const code = [
+  extractFn(html, 'isCurrentSearchRequest'),
+  extractFn(html, 'executeSearch'),
+  extractFn(html, 'renderLocalSearchHelp'),
+  extractFn(html, 'renderSearchResults'),
+  extractFn(html, 'renderPagination'),
+  extractFn(html, 'showResultsMessage'),
+  extractFn(html, 'buildSearchWatchPayload'),
+  extractFn(html, 'buildEmptySearchActions'),
+].join('\n\n');
+
+function makeEl(id) {
+  const el = {
+    id,
+    style: { display: '' },
+    innerHTML: '',
+    textContent: '',
+    value: '',
+    disabled: false,
+    className: '',
+    type: '',
+    attrs: {},
+    children: [],
+    setAttribute(k, v) { this.attrs[k] = v; },
+    replaceChildren() { this.children = []; this.textContent = ''; },
+    append(...nodes) { this.children.push(...nodes); },
+    appendChild(node) { this.children.push(node); return node; },
+    querySelector(sel) {
+      if (sel === '.state-title') return el._titleEl || (el._titleEl = makeEl('state-title'));
+      if (sel === '.state-desc') return el._descEl || (el._descEl = makeEl('state-desc'));
+      return null;
+    },
+  };
+  return el;
+}
+
+function createHarness(fetchImpl) {
+  const els = {
+    resultsLoading: makeEl('resultsLoading'),
+    resultsEmpty: makeEl('resultsEmpty'),
+    resultsEmptyAction: makeEl('resultsEmptyAction'),
+    resultsEmptyExtraActions: makeEl('resultsEmptyExtraActions'),
+    resultsCountText: makeEl('resultsCountText'),
+    productCardsContainer: makeEl('productCardsContainer'),
+    paginationBar: makeEl('paginationBar'),
+    localSearchHelp: makeEl('localSearchHelp'),
+    resultsLiveWebSearchContainer: makeEl('resultsLiveWebSearchContainer'),
+    resultsLiveWebSearchBtn: makeEl('resultsLiveWebSearchBtn'),
+    resultsSearchInput: makeEl('resultsSearchInput'),
+    filterMinPrice: makeEl('filterMinPrice'),
+    filterMaxPrice: makeEl('filterMaxPrice'),
+  };
+  const cityCalls = [];
+  const watchCalls = [];
+  const AppState = {
+    query: 'кроссовки 42',
+    city: 'Астана',
+    category: '',
+    brand: '',
+    model: '',
+    kind: '',
+    condition: '',
+    seller: 'kari',
+    min_price: '',
+    max_price: '22000',
+    sort: 'relevance',
+    limit: 20,
+    page: 1,
+    gift: false,
+    in_stock: false,
+    attributes: { size: '42' },
+    searchAbortCtrl: null,
+    searchSeq: 0,
+  };
+  els.filterMaxPrice.value = '22000';
+
+  const ctx = {
+    AppState,
+    currentUser: { id: 7 },
+    URLSearchParams,
+    AbortController,
+    console,
+    fetch: fetchImpl,
+    Favorites: { has: () => false },
+    escapeHtml: (s) => String(s == null ? '' : s),
+    upgradeImageUrl: (u) => u || '',
+    getSvgPlaceholder: () => 'data:image/svg+xml,',
+    formatPrice: (p) => String(p) + ' ₸',
+    pluralizeSellers: (n) => `${n} прод.`,
+    pluralizeOffers: (n) => `${n} предл.`,
+    getSavedSizesList: () => [],
+    renderCardSizesHtml: () => '',
+    document: {
+      getElementById: (id) => els[id] || null,
+      createElement: (tag) => makeEl(tag),
+      querySelectorAll: () => [],
+    },
+    renderResultsHeader: () => {},
+    renderFacets: () => {},
+    renderActiveFilterChips: () => {},
+    renderQuickSpecPills: () => {},
+    showResultsError: () => {},
+    updateSearchUrl: () => {},
+    resetAllFilters: () => {},
+    onCityChanged: (c) => { cityCalls.push(c); AppState.city = c; },
+    createSearchWatchFromEmpty: (btn, snap, data) => { watchCalls.push({ snap, data }); },
+  };
+  vm.createContext(ctx);
+  vm.runInContext(code, ctx);
+  return { ctx, els, AppState, cityCalls, watchCalls };
+}
+
+async function runTests() {
+  let passed = 0;
+
+  // 1. Zero matches anywhere (recovery_actions: []) -> no blind all_cities button
+  {
+    const h = createHarness(async () => ({ ok: true, status: 200, json: async () => ({}) }));
+    const actions = h.ctx.buildEmptySearchActions(
+      h.AppState,
+      { total_products: 0, recovery_actions: [], local_ai: { status: 'disabled' } },
+      { id: 7 }
+    );
+    const ids = actions.map((a) => a.id);
+    assert.ok(!ids.includes('all_cities'), 'Must not show all_cities when recovery_actions is []');
+    assert.ok(!ids.includes('clear_price'));
+    assert.ok(!ids.includes('clear_seller'));
+    assert.ok(ids.includes('watch_search'));
+    passed++;
+  }
+
+  // 2. Single useful action (all_cities with count 3) -> shows exact count and applies on click
+  {
+    const h = createHarness(async () => ({ ok: true, status: 200, json: async () => ({}) }));
+    const actions = h.ctx.buildEmptySearchActions(
+      h.AppState,
+      {
+        total_products: 0,
+        recovery_actions: [{ id: 'all_cities', relax: 'city', count: 3, label: 'Во всех городах — 3 предложения' }],
+        local_ai: { status: 'disabled' },
+      },
+      { id: 7 }
+    );
+    const cityAct = actions.find((a) => a.id === 'all_cities');
+    assert.ok(cityAct);
+    assert.equal(cityAct.label, '🌍 Во всех городах — 3 предложения');
+    cityAct.run();
+    assert.deepEqual(h.cityCalls, ['Все']);
+    assert.equal(h.AppState.attributes.size, '42');
+    assert.equal(h.AppState.seller, 'kari');
+    passed++;
+  }
+
+  // 3. Multiple useful actions (city + price + seller) -> all 3 shown separately; each relaxes only its own filter
+  {
+    let fetchCount = 0;
+    const h = createHarness(async () => {
+      fetchCount++;
+      return {
+        ok: true, status: 200,
+        json: async () => ({ search_phase: 'final', ai_pending: false, total_products: 1, items: [{ product: { id: 'p1', title: 'Кроссовки' }, min_price: 30000, best_offer: {} }] }),
+      };
+    });
+    const actions = h.ctx.buildEmptySearchActions(
+      h.AppState,
+      {
+        total_products: 0,
+        recovery_actions: [
+          { id: 'all_cities', relax: 'city', count: 1, label: 'Во всех городах — 1 предложение' },
+          { id: 'clear_price', relax: 'price', count: 2, label: 'Без ограничения цены — 2 предложения' },
+          { id: 'clear_seller', relax: 'seller', count: 4, label: 'У всех продавцов — 4 предложения' },
+        ],
+        local_ai: { status: 'disabled' },
+      },
+      { id: 7 }
+    );
+    assert.ok(actions.find((a) => a.id === 'all_cities'));
+    const priceAct = actions.find((a) => a.id === 'clear_price');
+    const sellerAct = actions.find((a) => a.id === 'clear_seller');
+    const watchAct = actions.find((a) => a.id === 'watch_search');
+    assert.ok(priceAct && sellerAct && watchAct);
+
+    // Watch snapshot keeps original constraints even if we inspect before/after clicking price
+    watchAct.run({});
+    assert.equal(h.watchCalls[0].snap.max_price, '22000');
+    assert.equal(h.watchCalls[0].snap.city, 'Астана');
+    assert.equal(h.watchCalls[0].snap.seller, 'kari');
+    assert.equal(h.watchCalls[0].snap.attributes.size, '42');
+
+    // Click clear_price: clears only price, preserves city, seller, size
+    priceAct.run();
+    assert.equal(h.AppState.max_price, '');
+    assert.equal(h.els.filterMaxPrice.value, '');
+    assert.equal(h.AppState.city, 'Астана');
+    assert.equal(h.AppState.seller, 'kari');
+    assert.equal(h.AppState.attributes.size, '42');
+
+    // Click clear_seller: clears only seller, preserves city and size
+    sellerAct.run();
+    assert.equal(h.AppState.seller, '');
+    assert.equal(h.AppState.city, 'Астана');
+    assert.equal(h.AppState.attributes.size, '42');
+    assert.ok(fetchCount >= 2);
+    passed++;
+  }
+
+  // 4. Switching query A -> B during empty recovery check ignores A's late response
+  {
+    let resolveA;
+    const gateA = new Promise((r) => { resolveA = r; });
+    const h = createHarness(async (url) => {
+      const q = new URL('http://x' + url).searchParams.get('q');
+      if (q === 'QueryA') {
+        await gateA;
+        return {
+          ok: true, status: 200,
+          json: async () => ({
+            search_phase: 'final', ai_pending: false, total_products: 0, items: [],
+            recovery_actions: [{ id: 'all_cities', relax: 'city', count: 9, label: 'Во всех городах — 9 предложений' }],
+            local_ai: { status: 'ok' }, search_help: {},
+          }),
+        };
+      }
+      return {
+        ok: true, status: 200,
+        json: async () => ({
+          search_phase: 'final', ai_pending: false, total_products: 1,
+          items: [{ product: { id: 'pB', title: 'Товар B' }, min_price: 10000, best_offer: {} }],
+          recovery_actions: [], local_ai: { status: 'ok' }, search_help: {},
+        }),
+      };
+    });
+
+    h.AppState.query = 'QueryA';
+    const pA = h.ctx.executeSearch();
+    h.AppState.query = 'QueryB';
+    await h.ctx.executeSearch();
+    assert.ok(h.els.productCardsContainer.innerHTML.includes('Товар B'));
+    assert.equal(h.els.resultsEmpty.style.display, 'none');
+
+    resolveA();
+    await pA;
+    // A's late empty response with recovery actions must NOT overwrite B!
+    assert.ok(h.els.productCardsContainer.innerHTML.includes('Товар B'));
+    assert.equal(h.els.resultsEmpty.style.display, 'none');
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/4) test_frontend_empty_recovery.cjs`);
+}
+
+runTests().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
