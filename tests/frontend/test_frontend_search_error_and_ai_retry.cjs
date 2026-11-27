@@ -390,7 +390,46 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`PASS (${passed}/8) test_frontend_search_error_and_ai_retry.cjs`);
+  // 9. SE-01: Non-empty preview + final HTTP 409 / 504 keeps preview cards, shows distinct preliminary message + Retry (NOT AI unavailable)
+  {
+    for (const [statusCode, expectedState, expectedSubstr] of [
+      [409, 'stale-preview', 'запрос устарел'],
+      [504, 'final-timeout', 'истекло время ожидания итогового запроса'],
+    ]) {
+      let calls = 0;
+      const h = createHarness(async (url) => {
+        calls++;
+        if (url.includes('phase=preview')) {
+          return {
+            ok: true, status: 200,
+            json: async () => ({
+              search_phase: 'preview', ai_pending: true, total_products: 2,
+              items: [
+                { product: { id: 'p1', title: 'Предварительный товар 1' }, min_price: 15000, best_offer: {} },
+                { product: { id: 'p2', title: 'Предварительный товар 2' }, min_price: 19000, best_offer: {} },
+              ],
+              local_ai: { status: 'pending' }, search_help: { ai_pending: true },
+            }),
+          };
+        }
+        return { ok: false, status: statusCode, json: async () => ({}) };
+      });
+      await h.ctx.executeSearch();
+      assert.equal(calls, 2);
+      assert.ok(h.els.productCardsContainer.innerHTML.includes('Предварительный товар 1'), `Preview cards must remain on HTTP ${statusCode}`);
+      assert.equal(h.els.localSearchHelp.getAttribute('data-help-state'), expectedState);
+      const helpText = h.els.localSearchHelp.children[0].textContent;
+      assert.ok(helpText.includes('предварительные результаты'), helpText);
+      assert.ok(helpText.includes(expectedSubstr), helpText);
+      assert.ok(!helpText.includes('Помощник временно недоступен'), `Must not blame AI on HTTP ${statusCode}`);
+      const retryBtn = h.els.localSearchHelp.children.find((c) => c.getAttribute && c.getAttribute('data-ai-retry') === '1');
+      assert.ok(retryBtn, `Retry button must be shown on HTTP ${statusCode}`);
+      assert.equal(retryBtn.textContent, 'Повторить');
+    }
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/9) test_frontend_search_error_and_ai_retry.cjs`);
 }
 
 runTests().catch((err) => {

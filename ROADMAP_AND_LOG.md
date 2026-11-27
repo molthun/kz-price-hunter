@@ -1,5 +1,9 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.67.2: Отдельные сообщения для HTTP 409/504 итоговой фазы с предварительными карточками (остаток SE-01)
+
+- `web/templates/search_first.html`: для HTTP 409 (`stale_preview`) и 504 (`final_timeout`) с предварительными карточками выводятся явные сообщения о предварительных результатах и кнопка «Повторить» без подмены на недоступность ИИ; расширен `tests/frontend/test_frontend_search_error_and_ai_retry.cjs`.
+
 ## 28.11.2026 — 6.67.1: Честное разделение сбоя итоговой фазы поиска и недоступности ИИ (приёмка Codex SE-01)
 
 - `web/templates/search_first.html`: в `executeSearch()` HTTP 500/429 и сетевые/прикладные ошибки `phase=final` показывают `showResultsError()` (`data-results-state="error"`) с очисткой предварительных карточек; расширены регрессии в `tests/frontend/test_frontend_search_error_and_ai_retry.cjs`.

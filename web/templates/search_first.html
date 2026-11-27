@@ -12123,12 +12123,13 @@
           if (!finalResp.ok) {
             loadingEl.style.display = 'none';
             if ((finalResp.status === 504 || finalResp.status === 409) && previewItems.length > 0) {
+              const finalReason = finalResp.status === 409 ? 'stale_preview' : 'final_timeout';
               const fallbackFinal = {
                 ...data,
                 search_phase: 'final',
                 ai_pending: false,
                 local_ai: { ...(data.local_ai || {}), status: 'unavailable' },
-                search_help: { ...(data.search_help || {}), ai_pending: false },
+                search_help: { ...(data.search_help || {}), ai_pending: false, final_error_reason: finalReason },
               };
               renderSearchResults(fallbackFinal);
               return;
@@ -12750,15 +12751,26 @@
       const line = document.createElement('div');
       const category = info.category_name;
       const status = data.local_ai ? data.local_ai.status : 'disabled';
+      const finalErrorReason = info.final_error_reason || '';
+      if (typeof box.setAttribute === 'function') {
+        const helpState = isPending ? 'pending'
+          : finalErrorReason === 'stale_preview' ? 'stale-preview'
+          : finalErrorReason === 'final_timeout' ? 'final-timeout'
+          : status === 'unavailable' ? 'ai-unavailable'
+          : status;
+        box.setAttribute('data-help-state', helpState);
+      }
       line.textContent = isPending
         ? (data.total_products > 0 ? 'Показаны быстрые результаты каталога. ИИ уточняет запрос…' : 'Ищем с ИИ-помощником…')
+        : finalErrorReason === 'stale_preview' ? 'Показаны предварительные результаты каталога: запрос устарел. Нажмите «Повторить», чтобы обновить выдачу.'
+        : finalErrorReason === 'final_timeout' ? 'Показаны предварительные результаты каталога: истекло время ожидания итогового запроса. Нажмите «Повторить».'
         : (data.local_ai && data.local_ai.cached_plan) ? 'Используем сохранённую проверку запроса и актуальные предложения каталога.' : status === 'unavailable' ? 'Помощник временно недоступен. Показываем результаты каталога.' :
         status === 'unclear' ? 'Помощник не определил раздел для этого запроса. Показываем результаты каталога.' :
         status === 'disabled' ? 'Показаны результаты каталога.' :
         (category ? 'Ищем: ' + category + '.' : 'Запрос обработан помощником.');
       box.append(line);
       if (isPending) return;
-      if (status === 'unavailable' && Number(data.total_products) > 0) {
+      if ((status === 'unavailable' || finalErrorReason === 'stale_preview' || finalErrorReason === 'final_timeout') && Number(data.total_products) > 0) {
         const retryBtn = document.createElement('button');
         retryBtn.type = 'button';
         retryBtn.className = 'local-ai-retry-btn';
