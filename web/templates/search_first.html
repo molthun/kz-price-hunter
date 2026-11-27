@@ -12641,12 +12641,12 @@
       const isPending = Boolean(data.ai_pending || info.ai_pending || (data.local_ai && data.local_ai.status === 'pending'));
       const line = document.createElement('div');
       const category = info.category_name;
-      const aiStatus = data.local_ai ? data.local_ai.status : 'disabled';
+      const status = data.local_ai ? data.local_ai.status : 'disabled';
       line.textContent = isPending
         ? (data.total_products > 0 ? 'Показаны быстрые результаты каталога. ИИ уточняет запрос…' : 'Ищем с ИИ-помощником…')
-        : (data.local_ai && data.local_ai.cached_plan) ? 'Используем сохранённую проверку запроса и актуальные предложения каталога.' : aiStatus === 'unavailable' ? 'Помощник временно недоступен. Показываем результаты каталога.' :
-        aiStatus === 'unclear' ? 'Помощник не определил раздел для этого запроса. Показываем результаты каталога.' :
-        aiStatus === 'disabled' ? 'Показаны результаты каталога.' :
+        : (data.local_ai && data.local_ai.cached_plan) ? 'Используем сохранённую проверку запроса и актуальные предложения каталога.' : status === 'unavailable' ? 'Помощник временно недоступен. Показываем результаты каталога.' :
+        status === 'unclear' ? 'Помощник не определил раздел для этого запроса. Показываем результаты каталога.' :
+        status === 'disabled' ? 'Показаны результаты каталога.' :
         (category ? 'Ищем: ' + category + '.' : 'Запрос обработан помощником.');
       box.append(line);
       if (isPending) return;

@@ -151,24 +151,36 @@ class TireSizePromptTest(unittest.TestCase):
 
     def test_ai_unavailable_still_returns_catalog_results_facets_and_size_filter(self):
         unavailable = {"status": "unavailable", "plan": None}
+        for q in ("зимняя шина", "зимняя резина", "зимние шины"):
+            args = {"query": q, "city": "Алматы", "limit": 20, "page": 1}
+            data = local_search.search_sync(args, unavailable, {})
+            prompt = data["search_help"]["tire_size_prompt"]
+            self.assertIsNotNone(prompt, msg=q)
+            self.assertEqual(prompt["action_label"], "Указать размер", msg=q)
+
         args = {"query": "зимняя шина", "city": "Алматы", "limit": 20, "page": 1}
         data = local_search.search_sync(args, unavailable, {})
         self.assertEqual(data["total_products"], 2)
-        prompt = data["search_help"]["tire_size_prompt"]
-        self.assertIsNotNone(prompt)
-        self.assertEqual(prompt["options"], [{"value": "205/55 R16", "count": 2}])
+        self.assertEqual(data["search_help"]["tire_size_prompt"]["options"], [{"value": "205/55 R16", "count": 2}])
 
         filtered = local_search.search_sync(args, unavailable, {"tire_size": "205/55 R16"})
         self.assertEqual(filtered["total_products"], 2)
         self.assertIsNone(filtered["search_help"]["tire_size_prompt"])
 
     def test_non_tire_query_has_no_tire_size_prompt(self):
-        data = local_search.search_sync(
-            {"query": "цепная бензопила шина", "city": "Алматы", "limit": 20, "page": 1},
-            {"status": "unavailable", "plan": None},
-            {},
-        )
-        self.assertIsNone(data["search_help"]["tire_size_prompt"])
+        unavailable = {"status": "unavailable", "plan": None}
+        for q in (
+            "цепная бензопила шина",
+            "швейная машинка",
+            "копировальная машина",
+            "машинка для стрижки",
+        ):
+            data = local_search.search_sync(
+                {"query": q, "city": "Алматы", "limit": 20, "page": 1},
+                unavailable,
+                {},
+            )
+            self.assertIsNone(data["search_help"]["tire_size_prompt"], msg=q)
 
 
 if __name__ == "__main__":

@@ -501,13 +501,26 @@ def normalize_tire_size(raw):
     return f'{w}/{p} R{d}'
 
 
+_TIRE_QUERY_TOKENS = frozenset({
+    'шина', 'шины', 'шину', 'шине', 'шиной', 'шиною', 'шин', 'шинам', 'шинами', 'шинах',
+    'автошина', 'автошины', 'автошину', 'автошине', 'автошиной', 'автошин', 'автошинам', 'автошинами', 'автошинах',
+    'резина', 'резины', 'резину', 'резине', 'резиной', 'резиною',
+    'tire', 'tires', 'tyre', 'tyres',
+})
+_TIRE_EXCLUDE_PREFIXES = ('бензопил', 'электропил', 'цепн')
+_TIRE_EXCLUDE_TOKENS = frozenset({'пила', 'пилы', 'пилу', 'пиле', 'пилой', 'пил', 'цепь', 'цепи', 'цепью'})
+
+
 def _is_tire_query(query):
-    q_low = str(query or '').casefold()
+    q_low = str(query or '').casefold().replace('ё', 'е')
     if not q_low:
         return False
-    if any(p in q_low for p in ('бензопил', 'электропил', 'пилы', 'пил', 'цепь')):
+    tokens = re.findall(r'[a-zа-я]+', q_low)
+    if not tokens:
         return False
-    return any(w in q_low for w in ('шина', 'шины', 'шину', 'шин', 'резина', 'резину', 'резины', 'автошин', 'tires', 'tire'))
+    if any(t in _TIRE_EXCLUDE_TOKENS or t.startswith(_TIRE_EXCLUDE_PREFIXES) for t in tokens):
+        return False
+    return any(t in _TIRE_QUERY_TOKENS for t in tokens)
 
 
 def _has_tire_size(query, attrs):
@@ -1466,11 +1479,10 @@ def search_sync(arguments, understanding, selected_attributes, preview=False):
         cat = cats.get_by_id(inferred_category or selected_category or '')
         if cat is None and selected_category:
             cat = cats.get_mapper().map_category(selected_category)
+        resolved_cat_id = (cat.id if cat else None) or inferred_category or selected_category
         is_tire_search = bool(
-            inferred_category == 'tires'
-            or selected_category == 'tires'
-            or (cat and cat.id == 'tires')
-            or _is_tire_query(effective_original)
+            resolved_cat_id == 'tires'
+            or (not resolved_cat_id and _is_tire_query(effective_original))
         )
         facet_cat = cat or (cats.get_by_id('tires') if is_tire_search else None)
         schema = dict(facet_cat.attributes_schema) if facet_cat else {}

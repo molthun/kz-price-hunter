@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 27.11.2026 — 6.65.1: Токенное определение шинных запросов (приёмка Codex по 6.65.0)
+
+- `local_search.py`: `_is_tire_query()` переведён на целые токены (`_TIRE_QUERY_TOKENS` / `_TIRE_EXCLUDE_TOKENS`), а в `search_sync()` вызывается только при неопределённой категории; закрыты ложные срабатывания «Указать размер» для «швейная машинка», «копировальная машина», «машинка для стрижки».
+- Тесты: расширен `tests/search/test_tire_size_prompt.py`.
+
 ## 27.11.2026 — 6.65.0: Выбор размера шин в уточнении поискового помощника
 
 - `local_search.py`, `repositories/search_repo.py`: `normalize_tire_size()`, варианты `tire_size` в `_attribute_value_variants()`, `search_help.tire_size_prompt` с фасетными опциями (включая fallback при недоступном ИИ), подавление повторного вопроса при уже заданном размере.
