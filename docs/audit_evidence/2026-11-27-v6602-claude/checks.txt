@@ -1,0 +1,15 @@
+6.60.2, Claude, 27.11.2026: Codex patch /tmp/kzph-6602-codex.patch applied as-is on top of 82ba534 (feat/fast-first-search)
+== git apply --check: ok; files: web/server.py, tests/search/test_fast_first_search.py, version.py, CHANGELOG.md, ROADMAP_AND_LOG.md
+== Regression proof: web/server.py reverted to 82ba534 -> test_fast_first_search FAILED (2: test_final_token_cannot_repeat_or_change_search_with_quota_remaining, test_rate_limit_boundary_...); with patch -> 6 OK
+== Frontend on 409: executeSearch treats !finalResp.ok as AI-unavailable and renders the preview data as final (no error screen)
+== Local, macOS, Python 3.14.7 (main repo venv)
+Ran 3514 tests in 227.804s
+OK
+== Frontend (Deno + playwright 1.63.0 + Chrome), all tests/frontend/*.cjs
+frontend pass=52 fail=0  (first pass 43/9: the 9 suites spawn ./venv/bin/python, absent in this checkout; rerun with a temporary venv symlink -> 9/9, symlink removed)
+== release_gate.py secrets --root . -> ok, findings []
+== git diff --check -> clean
+== Linux clean container on stand host (separate image kzph-candidate:6602-claude sha256:67b54bd5098b…, --network none, tmpfs data; image and dir removed after run; live kzph-stand untouched, Up healthy)
+Ran 3514 tests in 500.070s
+OK
+== Not checked: Chrome with real Ollama on the candidate, Telegram delivery

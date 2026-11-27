@@ -11636,11 +11636,18 @@
       }
     }
 
+    function isCurrentSearchRequest(seq, ctrl) {
+      return seq === AppState.searchSeq && ctrl && !ctrl.signal.aborted;
+    }
+
     async function executeSearch() {
       if (AppState.searchAbortCtrl) {
         AppState.searchAbortCtrl.abort();
       }
-      AppState.searchAbortCtrl = new AbortController();
+      AppState.searchSeq = (AppState.searchSeq || 0) + 1;
+      const seq = AppState.searchSeq;
+      const ctrl = new AbortController();
+      AppState.searchAbortCtrl = ctrl;
 
       const loadingEl = document.getElementById('resultsLoading');
       const emptyEl = document.getElementById('resultsEmpty');
@@ -11685,10 +11692,15 @@
       if (AppState.gift) p.set('gift', '1');
       if (AppState.in_stock) p.set('in_stock', '1');
 
+      const useTwoPhase = Boolean((AppState.query || '').trim());
+      const firstParams = new URLSearchParams(p.toString());
+      if (useTwoPhase) firstParams.set('phase', 'preview');
+
       try {
-        const resp = await fetch('/api/v2/search?' + p.toString(), {
-          signal: AppState.searchAbortCtrl.signal,
+        const resp = await fetch('/api/v2/search?' + firstParams.toString(), {
+          signal: ctrl.signal,
         });
+        if (!isCurrentSearchRequest(seq, ctrl)) return;
 
         if (!resp.ok) {
           loadingEl.style.display = 'none';
@@ -11701,16 +11713,82 @@
         }
 
         const data = await resp.json();
-        loadingEl.style.display = 'none';
+        if (!isCurrentSearchRequest(seq, ctrl)) return;
 
         if (data.error || data.ok === false) {
+          loadingEl.style.display = 'none';
           showResultsError('Ошибка сервиса поиска', data.error || 'Произошла ошибка при выполнении поискового запроса.');
           return;
         }
 
-        renderSearchResults(data);
+        const isPendingPreview = data.search_phase === 'preview' && Boolean(data.ai_pending);
+        if (!isPendingPreview) {
+          loadingEl.style.display = 'none';
+          renderSearchResults(data);
+          return;
+        }
+
+        // Предварительная выдача каталога: карточки и фасеты показываем сразу, если они есть;
+        // при пустом превью не показываем финальную заглушку и кнопку наблюдения до ответа ИИ.
+        const previewItems = data.items || [];
+        if (previewItems.length > 0) {
+          loadingEl.style.display = 'none';
+          renderSearchResults(data);
+        } else {
+          emptyEl.style.display = 'none';
+          renderLocalSearchHelp(data);
+        }
+
+        const finalParams = new URLSearchParams(p.toString());
+        finalParams.set('phase', 'final');
+        if (data.preview_token) finalParams.set('preview_token', data.preview_token);
+        try {
+          const finalResp = await fetch('/api/v2/search?' + finalParams.toString(), {
+            signal: ctrl.signal,
+          });
+          if (!isCurrentSearchRequest(seq, ctrl)) return;
+          if (!finalResp.ok) {
+            const fallbackFinal = {
+              ...data,
+              search_phase: 'final',
+              ai_pending: false,
+              local_ai: { ...(data.local_ai || {}), status: 'unavailable' },
+              search_help: { ...(data.search_help || {}), ai_pending: false },
+            };
+            loadingEl.style.display = 'none';
+            renderSearchResults(fallbackFinal);
+            return;
+          }
+          const finalData = await finalResp.json();
+          if (!isCurrentSearchRequest(seq, ctrl)) return;
+          loadingEl.style.display = 'none';
+          if (finalData.error || finalData.ok === false) {
+            const fallbackFinal = {
+              ...data,
+              search_phase: 'final',
+              ai_pending: false,
+              local_ai: { ...(data.local_ai || {}), status: 'unavailable' },
+              search_help: { ...(data.search_help || {}), ai_pending: false },
+            };
+            renderSearchResults(fallbackFinal);
+            return;
+          }
+          renderSearchResults(finalData);
+        } catch (finalErr) {
+          if (finalErr.name === 'AbortError' || !isCurrentSearchRequest(seq, ctrl)) return;
+          console.error(finalErr);
+          const fallbackFinal = {
+            ...data,
+            search_phase: 'final',
+            ai_pending: false,
+            local_ai: { ...(data.local_ai || {}), status: 'unavailable' },
+            search_help: { ...(data.search_help || {}), ai_pending: false },
+          };
+          loadingEl.style.display = 'none';
+          renderSearchResults(fallbackFinal);
+        }
       } catch (err) {
-        if (err.name === 'AbortError') return;
+        if (err.name === 'AbortError' || !isCurrentSearchRequest(seq, ctrl)) return;
         console.error(err);
         loadingEl.style.display = 'none';
         showResultsError('Ошибка загрузки', 'Не удалось загрузить результаты поиска. Проверьте соединение с интернетом.');
@@ -11736,6 +11814,15 @@
       renderLocalSearchHelp(data);
 
       if (items.length === 0) {
+        if (data.ai_pending || (data.local_ai && data.local_ai.status === 'pending')) {
+          return;
+        }
+        cardsEl.innerHTML = '';
+        const pEl = document.getElementById('paginationBar');
+        if (pEl) {
+          pEl.style.display = 'none';
+          pEl.innerHTML = '';
+        }
         const unavailable = data.local_ai && data.local_ai.status === 'unavailable';
         const info = data.search_help || {};
         const catName = info.category_name || (data.parsed_query ? data.parsed_query.category : '');
@@ -11761,6 +11848,9 @@
           emptyExtraActions);
         return;
       }
+
+      const emptyEl = document.getElementById('resultsEmpty');
+      if (emptyEl) emptyEl.style.display = 'none';
 
       let barcodeBannerHtml = '';
       if (data.resolved_from_barcode && data.resolved_product_title) {
@@ -11884,6 +11974,7 @@
 
       if (totalPages <= 1) {
         pEl.style.display = 'none';
+        pEl.innerHTML = '';
         return;
       }
 
@@ -12248,12 +12339,16 @@
       const info = data.search_help || {};
       if (!data.local_ai || (data.local_ai.status === 'disabled' && !data.local_ai.cached_plan)) return;
       box.style.display = 'block';
+      const isPending = Boolean(data.ai_pending || info.ai_pending || data.local_ai.status === 'pending');
       const line = document.createElement('div');
       const category = info.category_name;
-      line.textContent = data.local_ai.cached_plan ? 'Используем сохранённую проверку запроса и актуальные предложения каталога.' : data.local_ai.status === 'unavailable' ? 'Помощник временно недоступен. Показываем результаты каталога.' :
+      line.textContent = isPending
+        ? (data.total_products > 0 ? 'Показаны быстрые результаты каталога. ИИ уточняет запрос…' : 'Ищем с ИИ-помощником…')
+        : data.local_ai.cached_plan ? 'Используем сохранённую проверку запроса и актуальные предложения каталога.' : data.local_ai.status === 'unavailable' ? 'Помощник временно недоступен. Показываем результаты каталога.' :
         data.local_ai.status === 'unclear' ? 'Помощник не определил раздел для этого запроса. Показываем результаты каталога.' :
         (category ? 'Ищем: ' + category + '.' : 'Запрос обработан помощником.');
       box.append(line);
+      if (isPending) return;
       if (info.clarification) {
         const question = document.createElement('p'); question.textContent = info.clarification; box.append(question);
       }

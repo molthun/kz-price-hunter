@@ -1367,9 +1367,27 @@ async def search_v2_handler(request):
         except (ValueError, TypeError):
             offset = None
 
-    wait = search_limiter.retry_after(f"ip:{client_ip(request)}")
-    if wait:
-        return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
+    phase = (request.query.get("phase") or "").strip().lower()
+    preview_token = (request.query.get("preview_token") or "").strip()
+    preview_sig = json.dumps(
+        [
+            query, city, condition, channel_type, seller_type, seller_id,
+            category, brand, model, kind, delivery, installment, gift, in_stock,
+            min_price, max_price, sort_by, limit, page, offset, attributes,
+        ],
+        ensure_ascii=False, sort_keys=True,
+    )
+    import local_search
+    req_ip = client_ip(request)
+    continuation = None
+    if phase == "final" and preview_token:
+        continuation = local_search.consume_preview_continuation(preview_token, req_ip, preview_sig)
+        if continuation is None:
+            return web.json_response({"error": "Этот поиск уже завершён или устарел. Повторите поиск."}, status=409)
+    else:
+        wait = search_limiter.retry_after(f"ip:{req_ip}")
+        if wait:
+            return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
 
     try:
         # Автоматический резолвинг штрихкодов товаров (EAN-13, EAN-8, UPC-A, GTIN-14)
@@ -1403,7 +1421,6 @@ async def search_v2_handler(request):
             kind=kind,
             attributes=attributes,
         )
-        import local_search
         if local_search.enabled():
             from database import get_connection
             def _context():
@@ -1415,7 +1432,30 @@ async def search_v2_handler(request):
             categories = await asyncio.to_thread(_context)
             # Толкование раскладки выбирается один раз по буквальным совпадениям каталога (LS-01)
             corrected = await asyncio.to_thread(local_search.choose_layout_query, arguments, attributes)
-            understanding = dict(await local_search.understand(search_query, categories, corrected_query=corrected))
+            if phase == "preview" and search_query and not resolved_barcode_info:
+                peeked, is_ready = local_search.peek_understanding(
+                    search_query, categories, corrected_query=corrected, start_background=True
+                )
+                understanding = dict(peeked)
+                understanding['corrected_query'] = corrected
+                data = await asyncio.to_thread(
+                    local_search.search_sync, arguments, understanding, attributes, not is_ready
+                )
+                if not is_ready:
+                    bg_task, bg_key = local_search.get_preview_task_and_key(
+                        search_query, categories, corrected_query=corrected
+                    )
+                    data['preview_token'] = local_search.register_preview_continuation(
+                        req_ip, preview_sig, bg_task, bg_key
+                    )
+                return web.json_response(data, status=500 if data.get('outcome') == 'ERROR' else 200)
+            understanding = dict(await local_search.understand(
+                search_query,
+                categories,
+                corrected_query=corrected,
+                consume_preview=(phase == "final"),
+                preview_task=(continuation.get('task') if continuation else None),
+            ))
             understanding['corrected_query'] = corrected
             data = await asyncio.to_thread(local_search.search_sync, arguments, understanding, attributes)
             # Если по штрихкоду с исходной категорией ничего не найдено - снимаем категорийный фильтр
@@ -1433,6 +1473,8 @@ async def search_v2_handler(request):
             return web.json_response(data, status=500 if data.get('outcome') == 'ERROR' else 200)
         resp = await asyncio.to_thread(_run_search_v2_sync, **arguments)
         data = resp.to_dict()
+        data['search_phase'] = 'final'
+        data['ai_pending'] = False
         if resolved_barcode_info:
             await _apply_barcode_matches(data, query, resolved_barcode_info)
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200

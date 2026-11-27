@@ -1,0 +1,25 @@
+Исправления приёмки Codex по 6.60.0 — кандидат v6.60.1 (Antigravity, 27.11.2026)
+Ветка: feat/fast-first-search (/Users/molthun/Documents/kz-price-hunter-fast-search), база: c75a610 (6.60.0)
+
+=== Закрытые замечания P2 ===
+1. Пустой итог оставляет карточки и пагинацию превью:
+   - web/templates/search_first.html: renderSearchResults при items.length === 0 (не ai_pending) очищает productCardsContainer.innerHTML = '' и скрывает/очищает paginationBar; при items.length > 0 скрывает resultsEmpty; renderPagination при totalPages <= 1 очищает innerHTML.
+   - Регрессия в test_frontend_fast_first_search.cjs (#6) с настоящим renderSearchResults + renderPagination + showResultsMessage + buildEmptySearchActions из шаблона: переход от превью с карточкой и пагинацией (2 стр.) к пустому итогу полностью очищает карточки и пагинацию, показывает только действия итогового поиска.
+2. Повторный вызов модели для ответа unclear:
+   - local_search.py + web/server.py: задача превью сохраняется в _preview_tasks и одноразовом _preview_continuations (preview_token); final переиспользует уже завершённый результат (включая unclear) без повторного вызова модели, а следующий самостоятельный поиск повторяет неясный разбор по политике.
+   - Регрессия: test_unclear_model_answer_completed_before_final_is_not_called_twice_and_next_search_retries.
+3. Лимит на границе (59/60) отклонял final с HTTP 429:
+   - web/server.py + local_search.py + search_first.html: preview выдаёт одноразовый preview_token (привязан к IP и параметрам запроса); парный final с неиспользованным токеном проходит в рамках того же учтённого поиска (HTTP 200, 1 запись аналитики); повторный final с тем же токеном и самостоятельный final без токена отклоняются штатным search_limiter (HTTP 429).
+   - Регрессия: test_rate_limit_boundary_allows_paired_final_and_blocks_replay_or_standalone_final.
+
+=== Проверки v6.60.1 ===
+- Python (13 модулей поиска и контрактов, включая tests/search/test_fast_first_search.py): 141 OK (12.211 s)
+- JS (Deno, 4 набора, 27 проверок):
+  - test_frontend_fast_first_search.cjs: PASS (6/6)
+  - test_frontend_empty_search_actions.cjs: PASS (10/10)
+  - test_frontend_size_watch_modal.cjs: PASS (4/4)
+  - test_frontend_deals_my_sizes.cjs: PASS (7/7)
+- release_gate.py secrets: ok=true, findings=[]
+- git diff --check: чисто
+- Не запускалось: полный Linux-набор в чистом контейнере, живой Chrome с реальной Ollama.
+- Основной checkout (441f052), origin/main (6a68c98) и живой сервер (6.58.4) не менялись.
