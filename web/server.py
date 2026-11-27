@@ -1687,7 +1687,7 @@ def _run_search_v2_sync(
                 cat_obj = cats.get_by_id(category) or cats.get_mapper().map_category(category)
                 if cat_obj is not None:
                     resp._empty_category_action = local_search.compute_empty_category_action(
-                        conn, search_kwargs, search_kwargs, cat_obj.id, cat_obj.name, repo=repo
+                        conn, search_kwargs, search_kwargs, cat_obj.id, cat_obj.name, repo=repo, parsed_query=resp.parsed_query
                     )
         else:
             resp.recovery_actions = []

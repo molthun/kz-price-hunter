@@ -1348,13 +1348,16 @@ def compute_empty_recovery_actions(conn, arguments, search_args, repo=None):
     return actions
 
 
-def compute_empty_category_action(conn, arguments, search_args, category_id, category_name, repo=None):
-    """Проверяет, есть ли доступные товары в найденной или выбранной категории при сохранении города, цены и продавца.
+def compute_empty_category_action(conn, arguments, search_args, category_id, category_name, repo=None, parsed_query=None):
+    """Проверяет, есть ли доступные товары в найденной или выбранной категории при сохранении эффективных ограничений.
 
-    Возвращает явное действие «Посмотреть раздел «…» — N товаров» только если в запросе были
-    сужающие условия (текст, бренд/модель/вид или характеристики) и в категории реально есть товары.
+    Сохраняет эффективные город, границы цены, состояние и продавца — включая извлечённые из текста
+    запроса, с приоритетом явных фильтров (как в SearchCore.search). Возвращает явное действие
+    «Посмотреть раздел «…» — N товаров» только при наличии сужающих условий и реального count > 0.
     Не пишет аналитику и спрос.
     """
+    from domain.models import Condition
+    from domain.query_parser import QueryParser
     from domain.search_core import SearchCore
     from repositories.search_repo import SearchRepository
 
@@ -1377,11 +1380,57 @@ def compute_empty_category_action(conn, arguments, search_args, category_id, cat
     if not has_narrowing:
         return None
 
+    orig_parsed = QueryParser.parse(str(arguments.get('query') or ''))
+
+    def _clean_city(val):
+        s = str(val or '').strip()
+        return s if s and s != 'Все' else None
+
+    eff_city = (
+        _clean_city(search_args.get('city'))
+        or _clean_city(arguments.get('city'))
+        or (_clean_city(getattr(parsed_query, 'detected_city', None)) if parsed_query is not None else None)
+        or _clean_city(orig_parsed.detected_city)
+    )
+
+    eff_min_price = search_args.get('min_price')
+    if eff_min_price is None:
+        eff_min_price = arguments.get('min_price')
+    if eff_min_price is None and parsed_query is not None:
+        eff_min_price = getattr(parsed_query, 'min_price', None)
+    if eff_min_price is None:
+        eff_min_price = orig_parsed.min_price
+
+    eff_max_price = search_args.get('max_price')
+    if eff_max_price is None:
+        eff_max_price = arguments.get('max_price')
+    if eff_max_price is None and parsed_query is not None:
+        eff_max_price = getattr(parsed_query, 'max_price', None)
+    if eff_max_price is None:
+        eff_max_price = orig_parsed.max_price
+
+    def _clean_cond(val):
+        if not val:
+            return None
+        norm = Condition.normalize(val)
+        return norm if norm and norm != Condition.UNKNOWN else None
+
+    eff_condition = (
+        _clean_cond(search_args.get('condition'))
+        or _clean_cond(arguments.get('condition'))
+        or (_clean_cond(getattr(parsed_query, 'condition', None)) if parsed_query is not None else None)
+        or _clean_cond(orig_parsed.condition)
+    )
+
     probe_repo = SearchRepository(conn)
     probe_args = {
         **search_args,
         'query': '',
         'category': cat_id,
+        'city': eff_city,
+        'min_price': eff_min_price,
+        'max_price': eff_max_price,
+        'condition': eff_condition,
         'brand': None,
         'model': None,
         'kind': None,
@@ -1402,6 +1451,10 @@ def compute_empty_category_action(conn, arguments, search_args, category_id, cat
         'relax': 'category',
         'category_id': cat_id,
         'category_name': cat_name,
+        'city': eff_city,
+        'min_price': eff_min_price,
+        'max_price': eff_max_price,
+        'condition': eff_condition,
         'count': cnt,
         'count_unit': 'products',
         'label': f'Посмотреть раздел «{cat_name}» — {cnt} {_pluralize_products_ru(cnt)}',
@@ -1578,7 +1631,7 @@ def search_sync(arguments, understanding, selected_attributes, preview=False):
         category_action = None
         if not preview and res.total_products == 0 and res.outcome != 'ERROR' and facet_cat is not None:
             category_action = compute_empty_category_action(
-                conn, arguments, search_args, facet_cat.id, facet_cat.name, repo=repo
+                conn, arguments, search_args, facet_cat.id, facet_cat.name, repo=repo, parsed_query=res.parsed_query
             )
         data['search_help'] = {
             'category_id': inferred_category, 'category_name': cat.name if cat else (plan or {}).get('category_name'),

@@ -3,6 +3,16 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.66.1] - 2026-11-28
+
+### Для пользователей
+- 🎯 Кнопка «Посмотреть раздел» при пустой выдаче теперь сохраняет не только явные фильтры, но и город, ценовые границы и состояние, указанные прямо в тексте запроса (например, «до 350000 тенге» или «в Астане»), с приоритетом явных фильтров.
+
+### Исправлено
+- Замечание приёмки Codex `ER-01` по `6.66.0`: `local_search.py:compute_empty_category_action()` вычисляет эффективные `city`, `min_price`, `max_price`, `condition` (явный фильтр > `parsed_query` > `QueryParser.parse(query)`), использует их в пробе `SearchCore` и передаёт в `search_help.category_action`.
+- `web/templates/search_first.html`: при клике по `open_category` в `buildEmptySearchActions()` эффективные `city` (через `setCity(..., false)` без перезаписи сохранённого города), `min_price`/`max_price` (с синхронизацией `#filterMinPrice`/`#filterMaxPrice`) и `condition` переносятся в состояние поиска, если явный фильтр не был задан.
+- Тесты: в `tests/search/test_empty_recovery.py` и `tests/frontend/test_frontend_empty_recovery.cjs` добавлены регрессии `ER-01` для текста цены, текста города, приоритета явных фильтров и веток с ИИ / без ИИ.
+
 ## [6.66.0] - 2026-11-27
 
 ### Для пользователей

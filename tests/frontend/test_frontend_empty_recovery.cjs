@@ -355,7 +355,63 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`PASS (${passed}/6) test_frontend_empty_recovery.cjs`);
+  // 7. ER-01: open_category transfers effective text-derived city and max_price into AppState & inputs without overriding explicit filters
+  {
+    let fetchCount = 0;
+    const h = createHarness(async () => {
+      fetchCount++;
+      return {
+        ok: true, status: 200,
+        json: async () => ({ search_phase: 'final', ai_pending: false, total_products: 1, items: [] }),
+      };
+    });
+    h.AppState.query = 'Galaxy S24+ в Астане до 350000 тенге';
+    h.AppState.city = 'Все';
+    h.AppState.max_price = '';
+    h.AppState.min_price = '';
+    h.AppState.seller = 'sulpak';
+    h.els.filterMaxPrice.value = '';
+    h.els.resultsSearchInput.value = h.AppState.query;
+
+    const actions = h.ctx.buildEmptySearchActions(
+      h.AppState,
+      {
+        total_products: 0,
+        recovery_actions: [],
+        local_ai: { status: 'ok' },
+        search_help: {
+          category_action: {
+            id: 'open_category',
+            relax: 'category',
+            category_id: 'phones',
+            category_name: 'Смартфоны',
+            city: 'Астана',
+            min_price: null,
+            max_price: 350000,
+            condition: null,
+            count: 1,
+            count_unit: 'products',
+            label: 'Посмотреть раздел «Смартфоны» — 1 товар',
+          },
+        },
+      },
+      { id: 7 }
+    );
+    const catAct = actions.find((a) => a.id === 'open_category');
+    assert.ok(catAct);
+    catAct.run();
+    assert.equal(h.AppState.query, '');
+    assert.equal(h.els.resultsSearchInput.value, '');
+    assert.equal(h.AppState.category, 'phones');
+    assert.equal(h.AppState.city, 'Астана');
+    assert.equal(h.AppState.max_price, '350000');
+    assert.equal(h.els.filterMaxPrice.value, '350000');
+    assert.equal(h.AppState.seller, 'sulpak');
+    assert.equal(fetchCount, 1);
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/7) test_frontend_empty_recovery.cjs`);
 }
 
 runTests().catch((err) => {

@@ -11523,6 +11523,25 @@
             AppState.model = '';
             AppState.kind = '';
             AppState.attributes = {};
+            if (categoryAction.city && (!AppState.city || AppState.city === 'Все')) {
+              if (typeof setCity === 'function') setCity(String(categoryAction.city), false);
+              else AppState.city = String(categoryAction.city);
+            }
+            if (categoryAction.min_price != null && !String(AppState.min_price || '').trim()) {
+              const minStr = String(Math.round(Number(categoryAction.min_price)));
+              AppState.min_price = minStr;
+              const minEl = document.getElementById('filterMinPrice');
+              if (minEl) minEl.value = minStr;
+            }
+            if (categoryAction.max_price != null && !String(AppState.max_price || '').trim()) {
+              const maxStr = String(Math.round(Number(categoryAction.max_price)));
+              AppState.max_price = maxStr;
+              const maxEl = document.getElementById('filterMaxPrice');
+              if (maxEl) maxEl.value = maxStr;
+            }
+            if (categoryAction.condition && !String(AppState.condition || '').trim()) {
+              AppState.condition = String(categoryAction.condition);
+            }
             AppState.page = 1;
             const inp = document.getElementById('resultsSearchInput');
             if (inp) inp.value = '';

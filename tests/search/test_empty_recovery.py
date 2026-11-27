@@ -348,6 +348,95 @@ class EmptyRecoveryTest(unittest.TestCase):
 
         asyncio.run(scenario())
 
+    def test_er01_text_price_and_city_preserved_in_ai_and_non_ai_and_explicit_wins(self):
+        def make_phone_model(search_q):
+            async def phone_model(prompt, base, model, api_key, timeout=18.0):
+                return {
+                    "search_query": search_q,
+                    "category_id": "phones",
+                    "category_name": "Смартфоны",
+                    "parent_id": None,
+                    "confidence": 0.95,
+                    "attributes": {},
+                    "fields": [{"key": "a", "label": "A"}, {"key": "b", "label": "B"}, {"key": "c", "label": "C"}],
+                    "clarification": "",
+                }
+            return phone_model
+
+        async def scenario():
+            # 1. Без ИИ: Алматы + «Galaxy S24+ до 350000 тенге» в разделе Смартфоны (в Алматы есть только S24+ за 410 000) -> кнопки нет!
+            with patch.dict(os.environ, {"LOCAL_SEARCH_ENABLED": "0"}), \
+                 patch("database.get_connection", side_effect=self._get_conn):
+                d_noai_price = json.loads((await web_server.search_v2_handler(_FakeReq(
+                    {"q": "Galaxy S24+ до 350000 тенге", "category": "phones", "city": "Алматы", "limit": "20"},
+                    remote="10.2.0.21",
+                ))).text)
+                self.assertEqual(d_noai_price["total_products"], 0)
+                self.assertIsNone((d_noai_price.get("search_help") or {}).get("category_action"))
+
+                # Без ИИ: без явного city, «Galaxy S24+ в Астане» с category=phones -> эффективный город Астана, count=1 (только p_s24)
+                d_noai_city = json.loads((await web_server.search_v2_handler(_FakeReq(
+                    {"q": "Galaxy S24+ в Астане", "category": "phones", "limit": "20"},
+                    remote="10.2.0.22",
+                ))).text)
+                self.assertEqual(d_noai_city["total_products"], 0)
+                act_city = (d_noai_city.get("search_help") or {}).get("category_action")
+                self.assertIsNotNone(act_city)
+                self.assertEqual(act_city["city"], "Астана")
+                self.assertEqual(act_city["count"], 1)
+                # Применение действия с сохранённым городом возвращает ровно 1 товар (p_s24)
+                d_follow = json.loads((await web_server.search_v2_handler(_FakeReq(
+                    {"q": "", "category": act_city["category_id"], "city": act_city["city"], "limit": "20"},
+                    remote="10.2.0.23",
+                ))).text)
+                self.assertEqual(d_follow["total_products"], 1)
+                self.assertEqual([it["product"]["id"] for it in d_follow["items"]], ["p_s24"])
+
+                # Приоритет явного фильтра цены над текстом: явный max_price=450000 перекрывает «до 350000 тенге»
+                d_explicit_price = json.loads((await web_server.search_v2_handler(_FakeReq(
+                    {"q": "Galaxy S25 до 350000 тенге", "category": "phones", "city": "Алматы", "max_price": "450000", "limit": "20"},
+                    remote="10.2.0.24",
+                ))).text)
+                self.assertEqual(d_explicit_price["total_products"], 0)
+                act_ep = (d_explicit_price.get("search_help") or {}).get("category_action")
+                self.assertIsNotNone(act_ep)
+                self.assertEqual(act_ep["max_price"], 450000.0)
+                self.assertEqual(act_ep["count"], 1)
+
+            # 2. С ИИ: те же сценарии (модель определяет раздел phones)
+            with patch.dict(os.environ, {"LOCAL_SEARCH_ENABLED": "1"}), \
+                 patch("database.get_connection", side_effect=self._get_conn), \
+                 patch("config.get_ai_config", return_value={"local_api_base": "http://127.0.0.1:11434/v1", "local_model": "qwen3-vl:8b-instruct"}), \
+                 patch("local_ai.pause_reason", return_value=None):
+                with patch("ai_service.call_local_api", new=AsyncMock(side_effect=make_phone_model("Galaxy S24+ до 350000 тенге"))):
+                    d_ai_price = json.loads((await web_server.search_v2_handler(_FakeReq(
+                        {"q": "Galaxy S24+ до 350000 тенге", "city": "Алматы", "limit": "20"},
+                        remote="10.2.0.25",
+                    ))).text)
+                    self.assertEqual(d_ai_price["total_products"], 0)
+                    self.assertIsNone(d_ai_price["search_help"].get("category_action"))
+
+                with patch("ai_service.call_local_api", new=AsyncMock(side_effect=make_phone_model("Galaxy S24+ в Астане"))):
+                    d_ai_city = json.loads((await web_server.search_v2_handler(_FakeReq(
+                        {"q": "Galaxy S24+ в Астане", "limit": "20"},
+                        remote="10.2.0.26",
+                    ))).text)
+                    self.assertEqual(d_ai_city["total_products"], 0)
+                    act_ai_city = d_ai_city["search_help"].get("category_action")
+                    self.assertIsNotNone(act_ai_city)
+                    self.assertEqual(act_ai_city["city"], "Астана")
+                    self.assertEqual(act_ai_city["count"], 1)
+
+                    # Приоритет явного city над текстом («в Астане» при явном city=Шымкент -> в Шымкенте 0 -> кнопки нет)
+                    d_ai_explicit_city = json.loads((await web_server.search_v2_handler(_FakeReq(
+                        {"q": "Galaxy S24+ в Астане", "city": "Шымкент", "limit": "20"},
+                        remote="10.2.0.27",
+                    ))).text)
+                    self.assertEqual(d_ai_explicit_city["total_products"], 0)
+                    self.assertIsNone(d_ai_explicit_city["search_help"].get("category_action"))
+
+        asyncio.run(scenario())
+
 
 if __name__ == "__main__":
     unittest.main()
