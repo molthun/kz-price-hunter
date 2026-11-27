@@ -1476,6 +1476,9 @@ async def search_v2_handler(request):
         data['search_phase'] = 'final'
         data['ai_pending'] = False
         data['recovery_actions'] = list(getattr(resp, 'recovery_actions', []) or [])
+        cat_act = getattr(resp, '_empty_category_action', None)
+        if cat_act:
+            data.setdefault('search_help', {})['category_action'] = cat_act
         if resolved_barcode_info:
             await _apply_barcode_matches(data, query, resolved_barcode_info)
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200
@@ -1678,6 +1681,14 @@ def _run_search_v2_sync(
             resp.recovery_actions = local_search.compute_empty_recovery_actions(
                 conn, search_kwargs, search_kwargs, repo=repo
             )
+            if category:
+                from repositories.category_repo import CategoryRepository
+                cats = CategoryRepository(conn)
+                cat_obj = cats.get_by_id(category) or cats.get_mapper().map_category(category)
+                if cat_obj is not None:
+                    resp._empty_category_action = local_search.compute_empty_category_action(
+                        conn, search_kwargs, search_kwargs, cat_obj.id, cat_obj.name, repo=repo
+                    )
         else:
             resp.recovery_actions = []
         try:

@@ -1348,6 +1348,66 @@ def compute_empty_recovery_actions(conn, arguments, search_args, repo=None):
     return actions
 
 
+def compute_empty_category_action(conn, arguments, search_args, category_id, category_name, repo=None):
+    """Проверяет, есть ли доступные товары в найденной или выбранной категории при сохранении города, цены и продавца.
+
+    Возвращает явное действие «Посмотреть раздел «…» — N товаров» только если в запросе были
+    сужающие условия (текст, бренд/модель/вид или характеристики) и в категории реально есть товары.
+    Не пишет аналитику и спрос.
+    """
+    from domain.search_core import SearchCore
+    from repositories.search_repo import SearchRepository
+
+    cat_id = str(category_id or '').strip()
+    cat_name = str(category_name or '').strip()
+    if not cat_id or not cat_name:
+        return None
+
+    has_narrowing = bool(
+        str(arguments.get('query') or '').strip()
+        or str(arguments.get('brand') or '').strip()
+        or str(arguments.get('model') or '').strip()
+        or str(arguments.get('kind') or '').strip()
+        or (repo is not None and (
+            getattr(repo, 'attribute_filters', None)
+            or getattr(repo, 'inferred_attribute_filters', None)
+        ))
+        or (arguments.get('attributes') or {})
+    )
+    if not has_narrowing:
+        return None
+
+    probe_repo = SearchRepository(conn)
+    probe_args = {
+        **search_args,
+        'query': '',
+        'category': cat_id,
+        'brand': None,
+        'model': None,
+        'kind': None,
+        'attributes': {},
+        'limit': 1,
+        'page': 1,
+        'offset': None,
+    }
+    try:
+        probe_res = SearchCore(probe_repo).search(**probe_args)
+        cnt = int(probe_res.total_products or 0)
+    except Exception:
+        cnt = 0
+    if cnt <= 0:
+        return None
+    return {
+        'id': 'open_category',
+        'relax': 'category',
+        'category_id': cat_id,
+        'category_name': cat_name,
+        'count': cnt,
+        'count_unit': 'products',
+        'label': f'Посмотреть раздел «{cat_name}» — {cnt} {_pluralize_products_ru(cnt)}',
+    }
+
+
 def search_sync(arguments, understanding, selected_attributes, preview=False):
     """All SQL reads/attributes/counts/facets share one connection and one filter."""
     from database import get_connection
@@ -1515,12 +1575,18 @@ def search_sync(arguments, understanding, selected_attributes, preview=False):
         tire_size_prompt = None
         if not preview and res.outcome != 'ERROR' and is_tire_search and not _has_tire_size(effective_original, {**inferred_attrs, **attrs}):
             tire_size_prompt = _build_tire_size_prompt(data['attribute_facets'])
+        category_action = None
+        if not preview and res.total_products == 0 and res.outcome != 'ERROR' and facet_cat is not None:
+            category_action = compute_empty_category_action(
+                conn, arguments, search_args, facet_cat.id, facet_cat.name, repo=repo
+            )
         data['search_help'] = {
             'category_id': inferred_category, 'category_name': cat.name if cat else (plan or {}).get('category_name'),
             'clarification': clarification_msg, 'expansion': None,
             'is_fallback': fallback_applied,
             'ai_pending': bool(preview),
             'tire_size_prompt': tire_size_prompt,
+            'category_action': category_action,
         }
         if not preview and original and res.outcome != 'ERROR':
             spec = dict(query=watch_query, original_query=original, category=search_args.get('category'),

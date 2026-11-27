@@ -256,6 +256,98 @@ class EmptyRecoveryTest(unittest.TestCase):
 
         asyncio.run(scenario())
 
+    def test_open_category_action_matches_exact_count_and_respects_city_and_price(self):
+        async def phone_model(prompt, base, model, api_key, timeout=18.0):
+            return {
+                "search_query": "Galaxy S24+",
+                "category_id": "phones",
+                "category_name": "Смартфоны",
+                "parent_id": None,
+                "confidence": 0.95,
+                "attributes": {},
+                "fields": [{"key": "a", "label": "A"}, {"key": "b", "label": "B"}, {"key": "c", "label": "C"}],
+                "clarification": "",
+            }
+
+        async def scenario():
+            # В Астане есть 1 смартфон (p_s24 за 340 000), но нет Galaxy S24+
+            q = {"q": "Galaxy S24+", "city": "Астана", "limit": "20"}
+            with patch.dict(os.environ, {"LOCAL_SEARCH_ENABLED": "1"}), \
+                 patch("database.get_connection", side_effect=self._get_conn), \
+                 patch("config.get_ai_config", return_value={"local_api_base": "http://127.0.0.1:11434/v1", "local_model": "qwen3-vl:8b-instruct"}), \
+                 patch("local_ai.pause_reason", return_value=None), \
+                 patch("ai_service.call_local_api", new=AsyncMock(side_effect=phone_model)):
+                d = json.loads((await web_server.search_v2_handler(_FakeReq(q, remote="10.2.0.11"))).text)
+                self.assertEqual(d["total_products"], 0)
+                cat_act = d["search_help"].get("category_action")
+                self.assertIsNotNone(cat_act)
+                self.assertEqual(cat_act["id"], "open_category")
+                self.assertEqual(cat_act["category_id"], "phones")
+                self.assertEqual(cat_act["count"], 1)
+                self.assertEqual(cat_act["count_unit"], "products")
+                self.assertEqual(cat_act["label"], "Посмотреть раздел «Смартфоны» — 1 товар")
+                # Проба раздела не увеличила аналитику и спрос
+                self.assertEqual(self._counts(), (1, 1))
+
+                # Переход в раздел с сохранением города даёт ровно 1 товар
+                d_cat = json.loads((await web_server.search_v2_handler(
+                    _FakeReq({"q": "", "category": "phones", "city": "Астана", "limit": "20"}, remote="10.2.0.12")
+                )).text)
+                self.assertEqual(d_cat["total_products"], 1)
+                self.assertEqual([it["product"]["id"] for it in d_cat["items"]], ["p_s24"])
+
+                # Если ценовой предел отсекает все товары раздела, кнопка не показывается
+                d_cheap = json.loads((await web_server.search_v2_handler(
+                    _FakeReq({"q": "Galaxy S24+", "city": "Астана", "max_price": "1000", "limit": "20"}, remote="10.2.0.13")
+                )).text)
+                self.assertEqual(d_cheap["total_products"], 0)
+                self.assertIsNone(d_cheap["search_help"].get("category_action"))
+
+        asyncio.run(scenario())
+
+    def test_open_category_not_offered_when_already_browsing_bare_category(self):
+        async def scenario():
+            with patch.dict(os.environ, {"LOCAL_SEARCH_ENABLED": "0"}), \
+                 patch("database.get_connection", side_effect=self._get_conn):
+                d = json.loads((await web_server.search_v2_handler(
+                    _FakeReq({"q": "", "category": "phones", "city": "Шымкент", "limit": "20"}, remote="10.2.0.14")
+                )).text)
+            self.assertEqual(d["total_products"], 0)
+            self.assertIsNone((d.get("search_help") or {}).get("category_action"))
+
+        asyncio.run(scenario())
+
+    def test_non_ai_search_v2_returns_category_action_matching_exact_filtered_count(self):
+        async def scenario():
+            q = {
+                "q": "кроссовки",
+                "category": "shoes",
+                "city": "Астана",
+                "max_price": "22000",
+                "seller": "kari",
+                "attributes": json.dumps({"size": "42"}),
+                "limit": "20",
+            }
+            with patch.dict(os.environ, {"LOCAL_SEARCH_ENABLED": "0"}), \
+                 patch("database.get_connection", side_effect=self._get_conn):
+                d = json.loads((await web_server.search_v2_handler(_FakeReq(q, remote="10.2.0.15"))).text)
+                self.assertEqual(d["total_products"], 0)
+                cat_act = (d.get("search_help") or {}).get("category_action")
+                self.assertIsNotNone(cat_act)
+                self.assertEqual(cat_act["id"], "open_category")
+                self.assertEqual(cat_act["category_id"], "shoes")
+                self.assertEqual(cat_act["count"], 1)
+                self.assertEqual(cat_act["label"], "Посмотреть раздел «Обувь» — 1 товар")
+
+                # Применение действия с сохранением города, цены и продавца возвращает ровно 1 товар (p_shoe_4)
+                d_cat = json.loads((await web_server.search_v2_handler(
+                    _FakeReq({"q": "", "category": "shoes", "city": "Астана", "max_price": "22000", "seller": "kari", "limit": "20"}, remote="10.2.0.16")
+                )).text)
+                self.assertEqual(d_cat["total_products"], 1)
+                self.assertEqual([it["product"]["id"] for it in d_cat["items"]], ["p_shoe_4"])
+
+        asyncio.run(scenario())
+
 
 if __name__ == "__main__":
     unittest.main()

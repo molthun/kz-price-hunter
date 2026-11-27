@@ -11508,6 +11508,29 @@
           run: () => onCityChanged('Все'),
         });
       }
+      const categoryAction = data && data.search_help && data.search_help.category_action;
+      if (categoryAction && categoryAction.id === 'open_category' && categoryAction.category_id && Number(categoryAction.count) > 0) {
+        actions.push({
+          id: 'open_category',
+          relax: 'category',
+          category_id: String(categoryAction.category_id),
+          count: Number(categoryAction.count),
+          label: '📂 ' + categoryAction.label,
+          run: () => {
+            AppState.query = '';
+            AppState.category = String(categoryAction.category_id);
+            AppState.brand = '';
+            AppState.model = '';
+            AppState.kind = '';
+            AppState.attributes = {};
+            AppState.page = 1;
+            const inp = document.getElementById('resultsSearchInput');
+            if (inp) inp.value = '';
+            updateSearchUrl();
+            executeSearch();
+          },
+        });
+      }
       if (activeSize) {
         actions.push({
           id: 'clear_size',

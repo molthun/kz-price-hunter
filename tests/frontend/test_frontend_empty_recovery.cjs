@@ -271,7 +271,91 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`PASS (${passed}/4) test_frontend_empty_recovery.cjs`);
+  // 5. open_category action opens category, clears query/brand/model/kind/attributes, preserves city/price/seller
+  {
+    let fetchCount = 0;
+    const h = createHarness(async () => {
+      fetchCount++;
+      return {
+        ok: true, status: 200,
+        json: async () => ({ search_phase: 'final', ai_pending: false, total_products: 3, items: [] }),
+      };
+    });
+    h.AppState.query = 'зимняя резина';
+    h.AppState.brand = 'Nokian';
+    h.AppState.model = 'Hakkapeliitta';
+    h.AppState.kind = 'шипы';
+    h.AppState.attributes = { tire_size: '235/45 R19' };
+    h.AppState.page = 2;
+    h.els.resultsSearchInput.value = 'зимняя резина';
+
+    const actions = h.ctx.buildEmptySearchActions(
+      h.AppState,
+      {
+        total_products: 0,
+        recovery_actions: [],
+        local_ai: { status: 'ok' },
+        search_help: {
+          category_action: {
+            id: 'open_category',
+            relax: 'category',
+            category_id: 'tires',
+            category_name: 'Шины и диски',
+            count: 3,
+            count_unit: 'products',
+            label: 'Посмотреть раздел «Шины и диски» — 3 товара',
+          },
+        },
+      },
+      { id: 7 }
+    );
+    const catAct = actions.find((a) => a.id === 'open_category');
+    assert.ok(catAct, 'open_category action must be present');
+    assert.equal(catAct.label, '📂 Посмотреть раздел «Шины и диски» — 3 товара');
+
+    // Watch created before clicking open_category still uses original query and tire_size
+    const watchAct = actions.find((a) => a.id === 'watch_search');
+    assert.ok(watchAct);
+    watchAct.run({});
+    assert.equal(h.watchCalls[0].snap.query, 'зимняя резина');
+    assert.equal(h.watchCalls[0].snap.attributes.tire_size, '235/45 R19');
+
+    // Click open_category
+    catAct.run();
+    assert.equal(h.AppState.query, '');
+    assert.equal(h.els.resultsSearchInput.value, '');
+    assert.equal(h.AppState.category, 'tires');
+    assert.equal(h.AppState.brand, '');
+    assert.equal(h.AppState.model, '');
+    assert.equal(h.AppState.kind, '');
+    assert.equal(Object.keys(h.AppState.attributes).length, 0);
+    assert.equal(h.AppState.page, 1);
+    // City, price and seller preserved
+    assert.equal(h.AppState.city, 'Астана');
+    assert.equal(h.AppState.max_price, '22000');
+    assert.equal(h.AppState.seller, 'kari');
+    assert.equal(fetchCount, 1);
+    passed++;
+  }
+
+  // 6. Invalid or zero-count category_action is ignored
+  {
+    const h = createHarness(async () => ({ ok: true, status: 200, json: async () => ({}) }));
+    const actions = h.ctx.buildEmptySearchActions(
+      h.AppState,
+      {
+        total_products: 0,
+        recovery_actions: [],
+        local_ai: { status: 'disabled' },
+        search_help: { category_action: { id: 'open_category', category_id: 'tires', count: 0, label: 'x' } },
+      },
+      { id: 7 }
+    );
+    assert.ok(!actions.find((a) => a.id === 'open_category'));
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/6) test_frontend_empty_recovery.cjs`);
 }
 
 runTests().catch((err) => {

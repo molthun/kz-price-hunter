@@ -1,5 +1,11 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 27.11.2026 — 6.66.0: Открытие раздела из пустой выдачи (`search_help.category_action`)
+
+- `local_search.py`, `web/server.py`: `compute_empty_category_action()` проверяет наличие товаров в определённой/выбранной категории с сохранением города, цены и продавца (без записи аналитики и спроса) и возвращает `search_help.category_action` («Посмотреть раздел «…» — N товаров»).
+- `web/templates/search_first.html`: `buildEmptySearchActions()` отображает и применяет действие `open_category` с очисткой запроса/атрибутов и сохранением города/цены/продавца.
+- Тесты: расширены `tests/search/test_empty_recovery.py` и `tests/frontend/test_frontend_empty_recovery.cjs`.
+
 ## 27.11.2026 — 6.65.1: Токенное определение шинных запросов (приёмка Codex по 6.65.0)
 
 - `local_search.py`: `_is_tire_query()` переведён на целые токены (`_TIRE_QUERY_TOKENS` / `_TIRE_EXCLUDE_TOKENS`), а в `search_sync()` вызывается только при неопределённой категории; закрыты ложные срабатывания «Указать размер» для «швейная машинка», «копировальная машина», «машинка для стрижки».
