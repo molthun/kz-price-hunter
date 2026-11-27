@@ -1,5 +1,9 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.67.1: Честное разделение сбоя итоговой фазы поиска и недоступности ИИ (приёмка Codex SE-01)
+
+- `web/templates/search_first.html`: в `executeSearch()` HTTP 500/429 и сетевые/прикладные ошибки `phase=final` показывают `showResultsError()` (`data-results-state="error"`) с очисткой предварительных карточек; расширены регрессии в `tests/frontend/test_frontend_search_error_and_ai_retry.cjs`.
+
 ## 28.11.2026 — 6.67.0: Разделение сбоев поиска/ИИ и пустой выдачи + действие «Повторить»
 
 - `web/templates/search_first.html`: `showResultsError()` очищает старые карточки/пагинацию/помощника/веб-поиск (`data-results-state="error"`); при `local_ai.status === 'unavailable'` на пустой выдаче показывается «Помощник временно недоступен» + «Повторить» (`data-results-state="ai-unavailable"`), а при наличии карточек — кнопка «Повторить» (`data-ai-retry="1"`) в `#localSearchHelp`.

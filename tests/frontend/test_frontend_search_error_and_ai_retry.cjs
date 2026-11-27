@@ -314,7 +314,83 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`PASS (${passed}/6) test_frontend_search_error_and_ai_retry.cjs`);
+  // 7. SE-01: Empty preview + final HTTP 500 or 429 shows real search/rate-limit error (NOT ai-unavailable)
+  {
+    for (const [statusCode, expectedTitle] of [[500, 'Ошибка сервиса поиска'], [429, 'Слишком много запросов']]) {
+      let calls = 0;
+      const h = createHarness(async (url) => {
+        calls++;
+        if (url.includes('phase=preview')) {
+          return {
+            ok: true, status: 200,
+            json: async () => ({
+              search_phase: 'preview', ai_pending: true, total_products: 0, items: [],
+              local_ai: { status: 'pending' }, search_help: { ai_pending: true },
+            }),
+          };
+        }
+        return { ok: false, status: statusCode, json: async () => ({}) };
+      });
+      await h.ctx.executeSearch();
+      assert.equal(calls, 2);
+      assert.equal(h.els.resultsEmpty.getAttribute('data-results-state'), 'error');
+      assert.equal(h.els.resultsEmpty.querySelector('.state-title').textContent, expectedTitle);
+      assert.equal(h.els.resultsEmptyAction.textContent, 'Повторить');
+      assert.equal(h.els.localSearchHelp.style.display, 'none');
+    }
+    passed++;
+  }
+
+  // 8. SE-01: Non-empty preview + final HTTP 500/429 clears preview cards and shows error; HTTP 200 local_ai.status=unavailable keeps honest AI-unavailable state
+  {
+    for (const [statusCode, expectedTitle] of [[500, 'Ошибка сервиса поиска'], [429, 'Слишком много запросов']]) {
+      const h = createHarness(async (url) => {
+        if (url.includes('phase=preview')) {
+          return {
+            ok: true, status: 200,
+            json: async () => ({
+              search_phase: 'preview', ai_pending: true, total_products: 1,
+              items: [{ product: { id: 'p_prev', title: 'Превью товар' }, min_price: 15000, best_offer: {} }],
+              local_ai: { status: 'pending' }, search_help: { ai_pending: true },
+            }),
+          };
+        }
+        return { ok: false, status: statusCode, json: async () => ({}) };
+      });
+      await h.ctx.executeSearch();
+      assert.equal(h.els.productCardsContainer.innerHTML, '', `Preview cards must be cleared on final HTTP ${statusCode}`);
+      assert.equal(h.els.resultsEmpty.getAttribute('data-results-state'), 'error');
+      assert.equal(h.els.resultsEmpty.querySelector('.state-title').textContent, expectedTitle);
+      assert.equal(h.els.resultsEmptyAction.textContent, 'Повторить');
+    }
+
+    // Honest HTTP 200 final with local_ai.status='unavailable' preserves ai-unavailable with Retry
+    const hHonest = createHarness(async (url) => {
+      if (url.includes('phase=preview')) {
+        return {
+          ok: true, status: 200,
+          json: async () => ({
+            search_phase: 'preview', ai_pending: true, total_products: 0, items: [],
+            local_ai: { status: 'pending' }, search_help: { ai_pending: true },
+          }),
+        };
+      }
+      return {
+        ok: true, status: 200,
+        json: async () => ({
+          search_phase: 'final', ai_pending: false, total_products: 0, items: [],
+          local_ai: { status: 'unavailable' }, recovery_actions: [], search_help: { ai_pending: false },
+        }),
+      };
+    });
+    await hHonest.ctx.executeSearch();
+    assert.equal(hHonest.els.resultsEmpty.getAttribute('data-results-state'), 'ai-unavailable');
+    assert.equal(hHonest.els.resultsEmpty.querySelector('.state-title').textContent, 'Помощник временно недоступен');
+    assert.equal(hHonest.els.resultsEmptyAction.textContent, 'Повторить');
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/8) test_frontend_search_error_and_ai_retry.cjs`);
 }
 
 runTests().catch((err) => {

@@ -12121,44 +12121,38 @@
           });
           if (!isCurrentSearchRequest(seq, ctrl)) return;
           if (!finalResp.ok) {
-            const fallbackFinal = {
-              ...data,
-              search_phase: 'final',
-              ai_pending: false,
-              local_ai: { ...(data.local_ai || {}), status: 'unavailable' },
-              search_help: { ...(data.search_help || {}), ai_pending: false },
-            };
             loadingEl.style.display = 'none';
-            renderSearchResults(fallbackFinal);
+            if ((finalResp.status === 504 || finalResp.status === 409) && previewItems.length > 0) {
+              const fallbackFinal = {
+                ...data,
+                search_phase: 'final',
+                ai_pending: false,
+                local_ai: { ...(data.local_ai || {}), status: 'unavailable' },
+                search_help: { ...(data.search_help || {}), ai_pending: false },
+              };
+              renderSearchResults(fallbackFinal);
+              return;
+            }
+            if (finalResp.status === 429) {
+              showResultsError('Слишком много запросов', 'Пожалуйста, подождите пару секунд и повторите поиск.');
+            } else {
+              showResultsError('Ошибка сервиса поиска', 'Произошла непредвиденная ошибка на сервере (код ' + finalResp.status + '). Попробуйте повторить поиск позже.');
+            }
             return;
           }
           const finalData = await finalResp.json();
           if (!isCurrentSearchRequest(seq, ctrl)) return;
           loadingEl.style.display = 'none';
           if (finalData.error || finalData.ok === false) {
-            const fallbackFinal = {
-              ...data,
-              search_phase: 'final',
-              ai_pending: false,
-              local_ai: { ...(data.local_ai || {}), status: 'unavailable' },
-              search_help: { ...(data.search_help || {}), ai_pending: false },
-            };
-            renderSearchResults(fallbackFinal);
+            showResultsError('Ошибка сервиса поиска', finalData.error || 'Произошла ошибка при выполнении поискового запроса.');
             return;
           }
           renderSearchResults(finalData);
         } catch (finalErr) {
           if (finalErr.name === 'AbortError' || !isCurrentSearchRequest(seq, ctrl)) return;
           console.error(finalErr);
-          const fallbackFinal = {
-            ...data,
-            search_phase: 'final',
-            ai_pending: false,
-            local_ai: { ...(data.local_ai || {}), status: 'unavailable' },
-            search_help: { ...(data.search_help || {}), ai_pending: false },
-          };
           loadingEl.style.display = 'none';
-          renderSearchResults(fallbackFinal);
+          showResultsError('Ошибка загрузки', 'Не удалось загрузить результаты поиска. Проверьте соединение с интернетом.');
         }
       } catch (err) {
         if (err.name === 'AbortError' || !isCurrentSearchRequest(seq, ctrl)) return;
