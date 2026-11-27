@@ -1,5 +1,17 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.68.1: Разделение размерной сетки обуви и одежды в подсказке размеров (приёмка Codex SZ-01)
+
+- `local_search.py`: `_infer_size_prompt_kind()` передаёт подтверждённый `size_kind` (`"shoe"`, `"apparel"` или `None`) в `search_help.size_prompt`.
+- `web/templates/search_first.html`: `renderLocalSearchHelp()` использует `getSavedSizesForKind(sizeKind)` только при подтверждённом `size_kind` и не ставит ★ при неподтверждённом/смешанном типе; ветка перенесена поверх `38b2545` (`v6.67.2`).
+- Тесты: расширены `tests/search/test_size_prompt.py` и `tests/frontend/test_frontend_size_prompt.cjs`.
+
+## 28.11.2026 — 6.68.0: Интерактивный выбор размера обуви и одежды в уточнении помощника (`search_help.size_prompt`)
+
+- `local_search.py`: `_build_size_prompt()` собирает до 8 подтверждённых размеров из `offer_sizes` текущей выдачи (включая режим без ИИ) и не срабатывает на неразмерных товарах или при уже выбранном размере.
+- `web/templates/search_first.html`: в `renderLocalSearchHelp()` добавлена опциональная кнопка «Указать размер» (`data-size-prompt="1"`) с чипами размеров, подсветкой сохранённых размеров пользователя и `applySizeClarification()`.
+- Тесты: `tests/search/test_size_prompt.py` (6 тестов), `tests/frontend/test_frontend_size_prompt.cjs` (6 сценариев).
+
 ## 28.11.2026 — 6.67.2: Отдельные сообщения для HTTP 409/504 итоговой фазы с предварительными карточками (остаток SE-01)
 
 - `web/templates/search_first.html`: для HTTP 409 (`stale_preview`) и 504 (`final_timeout`) с предварительными карточками выводятся явные сообщения о предварительных результатах и кнопка «Повторить» без подмены на недоступность ИИ; расширен `tests/frontend/test_frontend_search_error_and_ai_retry.cjs`.

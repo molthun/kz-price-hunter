@@ -12737,6 +12737,16 @@
       return true;
     }
 
+    function applySizeClarification(rawSize) {
+      const val = String(rawSize == null ? '' : rawSize).trim();
+      if (!val) return false;
+      AppState.attributes = { ...(AppState.attributes || {}), size: val };
+      AppState.page = 1;
+      updateSearchUrl();
+      executeSearch();
+      return true;
+    }
+
     function renderLocalSearchHelp(data) {
       const box = document.getElementById('localSearchHelp'); box.replaceChildren();
       const info = data.search_help || {};
@@ -12745,7 +12755,15 @@
         !(AppState.attributes && AppState.attributes.tire_size) &&
         !(data.selected_attributes && data.selected_attributes.tire_size)
       );
-      if ((!data.local_ai || (data.local_ai.status === 'disabled' && !data.local_ai.cached_plan)) && !hasTirePrompt) return;
+      const hasSizePrompt = Boolean(
+        !hasTirePrompt &&
+        info.size_prompt &&
+        Array.isArray(info.size_prompt.options) &&
+        info.size_prompt.options.length > 0 &&
+        !(AppState.attributes && AppState.attributes.size) &&
+        !(data.selected_attributes && data.selected_attributes.size)
+      );
+      if ((!data.local_ai || (data.local_ai.status === 'disabled' && !data.local_ai.cached_plan)) && !hasTirePrompt && !hasSizePrompt) return;
       box.style.display = 'block';
       const isPending = Boolean(data.ai_pending || info.ai_pending || (data.local_ai && data.local_ai.status === 'pending'));
       const line = document.createElement('div');
@@ -12861,6 +12879,67 @@
           if (!isOpen && typeof input.focus === 'function') input.focus();
         };
 
+        wrap.appendChild(toggleBtn);
+        wrap.appendChild(panel);
+        box.append(wrap);
+      }
+      if (hasSizePrompt) {
+        const prompt = info.size_prompt;
+        const wrap = document.createElement('div');
+        wrap.className = 'tire-size-prompt';
+        wrap.setAttribute('data-size-prompt', '1');
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'tire-size-toggle-btn';
+        toggleBtn.textContent = prompt.action_label || 'Указать размер';
+        toggleBtn.setAttribute('data-size-prompt-toggle', '1');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+
+        const panel = document.createElement('div');
+        panel.className = 'tire-size-panel';
+        panel.style.display = 'none';
+
+        const sizeKind = prompt.size_kind === 'shoe' || prompt.size_kind === 'apparel' ? prompt.size_kind : '';
+        if (sizeKind) wrap.setAttribute('data-size-kind', sizeKind);
+        const savedList = sizeKind && typeof getSavedSizesForKind === 'function'
+          ? (getSavedSizesForKind(sizeKind) || [])
+          : [];
+        const savedSet = new Set(
+          savedList
+            .map(s => String(s || '').trim().toUpperCase())
+            .filter(Boolean)
+        );
+        const optsRow = document.createElement('div');
+        optsRow.className = 'tire-size-options';
+        (prompt.options || []).forEach(opt => {
+          const val = String((opt && opt.value) || '').trim();
+          if (!val) return;
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          const isSaved = savedSet.has(val.toUpperCase());
+          chip.className = 'tire-size-chip' + (isSaved ? ' saved-size-chip' : '');
+          chip.setAttribute('data-size-option', val);
+          if (isSaved) chip.setAttribute('data-saved-size', '1');
+          const labelSpan = document.createElement('span');
+          labelSpan.textContent = isSaved ? ('★ ' + val) : val;
+          chip.appendChild(labelSpan);
+          if (Number(opt.count) > 0) {
+            const cntSpan = document.createElement('span');
+            cntSpan.className = 'tire-size-chip-count';
+            cntSpan.textContent = String(opt.count);
+            chip.appendChild(cntSpan);
+          }
+          chip.onclick = () => applySizeClarification(val);
+          optsRow.appendChild(chip);
+        });
+        panel.appendChild(optsRow);
+
+        toggleBtn.onclick = () => {
+          const isOpen = panel.style.display !== 'none';
+          panel.style.display = isOpen ? 'none' : 'flex';
+          toggleBtn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+        };
         wrap.appendChild(toggleBtn);
         wrap.appendChild(panel);
         box.append(wrap);
