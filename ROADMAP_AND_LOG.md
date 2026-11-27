@@ -1,5 +1,9 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.66.2: Синхронизация радиокнопок состояния при открытии раздела (приёмка Codex ER-02)
+
+- `web/templates/search_first.html`: `open_category` синхронизирует `input[name="filterCondition"]` с `AppState.condition`; добавлены регрессии в `tests/search/test_empty_recovery.py` и `tests/frontend/test_frontend_empty_recovery.cjs`.
+
 ## 28.11.2026 — 6.66.1: Сохранение текстовых ограничений при открытии раздела из пустой выдачи (приёмка Codex ER-01)
 
 - `local_search.py`, `web/server.py`, `web/templates/search_first.html`: `compute_empty_category_action()` и `buildEmptySearchActions()` сохраняют эффективные город, границы цены и состояние (включая извлечённые из текста запроса, с приоритетом явных фильтров), гарантируя совпадение счётчика пробы и итогового перехода.

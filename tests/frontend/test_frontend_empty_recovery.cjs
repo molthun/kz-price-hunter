@@ -32,6 +32,7 @@ const code = [
   extractFn(html, 'showResultsMessage'),
   extractFn(html, 'buildSearchWatchPayload'),
   extractFn(html, 'buildEmptySearchActions'),
+  extractFn(html, 'applyCurrentFilters'),
 ].join('\n\n');
 
 function makeEl(id) {
@@ -74,7 +75,14 @@ function createHarness(fetchImpl) {
     resultsSearchInput: makeEl('resultsSearchInput'),
     filterMinPrice: makeEl('filterMinPrice'),
     filterMaxPrice: makeEl('filterMaxPrice'),
+    filterGift: Object.assign(makeEl('filterGift'), { checked: false }),
+    filterInStock: Object.assign(makeEl('filterInStock'), { checked: false }),
   };
+  const condRadios = [
+    { name: 'filterCondition', value: '', checked: true },
+    { name: 'filterCondition', value: 'NEW', checked: false },
+    { name: 'filterCondition', value: 'USED', checked: false },
+  ];
   const cityCalls = [];
   const watchCalls = [];
   const AppState = {
@@ -118,8 +126,10 @@ function createHarness(fetchImpl) {
     document: {
       getElementById: (id) => els[id] || null,
       createElement: (tag) => makeEl(tag),
-      querySelectorAll: () => [],
+      querySelectorAll: (sel) => (sel === 'input[name="filterCondition"]' ? condRadios : []),
+      querySelector: (sel) => (sel === 'input[name="filterCondition"]:checked' ? (condRadios.find((r) => r.checked) || null) : null),
     },
+    closeMobileFilters: () => {},
     renderResultsHeader: () => {},
     renderFacets: () => {},
     renderActiveFilterChips: () => {},
@@ -132,7 +142,7 @@ function createHarness(fetchImpl) {
   };
   vm.createContext(ctx);
   vm.runInContext(code, ctx);
-  return { ctx, els, AppState, cityCalls, watchCalls };
+  return { ctx, els, condRadios, AppState, cityCalls, watchCalls };
 }
 
 async function runTests() {
@@ -411,7 +421,69 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`PASS (${passed}/7) test_frontend_empty_recovery.cjs`);
+  // 8. ER-02: open_category syncs filterCondition radios so re-applying filters keeps condition, and explicit change applies
+  {
+    let fetchCount = 0;
+    const h = createHarness(async () => {
+      fetchCount++;
+      return {
+        ok: true, status: 200,
+        json: async () => ({ search_phase: 'final', ai_pending: false, total_products: 1, items: [] }),
+      };
+    });
+    h.AppState.query = 'Galaxy S25 новый';
+    h.AppState.city = 'Астана';
+    h.AppState.condition = '';
+    h.AppState.max_price = '';
+    h.AppState.seller = '';
+    h.els.filterMaxPrice.value = '';
+
+    const actions = h.ctx.buildEmptySearchActions(
+      h.AppState,
+      {
+        total_products: 0,
+        recovery_actions: [],
+        local_ai: { status: 'disabled' },
+        search_help: {
+          category_action: {
+            id: 'open_category',
+            relax: 'category',
+            category_id: 'phones',
+            category_name: 'Смартфоны',
+            city: 'Астана',
+            min_price: null,
+            max_price: null,
+            condition: 'NEW',
+            count: 1,
+            count_unit: 'products',
+            label: 'Посмотреть раздел «Смартфоны» — 1 товар',
+          },
+        },
+      },
+      { id: 7 }
+    );
+    const catAct = actions.find((a) => a.id === 'open_category');
+    assert.ok(catAct);
+    catAct.run();
+    assert.equal(h.AppState.condition, 'NEW');
+    assert.equal(h.condRadios[0].checked, false);
+    assert.equal(h.condRadios[1].checked, true);
+    assert.equal(h.condRadios[2].checked, false);
+
+    // Re-applying filters without edits preserves condition=NEW
+    h.ctx.applyCurrentFilters(true);
+    assert.equal(h.AppState.condition, 'NEW');
+
+    // Explicit switch to "Все" clears condition
+    h.condRadios[0].checked = true;
+    h.condRadios[1].checked = false;
+    h.ctx.applyCurrentFilters(true);
+    assert.equal(h.AppState.condition, '');
+    assert.equal(fetchCount, 3);
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/8) test_frontend_empty_recovery.cjs`);
 }
 
 runTests().catch((err) => {

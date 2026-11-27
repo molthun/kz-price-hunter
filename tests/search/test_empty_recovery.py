@@ -437,6 +437,51 @@ class EmptyRecoveryTest(unittest.TestCase):
 
         asyncio.run(scenario())
 
+    def test_er02_text_condition_preserved_and_matches_exact_count(self):
+        # Добавим 1 новый (NEW) и 1 б/у (USED) смартфон в Астане (как в боевой схеме Condition.NEW / Condition.USED)
+        conn = self._get_conn()
+        try:
+            ProductRepository(conn).save_or_update(CanonicalProduct(
+                id="p_s24_new", canonical_key="k_s24_new", title="Смартфон Samsung Galaxy S24 FE 256Gb", category="phones", brand="Samsung"
+            ))
+            OfferRepository(conn).save_or_update(Offer(
+                id="o_s24_new", product_id="p_s24_new", seller_id="s3", channel_id="c_s3",
+                external_sku="sku_s24_new", url="http://ex.kz/s24-new", price=290000.0, condition="NEW", city="Астана",
+            ))
+            ProductRepository(conn).save_or_update(CanonicalProduct(
+                id="p_s24_used", canonical_key="k_s24_used", title="Смартфон Samsung Galaxy S23 128Gb", category="phones", brand="Samsung"
+            ))
+            OfferRepository(conn).save_or_update(Offer(
+                id="o_s24_used", product_id="p_s24_used", seller_id="s3", channel_id="c_s3",
+                external_sku="sku_s24_used", url="http://ex.kz/s24-used", price=190000.0, condition="USED", city="Астана",
+            ))
+            conn.commit()
+        finally:
+            conn.close()
+
+        async def scenario():
+            with patch.dict(os.environ, {"LOCAL_SEARCH_ENABLED": "0"}), \
+                 patch("database.get_connection", side_effect=self._get_conn):
+                d = json.loads((await web_server.search_v2_handler(_FakeReq(
+                    {"q": "Galaxy S25 новый", "category": "phones", "city": "Астана", "limit": "20"},
+                    remote="10.2.0.28",
+                ))).text)
+                self.assertEqual(d["total_products"], 0)
+                cat_act = (d.get("search_help") or {}).get("category_action")
+                self.assertIsNotNone(cat_act)
+                self.assertEqual(cat_act["condition"], "NEW")
+                self.assertEqual(cat_act["count"], 1)
+
+                # Переход с condition=NEW возвращает ровно 1 новый телефон
+                d_new = json.loads((await web_server.search_v2_handler(_FakeReq(
+                    {"q": "", "category": "phones", "city": "Астана", "condition": "NEW", "limit": "20"},
+                    remote="10.2.0.29",
+                ))).text)
+                self.assertEqual(d_new["total_products"], 1)
+                self.assertEqual([it["product"]["id"] for it in d_new["items"]], ["p_s24_new"])
+
+        asyncio.run(scenario())
+
 
 if __name__ == "__main__":
     unittest.main()

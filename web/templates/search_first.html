@@ -11539,8 +11539,17 @@
               const maxEl = document.getElementById('filterMaxPrice');
               if (maxEl) maxEl.value = maxStr;
             }
-            if (categoryAction.condition && !String(AppState.condition || '').trim()) {
-              AppState.condition = String(categoryAction.condition);
+            if (categoryAction.condition && (!String(AppState.condition || '').trim() || String(AppState.condition).toUpperCase() === 'ALL')) {
+              const normCond = String(categoryAction.condition).trim().toUpperCase();
+              AppState.condition = normCond;
+              const condRadios = (typeof document.querySelectorAll === 'function')
+                ? document.querySelectorAll('input[name="filterCondition"]')
+                : [];
+              if (condRadios && typeof condRadios.forEach === 'function') {
+                condRadios.forEach(r => {
+                  r.checked = (String(r.value || '').toUpperCase() === normCond);
+                });
+              }
             }
             AppState.page = 1;
             const inp = document.getElementById('resultsSearchInput');
