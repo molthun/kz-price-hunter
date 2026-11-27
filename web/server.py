@@ -1382,7 +1382,9 @@ async def search_v2_handler(request):
     continuation = None
     if phase == "final" and preview_token:
         continuation = local_search.consume_preview_continuation(preview_token, req_ip, preview_sig)
-    if continuation is None:
+        if continuation is None:
+            return web.json_response({"error": "Этот поиск уже завершён или устарел. Повторите поиск."}, status=409)
+    else:
         wait = search_limiter.retry_after(f"ip:{req_ip}")
         if wait:
             return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)

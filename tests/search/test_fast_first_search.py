@@ -316,8 +316,41 @@ class FastFirstSearchTest(unittest.TestCase):
 
         asyncio.run(scenario())
 
+    def test_final_token_cannot_repeat_or_change_search_with_quota_remaining(self):
+        from auth import RateLimiter
+
+        async def scenario():
+            q = {"q": "кроссовки 42", "city": "Астана"}
+            with patch.object(web_server, "search_limiter", RateLimiter(60, 60)), \
+                 patch.dict(os.environ, {"LOCAL_SEARCH_ENABLED": "1"}), \
+                 patch("database.get_connection", side_effect=self._get_conn), \
+                 patch("config.get_ai_config", return_value={"local_api_base": "http://127.0.0.1:11434/v1", "local_model": "qwen"}), \
+                 patch("local_ai.pause_reason", return_value=None), \
+                 patch("ai_service.call_local_api", new=AsyncMock(return_value={})) as model:
+                preview = await web_server.search_v2_handler(_FakeReq({**q, "phase": "preview"}))
+                final = {**q, "phase": "final", "preview_token": json.loads(preview.text)["preview_token"]}
+
+                mismatched = await web_server.search_v2_handler(_FakeReq({**final, "city": "Алматы"}))
+                self.assertEqual(mismatched.status, 409)
+                self.assertEqual(self._analytics_count(), 0)
+
+                response = await web_server.search_v2_handler(_FakeReq(final))
+                self.assertEqual(response.status, 200)
+                replay = await web_server.search_v2_handler(_FakeReq(final))
+                self.assertEqual(replay.status, 409)
+                self.assertEqual(self._analytics_count(), 1)
+                self.assertEqual(self._demand_rows(), [{"query": q["q"], "demand": 1}])
+                self.assertEqual(model.await_count, 1)
+
+                standalone = await web_server.search_v2_handler(_FakeReq({**q, "phase": "final"}))
+                self.assertEqual(standalone.status, 200)
+                self.assertEqual(self._analytics_count(), 2)
+                self.assertEqual(model.await_count, 2)
+
+        asyncio.run(scenario())
+
     def test_rate_limit_boundary_allows_paired_final_and_blocks_replay_or_standalone_final(self):
-        """P2 Codex: при 59/60 занятых мест preview (200) + его final (200) проходят, повтор и чужой final -> 429."""
+        """При 59/60 preview и его final проходят, повтор даёт 409, самостоятельный final даёт 429."""
         async def fast_model(prompt, base, model, api_key, timeout=18.0):
             await asyncio.sleep(0.02)
             return {
@@ -362,10 +395,10 @@ class FastFirstSearchTest(unittest.TestCase):
                 self.assertEqual(f_resp.status, 200)
                 self.assertEqual(self._analytics_count(), 1)
 
-                # Повторная доставка final с тем же токеном отклоняется штатным лимитом (HTTP 429)
+                # Повтор того же поиска отклоняется независимо от состояния лимита
                 r_replay = _FakeReq({**q, "phase": "final", "preview_token": tok}); r_replay.remote = ip
                 rep_resp = await web_server.search_v2_handler(r_replay)
-                self.assertEqual(rep_resp.status, 429)
+                self.assertEqual(rep_resp.status, 409)
 
                 # Самостоятельный final без токена отклоняется штатным лимитом (HTTP 429)
                 r_standalone = _FakeReq({**q, "phase": "final"}); r_standalone.remote = ip
