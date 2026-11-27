@@ -281,6 +281,44 @@
     .scan-shop-row {display:flex;align-items:center;gap:10px;min-height:48px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;overflow-wrap:anywhere;}
     .scan-shop-row input {width:20px;min-height:20px;height:20px;flex-shrink:0;}
     @media(max-width:600px){.scan-shops{grid-template-columns:1fr;}}
+    #matchingTool button {min-height:44px;}
+    .matching-stats {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 14px;}
+    .matching-stat {background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:0;}
+    .matching-stat-label {display:block;font-size:.75rem;color:var(--muted);}
+    .matching-stat-val {display:block;font-size:1.15rem;font-weight:700;margin-top:2px;}
+    .matching-pair-card {border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:14px;background:var(--bg);min-width:0;}
+    .matching-pair-head {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+    .matching-badges {display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+    .matching-badge {display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:.76rem;font-weight:600;border:1px solid var(--border);background:var(--card);color:var(--text);}
+    .matching-badge.pending {color:#d97706;border-color:rgba(217,119,6,.4);}
+    .matching-badge.same {color:#16a34a;border-color:rgba(22,163,74,.4);}
+    .matching-badge.different {color:#dc2626;border-color:rgba(220,38,38,.4);}
+    .matching-badge.reason {font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:500;color:var(--muted);}
+    .matching-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+    .matching-side {border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--card);display:flex;flex-direction:column;gap:8px;min-width:0;}
+    .matching-side-label {font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+    .matching-photo-box {width:100%;height:180px;border:1px solid var(--border);border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+    .matching-photo-box img {max-width:100%;max-height:100%;object-fit:contain;display:block;}
+    .matching-no-photo {font-size:.82rem;color:var(--muted);}
+    .matching-thumbs {display:flex;gap:6px;flex-wrap:wrap;}
+    .matching-thumbs img {width:40px;height:40px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:var(--bg);}
+    .matching-title {font-size:.94rem;font-weight:600;line-height:1.4;overflow-wrap:anywhere;}
+    .matching-diff {background:rgba(245,158,11,.22);color:inherit;border-radius:4px;padding:0 3px;}
+    .matching-meta {font-size:.8rem;color:var(--muted);overflow-wrap:anywhere;}
+    .matching-desc {font-size:.83rem;line-height:1.45;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;overflow-wrap:anywhere;}
+    .matching-desc.empty {color:var(--muted);font-style:italic;}
+    .matching-attrs {display:flex;flex-wrap:wrap;gap:5px;}
+    .matching-attr-pill {font-size:.76rem;padding:2px 7px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);overflow-wrap:anywhere;}
+    .matching-offers {display:flex;flex-direction:column;gap:6px;padding-top:6px;border-top:1px solid var(--border);}
+    .matching-offer-row {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;font-size:.82rem;}
+    .matching-offer-row a {font-size:.8rem;color:var(--primary);text-decoration:none;font-weight:600;}
+    .matching-offer-row a:hover {text-decoration:underline;}
+    .matching-key-status {font-size:.8rem;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);margin-top:10px;overflow-wrap:anywhere;}
+    .matching-key-status.same {border-color:rgba(22,163,74,.45);color:#16a34a;}
+    .matching-actions-bar {display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+    .matching-actions-bar input {flex:1 1 220px;min-width:0;}
+    .matching-search-box {margin-top:10px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--card);font-size:.82rem;overflow-wrap:anywhere;}
+    @media(max-width:760px){.matching-grid{grid-template-columns:1fr;}.matching-stats{grid-template-columns:repeat(2,minmax(0,1fr));}}
   </style>
 </head>
 <body>
@@ -292,6 +330,7 @@
       <nav class="admin-nav" aria-label="Разделы управления">
         <span class="group">Каталог</span>
         <a href="#classificationTool">Разбор товаров</a>
+        <a href="#matchingTool">Склейка дублей</a>
         <a href="#catalogExpansionTool">Расширение ассортимента</a>
         <a href="#shopsTool">Магазины и источники</a>
         <span class="group">Сервис</span>
@@ -489,6 +528,51 @@
         </div>
       </div>
     </dialog>
+    <section class="card admin-panel" id="matchingTool" hidden>
+      <div class="card-head">
+        <h2>Склейка дублей карточек</h2>
+        <span class="count" id="matchingSummaryBadge"></span>
+      </div>
+      <p>Сравните спорные пары товаров рядом по фото, описанию, характеристикам и предложениям продавцов. Подтверждённое решение закрепляет ключи в каталоге и защищает от повторной ошибки.</p>
+      <div class="matching-stats" id="matchingStatsGrid">
+        <div class="matching-stat"><span class="matching-stat-label">Ожидают решения</span><span class="matching-stat-val" id="matchingStatPending">—</span></div>
+        <div class="matching-stat"><span class="matching-stat-label">Склеено</span><span class="matching-stat-val" id="matchingStatSame">—</span></div>
+        <div class="matching-stat"><span class="matching-stat-label">Разделено</span><span class="matching-stat-val" id="matchingStatDiff">—</span></div>
+        <div class="matching-stat"><span class="matching-stat-label">Всего пар</span><span class="matching-stat-val" id="matchingStatTotal">—</span></div>
+      </div>
+      <div class="shop-tools">
+        <label style="min-width:160px">Статус
+          <select id="matchingStatusFilter">
+            <option value="pending">Ожидают решения</option>
+            <option value="resolved">Решённые</option>
+            <option value="skipped">Отложенные</option>
+            <option value="all">Все</option>
+          </select>
+        </label>
+        <label style="flex:1 1 220px;min-width:0">Поиск по названию или причине
+          <input type="search" id="matchingSearchInput" maxlength="200" placeholder="Например: iPhone, Kingston, diff_color">
+        </label>
+        <button type="button" class="main" id="matchingSearchBtn">Найти</button>
+        <button type="button" id="matchingScanConflictsBtn">Найти конфликты</button>
+        <button type="button" id="matchingRefreshBtn">Обновить</button>
+      </div>
+      <details class="workflow-help" id="matchingEnqueueDetails">
+        <summary>Добавить пару на сравнение вручную</summary>
+        <div class="form-grid" style="margin-top:10px">
+          <label class="wide">Название товара 1<input id="matchingEnqueueA" maxlength="300" placeholder="Точное название первой карточки"></label>
+          <label class="wide">Название товара 2<input id="matchingEnqueueB" maxlength="300" placeholder="Точное название второй карточки"></label>
+          <label class="wide">Причина (необязательно)<input id="matchingEnqueueReason" maxlength="120" placeholder="Например: дубль из разных магазинов"></label>
+          <div class="wide"><button type="button" class="main" id="matchingEnqueueSubmit">Добавить в очередь</button></div>
+        </div>
+        <div class="state" id="matchingEnqueueState" role="status"></div>
+      </details>
+      <div class="state" id="matchingState" role="status">Загрузка…</div>
+      <div id="matchingPairsList"></div>
+      <div class="user-actions" style="margin-top:12px">
+        <button type="button" id="matchingPrevBtn">Назад</button>
+        <button type="button" id="matchingNextBtn">Дальше</button>
+      </div>
+    </section>
     <section class="card admin-panel" id="catalogExpansionTool">
       <div class="card-head"><h2>Расширение ассортимента</h2></div>
       <p>Здесь запросы, по которым не хватило предложений или разделов. Подтвердите подходящий раздел и фильтры — затем проверим подключённые магазины. Статусы обновляются автоматически. Новый сайт может потребовать отдельного подключения. «Отклонить» сохраняет заявку в списке, «Удалить» убирает её и останавливает проверку.</p>
@@ -635,6 +719,7 @@
       panels.forEach(p=>p.hidden=p!==selected);
       document.querySelectorAll('.admin-nav a').forEach(a=>{if(a.hash==='#'+selected.id)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
       if(selected.id==='classificationTool'&&typeof loadClassification==='function')loadClassification();
+      if(selected.id==='matchingTool'&&typeof loadMatchingPairs==='function')loadMatchingPairs();
       if(selected.id==='catalogExpansionTool'&&typeof loadExpansions==='function')loadExpansions();
       if(selected.id==='systemTool'&&typeof loadLocalConnection==='function'&&!localConnectionLoaded)loadLocalConnection();
       if(selected.id==='monitoringTool'&&typeof loadServiceOverview==='function'&&!serviceLoaded)loadServiceOverview();
@@ -1988,6 +2073,507 @@
   serviceEl('Refresh').onclick=loadServiceOverview;serviceEl('Explain').onclick=explainServiceOverview;
   if(!document.getElementById('monitoringTool').hidden)loadServiceOverview();
   setInterval(()=>{if(serviceAt&&Date.now()-Date.parse(serviceAt)>120000&&!document.getElementById('monitoringTool').hidden)serviceEl('At').textContent='Снимок от '+serviceDate(serviceAt)+' устарел. Обновите состояние.';},15000);
+</script>
+<script>
+  let matchingOffset = 0;
+  let matchingTotal = 0;
+  let matchingSerial = 0;
+  const MATCHING_LIMIT = 20;
+
+  function matchingSafeUrl(raw) {
+    const s = String(raw || '').trim();
+    return (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/')) ? s : '';
+  }
+
+  function matchingFormatPrice(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    return Math.round(n).toLocaleString('ru-RU') + ' ₸';
+  }
+
+  function matchingRenderDiffTitle(container, title, otherTitle) {
+    container.replaceChildren();
+    const otherTokens = new Set(
+      String(otherTitle || '').toLowerCase().split(/[\s,.;:()\/\[\]]+/).filter(Boolean)
+    );
+    const parts = String(title || '').split(/(\s+)/);
+    parts.forEach(part => {
+      const clean = part.toLowerCase().replace(/^[,.;:()\/\[\]]+|[,.;:()\/\[\]]+$/g, '');
+      if (clean && !otherTokens.has(clean)) {
+        const mark = document.createElement('mark');
+        mark.className = 'matching-diff';
+        mark.textContent = part;
+        container.appendChild(mark);
+      } else {
+        container.appendChild(document.createTextNode(part));
+      }
+    });
+  }
+
+  function matchingBuildSide(label, title, otherTitle, keyVal, fields, offers, card, sameKey) {
+    const side = document.createElement('div');
+    side.className = 'matching-side';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'matching-side-label';
+    lbl.textContent = label;
+    side.appendChild(lbl);
+
+    const c = card && typeof card === 'object' ? card : {};
+    const primaryImg = matchingSafeUrl(c.image_url || (offers && offers[0] && offers[0].image_url));
+    const photoBox = document.createElement('div');
+    photoBox.className = 'matching-photo-box';
+    if (primaryImg) {
+      const link = document.createElement('a');
+      link.href = primaryImg;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.style.display = 'flex';
+      link.style.width = '100%';
+      link.style.height = '100%';
+      link.style.alignItems = 'center';
+      link.style.justifyContent = 'center';
+      const img = document.createElement('img');
+      img.src = primaryImg;
+      img.alt = title || label;
+      img.loading = 'lazy';
+      link.appendChild(img);
+      photoBox.appendChild(link);
+    } else {
+      const noPhoto = document.createElement('span');
+      noPhoto.className = 'matching-no-photo';
+      noPhoto.textContent = 'Фото нет';
+      photoBox.appendChild(noPhoto);
+    }
+    side.appendChild(photoBox);
+
+    const extraImgs = (Array.isArray(c.images) ? c.images : [])
+      .map(matchingSafeUrl)
+      .filter(u => u && u !== primaryImg)
+      .slice(0, 3);
+    if (extraImgs.length) {
+      const thumbs = document.createElement('div');
+      thumbs.className = 'matching-thumbs';
+      extraImgs.forEach(u => {
+        const img = document.createElement('img');
+        img.src = u;
+        img.alt = '';
+        img.loading = 'lazy';
+        thumbs.appendChild(img);
+      });
+      side.appendChild(thumbs);
+    }
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'matching-title';
+    matchingRenderDiffTitle(titleEl, title, otherTitle);
+    side.appendChild(titleEl);
+
+    const metaParts = [];
+    if (c.category) metaParts.push('Раздел: ' + c.category);
+    if (c.brand) metaParts.push('Бренд: ' + c.brand);
+    if (c.model) metaParts.push('Модель: ' + c.model);
+    if (keyVal) metaParts.push('Ключ: ' + keyVal);
+    if (metaParts.length) {
+      const metaEl = document.createElement('div');
+      metaEl.className = 'matching-meta';
+      metaEl.textContent = metaParts.join(' · ');
+      side.appendChild(metaEl);
+    }
+
+    const descEl = document.createElement('div');
+    const descText = String(c.description || '').trim();
+    descEl.className = 'matching-desc' + (descText ? '' : ' empty');
+    descEl.textContent = descText || 'Описание в источнике не указано';
+    side.appendChild(descEl);
+
+    const mergedAttrs = {};
+    if (c.attributes && typeof c.attributes === 'object') {
+      Object.entries(c.attributes).forEach(([k, v]) => {
+        if (v !== null && v !== undefined && String(v).trim()) mergedAttrs[k] = String(v).trim();
+      });
+    }
+    if (fields && typeof fields === 'object') {
+      Object.entries(fields).forEach(([k, v]) => {
+        if (v !== null && v !== undefined && String(v).trim() && !(k in mergedAttrs)) {
+          mergedAttrs[k] = String(v).trim();
+        }
+      });
+    }
+    const attrEntries = Object.entries(mergedAttrs).slice(0, 12);
+    if (attrEntries.length) {
+      const attrsWrap = document.createElement('div');
+      attrsWrap.className = 'matching-attrs';
+      attrEntries.forEach(([k, v]) => {
+        const pill = document.createElement('span');
+        pill.className = 'matching-attr-pill';
+        pill.textContent = k + ': ' + v;
+        attrsWrap.appendChild(pill);
+      });
+      side.appendChild(attrsWrap);
+    }
+
+    const offersList = (Array.isArray(c.offers) && c.offers.length) ? c.offers : (Array.isArray(offers) ? offers : []);
+    const offersWrap = document.createElement('div');
+    offersWrap.className = 'matching-offers';
+    if (!offersList.length) {
+      const emptyOff = document.createElement('div');
+      emptyOff.className = 'matching-meta';
+      emptyOff.textContent = 'Активных предложений в магазинах не найдено';
+      offersWrap.appendChild(emptyOff);
+    } else {
+      offersList.slice(0, 6).forEach(off => {
+        const row = document.createElement('div');
+        row.className = 'matching-offer-row';
+        const left = document.createElement('span');
+        const parts = [off.shop || 'Магазин'];
+        if (off.city) parts.push(off.city);
+        const priceTxt = matchingFormatPrice(off.current_price);
+        if (priceTxt) parts.push(priceTxt);
+        left.textContent = parts.join(' · ');
+        row.appendChild(left);
+        const safeHref = matchingSafeUrl(off.url);
+        if (safeHref) {
+          const a = document.createElement('a');
+          a.href = safeHref;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = 'Открыть ↗';
+          row.appendChild(a);
+        }
+        offersWrap.appendChild(row);
+      });
+    }
+    side.appendChild(offersWrap);
+    return side;
+  }
+
+  function renderMatchingCard(item) {
+    const ph = String(item.pair_hash || '');
+    const card = document.createElement('article');
+    card.className = 'matching-pair-card';
+    card.setAttribute('data-matching-pair', ph);
+
+    const head = document.createElement('div');
+    head.className = 'matching-pair-head';
+    const badges = document.createElement('div');
+    badges.className = 'matching-badges';
+
+    const statusBadge = document.createElement('span');
+    const v = item.verdict || {};
+    if (item.status === 'resolved') {
+      const isSame = v.decision === 'same';
+      statusBadge.className = 'matching-badge ' + (isSame ? 'same' : 'different');
+      statusBadge.textContent = isSame ? 'Склеено (один товар)' : 'Разделено (разные товары)';
+    } else if (item.status === 'skipped' || item.status === 'unresolved') {
+      statusBadge.className = 'matching-badge';
+      statusBadge.textContent = 'Отложено';
+    } else {
+      statusBadge.className = 'matching-badge pending';
+      statusBadge.textContent = 'Ожидает решения';
+    }
+    badges.appendChild(statusBadge);
+
+    if (item.reason) {
+      const rBadge = document.createElement('span');
+      rBadge.className = 'matching-badge reason';
+      rBadge.textContent = 'Причина: ' + item.reason;
+      badges.appendChild(rBadge);
+    }
+    head.appendChild(badges);
+
+    const ts = document.createElement('span');
+    ts.className = 'matching-meta';
+    ts.textContent = item.updated_at || item.created_at || '';
+    head.appendChild(ts);
+    card.appendChild(head);
+
+    const grid = document.createElement('div');
+    grid.className = 'matching-grid';
+    grid.appendChild(matchingBuildSide('Товар 1', item.title_a, item.title_b, item.key_a, item.fields_a, item.offers_a, item.card_a, item.same_key));
+    grid.appendChild(matchingBuildSide('Товар 2', item.title_b, item.title_a, item.key_b, item.fields_b, item.offers_b, item.card_b, item.same_key));
+    card.appendChild(grid);
+
+    const keyStatus = document.createElement('div');
+    keyStatus.className = 'matching-key-status' + (item.same_key ? ' same' : '');
+    keyStatus.textContent = item.same_key
+      ? 'Сейчас склеены в каталоге под одним каноническим ключом.'
+      : 'Сейчас это разные карточки (разные канонические ключи в каталоге).';
+    card.appendChild(keyStatus);
+
+    if (v && v.decision) {
+      const vBox = document.createElement('div');
+      vBox.className = 'matching-meta';
+      vBox.style.marginTop = '8px';
+      vBox.textContent = 'Предыдущий вердикт: ' + (v.decision === 'same' ? 'Один товар' : 'Разные товары')
+        + ' (' + (v.reviewer || v.source || 'оператор') + (v.reason ? ' · ' + v.reason : '') + ')';
+      card.appendChild(vBox);
+    }
+
+    const searchBox = document.createElement('div');
+    searchBox.className = 'matching-search-box';
+    searchBox.hidden = true;
+    card.appendChild(searchBox);
+
+    const feedback = document.createElement('div');
+    feedback.className = 'state';
+    feedback.setAttribute('role', 'status');
+    card.appendChild(feedback);
+
+    const bar = document.createElement('div');
+    bar.className = 'matching-actions-bar';
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.maxLength = 240;
+    noteInput.placeholder = 'Комментарий к решению (необязательно)…';
+    noteInput.setAttribute('data-matching-note', ph);
+    bar.appendChild(noteInput);
+
+    const webBtn = document.createElement('button');
+    webBtn.type = 'button';
+    webBtn.textContent = 'Справка из сети';
+    webBtn.setAttribute('data-matching-web', ph);
+    webBtn.onclick = () => loadAdminMatchingWebHelp(ph, searchBox, webBtn);
+
+    const sameBtn = document.createElement('button');
+    sameBtn.type = 'button';
+    sameBtn.className = 'main';
+    sameBtn.textContent = 'Склеить (один товар)';
+    sameBtn.setAttribute('data-matching-action', 'same');
+    sameBtn.setAttribute('data-pair-hash', ph);
+    sameBtn.onclick = () => submitAdminMatchingVerdict(ph, 'same', noteInput.value, feedback, [sameBtn, diffBtn, skipBtn]);
+
+    const diffBtn = document.createElement('button');
+    diffBtn.type = 'button';
+    diffBtn.className = 'danger';
+    diffBtn.textContent = 'Разные товары';
+    diffBtn.setAttribute('data-matching-action', 'different');
+    diffBtn.setAttribute('data-pair-hash', ph);
+    diffBtn.onclick = () => submitAdminMatchingVerdict(ph, 'different', noteInput.value, feedback, [sameBtn, diffBtn, skipBtn]);
+
+    const skipBtn = document.createElement('button');
+    skipBtn.type = 'button';
+    skipBtn.textContent = 'Отложить';
+    skipBtn.setAttribute('data-matching-action', 'skip');
+    skipBtn.setAttribute('data-pair-hash', ph);
+    skipBtn.onclick = () => submitAdminMatchingVerdict(ph, 'skip', noteInput.value, feedback, [sameBtn, diffBtn, skipBtn]);
+
+    bar.append(webBtn, sameBtn, diffBtn, skipBtn);
+    card.appendChild(bar);
+    return card;
+  }
+
+  async function loadAdminMatchingWebHelp(pairHash, box, btn) {
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false;
+    box.textContent = 'Загружаем справку…';
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/api/admin/matching/search?pair_hash=' + encodeURIComponent(pairHash) + '&fetch_live=1', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Не удалось получить справку');
+      box.replaceChildren();
+      const results = data.results || {};
+      const entries = Object.entries(results);
+      if (!entries.length) {
+        box.textContent = 'Совпадений в поисковой справке не найдено.';
+      } else {
+        entries.slice(0, 4).forEach(([q, list]) => {
+          const h = document.createElement('div');
+          h.style.fontWeight = '600';
+          h.style.marginTop = '4px';
+          h.textContent = q;
+          box.appendChild(h);
+          (Array.isArray(list) ? list : []).slice(0, 3).forEach(r => {
+            const p = document.createElement('div');
+            p.className = 'matching-meta';
+            p.textContent = (r.title || '') + (r.snippet ? ' — ' + r.snippet : '');
+            box.appendChild(p);
+          });
+        });
+      }
+    } catch (e) {
+      box.textContent = e.message || 'Ошибка загрузки справки';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function submitAdminMatchingVerdict(pairHash, decision, rawNotes, feedbackEl, buttons) {
+    const notes = String(rawNotes || '').trim();
+    (buttons || []).forEach(b => { if (b) b.disabled = true; });
+    if (feedbackEl) {
+      feedbackEl.className = 'state';
+      feedbackEl.textContent = 'Сохраняем решение…';
+    }
+    try {
+      const res = await fetch('/api/admin/matching/verdict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pair_hash: pairHash, decision, notes }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const conflicts = Array.isArray(data.conflicts) ? data.conflicts.slice(0, 8) : [];
+        const msg = (data.message || 'Не удалось сохранить решение') + (conflicts.length ? ': ' + conflicts.join('; ') : '');
+        if (feedbackEl) {
+          feedbackEl.className = 'state error';
+          feedbackEl.textContent = msg;
+        }
+        (buttons || []).forEach(b => { if (b) b.disabled = false; });
+        return false;
+      }
+      await loadMatchingPairs();
+      return true;
+    } catch (e) {
+      if (feedbackEl) {
+        feedbackEl.className = 'state error';
+        feedbackEl.textContent = e.message || 'Сетевая ошибка сохранения решения';
+      }
+      (buttons || []).forEach(b => { if (b) b.disabled = false; });
+      return false;
+    }
+  }
+
+  async function enqueueAdminMatchingPair() {
+    const aEl = document.getElementById('matchingEnqueueA');
+    const bEl = document.getElementById('matchingEnqueueB');
+    const rEl = document.getElementById('matchingEnqueueReason');
+    const stEl = document.getElementById('matchingEnqueueState');
+    const title_a = String((aEl && aEl.value) || '').trim();
+    const title_b = String((bEl && bEl.value) || '').trim();
+    const reason = String((rEl && rEl.value) || '').trim() || 'manual_request';
+    if (!title_a || !title_b) {
+      if (stEl) { stEl.className = 'state error'; stEl.textContent = 'Укажите оба названия товаров.'; }
+      return false;
+    }
+    if (stEl) { stEl.className = 'state'; stEl.textContent = 'Добавляем пару…'; }
+    try {
+      const res = await fetch('/api/admin/matching/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title_a, title_b, reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (stEl) { stEl.className = 'state error'; stEl.textContent = data.message || 'Не удалось добавить пару.'; }
+        return false;
+      }
+      if (aEl) aEl.value = '';
+      if (bEl) bEl.value = '';
+      if (rEl) rEl.value = '';
+      if (stEl) { stEl.className = 'state'; stEl.textContent = 'Пара добавлена в очередь.'; }
+      matchingOffset = 0;
+      await loadMatchingPairs();
+      return true;
+    } catch (e) {
+      if (stEl) { stEl.className = 'state error'; stEl.textContent = e.message || 'Сетевая ошибка.'; }
+      return false;
+    }
+  }
+
+  async function scanAdminMatchingConflicts() {
+    const stEl = document.getElementById('matchingState');
+    const btn = document.getElementById('matchingScanConflictsBtn');
+    if (btn) btn.disabled = true;
+    if (stEl) { stEl.className = 'state'; stEl.textContent = 'Ищем конфликты склейки в каталоге…'; }
+    try {
+      const res = await fetch('/api/admin/matching/scan_conflicts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 50 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Ошибка поиска конфликтов');
+      matchingOffset = 0;
+      await loadMatchingPairs('Проверка завершена: добавлено пар — ' + (data.enqueued ?? 0) + '.');
+    } catch (e) {
+      if (stEl) { stEl.className = 'state error'; stEl.textContent = e.message || 'Ошибка поиска конфликтов'; }
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function loadMatchingPairs(bannerMessage) {
+    const listEl = document.getElementById('matchingPairsList');
+    const stEl = document.getElementById('matchingState');
+    if (!listEl || !stEl) return;
+    const serial = ++matchingSerial;
+    stEl.className = 'state';
+    stEl.textContent = bannerMessage || 'Загружаем спорные пары…';
+
+    const statusVal = (document.getElementById('matchingStatusFilter') || {}).value || 'pending';
+    const searchVal = String(((document.getElementById('matchingSearchInput') || {}).value) || '').trim();
+    const params = new URLSearchParams();
+    if (statusVal && statusVal !== 'all') params.set('status', statusVal);
+    if (searchVal) params.set('search', searchVal);
+    params.set('limit', String(MATCHING_LIMIT));
+    params.set('offset', String(matchingOffset));
+
+    fetch('/api/admin/matching/stats', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (serial !== matchingSerial || !d || !d.stats) return;
+        const s = d.stats;
+        const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = String(v ?? 0); };
+        setTxt('matchingStatPending', s.pending);
+        setTxt('matchingStatSame', s.human_same);
+        setTxt('matchingStatDiff', s.human_different);
+        setTxt('matchingStatTotal', s.total);
+        const badge = document.getElementById('matchingSummaryBadge');
+        if (badge) {
+          badge.textContent = (s.pending || 0) > 0 ? ('Ожидают: ' + s.pending) : 'Очередь пуста';
+          badge.className = 'count' + ((s.pending || 0) > 0 ? ' pending' : '');
+        }
+      }).catch(() => {});
+
+    try {
+      const res = await fetch('/api/admin/matching/disputed?' + params.toString(), { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (serial !== matchingSerial) return;
+      if (!res.ok) throw new Error(data.message || 'Не удалось загрузить пары для склейки.');
+      const items = Array.isArray(data.items) ? data.items : [];
+      matchingTotal = Number(data.total || items.length || 0);
+      listEl.replaceChildren();
+      if (!items.length) {
+        stEl.textContent = bannerMessage || (statusVal === 'pending'
+          ? 'Спорных пар, ожидающих решения, сейчас нет.'
+          : 'По выбранному фильтру пар не найдено.');
+      } else {
+        stEl.textContent = bannerMessage || ('Показано ' + (matchingOffset + 1) + '–' + (matchingOffset + items.length) + ' из ' + matchingTotal + '.');
+        items.forEach(item => listEl.appendChild(renderMatchingCard(item)));
+      }
+      const prevBtn = document.getElementById('matchingPrevBtn');
+      const nextBtn = document.getElementById('matchingNextBtn');
+      if (prevBtn) prevBtn.disabled = matchingOffset <= 0;
+      if (nextBtn) nextBtn.disabled = matchingOffset + items.length >= matchingTotal;
+    } catch (e) {
+      if (serial !== matchingSerial) return;
+      stEl.className = 'state error';
+      stEl.textContent = e.message || 'Ошибка загрузки спорных пар.';
+    }
+  }
+
+  (function wireMatchingControls() {
+    const statusSel = document.getElementById('matchingStatusFilter');
+    const searchInp = document.getElementById('matchingSearchInput');
+    const searchBtn = document.getElementById('matchingSearchBtn');
+    const refreshBtn = document.getElementById('matchingRefreshBtn');
+    const scanBtn = document.getElementById('matchingScanConflictsBtn');
+    const enqueueBtn = document.getElementById('matchingEnqueueSubmit');
+    const prevBtn = document.getElementById('matchingPrevBtn');
+    const nextBtn = document.getElementById('matchingNextBtn');
+    if (statusSel) statusSel.onchange = () => { matchingOffset = 0; loadMatchingPairs(); };
+    if (searchBtn) searchBtn.onclick = () => { matchingOffset = 0; loadMatchingPairs(); };
+    if (searchInp) searchInp.addEventListener('keydown', e => { if (e.key === 'Enter') { matchingOffset = 0; loadMatchingPairs(); } });
+    if (refreshBtn) refreshBtn.onclick = () => loadMatchingPairs();
+    if (scanBtn) scanBtn.onclick = () => scanAdminMatchingConflicts();
+    if (enqueueBtn) enqueueBtn.onclick = () => enqueueAdminMatchingPair();
+    if (prevBtn) prevBtn.onclick = () => { matchingOffset = Math.max(0, matchingOffset - MATCHING_LIMIT); loadMatchingPairs(); };
+    if (nextBtn) nextBtn.onclick = () => { matchingOffset += MATCHING_LIMIT; loadMatchingPairs(); };
+    const panel = document.getElementById('matchingTool');
+    if (panel && !panel.hidden) loadMatchingPairs();
+  })();
 </script>
 </body>
 </html>

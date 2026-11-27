@@ -1,5 +1,11 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.69.0: Ручное схлопывание дублей карточек в новой админке (`/admin#matchingTool`) с фото, описанием и характеристиками
+
+- `database.py`: `get_product_cards_for_titles()` и `get_disputed_product_pairs()` отдают `card_a` / `card_b` с фото, описанием, характеристиками, продавцами, ценами, городами и ссылками.
+- `web/templates/admin.html`: раздел `#matchingTool` («Склейка дублей») перенесён в новую админку с наглядным сравнением карточек рядом, действиями «Склеить» / «Разные товары» / «Отложить», справкой из сети, поиском конфликтов и ручным добавлением пары.
+- Тесты: `tests/admin/test_admin_manual_merge_cards.py`, `tests/frontend/test_frontend_admin_matching.cjs`.
+
 ## 28.11.2026 — 6.68.2: Единый `size_kind` подсказки размеров по всей области фасета между страницами (остаток SZ-01)
 
 - `domain/sizes.py`, `repositories/search_repo.py`, `local_search.py`: `classify_confirmed_size_kind()` вычисляется в `attribute_facets()` по всей отфильтрованной области `offer_sizes` до пагинации; `_build_size_prompt()` читает `size_kind` из фасета `size`, исключая расхождение ★ между страницами смешанной выдачи.
