@@ -561,80 +561,18 @@ def _build_tire_size_prompt(attribute_facets, max_options=6):
     }
 
 
-_SHOE_CAT_SLUGS = frozenset({'shoes', 'footwear'})
-_APPAREL_CAT_SLUGS = frozenset({'men_clothing', 'women_clothing', 'kids_clothing', 'apparel'})
-
-
-def _classify_confirmed_size_kind(category='', title=''):
-    """Возвращает подтверждённый тип размерной сетки ('shoe' | 'apparel') или None."""
-    from domain.sizes import _CLOTHING_CONTEXT_RE, _is_shoe_text
-
-    cat = str(category or '').strip()
-    cat_low = cat.lower()
-    if cat_low in _SHOE_CAT_SLUGS:
-        return 'shoe'
-    if cat_low in _APPAREL_CAT_SLUGS:
-        return 'apparel'
-    cat_shoe = _is_shoe_text(cat)
-    cat_cloth = bool(_CLOTHING_CONTEXT_RE.search(cat))
-    if cat_shoe and not cat_cloth:
-        return 'shoe'
-    if cat_cloth and not cat_shoe:
-        return 'apparel'
-    name = str(title or '').strip()
-    name_shoe = _is_shoe_text(name)
-    name_cloth = bool(_CLOTHING_CONTEXT_RE.search(name))
-    if name_shoe and not name_cloth:
-        return 'shoe'
-    if name_cloth and not name_shoe:
-        return 'apparel'
-    return None
-
-
-def _infer_size_prompt_kind(items=None, resolved_cat_id=None, category_name=None, query=''):
-    """Определяет единый подтверждённый тип размерной сетки для size_prompt (SZ-01).
-
-    Возвращает 'shoe' или 'apparel' только при однозначном подтверждении;
-    для смешанной выдачи (обувь + одежда) или неподтверждённого типа возвращает None.
-    """
-    item_kinds = set()
-    has_unconfirmed = False
-    for item in items or ():
-        prod = getattr(item, 'product', None)
-        if prod is None and isinstance(item, dict):
-            prod = item.get('product') or item
-        p_cat = getattr(prod, 'category', '') if not isinstance(prod, dict) else prod.get('category', '')
-        p_title = getattr(prod, 'title', '') if not isinstance(prod, dict) else prod.get('title', '')
-        kind = _classify_confirmed_size_kind(p_cat, p_title)
-        if kind:
-            item_kinds.add(kind)
-        else:
-            has_unconfirmed = True
-
-    if len(item_kinds) > 1:
-        return None
-    if item_kinds and not has_unconfirmed:
-        return next(iter(item_kinds))
-
-    cat_kind = _classify_confirmed_size_kind(resolved_cat_id, '') or _classify_confirmed_size_kind(category_name, '')
-    if cat_kind and (not item_kinds or item_kinds == {cat_kind}):
-        return cat_kind
-
-    query_kind = _classify_confirmed_size_kind('', query)
-    if query_kind and (not item_kinds or item_kinds == {query_kind}):
-        return query_kind
-
-    return None
-
-
-def _build_size_prompt(attribute_facets, max_options=8, size_kind=None):
-    """Формирует опциональное уточнение размера обуви/одежды из подтверждённых фасетов текущей выдачи."""
+def _build_size_prompt(attribute_facets, max_options=8):
+    """Формирует опциональное уточнение размера обуви/одежды из подтверждённых фасетов всей выдачи."""
     from domain.sizes import sort_size_key
 
     raw_options = []
+    size_kind = None
     for facet in attribute_facets or ():
         if not isinstance(facet, dict) or facet.get('key') != 'size':
             continue
+        fk = facet.get('size_kind')
+        if fk in ('shoe', 'apparel'):
+            size_kind = fk
         for item in facet.get('values') or ():
             val = str(item.get('value') or '').strip()
             cnt = int(item.get('count') or 0)
@@ -649,7 +587,7 @@ def _build_size_prompt(attribute_facets, max_options=8, size_kind=None):
     return {
         'action_label': 'Указать размер',
         'attribute_key': 'size',
-        'size_kind': size_kind if size_kind in ('shoe', 'apparel') else None,
+        'size_kind': size_kind,
         'options': top,
     }
 
@@ -1728,13 +1666,7 @@ def search_sync(arguments, understanding, selected_attributes, preview=False):
             and not tire_size_prompt
             and not str(inferred_attrs.get('size') or attrs.get('size') or '').strip()
         ):
-            prompt_size_kind = _infer_size_prompt_kind(
-                res.items,
-                resolved_cat_id=resolved_cat_id,
-                category_name=(cat.name if cat else (plan or {}).get('category_name')),
-                query=effective_original,
-            )
-            size_prompt = _build_size_prompt(data['attribute_facets'], size_kind=prompt_size_kind)
+            size_prompt = _build_size_prompt(data['attribute_facets'])
         category_action = None
         if not preview and res.total_products == 0 and res.outcome != 'ERROR' and facet_cat is not None:
             category_action = compute_empty_category_action(

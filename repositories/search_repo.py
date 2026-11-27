@@ -1379,7 +1379,7 @@ class SearchRepository(BaseRepository):
         try:
             # Фасет «Размер» из offer_sizes (обувь и одежда с подтверждёнными размерами в наличии)
             try:
-                from domain.sizes import sort_size_key
+                from domain.sizes import classify_confirmed_size_kind, sort_size_key
                 self.attribute_filters = {k: v for k, v in chosen.items() if k != 'size'}
                 sz_conditions, sz_params = self._offer_filter(**offer_args, size=None)
                 sz_sql, sz_values = self._matching_product_ids(
@@ -1404,7 +1404,37 @@ class SearchRepository(BaseRepository):
                         [{'value': str(r['value']), 'count': int(r['count'])} for r in sz_rows if r['value']],
                         key=lambda item: sort_size_key(item['value']),
                     )
-                    facets.append({'key': 'size', 'label': 'Размер', 'values': sz_values_list})
+                    facet_size_kind = None
+                    if sz_rows:
+                        cat_confirmed_kind = classify_confirmed_size_kind(cat_key, '') if cat_key else None
+                        cur = self.conn.execute(
+                            f'''SELECT DISTINCT p.category, p.title
+                                FROM offer_sizes os
+                                JOIN offers o ON o.id = os.offer_id
+                                JOIN sellers s ON o.seller_id = s.id
+                                JOIN channels c ON o.channel_id = c.id
+                                JOIN canonical_products p ON p.id = o.product_id
+                                WHERE {" AND ".join(sz_conditions)} AND p.id IN ({sz_sql})''',
+                            list(sz_params) + list(sz_values),
+                        )
+                        try:
+                            seen_kind = None
+                            mixed_or_unknown = False
+                            for kind_row in cur:
+                                row_kind = classify_confirmed_size_kind(kind_row[0], kind_row[1]) or cat_confirmed_kind
+                                if not row_kind:
+                                    mixed_or_unknown = True
+                                    break
+                                if seen_kind is None:
+                                    seen_kind = row_kind
+                                elif seen_kind != row_kind:
+                                    mixed_or_unknown = True
+                                    break
+                            if not mixed_or_unknown and seen_kind in ('shoe', 'apparel'):
+                                facet_size_kind = seen_kind
+                        finally:
+                            cur.close()
+                    facets.append({'key': 'size', 'label': 'Размер', 'values': sz_values_list, 'size_kind': facet_size_kind})
             except Exception:
                 pass
 

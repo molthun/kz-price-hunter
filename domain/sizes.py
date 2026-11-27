@@ -88,6 +88,34 @@ def _is_shoe_text(text: str) -> bool:
     return bool(_SHOE_CONTEXT_RE.search(folded) or _SHOE_KIND_EXTRA_RE.search(folded))
 
 
+_SHOE_CAT_SLUGS = frozenset({"shoes", "footwear"})
+_APPAREL_CAT_SLUGS = frozenset({"men_clothing", "women_clothing", "kids_clothing", "apparel"})
+
+
+def classify_confirmed_size_kind(category: Any, title: Any = "") -> Optional[str]:
+    """Подтверждённый вид размерной сетки ('shoe' | 'apparel') или None (неподтверждённый/смешанный)."""
+    cat = str(category or "").strip()
+    cat_low = cat.lower()
+    if cat_low in _SHOE_CAT_SLUGS:
+        return "shoe"
+    if cat_low in _APPAREL_CAT_SLUGS:
+        return "apparel"
+    cat_shoe = _is_shoe_text(cat)
+    cat_cloth = bool(_CLOTHING_CONTEXT_RE.search(cat))
+    if cat_shoe and not cat_cloth:
+        return "shoe"
+    if cat_cloth and not cat_shoe:
+        return "apparel"
+    name = str(title or "").strip()
+    name_shoe = _is_shoe_text(name)
+    name_cloth = bool(_CLOTHING_CONTEXT_RE.search(name))
+    if name_shoe and not name_cloth:
+        return "shoe"
+    if name_cloth and not name_shoe:
+        return "apparel"
+    return None
+
+
 def offer_size_kind(category: Any, title: Any) -> str:
     """Вид размерной сетки предложения: «shoe» (обувь) или «apparel» (одежда и прочее), DS-01.
 

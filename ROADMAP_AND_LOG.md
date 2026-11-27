@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.68.2: Единый `size_kind` подсказки размеров по всей области фасета между страницами (остаток SZ-01)
+
+- `domain/sizes.py`, `repositories/search_repo.py`, `local_search.py`: `classify_confirmed_size_kind()` вычисляется в `attribute_facets()` по всей отфильтрованной области `offer_sizes` до пагинации; `_build_size_prompt()` читает `size_kind` из фасета `size`, исключая расхождение ★ между страницами смешанной выдачи.
+- Тесты: добавлена двухстраничная регрессия в `tests/search/test_size_prompt.py`.
+
 ## 28.11.2026 — 6.68.1: Разделение размерной сетки обуви и одежды в подсказке размеров (приёмка Codex SZ-01)
 
 - `local_search.py`: `_infer_size_prompt_kind()` передаёт подтверждённый `size_kind` (`"shoe"`, `"apparel"` или `None`) в `search_help.size_prompt`.

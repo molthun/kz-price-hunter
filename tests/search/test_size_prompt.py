@@ -217,6 +217,62 @@ class SizePromptTest(unittest.TestCase):
         self.assertIsNotNone(prompt)
         self.assertIsNone(prompt["size_kind"])
 
+    def test_mixed_results_across_multiple_pages_keep_none_size_kind_on_all_pages(self):
+        """Регрессия SZ-01: 20 пар обуви на 1-й странице и 1 куртка на 2-й странице одного бренда."""
+        conn = database.get_connection()
+        try:
+            pr = ProductRepository(conn)
+            orf = OfferRepository(conn)
+            for idx in range(1, 21):
+                pid = f"p_mp_shoe_{idx}"
+                pr.save_or_update(CanonicalProduct(
+                    id=pid, canonical_key=f"k_{pid}",
+                    title=f"Кроссовки Puma Runner {idx:02d}", category="shoes", brand="Puma",
+                ))
+                oid = f"off_{pid}"
+                orf.save_or_update(Offer(
+                    id=oid, product_id=pid, seller_id="seller_shoes", channel_id="ch_shoes",
+                    external_sku=f"sku_{pid}", url=f"https://kari.com/{pid}",
+                    price=20000.0 + idx * 100, condition="NEW", city="Алматы",
+                ))
+                conn.execute(
+                    "INSERT INTO offer_sizes (offer_id, product_id, size, updated_at) VALUES (?, ?, '42', '2026-11-28')",
+                    (oid, pid),
+                )
+            pr.save_or_update(CanonicalProduct(
+                id="p_mp_jacket", canonical_key="k_p_mp_jacket",
+                title="Куртка Puma Winter", category="women_clothing", brand="Puma",
+            ))
+            orf.save_or_update(Offer(
+                id="off_p_mp_jacket", product_id="p_mp_jacket", seller_id="seller_shoes", channel_id="ch_shoes",
+                external_sku="sku_p_mp_jacket", url="https://kari.com/p_mp_jacket",
+                price=90000.0, condition="NEW", city="Алматы",
+            ))
+            conn.execute(
+                "INSERT INTO offer_sizes (offer_id, product_id, size, updated_at) VALUES ('off_p_mp_jacket', 'p_mp_jacket', '42', '2026-11-28')"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        page1 = local_search.search_sync(
+            {"query": "Puma", "city": "Алматы", "sort_by": "price_asc", "limit": 20, "page": 1},
+            {"status": "unavailable", "plan": None},
+            {},
+        )
+        page2 = local_search.search_sync(
+            {"query": "Puma", "city": "Алматы", "sort_by": "price_asc", "limit": 20, "page": 2},
+            {"status": "unavailable", "plan": None},
+            {},
+        )
+        self.assertEqual(page1["total_products"], 21)
+        self.assertEqual(len(page1["items"]), 20)
+        self.assertEqual(len(page2["items"]), 1)
+        self.assertEqual(page1["search_help"]["size_prompt"]["options"], [{"value": "42", "count": 21}])
+        self.assertEqual(page2["search_help"]["size_prompt"]["options"], [{"value": "42", "count": 21}])
+        self.assertIsNone(page1["search_help"]["size_prompt"]["size_kind"])
+        self.assertIsNone(page2["search_help"]["size_prompt"]["size_kind"])
+
     def test_non_sized_products_never_return_size_prompt(self):
         data = local_search.search_sync(
             {"query": "Samsung Galaxy S24", "city": "Алматы", "limit": 20, "page": 1},
