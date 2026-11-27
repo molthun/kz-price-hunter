@@ -3,6 +3,18 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.64.0] - 2026-11-27
+
+### Для пользователей
+- 🌐 Внешний поиск из пустой выдачи теперь чётко разделяет четыре состояния: «Проверяем внешние магазины…», «Найдены внешние ссылки», «Ссылок не найдено» и «Источник временно недоступен» (с кнопкой «Повторить» вместо пустого сообщения).
+- 🏷️ Все результаты веб-поиска явно помечены как внешние ссылки с предупреждением, что наличие, актуальную цену и условия подтверждает продавец.
+- 🛡️ Если во время внешнего поиска сменить запрос, фильтр или город, устаревший ответ больше не перезаписывает текущий экран.
+
+### Исправлено и улучшено
+- `web/templates/search_first.html`: в `triggerLiveWebSearch()` и `closeLiveWebSearch()` введены явные состояния `checking` / `found` / `empty` / `unavailable` (`data-web-search-state`), разделена обработка `!resp.ok || !data || data.ok === false` (включая HTTP 503/502, квоту и сетевые ошибки) и пустого успешного ответа (`ok: true, results: []`), добавлен бейдж «Внешняя ссылка», дисклеймер и фильтрация небезопасных URL (`safeExternalUrl`).
+- `web/templates/search_first.html`: добавлены `AppState.webSearchAbortCtrl`, `AppState.webSearchSeq`, `getSearchContextKey()`, `isCurrentLiveWebSearch()`, `cancelLiveWebSearch()` — отмена in-flight запроса в `executeSearch()`, `onCityChanged()`, `closeLiveWebSearch()` и повторном `triggerLiveWebSearch()`, плюс проверка неизменности контекста (запрос, город, фильтры, атрибуты) перед рендером ответа.
+- Тесты: добавлен `tests/frontend/test_frontend_live_web_search.cjs` (6 сценариев).
+
 ## [6.63.1] - 2026-11-27
 
 ### Для пользователей

@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 27.11.2026 — 6.64.0: Явные состояния внешнего поиска из пустой выдачи и защита от устаревшего ответа
+
+- `web/templates/search_first.html`: `triggerLiveWebSearch()` разделяет 4 состояния (`checking`, `found`, `empty`, `unavailable`), помечает ссылки как внешние с дисклеймером о подтверждении наличия и условий у продавца, и игнорирует/отменяет устаревший ответ при смене запроса, фильтра или города (`AbortController` + `webSearchSeq` + `getSearchContextKey()`).
+- Тесты: `tests/frontend/test_frontend_live_web_search.cjs` (6 сценариев).
+
 ## 27.11.2026 — 6.63.1: Точная подпись числа товаров в кнопках восстановления пустой выдачи (приёмка Codex по 6.63.0)
 
 - `local_search.py`: `compute_empty_recovery_actions()` явно подписывает число товаров (`1 товар`, `3 товара`, `count_unit="products"`), совпадающее с `total_products` после клика; добавлена регрессия для 1 товара с 2 продавцами.
