@@ -1,0 +1,13 @@
+Выкладка 6.60.2 на живой сервер по слову владельца, 27.11.2026 08:31–08:33Z (Claude)
+CI для origin/main (6de0ded): CI ✓, Build and Publish Docker Image ✓ (test, frontend, image-smoke, secret-scan, upgrade-rehearsal, dependency-audit, build-and-push)
+До выкладки: image sha256:d10850c7c9f6…a989 (6.58.4), checkout e8f498d, healthy restarts=0; docker-compose.live.yml совпадает с deploy/; с e8f498d нет изменений схемы БД, compose, Dockerfile, зависимостей
+Копия БД: ~/kzph-migration/live_before_6602_20261127T083100Z.db (3508 MB, 11 с), quick_check ok, users 8, offers 300468, products 300360, offer_price_history 1570246, watches 0, outbox pending 0
+Checkout: e8f498d -> 6de0ded (ff-only из временного bundle, bundle удалён; включает 6.59.0–6.60.2); локальная правка docker-compose.stand.yml сохранена
+Сборка: docker compose -f docker-compose.stand.yml -f docker-compose.live.yml build app && up -d app
+Контейнер: image sha256:7f913ee9a026…80d2 running healthy restarts=0 started 08:31:53Z, restart unless-stopped, порты 35539/35540; старый прод и Watchtower остаются остановленными
+Снаружи: /api/version 6.60.2; /api/health ok (db, queue ok, redis_active, worker_running); / /deals /api/deals /api/products?q=кроссовки /api/me — 200; /api/me/watches без входа — 401; shdev/deals?size=42 -> 301 shop
+Быстрый поиск (Астана): «Galaxy S24+» preview 1.64 с, 4 карточки, ai_pending, токен; final 2.07 с, ai ok, только «Samsung Galaxy S24+ 5G 12/512»; повтор final с тем же токеном — 409
+  «кроссовки 42» — сразу final 3.16 с, 50 карточек (прогретый кеш после первого запроса)
+Журнал 10 мин: 0 строк error/traceback/exception/critical; Redis, DB-Writer Worker, AutoScan, ChannelSync, Telegram-бот запущены
+Откат: схема БД не менялась; прежний образ d10850c7 на хосте уже не хранится — откат сборкой checkout e8f498d тем же compose; согласованная копия БД — live_before_6602_20261127T083100Z.db
+Не проверено: доставка уведомления в Telegram на живом сервере; сценарии под авторизованным пользователем (нужен вход владельца)
