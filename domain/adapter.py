@@ -13,6 +13,8 @@ import re
 import sqlite3
 from typing import Any, Dict, List, Optional, Tuple
 
+from domain.price_rules import finite_price, valid_old_price
+from scrapers.base import clean_product_title
 from domain.models import (
     Availability,
     CanonicalProduct,
@@ -215,27 +217,18 @@ def prepare_legacy_offer_v2(
     pid = str(product["id"])
     shop_name = product.get("shop", "Белый Ветер")
     city = product.get("city", "Казахстан")
-    title = product["title"]
+    title = clean_product_title(product["title"]) or product["title"]
     category = product.get("category", "")
     url = product.get("url") or ""
     image_url = product.get("image_url") or ""
     description = ""  # Foreign descriptions must not be persisted.
 
-    try:
-        price = float(product.get("price") or 0.0)
-    except (TypeError, ValueError):
-        price = 0.0
-
-    if price <= 0 or price > 10_000_000:
+    price = finite_price(product.get("price"))
+    if price is None or price > 10_000_000:
         return None
 
-    old_price_val = product.get("old_price_on_site") or product.get("old_price")
-    try:
-        old_price = float(old_price_val) if old_price_val else None
-    except (TypeError, ValueError):
-        old_price = None
-
-    if old_price is not None and (old_price <= price or old_price > 10_000_000):
+    old_price = valid_old_price(product.get("old_price_on_site") or product.get("old_price"), price)
+    if old_price is not None and old_price > 10_000_000:
         old_price = None
 
     canonical_key = canonical_key or product.get("canonical_key") or extract_canonical_key(title)

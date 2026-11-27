@@ -12,6 +12,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from domain.models import Condition, OfferPriceHistory, utc_now_iso
+from domain.price_rules import valid_old_price
 from domain.price_history_v2 import ProductPriceHistoryReport, build_price_history_series
 from repositories.base import BaseRepository
 from repositories.product_repo import ProductRepository
@@ -75,7 +76,7 @@ class HistoryRepository(BaseRepository):
             (
                 offer_id,
                 float(price),
-                old_price,
+                valid_old_price(old_price, price),
                 obs,
                 product_id,
                 seller_id,
@@ -113,7 +114,7 @@ class HistoryRepository(BaseRepository):
             (
                 p["offer_id"],
                 float(p["price"]),
-                p.get("old_price"),
+                valid_old_price(p.get("old_price"), p["price"]),
                 p.get("observed_at") or now_ts,
                 p.get("product_id"),
                 p.get("seller_id"),

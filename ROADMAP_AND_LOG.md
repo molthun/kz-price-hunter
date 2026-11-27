@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 27.11.2026 — 6.62.1: доработка 6.61–6.62 по поручению Codex (Claude)
+
+- Единое правило прежней цены `domain/price_rules.py` для всех писателей `offers` и `offer_price_history`; бесконечность и NaN отбрасываются.
+- Существующие названия с HTML-сущностями обновляются в базе и индексе без смены ID и ключа; правка старых данных `scripts/single_live/fix_catalog_integrity.py`.
+
 ## 27.11.2026 — 6.62.0: Очистка HTML-сущностей в названиях товаров (`scrapers/base.py`, `ProductRepository`)
 
 - `scrapers/base.py:clean_product_title` + `validate_product_item` и `repositories/product_repo.py` раскрывают `&#34;`, `&#43;`, `&quot;`, `&amp;`, `&nbsp;` и нормализуют пробелы во всех источниках каталога.

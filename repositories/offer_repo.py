@@ -10,19 +10,13 @@ import json
 from typing import List, Optional
 
 from domain.models import Condition, Offer, OfferPriceHistory, utc_now_iso
+from domain.price_rules import valid_old_price
 from repositories.base import BaseRepository
 
 
 def _valid_old_price(old_price: Optional[float], price: Optional[float]) -> Optional[float]:
-    """Сохраняет old_price только когда она строго больше положительной текущей цены."""
-    if old_price is None or price is None:
-        return None
-    try:
-        old_val = float(old_price)
-        cur_val = float(price)
-        return old_val if old_val > cur_val > 0 else None
-    except (TypeError, ValueError):
-        return None
+    """Сохраняет old_price только как настоящую скидку (общее правило domain.price_rules)."""
+    return valid_old_price(old_price, price)
 
 
 class OfferRepository(BaseRepository):

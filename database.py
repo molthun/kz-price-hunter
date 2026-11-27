@@ -3484,10 +3484,11 @@ def site_old_price(value: Any, current_price: int) -> int:
 def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     from model_matching import extract_canonical_key
 
+    from scrapers.base import clean_product_title
     pid = str(p["id"])
     shop = p.get("shop", "DNS Казахстан")
     city = p.get("city", "Астана")
-    title = p["title"]
+    title = clean_product_title(p["title"]) or p["title"]
     category = p.get("category", "")
     url = p["url"]
     if url and "kaspi.kz/p/" in url and "kaspi.kz/shop/p/" not in url:
@@ -3498,7 +3499,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     description = ""  # Source prose is fetched only transiently; never retained.
     try:
         current_price = int(p.get("price", 0))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         current_price = 0
     if current_price > 10_000_000 or current_price <= 0:
         return {
@@ -3611,6 +3612,7 @@ def _prepare_products_chunk(chunk: List[Dict[str, Any]]) -> List[Optional[Dict[s
     не роняет порцию: она сохраняется и учитывается как сбой двойной записи этого товара.
     """
     from model_matching import extract_canonical_key
+    from scrapers.base import clean_product_title
 
     dual = os.environ.get("DUAL_WRITE_V2", "1") != "0"
     prepared: List[Optional[Dict[str, Any]]] = []
@@ -3618,7 +3620,7 @@ def _prepare_products_chunk(chunk: List[Dict[str, Any]]) -> List[Optional[Dict[s
         pid = str(p["id"])
         shop = p.get("shop", "Белый Ветер")
         city = p.get("city", "Астана")
-        title = p["title"]
+        title = clean_product_title(p["title"]) or p["title"]
         category = p.get("category", "")
         url = p["url"]
         if url and "kaspi.kz/p/" in url and "kaspi.kz/shop/p/" not in url:

@@ -93,6 +93,15 @@ class ProductRepository(BaseRepository):
         existing = self.get_by_canonical_key(canonical_key)
         if existing:
             # Enrich missing fields if present
+            # Сохранённое название с HTML-сущностью обновляется в базе и (триггером) в поисковом
+            # индексе. from_row уже раскрывает сущности и отделяет подарок, поэтому сравнивается
+            # строка базы, а меняется только название; ID и ключ склейки прежние (6.62.1)
+            stored = self.fetchone("SELECT title FROM canonical_products WHERE id = ?", (existing.id,))
+            stored_title = stored["title"] if stored else None
+            readable = clean_product_title(stored_title)
+            if stored_title and readable and readable != stored_title:
+                self.execute("UPDATE canonical_products SET title = ?, updated_at = ? WHERE id = ?",
+                             (readable, utc_now_iso(), existing.id))
             changed = False
             if description and not existing.description:
                 existing.description = description

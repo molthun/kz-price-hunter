@@ -10,6 +10,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from domain.adapter import canonical_product_id
 from domain.attribute_indexing import index_product_facts
 from domain.image_quality import upgrade_image_url
+from domain.price_rules import valid_old_price
+from scrapers.base import clean_product_title
 from model_matching import extract_canonical_key
 from scrapers.showcase_scanners import (
     ShowcaseOffer,
@@ -39,9 +41,13 @@ def match_or_create_canonical_product(
     now_iso: str,
 ) -> Tuple[str, bool]:
     """Находит существующий товар или создаёт новый в canonical_products."""
-    title = offer.title.strip()
-    extracted_key = extract_canonical_key(title)
-    canonical_key = extracted_key if extracted_key else make_fallback_canonical_key(title)
+    # Ключ и ID считаются от названия витрины как прежде: резервный ключ — хэш названия, и его
+    # смена после раскрытия HTML-сущностей отделила бы уже записанный товар (6.62.1). Хранится и
+    # сверяется читаемое название.
+    raw_title = offer.title.strip()
+    title = clean_product_title(raw_title) or raw_title
+    extracted_key = extract_canonical_key(raw_title)
+    canonical_key = extracted_key if extracted_key else make_fallback_canonical_key(raw_title)
     prod_id = canonical_product_id(canonical_key)
 
     # 1. Проверяем по prod_id или canonical_key
@@ -55,8 +61,8 @@ def match_or_create_canonical_product(
 
     # 2. Проверяем по точному совпадению названия (без учёта регистра)
     row_title = conn.execute(
-        "SELECT id FROM canonical_products WHERE title = ? COLLATE NOCASE",
-        (title,),
+        "SELECT id FROM canonical_products WHERE title = ? COLLATE NOCASE OR title = ? COLLATE NOCASE",
+        (title, raw_title),
     ).fetchone()
     if row_title and row_title[0]:
         return row_title[0], False
@@ -133,20 +139,11 @@ def upsert_showcase_offer(
     # Отслеживание динамики цены при повторном наблюдении:
     # old_price фиксируется только как реальная скидка (строго выше новой цены),
     # при росте цены прежняя меньшая цена не записывается в old_price.
-    price_val = float(offer.price)
-    effective_old_price = None
-    if offer.old_price is not None:
-        try:
-            cand_old = float(offer.old_price)
-            if cand_old > price_val > 0:
-                effective_old_price = cand_old
-        except (TypeError, ValueError):
-            effective_old_price = None
+    effective_old_price = valid_old_price(offer.old_price, offer.price)
     try:
         cur_row = conn.execute("SELECT price, old_price FROM offers WHERE id = ?", (offer_id,)).fetchone()
-        if cur_row and cur_row[0] is not None and float(cur_row[0]) > price_val > 0:
-            if not effective_old_price:
-                effective_old_price = float(cur_row[0])
+        if cur_row and effective_old_price is None:
+            effective_old_price = valid_old_price(cur_row[0], offer.price)
     except Exception:
         pass
 
