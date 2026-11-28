@@ -3,6 +3,18 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.71.1] - 2026-11-28
+
+### Для пользователей
+- 🎯 В ручном подборе карточек раздела «Склейка дублей» (`/admin#matchingTool`) теперь сохраняется точный идентификатор каждой выбранной карточки: можно выбрать и склеить даже две разные карточки с абсолютно одинаковым названием, а в очереди сравнения сразу отображаются правильные фото, цены и продавцы без предупреждения о неоднозначности.
+
+### Исправлено
+- Замечание приёмки Codex `MM-09` по `6.71.0`: обеспечена сквозная передача и хранение `product_id_a` / `product_id_b` на всех этапах ручной постановки и склейки дублей:
+  - `database.py`: в `disputed_product_pairs` добавлены nullable-колонки `product_id_a`, `product_id_b` и детерминированный `disputed_pair_hash()` (поддерживающий пары с одинаковым названием и разными ID); `get_product_cards_by_ids()` и `get_disputed_product_pairs()` подгружают выбранные карточки напрямую по `product_id` (`match_status="product_id"`); `_resolve_disputed_pair_conn()` привязывает V2-карточки по явному `product_id` и не ставит глобальных `title_key_pins` / `rekey_titles_conn` на неоднозначные названия, защищая посторонние карточки с тем же заголовком.
+  - `web/server.py`: `POST /api/admin/matching/enqueue` принимает необязательные `product_id_a`, `product_id_b`, отклоняет дублирование одного и того же ID и разрешает одинаковые названия при разных ID.
+  - `web/templates/admin.html`: `pickCatalogCardForEnqueue()` и `enqueueAdminMatchingPair()` сохраняют и отправляют `product_id_a` / `product_id_b`, сравнивают карточки по ID (допуская разные карточки с одинаковым названием) и сбрасывают устаревший `product_id` при ручном редактировании текстового поля (`clearStalePickedCard()`).
+- Тесты: расширены `tests/admin/test_admin_manual_merge_cards.py` (19/19) и `tests/frontend/test_frontend_admin_matching.cjs` (11/11).
+
 ## [6.71.0] - 2026-11-28
 
 ### Для пользователей

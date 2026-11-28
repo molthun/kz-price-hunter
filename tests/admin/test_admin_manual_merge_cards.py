@@ -1064,6 +1064,196 @@ class AdminManualMergeCardsTest(unittest.TestCase):
         self.assertEqual(card["attributes"], {})
         self.assertEqual(card["offers"], [])
 
+    def test_mm09_same_title_distinct_product_ids_enqueue_preview_and_merge_safely(self):
+        """Регрессия MM-09: две разные V2-карточки с одинаковым названием (и 3-я контрольная с тем же названием)
+        ставятся в очередь по product_id, показываются без ambiguous_title и склеиваются строго по ID,
+        не затрагивая 3-ю контрольную карточку."""
+        same_title = "Кондиционер LG Dualcool P09EP2"
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_mm09_1', 'Technodom', 'technodom', 4.8, 'technodom.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_mm09_2', 'Mechta', 'mechta', 4.7, 'mechta.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_mm09_3', 'Sulpak', 'sulpak', 4.6, 'sulpak.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute("INSERT INTO channels (id, seller_id, channel_type, name, created_at) VALUES ('ch_mm09_1', 's_mm09_1', 'website', 'Technodom', '2026-11-28')")
+            conn.execute("INSERT INTO channels (id, seller_id, channel_type, name, created_at) VALUES ('ch_mm09_2', 's_mm09_2', 'website', 'Mechta', '2026-11-28')")
+            conn.execute("INSERT INTO channels (id, seller_id, channel_type, name, created_at) VALUES ('ch_mm09_3', 's_mm09_3', 'website', 'Sulpak', '2026-11-28')")
+
+            pr = ProductRepository(conn)
+            orf = OfferRepository(conn)
+            pr.save_or_update(CanonicalProduct(
+                id="p_ac1", canonical_key="k2:lg:p09_v1", title=same_title, category="air_conditioners",
+                image_url="https://cdn.example/ac1.jpg",
+            ))
+            pr.save_or_update(CanonicalProduct(
+                id="p_ac1_second", canonical_key="k2:lg:p09_v2", title=same_title, category="air_conditioners",
+                image_url="https://cdn.example/ac2.jpg",
+            ))
+            pr.save_or_update(CanonicalProduct(
+                id="p_ac1_ctrl", canonical_key="k2:lg:p09_ctrl", title=same_title, category="air_conditioners",
+                image_url="https://cdn.example/ac_ctrl.jpg",
+            ))
+            orf.save_or_update(Offer(
+                id="off_ac1", product_id="p_ac1", seller_id="s_mm09_1", channel_id="ch_mm09_1",
+                external_sku="sku_ac1", url="https://technodom.kz/ac1", price=289990.0, condition="NEW", city="Алматы",
+            ))
+            orf.save_or_update(Offer(
+                id="off_ac2", product_id="p_ac1_second", seller_id="s_mm09_2", channel_id="ch_mm09_2",
+                external_sku="sku_ac2", url="https://mechta.kz/ac2", price=279990.0, condition="NEW", city="Астана",
+            ))
+            orf.save_or_update(Offer(
+                id="off_ac_ctrl", product_id="p_ac1_ctrl", seller_id="s_mm09_3", channel_id="ch_mm09_3",
+                external_sku="sku_ac_ctrl", url="https://sulpak.kz/ac3", price=299990.0, condition="NEW", city="Шымкент",
+            ))
+            hist_cols = {r[1] for r in conn.execute("PRAGMA table_info(offer_price_history)").fetchall()}
+            if "product_id" in hist_cols:
+                conn.execute(
+                    "INSERT INTO offer_price_history (offer_id, product_id, price, old_price, observed_at) "
+                    "VALUES ('off_ac1', 'p_ac1', 289990.0, NULL, '2026-11-28T05:00:00Z')"
+                )
+                conn.execute(
+                    "INSERT INTO offer_price_history (offer_id, product_id, price, old_price, observed_at) "
+                    "VALUES ('off_ac2', 'p_ac1_second', 279990.0, NULL, '2026-11-28T05:00:00Z')"
+                )
+                conn.execute(
+                    "INSERT INTO offer_price_history (offer_id, product_id, price, old_price, observed_at) "
+                    "VALUES ('off_ac_ctrl', 'p_ac1_ctrl', 299990.0, NULL, '2026-11-28T05:00:00Z')"
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+        # Одинаковый product_id на обе стороны не допускается
+        self.assertFalse(database.enqueue_disputed_pair(
+            same_title, same_title, "self_dup", force=True, product_id_a="p_ac1", product_id_b="p_ac1"
+        ))
+        # Разные product_id с одинаковым title допускаются
+        ok = database.enqueue_disputed_pair(
+            same_title, same_title, "mm09_same_title", force=True,
+            product_id_a="p_ac1", product_id_b="p_ac1_second",
+        )
+        self.assertTrue(ok)
+        ph = database.disputed_pair_hash(same_title, same_title, "p_ac1", "p_ac1_second")
+
+        data = database.get_disputed_product_pairs(status="pending", limit=20, offset=0)
+        self.assertEqual(len(data["items"]), 1)
+        item = data["items"][0]
+        self.assertEqual(item["pair_hash"], ph)
+        self.assertEqual(item["product_id_a"], "p_ac1")
+        self.assertEqual(item["product_id_b"], "p_ac1_second")
+        self.assertEqual(item["card_a"]["match_status"], "product_id")
+        self.assertEqual(item["card_b"]["match_status"], "product_id")
+        self.assertEqual(item["card_a"]["product_id"], "p_ac1")
+        self.assertEqual(item["card_b"]["product_id"], "p_ac1_second")
+        self.assertEqual(item["card_a"]["image_url"], "https://cdn.example/ac1.jpg")
+        self.assertEqual(item["card_b"]["image_url"], "https://cdn.example/ac2.jpg")
+        self.assertEqual(len(item["card_a"]["offers"]), 1)
+        self.assertEqual(len(item["card_b"]["offers"]), 1)
+
+        # Склеиваем с выбором основной карточки 'b' (p_ac1_second)
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", "mm09 merge to b", primary_side="b")
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["primary_product_id"], "p_ac1_second")
+
+        conn = database.get_connection()
+        try:
+            offers_map = dict(conn.execute("SELECT id, product_id FROM offers").fetchall())
+            self.assertEqual(offers_map["off_ac1"], "p_ac1_second")
+            self.assertEqual(offers_map["off_ac2"], "p_ac1_second")
+            self.assertEqual(offers_map["off_ac_ctrl"], "p_ac1_ctrl", "Контрольная карточка с тем же названием не должна затрагиваться")
+            hist_cols = {r[1] for r in conn.execute("PRAGMA table_info(offer_price_history)").fetchall()}
+            if "product_id" in hist_cols:
+                hist_map = dict(conn.execute("SELECT offer_id, product_id FROM offer_price_history").fetchall())
+                self.assertEqual(hist_map["off_ac1"], "p_ac1_second")
+                self.assertEqual(hist_map["off_ac2"], "p_ac1_second")
+                self.assertEqual(hist_map["off_ac_ctrl"], "p_ac1_ctrl")
+            # Для неоднозначного названия не должно ставиться глобального title_key_pins, который заденет p_ac1_ctrl
+            pins = conn.execute("SELECT canonical_key FROM title_key_pins").fetchall()
+            self.assertEqual(pins, [])
+        finally:
+            conn.close()
+
+    def test_mm09_ambiguous_title_one_side_with_explicit_product_id_resolves_without_ambiguity(self):
+        """Регрессия MM-09: если одна сторона пары (p_ac1) делит название с другой карточкой (p_ac1_second),
+        явная передача product_id_a='p_ac1' и product_id_b='p_ac2' показывает точную карточку в очереди
+        (без ambiguous_title) и склеивает только p_ac1 + p_ac2, не трогая p_ac1_second."""
+        title_ambig = "Кондиционер LG Dualcool P09EP2"
+        title_other = "Сплит-система LG P09EP2 Dualcool"
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_m9a', 'Technodom', 'technodom', 4.8, 'technodom.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute("INSERT INTO channels (id, seller_id, channel_type, name, created_at) VALUES ('ch_m9a', 's_m9a', 'website', 'Technodom', '2026-11-28')")
+            pr = ProductRepository(conn)
+            orf = OfferRepository(conn)
+            pr.save_or_update(CanonicalProduct(
+                id="p_ac1", canonical_key="k2:lg:p09_main", title=title_ambig, category="air_conditioners",
+                image_url="https://cdn.example/p_ac1.jpg",
+            ))
+            pr.save_or_update(CanonicalProduct(
+                id="p_ac1_second", canonical_key="k2:lg:p09_other_same_title", title=title_ambig, category="air_conditioners",
+                image_url="https://cdn.example/p_ac1_second.jpg",
+            ))
+            pr.save_or_update(CanonicalProduct(
+                id="p_ac2", canonical_key="k2:lg:p09_split", title=title_other, category="air_conditioners",
+                image_url="https://cdn.example/p_ac2.jpg",
+            ))
+            orf.save_or_update(Offer(
+                id="o_1", product_id="p_ac1", seller_id="s_m9a", channel_id="ch_m9a",
+                external_sku="sku1", url="https://technodom.kz/1", price=289990.0, condition="NEW", city="Алматы",
+            ))
+            orf.save_or_update(Offer(
+                id="o_1_sec", product_id="p_ac1_second", seller_id="s_m9a", channel_id="ch_m9a",
+                external_sku="sku1_sec", url="https://technodom.kz/1sec", price=295000.0, condition="NEW", city="Алматы",
+            ))
+            orf.save_or_update(Offer(
+                id="o_2", product_id="p_ac2", seller_id="s_m9a", channel_id="ch_m9a",
+                external_sku="sku2", url="https://technodom.kz/2", price=279990.0, condition="NEW", city="Астана",
+            ))
+            conn.commit()
+        finally:
+            conn.close()
+
+        ok = database.enqueue_disputed_pair(
+            title_ambig, title_other, "mm09_one_side", force=True,
+            product_id_a="p_ac1", product_id_b="p_ac2",
+        )
+        self.assertTrue(ok)
+        ph = database.disputed_pair_hash(title_ambig, title_other, "p_ac1", "p_ac2")
+
+        data = database.get_disputed_product_pairs(status="pending", limit=20, offset=0)
+        self.assertEqual(len(data["items"]), 1)
+        item = data["items"][0]
+        # Кондиционер < Сплит-система по алфавиту => a = p_ac1, b = p_ac2
+        self.assertEqual(item["card_a"]["match_status"], "product_id")
+        self.assertEqual(item["card_a"]["product_id"], "p_ac1")
+        self.assertEqual(item["card_a"]["image_url"], "https://cdn.example/p_ac1.jpg")
+        self.assertEqual(item["card_b"]["match_status"], "product_id")
+        self.assertEqual(item["card_b"]["product_id"], "p_ac2")
+
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", "merge p_ac2 into p_ac1", primary_side="a")
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["primary_product_id"], "p_ac1")
+
+        conn = database.get_connection()
+        try:
+            offers_map = dict(conn.execute("SELECT id, product_id FROM offers").fetchall())
+            self.assertEqual(offers_map["o_1"], "p_ac1")
+            self.assertEqual(offers_map["o_2"], "p_ac1")
+            self.assertEqual(offers_map["o_1_sec"], "p_ac1_second")
+        finally:
+            conn.close()
+
 
 if __name__ == "__main__":
     unittest.main()

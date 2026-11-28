@@ -1111,6 +1111,9 @@ def _create_schema(cursor) -> None:
     _add_column(cursor, "disputed_product_pairs", "attempts", "INTEGER NOT NULL DEFAULT 0")
     _add_column(cursor, "disputed_product_pairs", "next_attempt_at", "TIMESTAMP")
     _add_column(cursor, "disputed_product_pairs", "last_reason", "TEXT")
+    # Явные ID карточек V2, выбранные оператором в подборе (MM-09)
+    _add_column(cursor, "disputed_product_pairs", "product_id_a", "TEXT")
+    _add_column(cursor, "disputed_product_pairs", "product_id_b", "TEXT")
     # Попытки поиска для суточного предела (P17C-03): каждая настоящая попытка резервируется до запроса —
     # и пустая выдача, и отказ поиска; попадание в кэш выдачи попытку не тратит
     cursor.execute("""
@@ -2569,41 +2572,111 @@ def pair_hash(title_a: str, title_b: str) -> str:
     return product_key.pair_hash(title_a, title_b)
 
 
-def enqueue_disputed_pair(title_a: str, title_b: str, reason: str, force: bool = False) -> bool:
-    """Ставит пару в очередь спорных для проверки поиском или человеком (P17-C7).
+def disputed_pair_hash(
+    title_a: str,
+    title_b: str,
+    product_id_a: Optional[str] = None,
+    product_id_b: Optional[str] = None,
+) -> str:
+    """Канонический хэш спорной пары; различает две карточки с одинаковым заголовком по их ID (MM-09)."""
+    from product_verify import pair_hash
+
+    ta = str(title_a or "").strip()
+    tb = str(title_b or "").strip()
+    pa = str(product_id_a or "").strip()
+    pb = str(product_id_b or "").strip()
+    (first_t, first_p), (second_t, second_p) = sorted([(ta, pa), (tb, pb)], key=lambda x: (x[0], x[1]))
+    if first_t == second_t and first_p and second_p and first_p != second_p:
+        return hashlib.sha256(f"pid:{first_p}\x00{second_p}".encode("utf-8")).hexdigest()[:32]
+    return pair_hash(first_t, second_t)
+
+
+def enqueue_disputed_pair(
+    title_a: str,
+    title_b: str,
+    reason: str,
+    force: bool = False,
+    product_id_a: Optional[str] = None,
+    product_id_b: Optional[str] = None,
+) -> bool:
+    """Ставит пару в очередь спорных для проверки поиском или человеком (P17-C7, MM-09).
 
     Возвращает True, если пара поставлена или снова открыта. Пара с окончательным вердиктом не ставится
     (если не указан force=True).
     Пара в статусе «не решено» (исчерпаны попытки) снова открывается, если встретилась позже
     DISPUTED_REOPEN_DAYS: временный сбой не исключает её из обработки навсегда (P17C-04). Прежние записи
     «skipped» (раньше так терялись пары без полей, C45-05) открываются при любой новой встрече."""
-    from product_verify import pair_hash, UNKNOWN
-    first, second = sorted((title_a.strip(), title_b.strip()))
-    if not first or not second or first == second:
+    from product_verify import UNKNOWN
+
+    ta = str(title_a or "").strip()
+    tb = str(title_b or "").strip()
+    pa = str(product_id_a or "").strip() or None
+    pb = str(product_id_b or "").strip() or None
+    if not ta or not tb:
         return False
-    ph = pair_hash(first, second)
+    if pa and pb:
+        if pa == pb:
+            return False
+    elif ta == tb:
+        return False
+
+    (first, first_pid), (second, second_pid) = sorted(
+        [(ta, pa or ""), (tb, pb or "")],
+        key=lambda x: (x[0], x[1]),
+    )
+    first_pid_val = first_pid or None
+    second_pid_val = second_pid or None
+    ph = disputed_pair_hash(first, second, first_pid_val, second_pid_val)
     existing_verdict = get_pair_verdict(ph)
     if not force and existing_verdict and existing_verdict.get("decision") != UNKNOWN:
         return False
     with get_connection() as conn:
+        cols = _columns(conn, "disputed_product_pairs")
+        has_pids = "product_id_a" in cols and "product_id_b" in cols
         if force:
-            cur = conn.execute("""
-                INSERT INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status)
-                VALUES (?, ?, ?, ?, 'pending')
-                ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
-                    reason = excluded.reason, updated_at = CURRENT_TIMESTAMP
-            """, (ph, first[:500], second[:500], reason[:100]))
+            if has_pids:
+                cur = conn.execute("""
+                    INSERT INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status, product_id_a, product_id_b)
+                    VALUES (?, ?, ?, ?, 'pending', ?, ?)
+                    ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
+                        reason = excluded.reason,
+                        product_id_a = COALESCE(excluded.product_id_a, disputed_product_pairs.product_id_a),
+                        product_id_b = COALESCE(excluded.product_id_b, disputed_product_pairs.product_id_b),
+                        updated_at = CURRENT_TIMESTAMP
+                """, (ph, first[:500], second[:500], reason[:100], first_pid_val, second_pid_val))
+            else:
+                cur = conn.execute("""
+                    INSERT INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status)
+                    VALUES (?, ?, ?, ?, 'pending')
+                    ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
+                        reason = excluded.reason, updated_at = CURRENT_TIMESTAMP
+                """, (ph, first[:500], second[:500], reason[:100]))
         else:
-            cur = conn.execute("""
-                INSERT INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status)
-                VALUES (?, ?, ?, ?, 'pending')
-                ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
-                    reason = excluded.reason, updated_at = CURRENT_TIMESTAMP
-                WHERE (disputed_product_pairs.status = 'skipped'
-                       AND (disputed_product_pairs.last_reason IS NULL OR disputed_product_pairs.last_reason NOT LIKE 'human%'))
-                   OR (disputed_product_pairs.status = 'unresolved'
-                       AND disputed_product_pairs.updated_at < datetime('now', ?))
-            """, (ph, first[:500], second[:500], reason[:100], f"-{DISPUTED_REOPEN_DAYS} days"))
+            if has_pids:
+                cur = conn.execute("""
+                    INSERT INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status, product_id_a, product_id_b)
+                    VALUES (?, ?, ?, ?, 'pending', ?, ?)
+                    ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
+                        reason = excluded.reason,
+                        product_id_a = COALESCE(excluded.product_id_a, disputed_product_pairs.product_id_a),
+                        product_id_b = COALESCE(excluded.product_id_b, disputed_product_pairs.product_id_b),
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE (disputed_product_pairs.status = 'skipped'
+                           AND (disputed_product_pairs.last_reason IS NULL OR disputed_product_pairs.last_reason NOT LIKE 'human%'))
+                       OR (disputed_product_pairs.status = 'unresolved'
+                           AND disputed_product_pairs.updated_at < datetime('now', ?))
+                """, (ph, first[:500], second[:500], reason[:100], first_pid_val, second_pid_val, f"-{DISPUTED_REOPEN_DAYS} days"))
+            else:
+                cur = conn.execute("""
+                    INSERT INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status)
+                    VALUES (?, ?, ?, ?, 'pending')
+                    ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
+                        reason = excluded.reason, updated_at = CURRENT_TIMESTAMP
+                    WHERE (disputed_product_pairs.status = 'skipped'
+                           AND (disputed_product_pairs.last_reason IS NULL OR disputed_product_pairs.last_reason NOT LIKE 'human%'))
+                       OR (disputed_product_pairs.status = 'unresolved'
+                           AND disputed_product_pairs.updated_at < datetime('now', ?))
+                """, (ph, first[:500], second[:500], reason[:100], f"-{DISPUTED_REOPEN_DAYS} days"))
         conn.commit()
         return cur.rowcount > 0
 
@@ -3037,6 +3110,91 @@ def search_catalog_cards_for_matching(query: str, limit: int = 15) -> List[Dict[
         return out
 
 
+def get_product_cards_by_ids(product_ids: Iterable[str]) -> Dict[str, Dict[str, Any]]:
+    """Загружает карточки V2 строго по canonical_products.id для явных привязок MM-09."""
+    unique_ids = sorted({str(pid or "").strip() for pid in product_ids if str(pid or "").strip()})
+    if not unique_ids:
+        return {}
+    cards: Dict[str, Dict[str, Any]] = {}
+    with get_connection() as conn:
+        if not (_has_table(conn, "canonical_products") and _has_table(conn, "offers") and _has_table(conn, "sellers")):
+            return {}
+        for chunk in _chunks(unique_ids):
+            rows = conn.execute(
+                """
+                SELECT id, canonical_key, title, category, brand, model, description, image_url, attributes_json
+                FROM canonical_products
+                WHERE id IN (SELECT value FROM json_each(?))
+                """,
+                (json.dumps(chunk, ensure_ascii=False),),
+            ).fetchall()
+            for pid, ckey, title, cat, brand, model, desc, img, attr_json in rows:
+                safe_img = _safe_http_url(img)
+                cards[pid] = {
+                    "product_id": pid,
+                    "title": str(title or "").strip(),
+                    "canonical_key": str(ckey or "").strip(),
+                    "match_status": "product_id",
+                    "ambiguous_count": 0,
+                    "ambiguous_keys": [],
+                    "category": str(cat or "").strip(),
+                    "brand": str(brand or "").strip(),
+                    "model": str(model or "").strip(),
+                    "description": str(desc or "").strip()[:500],
+                    "image_url": safe_img,
+                    "images": [safe_img] if safe_img else [],
+                    "attributes": _clean_card_attributes(attr_json),
+                    "offers": [],
+                    "offers_count": 0,
+                    "min_price": None,
+                    "max_price": None,
+                }
+        if cards:
+            for chunk in _chunks(list(cards.keys())):
+                rows = conn.execute(
+                    """
+                    SELECT o.product_id, s.name, o.price, o.old_price, o.city, o.condition,
+                           o.url, o.image_url, o.raw_payload_json
+                    FROM offers o
+                    JOIN sellers s ON s.id = o.seller_id
+                    WHERE o.product_id IN (SELECT value FROM json_each(?))
+                      AND COALESCE(o.is_active, 1) = 1
+                    ORDER BY o.price ASC
+                    """,
+                    (json.dumps(chunk, ensure_ascii=False),),
+                ).fetchall()
+                for pid, shop_name, price, old_price, city, cond, url, img, raw_payload in rows:
+                    c = cards.get(pid)
+                    if not c:
+                        continue
+                    safe_img = _safe_http_url(img)
+                    if safe_img:
+                        if not c["image_url"]:
+                            c["image_url"] = safe_img
+                        if safe_img not in c["images"] and len(c["images"]) < 4:
+                            c["images"].append(safe_img)
+                    if not c["description"]:
+                        desc_fb = _extract_offer_description(raw_payload)
+                        if desc_fb:
+                            c["description"] = desc_fb
+                    if len(c["offers"]) < 6:
+                        c["offers"].append({
+                            "shop": str(shop_name or "").strip(),
+                            "current_price": float(price) if price is not None else 0,
+                            "old_price_on_site": float(old_price) if old_price is not None else 0,
+                            "city": str(city or "").strip(),
+                            "condition": str(cond or "").strip(),
+                            "url": _safe_http_url(url),
+                            "image_url": safe_img,
+                        })
+            for c in cards.values():
+                prices = [float(o["current_price"]) for o in c["offers"] if o.get("current_price") and float(o["current_price"]) > 0]
+                c["offers_count"] = len(c["offers"])
+                c["min_price"] = min(prices) if prices else None
+                c["max_price"] = max(prices) if prices else None
+    return cards
+
+
 def get_disputed_product_pairs(
     status: Optional[str] = None,
     search: Optional[str] = None,
@@ -3078,9 +3236,11 @@ def get_disputed_product_pairs(
             f"SELECT COUNT(*) FROM disputed_product_pairs {where_sql}", params
         ).fetchone()[0]
 
+        dp_cols = _columns(conn, "disputed_product_pairs")
+        pid_select = ", product_id_a, product_id_b" if ("product_id_a" in dp_cols and "product_id_b" in dp_cols) else ""
         query_sql = f"""
             SELECT pair_hash, title_a, title_b, reason, status, created_at, updated_at,
-                   attempts, next_attempt_at, last_reason
+                   attempts, next_attempt_at, last_reason{pid_select}
             FROM disputed_product_pairs
             {where_sql}
             ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
@@ -3093,15 +3253,24 @@ def get_disputed_product_pairs(
         return {"items": [], "total": total_filtered, "counts": counts, "limit": limit, "offset": offset}
 
     titles = set()
+    explicit_pids = set()
     items_raw = []
     for r in rows:
-        ph, ta, tb, reason, st, cat, uat, att, nat, lr = r
+        ph, ta, tb, reason, st, cat, uat, att, nat, lr = r[:10]
+        pid_a = str(r[10] or "").strip() if len(r) > 10 else ""
+        pid_b = str(r[11] or "").strip() if len(r) > 11 else ""
         titles.add(ta)
         titles.add(tb)
+        if pid_a:
+            explicit_pids.add(pid_a)
+        if pid_b:
+            explicit_pids.add(pid_b)
         items_raw.append({
             "pair_hash": ph,
             "title_a": ta,
             "title_b": tb,
+            "product_id_a": pid_a or None,
+            "product_id_b": pid_b or None,
             "reason": reason,
             "status": st,
             "created_at": str(cat or ""),
@@ -3115,29 +3284,31 @@ def get_disputed_product_pairs(
     fields_map = get_title_fields_with_source(list(titles))
     offers_map = get_product_offers_for_titles(list(titles))
     cards_map = get_product_cards_for_titles(list(titles), keys_map=keys_map, legacy_offers_map=offers_map)
+    cards_by_id = get_product_cards_by_ids(explicit_pids)
 
     enriched = []
     for item in items_raw:
         ph = item["pair_hash"]
         ta, tb = item["title_a"], item["title_b"]
+        pid_a, pid_b = item.get("product_id_a"), item.get("product_id_b")
         verdict = get_pair_verdict(ph)
-        card_a = cards_map.get(ta)
-        card_b = cards_map.get(tb)
+        card_a = cards_by_id.get(pid_a) if pid_a else cards_map.get(ta)
+        card_b = cards_by_id.get(pid_b) if pid_b else cards_map.get(tb)
 
-        item["key_a"] = keys_map.get(ta) or ""
-        item["key_b"] = keys_map.get(tb) or ""
+        item["key_a"] = (card_a.get("canonical_key") if pid_a and card_a else None) or keys_map.get(ta) or ""
+        item["key_b"] = (card_b.get("canonical_key") if pid_b and card_b else None) or keys_map.get(tb) or ""
         item["fields_a"] = (fields_map.get(ta) or {}).get("fields")
         item["fields_b"] = (fields_map.get(tb) or {}).get("fields")
         item["fields_source_a"] = (fields_map.get(ta) or {}).get("source")
         item["fields_source_b"] = (fields_map.get(tb) or {}).get("source")
         item["offers_a"] = (
             card_a["offers"]
-            if card_a and card_a.get("match_status") in ("canonical_key", "ambiguous_title", "key_not_found")
+            if card_a and card_a.get("match_status") in ("product_id", "canonical_key", "ambiguous_title", "key_not_found")
             else (offers_map.get(ta) or (card_a["offers"] if card_a else []))
         )
         item["offers_b"] = (
             card_b["offers"]
-            if card_b and card_b.get("match_status") in ("canonical_key", "ambiguous_title", "key_not_found")
+            if card_b and card_b.get("match_status") in ("product_id", "canonical_key", "ambiguous_title", "key_not_found")
             else (offers_map.get(tb) or (card_b["offers"] if card_b else []))
         )
         item["card_a"] = card_a
@@ -3359,10 +3530,22 @@ def _merge_v2_canonical_products_conn(
 
 
 def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, product_key, primary_side=None) -> Dict[str, Any]:
-    row = conn.execute("SELECT title_a, title_b, status FROM disputed_product_pairs WHERE pair_hash = ?", (pair_hash,)).fetchone()
+    dp_cols = _columns(conn, "disputed_product_pairs")
+    if "product_id_a" in dp_cols and "product_id_b" in dp_cols:
+        row = conn.execute(
+            "SELECT title_a, title_b, status, product_id_a, product_id_b FROM disputed_product_pairs WHERE pair_hash = ?",
+            (pair_hash,),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT title_a, title_b, status FROM disputed_product_pairs WHERE pair_hash = ?",
+            (pair_hash,),
+        ).fetchone()
     if not row:
         return {"ok": False, "error": f"Спорная пара с хэшем {pair_hash} не найдена"}
     title_a, title_b, current_status = row[0], row[1], row[2]
+    explicit_pid_a = str(row[3] or "").strip() if len(row) > 3 else ""
+    explicit_pid_b = str(row[4] or "").strip() if len(row) > 4 else ""
     if current_status == "resolved":
         return {"ok": False, "error": "Пара уже решена: обновите список или верните её в очередь"}
 
@@ -3385,14 +3568,32 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
     key_a, key_b, own_a, own_b = cached_key(title_a), cached_key(title_b), own_key(title_a), own_key(title_b)
 
     if decision == "same":
-        # Проверка неоднозначной привязки V2 и сбор подтверждённых карточек до любых изменений (MM-05/MM-08)
+        # Проверка неоднозначной привязки V2 и сбор подтверждённых карточек до любых изменений (MM-05/MM-08/MM-09)
         has_v2_cp = _has_table(conn, "canonical_products")
         v2_source_keys: List[str] = []
         side_v2_key: Dict[str, str] = {}
         side_v2_pid: Dict[str, str] = {}
         if has_v2_cp:
-            for side_code, side_title, side_key in (("a", title_a, key_a), ("b", title_b, key_b)):
-                if side_key:
+            for side_code, side_title, side_key, explicit_pid in (
+                ("a", title_a, key_a, explicit_pid_a),
+                ("b", title_b, key_b, explicit_pid_b),
+            ):
+                if explicit_pid:
+                    cp_by_id = conn.execute(
+                        "SELECT id, canonical_key FROM canonical_products WHERE id = ?",
+                        (explicit_pid,),
+                    ).fetchone()
+                    if not cp_by_id:
+                        return {
+                            "ok": False,
+                            "error": f"Выбранная карточка «{side_title}» (ID {explicit_pid}) не найдена в каталоге V2. Пара оставлена на проверке.",
+                        }
+                    ek = str(cp_by_id[1] or "").strip()
+                    side_v2_pid[side_code] = cp_by_id[0]
+                    if ek:
+                        side_v2_key[side_code] = ek
+                        v2_source_keys.append(ek)
+                elif side_key:
                     cp_by_key = conn.execute(
                         "SELECT id, canonical_key FROM canonical_products WHERE canonical_key = ?",
                         (side_key,),
@@ -3432,8 +3633,8 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
                         side_v2_key[side_code] = ukey
                         v2_source_keys.append(ukey)
 
-        eff_key_a = key_a or side_v2_key.get("a")
-        eff_key_b = key_b or side_v2_key.get("b")
+        eff_key_a = side_v2_key.get("a") if explicit_pid_a else (key_a or side_v2_key.get("a"))
+        eff_key_b = side_v2_key.get("b") if explicit_pid_b else (key_b or side_v2_key.get("b"))
 
         conflicts = _group_conflicts_conn(conn, title_a, title_b, eff_key_a, eff_key_b) if eff_key_a != eff_key_b else []
         if conflicts:
@@ -3461,8 +3662,20 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
         for other in set(pool) - {common_key}:
             moved.update({r[0]: common_key for r in conn.execute("SELECT title FROM title_canonical_cache WHERE canonical_key = ?", (other,))})
             moved.update({title: common_key for title in _social_titles_with_key_conn(conn, other)})
-        _pin_title_keys_conn(conn, moved, pair_hash)
-        rekey_titles_conn(conn, moved)
+        # Если название разделяется с посторонней карточкой V2 вне этой пары (MM-09), не закрепляем и не перевешиваем её по заголовку
+        pair_pids = {p for p in (side_v2_pid.get("a"), side_v2_pid.get("b")) if p}
+        safe_moved = dict(moved)
+        if has_v2_cp and pair_pids:
+            for t_cand in list(safe_moved.keys()):
+                other_cps = conn.execute(
+                    "SELECT id FROM canonical_products WHERE title = ? AND id NOT IN (SELECT value FROM json_each(?))",
+                    (t_cand, json.dumps(sorted(pair_pids), ensure_ascii=False)),
+                ).fetchall()
+                if other_cps:
+                    safe_moved.pop(t_cand, None)
+        if safe_moved:
+            _pin_title_keys_conn(conn, safe_moved, pair_hash)
+            rekey_titles_conn(conn, safe_moved)
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
         v2_merge = _merge_v2_canonical_products_conn(conn, common_key, list(set(pool) | set(v2_source_keys)), now_iso)
         save_pair_verdict(pair_hash, title_a, title_b, _human_verdict("same", reviewer, notes), model=f"human:{reviewer}", conn=conn)

@@ -6304,15 +6304,28 @@ async def admin_matching_enqueue_handler(request):
         body = {}
     title_a = str(body.get("title_a") or "").strip()
     title_b = str(body.get("title_b") or "").strip()
+    product_id_a = str(body.get("product_id_a") or "").strip() or None
+    product_id_b = str(body.get("product_id_b") or "").strip() or None
     reason = str(body.get("reason") or "manual_request").strip()
 
     if not title_a or not title_b:
         return web.json_response({"status": "error", "message": "Требуются title_a и title_b"}, status=400)
-    if title_a == title_b:
+    if product_id_a and product_id_b:
+        if product_id_a == product_id_b:
+            return web.json_response({"status": "error", "message": "Выбрана одна и та же карточка"}, status=400)
+    elif title_a == title_b:
         return web.json_response({"status": "error", "message": "Названия товаров совпадают"}, status=400)
 
-    ok = await asyncio.to_thread(database.enqueue_disputed_pair, title_a, title_b, reason, True)
-    ph = database.pair_hash(title_a, title_b)
+    ok = await asyncio.to_thread(
+        database.enqueue_disputed_pair,
+        title_a,
+        title_b,
+        reason,
+        True,
+        product_id_a,
+        product_id_b,
+    )
+    ph = database.disputed_pair_hash(title_a, title_b, product_id_a, product_id_b)
     return web.json_response({"status": "ok" if ok else "ignored", "enqueued": ok, "pair_hash": ph})
 
 

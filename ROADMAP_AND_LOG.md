@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.71.1: Сквозная передача `product_id` при подборе и склейке дублей (приёмка Codex MM-09)
+
+- `database.py`, `web/server.py`, `web/templates/admin.html`: добавлены `product_id_a` / `product_id_b` в `disputed_product_pairs`, `disputed_pair_hash()`, `get_product_cards_by_ids()`, прямая привязка по ID в `_resolve_disputed_pair_conn()` (без задевания посторонних карточек с тем же названием) и передача выбранных ID из каталожного подбора в `POST /api/admin/matching/enqueue`.
+- Тесты: расширены `tests/admin/test_admin_manual_merge_cards.py` (19/19) и `tests/frontend/test_frontend_admin_matching.cjs` (11/11).
+
 ## 28.11.2026 — 6.71.0: Поиск карточек каталога для ручной постановки дублей в `/admin#matchingTool`
 
 - `database.py`, `web/server.py`, `web/templates/admin.html`: добавлены `GET /api/admin/matching/catalog-search` (`search_catalog_cards_for_matching`) и интерактивный подбор карточек «Как Товар 1» / «Как Товар 2» внутри `#matchingEnqueueDetails`.

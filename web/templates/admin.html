@@ -2097,6 +2097,8 @@
   let matchingTotal = 0;
   let matchingSerial = 0;
   let matchingCatalogSerial = 0;
+  let matchingPickedA = { product_id: '', title: '' };
+  let matchingPickedB = { product_id: '', title: '' };
   const MATCHING_LIMIT = 20;
 
   function matchingSafeUrl(raw) {
@@ -2527,22 +2529,44 @@
     }
   }
 
-  function pickCatalogCardForEnqueue(side, title) {
-    const t = String(title || '').trim();
+  function clearStalePickedCard(side) {
+    const inp = document.getElementById(side === 'b' ? 'matchingEnqueueB' : 'matchingEnqueueA');
+    const picked = side === 'b' ? matchingPickedB : matchingPickedA;
+    const cur = String((inp && inp.value) || '').trim();
+    if (picked.product_id && cur !== picked.title) {
+      picked.product_id = '';
+      picked.title = '';
+    }
+  }
+
+  function pickCatalogCardForEnqueue(side, itemOrTitle) {
+    const isObj = itemOrTitle && typeof itemOrTitle === 'object';
+    const t = String(isObj ? (itemOrTitle.title || '') : (itemOrTitle || '')).trim();
+    const pid = String(isObj ? (itemOrTitle.product_id || '') : '').trim();
     if (!t) return false;
+    clearStalePickedCard('a');
+    clearStalePickedCard('b');
     const aEl = document.getElementById('matchingEnqueueA');
     const bEl = document.getElementById('matchingEnqueueB');
     const stEl = document.getElementById('matchingEnqueueState');
     const targetEl = side === 'b' ? bEl : aEl;
     const otherEl = side === 'b' ? aEl : bEl;
-    if (otherEl && String(otherEl.value || '').trim() === t) {
+    const otherPicked = side === 'b' ? matchingPickedA : matchingPickedB;
+    const targetPicked = side === 'b' ? matchingPickedB : matchingPickedA;
+
+    const otherPid = String(otherPicked.product_id || '').trim();
+    const otherTitle = String((otherEl && otherEl.value) || '').trim();
+    const isSameCard = (pid && otherPid) ? (pid === otherPid) : (!pid && !otherPid && otherTitle === t);
+    if (isSameCard) {
       if (stEl) { stEl.className = 'state error'; stEl.textContent = 'Выберите две разные карточки для сравнения.'; }
       return false;
     }
     if (targetEl) targetEl.value = t;
+    targetPicked.product_id = pid;
+    targetPicked.title = t;
     if (stEl) {
       stEl.className = 'state';
-      stEl.textContent = (side === 'b' ? 'Товар 2 выбран: ' : 'Товар 1 выбран: ') + t;
+      stEl.textContent = (side === 'b' ? 'Товар 2 выбран: ' : 'Товар 1 выбран: ') + t + (pid ? (' [' + pid + ']') : '');
     }
     return true;
   }
@@ -2620,12 +2644,12 @@
         btnA.type = 'button';
         btnA.textContent = 'Как Товар 1';
         btnA.setAttribute('data-pick-side', 'a');
-        btnA.onclick = () => pickCatalogCardForEnqueue('a', item.title);
+        btnA.onclick = () => pickCatalogCardForEnqueue('a', { product_id: item.product_id || '', title: item.title || '' });
         const btnB = document.createElement('button');
         btnB.type = 'button';
         btnB.textContent = 'Как Товар 2';
         btnB.setAttribute('data-pick-side', 'b');
-        btnB.onclick = () => pickCatalogCardForEnqueue('b', item.title);
+        btnB.onclick = () => pickCatalogCardForEnqueue('b', { product_id: item.product_id || '', title: item.title || '' });
         acts.append(btnA, btnB);
         row.appendChild(acts);
 
@@ -2639,27 +2663,37 @@
   }
 
   async function enqueueAdminMatchingPair() {
+    clearStalePickedCard('a');
+    clearStalePickedCard('b');
     const aEl = document.getElementById('matchingEnqueueA');
     const bEl = document.getElementById('matchingEnqueueB');
     const rEl = document.getElementById('matchingEnqueueReason');
     const stEl = document.getElementById('matchingEnqueueState');
     const title_a = String((aEl && aEl.value) || '').trim();
     const title_b = String((bEl && bEl.value) || '').trim();
+    const product_id_a = matchingPickedA.product_id && matchingPickedA.title === title_a ? matchingPickedA.product_id : '';
+    const product_id_b = matchingPickedB.product_id && matchingPickedB.title === title_b ? matchingPickedB.product_id : '';
     const reason = String((rEl && rEl.value) || '').trim() || 'manual_request';
     if (!title_a || !title_b) {
       if (stEl) { stEl.className = 'state error'; stEl.textContent = 'Укажите оба названия товаров.'; }
       return false;
     }
-    if (title_a === title_b) {
+    const isSame = (product_id_a && product_id_b)
+      ? (product_id_a === product_id_b)
+      : (!product_id_a && !product_id_b && title_a === title_b);
+    if (isSame) {
       if (stEl) { stEl.className = 'state error'; stEl.textContent = 'Выберите две разные карточки для сравнения.'; }
       return false;
     }
     if (stEl) { stEl.className = 'state'; stEl.textContent = 'Добавляем пару…'; }
     try {
+      const payload = { title_a, title_b, reason };
+      if (product_id_a) payload.product_id_a = product_id_a;
+      if (product_id_b) payload.product_id_b = product_id_b;
       const res = await fetch('/api/admin/matching/enqueue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title_a, title_b, reason }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -2669,6 +2703,8 @@
       if (aEl) aEl.value = '';
       if (bEl) bEl.value = '';
       if (rEl) rEl.value = '';
+      matchingPickedA = { product_id: '', title: '' };
+      matchingPickedB = { product_id: '', title: '' };
       if (stEl) { stEl.className = 'state'; stEl.textContent = 'Пара добавлена в очередь.'; }
       const statusSel = document.getElementById('matchingStatusFilter');
       if (statusSel) statusSel.value = 'pending';
@@ -2772,6 +2808,8 @@
     const enqueueBtn = document.getElementById('matchingEnqueueSubmit');
     const catInp = document.getElementById('matchingCatalogSearchInput');
     const catBtn = document.getElementById('matchingCatalogSearchBtn');
+    const enqA = document.getElementById('matchingEnqueueA');
+    const enqB = document.getElementById('matchingEnqueueB');
     const prevBtn = document.getElementById('matchingPrevBtn');
     const nextBtn = document.getElementById('matchingNextBtn');
     if (statusSel) statusSel.onchange = () => { matchingOffset = 0; loadMatchingPairs(); };
@@ -2780,6 +2818,8 @@
     if (refreshBtn) refreshBtn.onclick = () => loadMatchingPairs();
     if (scanBtn) scanBtn.onclick = () => scanAdminMatchingConflicts();
     if (enqueueBtn) enqueueBtn.onclick = () => enqueueAdminMatchingPair();
+    if (enqA) enqA.addEventListener('input', () => clearStalePickedCard('a'));
+    if (enqB) enqB.addEventListener('input', () => clearStalePickedCard('b'));
     if (catBtn) catBtn.onclick = () => searchAdminMatchingCatalog();
     if (catInp) catInp.addEventListener('keydown', e => { if (e.key === 'Enter') searchAdminMatchingCatalog(); });
     if (prevBtn) prevBtn.onclick = () => { matchingOffset = Math.max(0, matchingOffset - MATCHING_LIMIT); loadMatchingPairs(); };

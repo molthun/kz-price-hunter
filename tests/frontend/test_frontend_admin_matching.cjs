@@ -24,7 +24,7 @@ function extractFn(src, name) {
 }
 
 const code = [
-  'let matchingOffset = 0; let matchingTotal = 0; let matchingSerial = 0; let matchingCatalogSerial = 0; const MATCHING_LIMIT = 20;',
+  'let matchingOffset = 0; let matchingTotal = 0; let matchingSerial = 0; let matchingCatalogSerial = 0; const MATCHING_LIMIT = 20; let matchingPickedA = { product_id: "", title: "" }; let matchingPickedB = { product_id: "", title: "" };',
   extractFn(html, 'matchingSafeUrl'),
   extractFn(html, 'matchingFormatPrice'),
   extractFn(html, 'matchingRenderDiffTitle'),
@@ -33,6 +33,7 @@ const code = [
   extractFn(html, 'renderMatchingCard'),
   extractFn(html, 'loadAdminMatchingWebHelp'),
   extractFn(html, 'submitAdminMatchingVerdict'),
+  extractFn(html, 'clearStalePickedCard'),
   extractFn(html, 'pickCatalogCardForEnqueue'),
   extractFn(html, 'searchAdminMatchingCatalog'),
   extractFn(html, 'enqueueAdminMatchingPair'),
@@ -435,7 +436,67 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`PASS (${passed}/10) test_frontend_admin_matching.cjs`);
+  // 11. v6.71.1 (MM-09): same-title distinct product_ids can be picked & enqueued with IDs; manual edit clears stale product_id
+  {
+    const calls = [];
+    const h = createHarness(async (url, opts) => {
+      calls.push({ url, method: (opts && opts.method) || 'GET', body: opts && opts.body ? JSON.parse(opts.body) : null });
+      if (url.startsWith('/api/admin/matching/catalog-search')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: 'ok',
+            items: [
+              { product_id: 'p_ac1', title: 'Кондиционер LG Dualcool P09EP2', canonical_key: 'k2:lg:v1', offers_count: 1, min_price: 289990, shops: ['Technodom'] },
+              { product_id: 'p_ac1_second', title: 'Кондиционер LG Dualcool P09EP2', canonical_key: 'k2:lg:v2', offers_count: 1, min_price: 279990, shops: ['Mechta'] },
+            ],
+          }),
+        };
+      }
+      if (url.startsWith('/api/admin/matching/stats')) {
+        return { ok: true, status: 200, json: async () => ({ status: 'ok', stats: { pending: 1, human_same: 0, human_different: 0, total: 1 } }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ status: 'ok', items: [], total: 0 }) };
+    });
+
+    h.els.matchingCatalogSearchInput.value = 'LG Dualcool';
+    await h.ctx.searchAdminMatchingCatalog();
+    const rows = findAll(h.els.matchingCatalogSearchResults, (n) => n.getAttribute && n.getAttribute('data-picker-product'));
+    assert.equal(rows.length, 2);
+
+    const pickA1 = findAll(rows[0], (n) => n.getAttribute && n.getAttribute('data-pick-side') === 'a')[0];
+    const pickB1 = findAll(rows[0], (n) => n.getAttribute && n.getAttribute('data-pick-side') === 'b')[0];
+    const pickB2 = findAll(rows[1], (n) => n.getAttribute && n.getAttribute('data-pick-side') === 'b')[0];
+
+    assert.equal(pickA1.onclick(), true);
+    assert.equal(pickB1.onclick(), false, 'Same product_id on both sides must be blocked');
+    assert.equal(pickB2.onclick(), true, 'Different product_id with identical title must be allowed');
+
+    const ok = await h.ctx.enqueueAdminMatchingPair();
+    assert.equal(ok, true);
+    const enq = calls.find((c) => c.url === '/api/admin/matching/enqueue');
+    assert.ok(enq);
+    assert.equal(enq.body.title_a, 'Кондиционер LG Dualcool P09EP2');
+    assert.equal(enq.body.title_b, 'Кондиционер LG Dualcool P09EP2');
+    assert.equal(enq.body.product_id_a, 'p_ac1');
+    assert.equal(enq.body.product_id_b, 'p_ac1_second');
+
+    // Manual edit clears stale picked product_id
+    assert.equal(pickA1.onclick(), true);
+    h.els.matchingEnqueueA.value = 'Другое ручное название';
+    h.ctx.clearStalePickedCard('a');
+    h.els.matchingEnqueueB.value = 'Второе ручное название';
+    calls.length = 0;
+    const ok2 = await h.ctx.enqueueAdminMatchingPair();
+    assert.equal(ok2, true);
+    const enq2 = calls.find((c) => c.url === '/api/admin/matching/enqueue');
+    assert.ok(enq2);
+    assert.equal('product_id_a' in enq2.body, false, 'Stale product_id_a must not be sent after manual edit');
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/11) test_frontend_admin_matching.cjs`);
 }
 
 runTests().catch((err) => {
