@@ -24,7 +24,7 @@ function extractFn(src, name) {
 }
 
 const code = [
-  'let matchingOffset = 0; let matchingTotal = 0; let matchingSerial = 0; const MATCHING_LIMIT = 20;',
+  'let matchingOffset = 0; let matchingTotal = 0; let matchingSerial = 0; let matchingCatalogSerial = 0; const MATCHING_LIMIT = 20;',
   extractFn(html, 'matchingSafeUrl'),
   extractFn(html, 'matchingFormatPrice'),
   extractFn(html, 'matchingRenderDiffTitle'),
@@ -33,6 +33,8 @@ const code = [
   extractFn(html, 'renderMatchingCard'),
   extractFn(html, 'loadAdminMatchingWebHelp'),
   extractFn(html, 'submitAdminMatchingVerdict'),
+  extractFn(html, 'pickCatalogCardForEnqueue'),
+  extractFn(html, 'searchAdminMatchingCatalog'),
   extractFn(html, 'enqueueAdminMatchingPair'),
   extractFn(html, 'loadMatchingPairs'),
 ].join('\n\n');
@@ -86,6 +88,9 @@ function createHarness(fetchImpl) {
     matchingEnqueueB: makeEl('input'),
     matchingEnqueueReason: makeEl('input'),
     matchingEnqueueState: makeEl('div'),
+    matchingCatalogSearchInput: makeEl('input'),
+    matchingCatalogSearchState: makeEl('div'),
+    matchingCatalogSearchResults: makeEl('div'),
   };
   const ctx = {
     URLSearchParams,
@@ -364,7 +369,73 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`PASS (${passed}/8) test_frontend_admin_matching.cjs`);
+  // 9. v6.71.0: catalog search picker renders cards, fills Товар 1 / Товар 2, and blocks identical titles
+  {
+    const h = createHarness(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        status: 'ok',
+        items: [
+          {
+            product_id: 'p1', title: 'Кондиционер LG P09', canonical_key: 'k2:lg:p09',
+            category: 'air_conditioners', image_url: 'https://cdn.test/lg1.jpg',
+            offers_count: 2, min_price: 280000, shops: ['Technodom'],
+          },
+          {
+            product_id: 'p2', title: 'Сплит LG P09 Dualcool', canonical_key: 'k2:lg:p09_alt',
+            category: 'air_conditioners', image_url: 'javascript:evil()',
+            offers_count: 1, min_price: 275000, shops: ['Mechta'],
+          },
+        ],
+      }),
+    }));
+    h.els.matchingCatalogSearchInput.value = 'lg p09';
+    await h.ctx.searchAdminMatchingCatalog();
+
+    const rows = findAll(h.els.matchingCatalogSearchResults, (n) => n.getAttribute && n.getAttribute('data-picker-product'));
+    assert.equal(rows.length, 2);
+    const imgs = findAll(h.els.matchingCatalogSearchResults, (n) => n.tagName === 'IMG');
+    assert.equal(imgs.length, 1, 'Unsafe javascript: image URL must be blocked');
+    assert.equal(imgs[0].src, 'https://cdn.test/lg1.jpg');
+
+    const pickA1 = findAll(rows[0], (n) => n.getAttribute && n.getAttribute('data-pick-side') === 'a')[0];
+    const pickB1 = findAll(rows[0], (n) => n.getAttribute && n.getAttribute('data-pick-side') === 'b')[0];
+    const pickB2 = findAll(rows[1], (n) => n.getAttribute && n.getAttribute('data-pick-side') === 'b')[0];
+
+    assert.equal(pickA1.onclick(), true);
+    assert.equal(h.els.matchingEnqueueA.value, 'Кондиционер LG P09');
+    assert.equal(pickB1.onclick(), false, 'Must refuse picking exact same title for both sides');
+    assert.equal(h.els.matchingEnqueueB.value, '');
+    assert.equal(pickB2.onclick(), true);
+    assert.equal(h.els.matchingEnqueueB.value, 'Сплит LG P09 Dualcool');
+    passed++;
+  }
+
+  // 10. v6.71.0: stale catalog picker response A does not overwrite newer search B
+  {
+    let resolveA;
+    const gateA = new Promise((r) => { resolveA = r; });
+    const h = createHarness(async (url) => {
+      if (url.includes('q=First')) {
+        await gateA;
+        return { ok: true, status: 200, json: async () => ({ status: 'ok', items: [{ product_id: 'old_p', title: 'Old' }] }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ status: 'ok', items: [{ product_id: 'new_p', title: 'New' }] }) };
+    });
+    h.els.matchingCatalogSearchInput.value = 'First';
+    const pA = h.ctx.searchAdminMatchingCatalog();
+    h.els.matchingCatalogSearchInput.value = 'Second';
+    await h.ctx.searchAdminMatchingCatalog();
+    resolveA();
+    await pA;
+    const rows = findAll(h.els.matchingCatalogSearchResults, (n) => n.getAttribute && n.getAttribute('data-picker-product'));
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].getAttribute('data-picker-product'), 'new_p');
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/10) test_frontend_admin_matching.cjs`);
 }
 
 runTests().catch((err) => {

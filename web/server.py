@@ -6279,6 +6279,20 @@ async def admin_matching_verdict_handler(request):
     return web.json_response({"status": "ok", **res}, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+@routes.get("/api/admin/matching/catalog-search")
+@require_admin
+async def admin_matching_catalog_search_handler(request):
+    """Поиск карточек каталога для ручной постановки пары дублей на сравнение."""
+    import database
+    q = str(request.query.get("q") or "").strip()
+    try:
+        limit = max(1, min(30, int(request.query.get("limit") or 15)))
+    except ValueError:
+        limit = 15
+    items = await asyncio.to_thread(database.search_catalog_cards_for_matching, q, limit) if len(q) >= 2 else []
+    return web.json_response({"status": "ok", "query": q, "items": items}, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 @routes.post("/api/admin/matching/enqueue")
 @require_admin
 async def admin_matching_enqueue_handler(request):

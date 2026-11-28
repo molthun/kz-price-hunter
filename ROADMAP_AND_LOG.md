@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.71.0: Поиск карточек каталога для ручной постановки дублей в `/admin#matchingTool`
+
+- `database.py`, `web/server.py`, `web/templates/admin.html`: добавлены `GET /api/admin/matching/catalog-search` (`search_catalog_cards_for_matching`) и интерактивный подбор карточек «Как Товар 1» / «Как Товар 2» внутри `#matchingEnqueueDetails`.
+- Тесты: расширены `tests/admin/test_admin_manual_merge_cards.py` (17/17) и `tests/frontend/test_frontend_admin_matching.cjs` (10/10).
+
 ## 28.11.2026 — 6.70.4: Сохранение выбранной основной карточки без кэшированного ключа (приёмка Codex MM-08)
 
 - `database.py`: `_resolve_disputed_pair_conn()` использует подтверждённый V2-ключ по уникальному заголовку (`eff_key_a` / `eff_key_b`) при выборе `primary_side` и отказывает с сохранением `pending`, если выбранную сторону нельзя подтвердить.

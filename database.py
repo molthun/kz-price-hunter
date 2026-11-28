@@ -2955,6 +2955,88 @@ def get_product_cards_for_titles(
     return cards
 
 
+def search_catalog_cards_for_matching(query: str, limit: int = 15) -> List[Dict[str, Any]]:
+    """Поиск карточек каталога V2 для ручной постановки дублей на сравнение в админке (v6.71.0)."""
+    q = str(query or "").strip()
+    if len(q) < 2:
+        return []
+    limit = max(1, min(30, int(limit or 15)))
+    tokens = [t.lower() for t in re.findall(r"[^\s]+", q) if t.strip()][:6]
+    if not tokens:
+        return []
+
+    with get_connection() as conn:
+        if not _has_table(conn, "canonical_products"):
+            return []
+        conn.create_function("kz_lower", 1, lambda s: str(s or "").lower(), deterministic=True)
+        has_offers = _has_table(conn, "offers") and _has_table(conn, "sellers")
+
+        where_parts = [
+            "kz_lower(COALESCE(p.title,'') || ' ' || COALESCE(p.brand,'') || ' ' || COALESCE(p.model,'') || ' ' || COALESCE(p.canonical_key,'')) LIKE ?"
+            for _ in tokens
+        ]
+        params: List[Any] = [f"%{tok}%" for tok in tokens]
+        rows = conn.execute(
+            f"""
+            SELECT p.id, p.canonical_key, p.title, p.category, p.brand, p.model, p.image_url
+            FROM canonical_products p
+            WHERE {' AND '.join(where_parts)}
+            ORDER BY p.updated_at DESC
+            LIMIT ?
+            """,
+            params + [limit],
+        ).fetchall()
+        if not rows:
+            return []
+
+        pids = [r[0] for r in rows]
+        offers_by_pid: Dict[str, Dict[str, Any]] = {}
+        if has_offers and pids:
+            off_rows = conn.execute(
+                """
+                SELECT o.product_id, s.name, o.price, o.image_url
+                FROM offers o
+                JOIN sellers s ON s.id = o.seller_id
+                WHERE o.product_id IN (SELECT value FROM json_each(?))
+                  AND COALESCE(o.is_active, 1) = 1
+                ORDER BY o.price ASC
+                """,
+                (json.dumps(pids, ensure_ascii=False),),
+            ).fetchall()
+            for pid, shop_name, price, img in off_rows:
+                info = offers_by_pid.setdefault(pid, {"count": 0, "min_price": None, "shops": [], "image_url": ""})
+                info["count"] += 1
+                if price is not None and float(price) > 0:
+                    p_val = float(price)
+                    if info["min_price"] is None or p_val < info["min_price"]:
+                        info["min_price"] = p_val
+                sn = str(shop_name or "").strip()
+                if sn and sn not in info["shops"] and len(info["shops"]) < 3:
+                    info["shops"].append(sn)
+                if not info["image_url"]:
+                    safe_img = _safe_http_url(img)
+                    if safe_img:
+                        info["image_url"] = safe_img
+
+        out: List[Dict[str, Any]] = []
+        for pid, ckey, title, cat, brand, model, img in rows:
+            off_info = offers_by_pid.get(pid) or {}
+            safe_img = _safe_http_url(img) or off_info.get("image_url") or ""
+            out.append({
+                "product_id": pid,
+                "canonical_key": str(ckey or "").strip(),
+                "title": str(title or "").strip(),
+                "category": str(cat or "").strip(),
+                "brand": str(brand or "").strip(),
+                "model": str(model or "").strip(),
+                "image_url": safe_img,
+                "offers_count": int(off_info.get("count") or 0),
+                "min_price": off_info.get("min_price"),
+                "shops": off_info.get("shops") or [],
+            })
+        return out
+
+
 def get_disputed_product_pairs(
     status: Optional[str] = None,
     search: Optional[str] = None,

@@ -952,6 +952,77 @@ class AdminManualMergeCardsTest(unittest.TestCase):
         self.assertIn("Не удалось подтвердить основную карточку", res["error"])
         self.assertEqual(database.get_disputed_pair_status(ph), "pending")
 
+    def test_search_catalog_cards_for_matching_supports_cyrillic_tokens_key_and_offers_summary(self):
+        """v6.71.0: поиск карточек каталога для ручной постановки дублей (кириллица, ключи, сводка предложений)."""
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_lg1', 'Technodom', 'technodom', 4.8, 'technodom.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_lg2', 'Mechta', 'mechta', 4.7, 'mechta.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_lg1', 's_lg1', 'website', 'Technodom', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_lg2', 's_lg2', 'website', 'Mechta', '2026-11-28')"
+            )
+            pr = ProductRepository(conn)
+            orf = OfferRepository(conn)
+
+            pr.save_or_update(CanonicalProduct(
+                id="p_ac1", canonical_key="k2:lg:dualcool_09", title="Кондиционер LG Dualcool P09EP2",
+                category="air_conditioners", brand="LG", model="P09EP2",
+                image_url="javascript:evil()",
+            ))
+            pr.save_or_update(CanonicalProduct(
+                id="p_ac2", canonical_key="k2:lg:p09ep2_alt", title="Сплит-система LG P09EP2 Dualcool",
+                category="air_conditioners", brand="LG", model="P09EP2",
+                image_url="https://cdn.mechta.kz/lg-p09.jpg",
+            ))
+            pr.save_or_update(CanonicalProduct(
+                id="p_other", canonical_key="k2:apple:iphone15", title="Смартфон Apple iPhone 15",
+                category="phones", brand="Apple", model="iPhone 15",
+            ))
+            orf.save_or_update(Offer(
+                id="o_ac1", product_id="p_ac1", seller_id="s_lg1", channel_id="ch_lg1",
+                external_sku="sku_ac1", url="https://technodom.kz/ac1",
+                image_url="https://cdn.technodom.kz/lg-ac1.jpg", price=289990.0, condition="NEW", city="Алматы",
+            ))
+            orf.save_or_update(Offer(
+                id="o_ac2", product_id="p_ac2", seller_id="s_lg2", channel_id="ch_lg2",
+                external_sku="sku_ac2", url="https://mechta.kz/ac2",
+                price=279990.0, condition="NEW", city="Астана",
+            ))
+            conn.commit()
+        finally:
+            conn.close()
+
+        # Короткий запрос (< 2 символов) возвращает пустой список
+        self.assertEqual(database.search_catalog_cards_for_matching("a"), [])
+
+        # Кириллический регистронезависимый поиск по нескольким токенам
+        res_cyr = database.search_catalog_cards_for_matching("кондиционер lg")
+        self.assertEqual(len(res_cyr), 1)
+        self.assertEqual(res_cyr[0]["product_id"], "p_ac1")
+        self.assertEqual(res_cyr[0]["image_url"], "https://cdn.technodom.kz/lg-ac1.jpg")
+        self.assertEqual(res_cyr[0]["offers_count"], 1)
+        self.assertEqual(res_cyr[0]["min_price"], 289990.0)
+        self.assertEqual(res_cyr[0]["shops"], ["Technodom"])
+
+        # Поиск по общим токенам модели находит обе несклеенные карточки
+        res_both = database.search_catalog_cards_for_matching("lg p09ep2")
+        self.assertEqual({r["product_id"] for r in res_both}, {"p_ac1", "p_ac2"})
+
+        # Поиск по каноническому ключу
+        res_key = database.search_catalog_cards_for_matching("k2:lg:p09ep2_alt")
+        self.assertEqual([r["product_id"] for r in res_key], ["p_ac2"])
+
     def test_mm04_ambiguous_title_without_confirmed_key_marks_ambiguity_and_hides_wrong_card(self):
         """Регрессия MM-04: при двух карточках с одинаковым заголовком и без подтверждённого ключа
         API обозначает неоднозначность (ambiguous_title) и не подставляет случайную карточку."""
