@@ -1,5 +1,9 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.69.1: Привязка сравнения дублей к `canonical_key` и защита от неоднозначных заголовков (приёмка Codex MM-04)
+
+- `database.py`, `web/templates/admin.html`: `get_product_cards_for_titles()` ищет карточку сначала по `canonical_key`, не подставляет чужую запись при совпадении заголовка и явно обозначает `ambiguous_title` / `key_not_found` в UI; добавлены регрессии в `tests/admin/test_admin_manual_merge_cards.py` и `tests/frontend/test_frontend_admin_matching.cjs`.
+
 ## 28.11.2026 — 6.69.0: Ручное схлопывание дублей карточек в новой админке (`/admin#matchingTool`) с фото, описанием и характеристиками
 
 - `database.py`: `get_product_cards_for_titles()` и `get_disputed_product_pairs()` отдают `card_a` / `card_b` с фото, описанием, характеристиками, продавцами, ценами, городами и ссылками.

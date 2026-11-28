@@ -315,6 +315,7 @@
     .matching-offer-row a:hover {text-decoration:underline;}
     .matching-key-status {font-size:.8rem;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);margin-top:10px;overflow-wrap:anywhere;}
     .matching-key-status.same {border-color:rgba(22,163,74,.45);color:#16a34a;}
+    .matching-ambiguity-warning {font-size:.8rem;line-height:1.4;padding:8px 10px;border-radius:8px;border:1px solid rgba(217,119,6,.45);background:rgba(217,119,6,.1);color:var(--text);overflow-wrap:anywhere;}
     .matching-actions-bar {display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
     .matching-actions-bar input {flex:1 1 220px;min-width:0;}
     .matching-search-box {margin-top:10px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--card);font-size:.82rem;overflow-wrap:anywhere;}
@@ -2120,7 +2121,9 @@
     side.appendChild(lbl);
 
     const c = card && typeof card === 'object' ? card : {};
-    const primaryImg = matchingSafeUrl(c.image_url || (offers && offers[0] && offers[0].image_url));
+    const matchStatus = String(c.match_status || '');
+    const isUnbound = matchStatus === 'ambiguous_title' || matchStatus === 'key_not_found';
+    const primaryImg = isUnbound ? '' : matchingSafeUrl(c.image_url || (offers && offers[0] && offers[0].image_url));
     const photoBox = document.createElement('div');
     photoBox.className = 'matching-photo-box';
     if (primaryImg) {
@@ -2142,12 +2145,23 @@
     } else {
       const noPhoto = document.createElement('span');
       noPhoto.className = 'matching-no-photo';
-      noPhoto.textContent = 'Фото нет';
+      noPhoto.textContent = isUnbound ? 'Привязка не подтверждена' : 'Фото нет';
       photoBox.appendChild(noPhoto);
     }
     side.appendChild(photoBox);
 
-    const extraImgs = (Array.isArray(c.images) ? c.images : [])
+    if (isUnbound) {
+      const warn = document.createElement('div');
+      warn.className = 'matching-ambiguity-warning';
+      warn.setAttribute('data-matching-ambiguous', matchStatus);
+      const cnt = Number(c.ambiguous_count || 0);
+      warn.textContent = matchStatus === 'key_not_found'
+        ? 'Карточка для этого канонического ключа не найдена в каталоге. Фото, характеристики и предложения скрыты, чтобы не подменить чужой карточкой с тем же названием.'
+        : ('Неоднозначная привязка: найдено ' + (cnt || 'несколько') + ' разных карточек с этим названием без подтверждённого ключа. Фото, характеристики и предложения скрыты.');
+      side.appendChild(warn);
+    }
+
+    const extraImgs = isUnbound ? [] : (Array.isArray(c.images) ? c.images : [])
       .map(matchingSafeUrl)
       .filter(u => u && u !== primaryImg)
       .slice(0, 3);
@@ -2170,9 +2184,9 @@
     side.appendChild(titleEl);
 
     const metaParts = [];
-    if (c.category) metaParts.push('Раздел: ' + c.category);
-    if (c.brand) metaParts.push('Бренд: ' + c.brand);
-    if (c.model) metaParts.push('Модель: ' + c.model);
+    if (!isUnbound && c.category) metaParts.push('Раздел: ' + c.category);
+    if (!isUnbound && c.brand) metaParts.push('Бренд: ' + c.brand);
+    if (!isUnbound && c.model) metaParts.push('Модель: ' + c.model);
     if (keyVal) metaParts.push('Ключ: ' + keyVal);
     if (metaParts.length) {
       const metaEl = document.createElement('div');
@@ -2182,13 +2196,15 @@
     }
 
     const descEl = document.createElement('div');
-    const descText = String(c.description || '').trim();
+    const descText = isUnbound ? '' : String(c.description || '').trim();
     descEl.className = 'matching-desc' + (descText ? '' : ' empty');
-    descEl.textContent = descText || 'Описание в источнике не указано';
+    descEl.textContent = isUnbound
+      ? 'Описание скрыто до подтверждения канонической карточки'
+      : (descText || 'Описание в источнике не указано');
     side.appendChild(descEl);
 
     const mergedAttrs = {};
-    if (c.attributes && typeof c.attributes === 'object') {
+    if (!isUnbound && c.attributes && typeof c.attributes === 'object') {
       Object.entries(c.attributes).forEach(([k, v]) => {
         if (v !== null && v !== undefined && String(v).trim()) mergedAttrs[k] = String(v).trim();
       });
@@ -2213,7 +2229,7 @@
       side.appendChild(attrsWrap);
     }
 
-    const offersList = (Array.isArray(c.offers) && c.offers.length) ? c.offers : (Array.isArray(offers) ? offers : []);
+    const offersList = isUnbound ? [] : ((Array.isArray(c.offers) && c.offers.length) ? c.offers : (Array.isArray(offers) ? offers : []));
     const offersWrap = document.createElement('div');
     offersWrap.className = 'matching-offers';
     if (!offersList.length) {

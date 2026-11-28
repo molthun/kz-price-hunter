@@ -280,7 +280,45 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`PASS (${passed}/6) test_frontend_admin_matching.cjs`);
+  // 7. MM-04: ambiguous_title / key_not_found renders explicit warning and hides unconfirmed photo/offers
+  {
+    const h = createHarness(async () => ({ ok: true, status: 200, json: async () => ({}) }));
+    const card = h.ctx.renderMatchingCard({
+      pair_hash: 'ph_ambig',
+      status: 'pending',
+      title_a: 'Samsung Galaxy S24',
+      title_b: 'Смартфон Samsung S24',
+      key_a: '',
+      key_b: 'samsung_s24_128',
+      offers_a: [{ shop: 'WrongShop', current_price: 500000, url: 'https://wrong.kz/1', image_url: 'https://wrong.kz/img.jpg' }],
+      card_a: {
+        match_status: 'ambiguous_title',
+        ambiguous_count: 2,
+        image_url: 'https://wrong.kz/img.jpg',
+        description: 'Wrong description',
+        attributes: { storage: '256GB' },
+        offers: [{ shop: 'WrongShop', current_price: 500000, url: 'https://wrong.kz/1' }],
+      },
+      card_b: {
+        match_status: 'canonical_key',
+        image_url: 'https://right.kz/img.jpg',
+        description: 'Right description',
+        attributes: { storage: '128GB' },
+        offers: [{ shop: 'RightShop', current_price: 380000, url: 'https://right.kz/1' }],
+      },
+    });
+    const warnings = findAll(card, (n) => n.getAttribute && n.getAttribute('data-matching-ambiguous') === 'ambiguous_title');
+    assert.equal(warnings.length, 1);
+    assert.ok(warnings[0].textContent.includes('Неоднозначная привязка'));
+    const imgs = findAll(card, (n) => n.tagName === 'IMG');
+    assert.equal(imgs.length, 1, 'Only confirmed card_b image must render');
+    assert.equal(imgs[0].src, 'https://right.kz/img.jpg');
+    const links = findAll(card, (n) => n.tagName === 'A' && n.href === 'https://wrong.kz/1');
+    assert.equal(links.length, 0, 'Unconfirmed offers must not render');
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/7) test_frontend_admin_matching.cjs`);
 }
 
 runTests().catch((err) => {

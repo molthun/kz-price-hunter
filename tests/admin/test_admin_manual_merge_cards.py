@@ -175,6 +175,146 @@ class AdminManualMergeCardsTest(unittest.TestCase):
         self.assertEqual(card_a["min_price"], 349000.0)
         self.assertEqual(card_a["offers"][0]["shop"], "Sulpak")
 
+    def test_mm04_same_title_different_canonical_keys_binds_strictly_by_canonical_key(self):
+        """Регрессия MM-04: при двух канонических записях с одинаковым заголовком выбирается запись по canonical_key,
+        даже если у чужой записи более свежий updated_at."""
+        title_a = "Apple iPhone 15 Black"
+        title_b = "iPhone 15 128GB Black"
+
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_right', 'Technodom', 'technodom', 4.8, 'technodom.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_wrong', 'OtherShop', 'othershop', 4.5, 'other.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_right', 's_right', 'website', 'Technodom', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_wrong', 's_wrong', 'website', 'OtherShop', '2026-11-28')"
+            )
+            pr = ProductRepository(conn)
+            orf = OfferRepository(conn)
+
+            # Правильная карточка с нужным ключом (более старый updated_at)
+            pr.save_or_update(CanonicalProduct(
+                id="prod_right",
+                canonical_key="apple_iphone_15_128_black_a",
+                title=title_a,
+                category="phones",
+                brand="Apple",
+                model="iPhone 15",
+                image_url="https://cdn.technodom.kz/right-128.jpg",
+                attributes={"storage": "128GB"},
+            ))
+            conn.execute(
+                "UPDATE canonical_products SET updated_at = '2026-11-01T00:00:00Z' WHERE id = 'prod_right'"
+            )
+            orf.save_or_update(Offer(
+                id="off_right",
+                product_id="prod_right",
+                seller_id="s_right",
+                channel_id="ch_right",
+                external_sku="sku_right",
+                url="https://technodom.kz/right-128",
+                price=380000.0,
+                condition="NEW",
+                city="Алматы",
+            ))
+
+            # Чужая карточка с ТЕМ ЖЕ заголовком, другим ключом и БОЛЕЕ СВЕЖИМ updated_at
+            pr.save_or_update(CanonicalProduct(
+                id="prod_wrong",
+                canonical_key="apple_iphone_15_256_black_wrong",
+                title=title_a,
+                category="phones",
+                brand="Apple",
+                model="iPhone 15 256GB",
+                image_url="https://cdn.other.kz/wrong-256.jpg",
+                attributes={"storage": "256GB"},
+            ))
+            conn.execute(
+                "UPDATE canonical_products SET updated_at = '2026-11-28T23:59:59Z' WHERE id = 'prod_wrong'"
+            )
+            orf.save_or_update(Offer(
+                id="off_wrong",
+                product_id="prod_wrong",
+                seller_id="s_wrong",
+                channel_id="ch_wrong",
+                external_sku="sku_wrong",
+                url="https://other.kz/wrong-256",
+                price=499000.0,
+                condition="NEW",
+                city="Астана",
+            ))
+
+            # Сохраняем кэш ключа для title_a -> apple_iphone_15_128_black_a
+            conn.commit()
+        finally:
+            conn.close()
+
+        database.save_cached_canonical_key(title_a, "apple_iphone_15_128_black_a")
+        database.enqueue_disputed_pair(title_a, title_b, "mm04_test", force=True)
+
+        data = database.get_disputed_product_pairs(status="pending", limit=20, offset=0)
+        self.assertEqual(len(data["items"]), 1)
+        item = data["items"][0]
+        card = item["card_a"] if item["title_a"] == title_a else item["card_b"]
+        self.assertEqual(card["match_status"], "canonical_key")
+        self.assertEqual(card["product_id"], "prod_right")
+        self.assertEqual(card["image_url"], "https://cdn.technodom.kz/right-128.jpg")
+        self.assertEqual(card["attributes"]["storage"], "128GB")
+        self.assertEqual(len(card["offers"]), 1)
+        self.assertEqual(card["offers"][0]["shop"], "Technodom")
+        self.assertEqual(card["offers"][0]["url"], "https://technodom.kz/right-128")
+
+    def test_mm04_ambiguous_title_without_confirmed_key_marks_ambiguity_and_hides_wrong_card(self):
+        """Регрессия MM-04: при двух карточках с одинаковым заголовком и без подтверждённого ключа
+        API обозначает неоднозначность (ambiguous_title) и не подставляет случайную карточку."""
+        title_ambig = "Samsung Galaxy S24"
+        title_other = "Смартфон Samsung S24"
+
+        conn = database.get_connection()
+        try:
+            pr = ProductRepository(conn)
+            pr.save_or_update(CanonicalProduct(
+                id="prod_s24_128",
+                canonical_key="samsung_s24_128",
+                title=title_ambig,
+                category="phones",
+                image_url="https://cdn.example/s24-128.jpg",
+                attributes={"storage": "128GB"},
+            ))
+            pr.save_or_update(CanonicalProduct(
+                id="prod_s24_256",
+                canonical_key="samsung_s24_256",
+                title=title_ambig,
+                category="phones",
+                image_url="https://cdn.example/s24-256.jpg",
+                attributes={"storage": "256GB"},
+            ))
+            conn.commit()
+        finally:
+            conn.close()
+
+        database.enqueue_disputed_pair(title_ambig, title_other, "mm04_ambig", force=True)
+        data = database.get_disputed_product_pairs(status="pending", limit=20, offset=0)
+        self.assertEqual(len(data["items"]), 1)
+        item = data["items"][0]
+        card = item["card_a"] if item["title_a"] == title_ambig else item["card_b"]
+        self.assertEqual(card["match_status"], "ambiguous_title")
+        self.assertIsNone(card["product_id"])
+        self.assertEqual(card["ambiguous_count"], 2)
+        self.assertEqual(card["image_url"], "")
+        self.assertEqual(card["attributes"], {})
+        self.assertEqual(card["offers"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

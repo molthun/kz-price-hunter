@@ -2668,7 +2668,7 @@ def get_product_offers_for_titles(titles: Iterable[str]) -> Dict[str, List[Dict[
     with get_connection() as conn:
         for chunk in _chunks(unique):
             rows = conn.execute("""
-                SELECT title, shop, current_price, old_price_on_site, url, image_url, category, description
+                SELECT title, shop, current_price, old_price_on_site, url, image_url, category, description, canonical_key
                 FROM products
                 WHERE title IN (SELECT value FROM json_each(?))
                 ORDER BY current_price ASC
@@ -2684,6 +2684,7 @@ def get_product_offers_for_titles(titles: Iterable[str]) -> Dict[str, List[Dict[
                         "image_url": r[5] or "",
                         "category": r[6] or "",
                         "description": str(r[7] or "").strip()[:500],
+                        "canonical_key": str(r[8] or "").strip(),
                     })
     return res
 
@@ -2756,6 +2757,10 @@ def get_product_cards_for_titles(
         cards[t] = {
             "product_id": None,
             "title": t,
+            "canonical_key": (keys_map.get(t) or "").strip(),
+            "match_status": "unmatched",
+            "ambiguous_count": 0,
+            "ambiguous_keys": [],
             "category": "",
             "brand": "",
             "model": "",
@@ -2769,6 +2774,22 @@ def get_product_cards_for_titles(
             "max_price": None,
         }
 
+    def _apply_v2_row(c: Dict[str, Any], row: Tuple[Any, ...], match_status: str) -> str:
+        pid, ckey, _title, cat, brand, model, desc, img, attr_json = row
+        c["product_id"] = pid
+        c["canonical_key"] = str(ckey or c.get("canonical_key") or "").strip()
+        c["match_status"] = match_status
+        c["category"] = str(cat or "").strip()
+        c["brand"] = str(brand or "").strip()
+        c["model"] = str(model or "").strip()
+        c["description"] = str(desc or "").strip()[:500]
+        c["attributes"] = _clean_card_attributes(attr_json)
+        safe_img = _safe_http_url(img)
+        if safe_img:
+            c["image_url"] = safe_img
+            c["images"].append(safe_img)
+        return pid
+
     with get_connection() as conn:
         has_v2 = (
             _has_table(conn, "canonical_products")
@@ -2777,41 +2798,14 @@ def get_product_cards_for_titles(
         )
         title_to_pid: Dict[str, str] = {}
         if has_v2:
-            # 1) Совпадение по точному названию в canonical_products
-            for chunk in _chunks(unique):
-                rows = conn.execute(
-                    """
-                    SELECT id, canonical_key, title, category, brand, model, description, image_url, attributes_json
-                    FROM canonical_products
-                    WHERE title IN (SELECT value FROM json_each(?))
-                    ORDER BY updated_at DESC
-                    """,
-                    (json.dumps(chunk, ensure_ascii=False),),
-                ).fetchall()
-                for pid, ckey, title, cat, brand, model, desc, img, attr_json in rows:
-                    if title in cards and not title_to_pid.get(title):
-                        title_to_pid[title] = pid
-                        c = cards[title]
-                        c["product_id"] = pid
-                        c["category"] = str(cat or "").strip()
-                        c["brand"] = str(brand or "").strip()
-                        c["model"] = str(model or "").strip()
-                        c["description"] = str(desc or "").strip()[:500]
-                        c["attributes"] = _clean_card_attributes(attr_json)
-                        safe_img = _safe_http_url(img)
-                        if safe_img:
-                            c["image_url"] = safe_img
-                            c["images"].append(safe_img)
-
-            # 2) Для названий без точного совпадения — пробуем по canonical_key из keys_map
-            missing_by_key: Dict[str, List[str]] = {}
+            # 1) ПРИОРИТЕТ 1 (MM-04): привязка строго по известному canonical_key из keys_map
+            by_key: Dict[str, List[str]] = {}
             for t in unique:
-                if not title_to_pid.get(t):
-                    ck = (keys_map.get(t) or "").strip()
-                    if ck:
-                        missing_by_key.setdefault(ck, []).append(t)
-            if missing_by_key:
-                for chunk in _chunks(list(missing_by_key.keys())):
+                ck = (keys_map.get(t) or "").strip()
+                if ck:
+                    by_key.setdefault(ck, []).append(t)
+            if by_key:
+                for chunk in _chunks(list(by_key.keys())):
                     rows = conn.execute(
                         """
                         SELECT id, canonical_key, title, category, brand, model, description, image_url, attributes_json
@@ -2821,23 +2815,48 @@ def get_product_cards_for_titles(
                         """,
                         (json.dumps(chunk, ensure_ascii=False),),
                     ).fetchall()
-                    for pid, ckey, _title, cat, brand, model, desc, img, attr_json in rows:
-                        for t in missing_by_key.get(ckey, ()):
+                    for row in rows:
+                        ckey = str(row[1] or "").strip()
+                        for t in by_key.get(ckey, ()):
                             if not title_to_pid.get(t):
-                                title_to_pid[t] = pid
-                                c = cards[t]
-                                c["product_id"] = pid
-                                c["category"] = str(cat or "").strip()
-                                c["brand"] = str(brand or "").strip()
-                                c["model"] = str(model or "").strip()
-                                c["description"] = str(desc or "").strip()[:500]
-                                c["attributes"] = _clean_card_attributes(attr_json)
-                                safe_img = _safe_http_url(img)
-                                if safe_img:
-                                    c["image_url"] = safe_img
-                                    c["images"].append(safe_img)
+                                title_to_pid[t] = _apply_v2_row(cards[t], row, "canonical_key")
 
-            # 3) Предложения v2 для найденных canonical_products
+            # 2) Для названий, не найденных по ключу, проверяем совпадения по title в canonical_products
+            unresolved = [t for t in unique if not title_to_pid.get(t)]
+            if unresolved:
+                by_title_rows: Dict[str, List[Tuple[Any, ...]]] = {}
+                for chunk in _chunks(unresolved):
+                    rows = conn.execute(
+                        """
+                        SELECT id, canonical_key, title, category, brand, model, description, image_url, attributes_json
+                        FROM canonical_products
+                        WHERE title IN (SELECT value FROM json_each(?))
+                        ORDER BY updated_at DESC
+                        """,
+                        (json.dumps(chunk, ensure_ascii=False),),
+                    ).fetchall()
+                    for row in rows:
+                        by_title_rows.setdefault(row[2], []).append(row)
+
+                for t in unresolved:
+                    c = cards[t]
+                    expected_key = (keys_map.get(t) or "").strip()
+                    matched_rows = by_title_rows.get(t) or []
+                    if expected_key:
+                        # Ключ известен, но канонической записи для него нет — не подменяем чужой карточкой с тем же заголовком
+                        if matched_rows:
+                            c["match_status"] = "key_not_found"
+                            c["ambiguous_count"] = len(matched_rows)
+                            c["ambiguous_keys"] = [str(r[1] or "") for r in matched_rows[:5] if r[1]]
+                    elif len(matched_rows) == 1:
+                        title_to_pid[t] = _apply_v2_row(c, matched_rows[0], "unique_title")
+                    elif len(matched_rows) > 1:
+                        # Неоднозначный заголовок без подтверждённого ключа — не показываем случайную карточку
+                        c["match_status"] = "ambiguous_title"
+                        c["ambiguous_count"] = len(matched_rows)
+                        c["ambiguous_keys"] = [str(r[1] or "") for r in matched_rows[:5] if r[1]]
+
+            # 3) Предложения v2 строго для подтверждённых canonical_products.id
             pid_to_titles: Dict[str, List[str]] = {}
             for t, pid in title_to_pid.items():
                 pid_to_titles.setdefault(pid, []).append(t)
@@ -2879,15 +2898,29 @@ def get_product_cards_for_titles(
                                     "image_url": safe_img,
                                 })
 
-    # 4) Фоллбэк и дополнение из legacy products (offers_map)
+    # 4) Фоллбэк и дополнение из legacy products (offers_map), без подмешивания чужих ключей и неоднозначных заголовков
     for t in unique:
         c = cards[t]
+        if c["match_status"] in ("ambiguous_title", "key_not_found"):
+            continue
+        expected_key = (keys_map.get(t) or "").strip()
         legacy_offers = legacy_offers_map.get(t) or []
+        if not expected_key and c["match_status"] == "unmatched" and legacy_offers:
+            legacy_keys = {str(lo.get("canonical_key") or "").strip() for lo in legacy_offers if str(lo.get("canonical_key") or "").strip()}
+            if len(legacy_keys) > 1:
+                c["match_status"] = "ambiguous_title"
+                c["ambiguous_count"] = len(legacy_keys)
+                c["ambiguous_keys"] = sorted(legacy_keys)[:5]
+                continue
         seen_keys = {
             (o.get("shop", ""), o.get("url", ""), o.get("current_price", 0))
             for o in c["offers"]
         }
+        added_legacy = False
         for lo in legacy_offers:
+            lo_key = str(lo.get("canonical_key") or "").strip()
+            if expected_key and lo_key and lo_key != expected_key:
+                continue
             safe_img = _safe_http_url(lo.get("image_url"))
             if safe_img:
                 if not c["image_url"]:
@@ -2901,6 +2934,7 @@ def get_product_cards_for_titles(
             offer_key = (str(lo.get("shop") or ""), _safe_http_url(lo.get("url")), lo.get("current_price") or 0)
             if offer_key not in seen_keys and len(c["offers"]) < 6:
                 seen_keys.add(offer_key)
+                added_legacy = True
                 c["offers"].append({
                     "shop": str(lo.get("shop") or "").strip(),
                     "current_price": lo.get("current_price") or 0,
@@ -2910,6 +2944,8 @@ def get_product_cards_for_titles(
                     "url": _safe_http_url(lo.get("url")),
                     "image_url": safe_img,
                 })
+        if c["match_status"] == "unmatched" and added_legacy:
+            c["match_status"] = "legacy_only"
         prices = [float(o["current_price"]) for o in c["offers"] if o.get("current_price") and float(o["current_price"]) > 0]
         c["offers_count"] = len(c["offers"])
         c["min_price"] = min(prices) if prices else None
@@ -3011,8 +3047,16 @@ def get_disputed_product_pairs(
         item["fields_b"] = (fields_map.get(tb) or {}).get("fields")
         item["fields_source_a"] = (fields_map.get(ta) or {}).get("source")
         item["fields_source_b"] = (fields_map.get(tb) or {}).get("source")
-        item["offers_a"] = offers_map.get(ta) or (card_a["offers"] if card_a else [])
-        item["offers_b"] = offers_map.get(tb) or (card_b["offers"] if card_b else [])
+        item["offers_a"] = (
+            card_a["offers"]
+            if card_a and card_a.get("match_status") in ("canonical_key", "ambiguous_title", "key_not_found")
+            else (offers_map.get(ta) or (card_a["offers"] if card_a else []))
+        )
+        item["offers_b"] = (
+            card_b["offers"]
+            if card_b and card_b.get("match_status") in ("canonical_key", "ambiguous_title", "key_not_found")
+            else (offers_map.get(tb) or (card_b["offers"] if card_b else []))
+        )
         item["card_a"] = card_a
         item["card_b"] = card_b
         item["verdict"] = verdict
