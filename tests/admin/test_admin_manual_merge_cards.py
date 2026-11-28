@@ -274,6 +274,98 @@ class AdminManualMergeCardsTest(unittest.TestCase):
         self.assertEqual(card["offers"][0]["shop"], "Technodom")
         self.assertEqual(card["offers"][0]["url"], "https://technodom.kz/right-128")
 
+    def test_mm04_unkeyed_legacy_row_excluded_from_bound_canonical_card(self):
+        """Регрессия остатка MM-04: при подтверждённой канонической привязке legacy-строка с пустым canonical_key
+        не должна подмешивать посторонние фото/описание/цену/ссылку в карточку."""
+        title_a = "Apple iPhone 15 128GB Black"
+        title_b = "iPhone 15 128 ГБ Черный"
+
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_td', 'Technodom', 'technodom', 4.8, 'technodom.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_td', 's_td', 'website', 'Technodom', '2026-11-28')"
+            )
+            pr = ProductRepository(conn)
+            orf = OfferRepository(conn)
+
+            pr.save_or_update(CanonicalProduct(
+                id="prod_a",
+                canonical_key="apple_iphone_15_128_black_a",
+                title=title_a,
+                category="phones",
+                brand="Apple",
+                model="iPhone 15",
+                image_url="https://cdn.technodom.kz/iphone15-128.jpg",
+                attributes={"storage": "128GB"},
+            ))
+            pr.save_or_update(CanonicalProduct(
+                id="prod_other",
+                canonical_key="apple_iphone_15_256_black_other",
+                title=title_a,
+                category="phones",
+                brand="Apple",
+                model="iPhone 15 256GB",
+                image_url="https://cdn.other.kz/iphone15-256.jpg",
+                attributes={"storage": "256GB"},
+            ))
+            orf.save_or_update(Offer(
+                id="off_a",
+                product_id="prod_a",
+                seller_id="s_td",
+                channel_id="ch_td",
+                external_sku="sku_a",
+                url="https://technodom.kz/p/iphone15-128",
+                price=389990.0,
+                condition="NEW",
+                city="Алматы",
+            ))
+            # Посторонняя legacy-строка с тем же названием и ПУСТЫМ canonical_key
+            conn.execute(
+                "INSERT INTO products (id, url, shop, category, title, first_seen_price, current_price, old_price_on_site, min_price, max_price, image_url, description, canonical_key) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    "legacy_unbound",
+                    "https://example.test/unbound-legacy",
+                    "UnknownShop",
+                    "phones",
+                    title_a,
+                    49000,
+                    49000,
+                    0,
+                    49000,
+                    49000,
+                    "https://example.test/fake.jpg",
+                    "Постороннее legacy-описание",
+                    None,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        database.save_cached_canonical_key(title_a, "apple_iphone_15_128_black_a")
+        database.enqueue_disputed_pair(title_a, title_b, "mm04_legacy_unbound", force=True)
+
+        data = database.get_disputed_product_pairs(status="pending", limit=20, offset=0)
+        self.assertEqual(len(data["items"]), 1)
+        item = data["items"][0]
+        card = item["card_a"] if item["title_a"] == title_a else item["card_b"]
+        offers = item["offers_a"] if item["title_a"] == title_a else item["offers_b"]
+        self.assertEqual(card["match_status"], "canonical_key")
+        self.assertEqual(card["product_id"], "prod_a")
+        self.assertEqual(len(card["offers"]), 1)
+        self.assertEqual(card["offers"][0]["url"], "https://technodom.kz/p/iphone15-128")
+        self.assertEqual(card["offers"][0]["current_price"], 389990.0)
+        self.assertEqual(len(offers), 1)
+        self.assertEqual(offers[0]["url"], "https://technodom.kz/p/iphone15-128")
+        self.assertNotIn("https://example.test/fake.jpg", card["images"])
+        self.assertEqual(card["description"], "")
+
     def test_mm04_ambiguous_title_without_confirmed_key_marks_ambiguity_and_hides_wrong_card(self):
         """Регрессия MM-04: при двух карточках с одинаковым заголовком и без подтверждённого ключа
         API обозначает неоднозначность (ambiguous_title) и не подставляет случайную карточку."""

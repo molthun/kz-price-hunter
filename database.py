@@ -2919,7 +2919,8 @@ def get_product_cards_for_titles(
         added_legacy = False
         for lo in legacy_offers:
             lo_key = str(lo.get("canonical_key") or "").strip()
-            if expected_key and lo_key and lo_key != expected_key:
+            bound_key = expected_key or (c["canonical_key"] if c["match_status"] in ("canonical_key", "unique_title") else "")
+            if bound_key and lo_key != bound_key:
                 continue
             safe_img = _safe_http_url(lo.get("image_url"))
             if safe_img:
