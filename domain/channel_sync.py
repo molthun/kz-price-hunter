@@ -35,6 +35,51 @@ def make_fallback_canonical_key(title: str) -> str:
     return f"raw:{slug}:{h}"
 
 
+def _resolve_alias_chain(conn, kind: str, start_id: str, max_hops: int = 8) -> str:
+    """Проходит цепочку identity_aliases (kind='key' | 'product') до актуального значения (MM-06)."""
+    cur = str(start_id or "").strip()
+    if not cur:
+        return cur
+    seen = {cur}
+    for _ in range(max_hops):
+        try:
+            row = conn.execute(
+                "SELECT new_id FROM identity_aliases WHERE kind = ? AND old_id = ?",
+                (kind, cur),
+            ).fetchone()
+        except Exception:
+            return cur
+        if not row or not row[0]:
+            return cur
+        nxt = str(row[0]).strip()
+        if not nxt or nxt in seen:
+            return cur
+        seen.add(nxt)
+        cur = nxt
+    return cur
+
+
+def _lookup_pinned_key(conn, *titles: str) -> Optional[str]:
+    """Возвращает закреплённый оператором canonical_key из title_key_pins, если он есть (MM-06)."""
+    candidates = []
+    for t in titles:
+        s = str(t or "").strip()
+        if s and s not in candidates:
+            candidates.append(s)
+    for t in candidates:
+        th = hashlib.sha256(t.encode("utf-8")).hexdigest()
+        try:
+            row = conn.execute(
+                "SELECT canonical_key FROM title_key_pins WHERE title_hash = ?",
+                (th,),
+            ).fetchone()
+        except Exception:
+            return None
+        if row and row[0]:
+            return str(row[0]).strip()
+    return None
+
+
 def match_or_create_canonical_product(
     conn,
     offer: ShowcaseOffer,
@@ -47,8 +92,20 @@ def match_or_create_canonical_product(
     raw_title = offer.title.strip()
     title = clean_product_title(raw_title) or raw_title
     extracted_key = extract_canonical_key(raw_title)
-    canonical_key = extracted_key if extracted_key else make_fallback_canonical_key(raw_title)
-    prod_id = canonical_product_id(canonical_key)
+    base_key = extracted_key if extracted_key else make_fallback_canonical_key(raw_title)
+
+    # 0. Учитываем закреплённый выбор оператора (title_key_pins) и алиасы склейки (identity_aliases) (MM-06)
+    pinned_key = _lookup_pinned_key(conn, raw_title, title)
+    canonical_key = _resolve_alias_chain(conn, "key", pinned_key or base_key)
+    prod_id = _resolve_alias_chain(conn, "product", canonical_product_id(canonical_key))
+
+    def _resolve_existing_pid(pid: str) -> str:
+        aliased = _resolve_alias_chain(conn, "product", pid)
+        if aliased != pid:
+            exists = conn.execute("SELECT id FROM canonical_products WHERE id = ?", (aliased,)).fetchone()
+            if exists and exists[0]:
+                return exists[0]
+        return pid
 
     # 1. Проверяем по prod_id или canonical_key
     row = conn.execute(
@@ -57,15 +114,16 @@ def match_or_create_canonical_product(
     ).fetchone()
 
     if row and row[0]:
-        return row[0], False
+        return _resolve_existing_pid(row[0]), False
 
-    # 2. Проверяем по точному совпадению названия (без учёта регистра)
-    row_title = conn.execute(
-        "SELECT id FROM canonical_products WHERE title = ? COLLATE NOCASE OR title = ? COLLATE NOCASE",
-        (title, raw_title),
-    ).fetchone()
-    if row_title and row_title[0]:
-        return row_title[0], False
+    # 2. Проверяем по точному совпадению названия (без учёта регистра), если нет явного пина на иной ключ
+    if not pinned_key:
+        row_title = conn.execute(
+            "SELECT id FROM canonical_products WHERE title = ? COLLATE NOCASE OR title = ? COLLATE NOCASE",
+            (title, raw_title),
+        ).fetchone()
+        if row_title and row_title[0]:
+            return _resolve_existing_pid(row_title[0]), False
 
     # 3. Создаём новый канонический товар
     category = offer.category or "Разное"

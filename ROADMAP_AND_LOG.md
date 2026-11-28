@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.70.2: Устойчивость ручной склейки V2 при повторном обходе витрин (приёмка Codex MM-06)
+
+- `domain/channel_sync.py`: `match_or_create_canonical_product()` учитывает `title_key_pins` и цепочки `identity_aliases` (`key` / `product`), сохраняя выбранный оператором `canonical_products.id` при повторной записи витринных предложений и новых цен.
+- Тесты: добавлена регрессия `MM-06` в `tests/admin/test_admin_manual_merge_cards.py` (11/11).
+
 ## 28.11.2026 — 6.70.1: Транзакционный перенос предложений, истории, размеров и избранного V2 при склейке (приёмка Codex MM-05)
 
 - `database.py`: `_merge_v2_canonical_products_conn()` переносит `offers`, `offer_price_history`, `offer_sizes`, `watch_state`, `user_favorites` и `identity_aliases` на выбранную основную карточку V2 даже без legacy-строк `products`; при неоднозначной V2-привязке пара остаётся в `pending` с явным объяснением.

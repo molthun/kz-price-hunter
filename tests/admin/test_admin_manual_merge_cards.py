@@ -629,6 +629,124 @@ class AdminManualMergeCardsTest(unittest.TestCase):
         self.assertIn("Неоднозначная привязка", res["error"])
         self.assertEqual(database.get_disputed_pair_status(ph), "pending")
 
+    def test_mm06_showcase_rescan_after_manual_merge_preserves_primary_product_and_new_price(self):
+        """Регрессия MM-06: повторный обход витрины (match_or_create_canonical_product + upsert_showcase_offer)
+        с новой ценой не разваливает ручную склейку V2 и не затрагивает контрольный товар."""
+        from domain.channel_sync import match_or_create_canonical_product, upsert_showcase_offer
+        from scrapers.showcase_scanners import ShowcaseOffer
+
+        title_a = "A_Кофемашина Delonghi Magnifica Start"
+        title_b = "B_Делонги Магнифика Старт автоматическая"
+        title_ctrl = "Наушники Sony WH-1000XM5 Контроль"
+        now1 = "2026-11-28T06:00:00Z"
+        now2 = "2026-11-28T07:00:00Z"
+
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_kaspi', 'KaspiStore', 'kaspistore', 4.9, 'kaspi.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_kaspi', 's_kaspi', 'kaspi', 'KaspiStore', '2026-11-28')"
+            )
+
+            off_a_1 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_kaspi",
+                external_sku="sku_mm06_a", title=title_a, price=389990.0,
+                url="https://kaspi.kz/shop/p/a", category="phones", city="Алматы",
+            )
+            off_b_1 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_kaspi",
+                external_sku="sku_mm06_b", title=title_b, price=384990.0,
+                url="https://kaspi.kz/shop/p/b", category="phones", city="Алматы",
+            )
+            off_ctrl_1 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_kaspi",
+                external_sku="sku_mm06_ctrl", title=title_ctrl, price=159990.0,
+                url="https://kaspi.kz/shop/p/ctrl", category="headphones", city="Алматы",
+            )
+
+            pid_a, _ = match_or_create_canonical_product(conn, off_a_1, now1)
+            pid_b, _ = match_or_create_canonical_product(conn, off_b_1, now1)
+            pid_ctrl, _ = match_or_create_canonical_product(conn, off_ctrl_1, now1)
+            self.assertNotEqual(pid_a, pid_b)
+
+            oid_a = upsert_showcase_offer(conn, off_a_1, pid_a, "s_kaspi", "ch_kaspi", now1)
+            oid_b = upsert_showcase_offer(conn, off_b_1, pid_b, "s_kaspi", "ch_kaspi", now1)
+            oid_ctrl = upsert_showcase_offer(conn, off_ctrl_1, pid_ctrl, "s_kaspi", "ch_kaspi", now1)
+
+            key_a = conn.execute("SELECT canonical_key FROM canonical_products WHERE id = ?", (pid_a,)).fetchone()[0]
+            key_b = conn.execute("SELECT canonical_key FROM canonical_products WHERE id = ?", (pid_b,)).fetchone()[0]
+            conn.commit()
+        finally:
+            conn.close()
+
+        database.save_cached_canonical_key(title_a, key_a)
+        database.save_cached_canonical_key(title_b, key_b)
+        database.enqueue_disputed_pair(title_a, title_b, "mm06_showcase", force=True)
+        ph = database.pair_hash(title_a, title_b)
+
+        # Выбираем основную карточку 'b' (pid_b)
+        verdict_res = database.resolve_disputed_pair_human(ph, "same", "admin", "merge to b", primary_side="b")
+        self.assertTrue(verdict_res["ok"])
+        self.assertEqual(verdict_res["primary_product_id"], pid_b)
+
+        # Повторяем обход витрины с новыми ценами
+        conn = database.get_connection()
+        try:
+            off_a_2 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_kaspi",
+                external_sku="sku_mm06_a", title=title_a, price=379990.0,
+                url="https://kaspi.kz/shop/p/a", category="phones", city="Алматы",
+            )
+            off_b_2 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_kaspi",
+                external_sku="sku_mm06_b", title=title_b, price=374990.0,
+                url="https://kaspi.kz/shop/p/b", category="phones", city="Алматы",
+            )
+            off_ctrl_2 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_kaspi",
+                external_sku="sku_mm06_ctrl", title=title_ctrl, price=154990.0,
+                url="https://kaspi.kz/shop/p/ctrl", category="headphones", city="Алматы",
+            )
+
+            pid_a_after, _ = match_or_create_canonical_product(conn, off_a_2, now2)
+            pid_b_after, _ = match_or_create_canonical_product(conn, off_b_2, now2)
+            pid_ctrl_after, _ = match_or_create_canonical_product(conn, off_ctrl_2, now2)
+
+            self.assertEqual(pid_a_after, pid_b, "Второй обход витрины должен сохранять выбранную основную карточку pid_b")
+            self.assertEqual(pid_b_after, pid_b)
+            self.assertEqual(pid_ctrl_after, pid_ctrl)
+
+            upsert_showcase_offer(conn, off_a_2, pid_a_after, "s_kaspi", "ch_kaspi", now2)
+            upsert_showcase_offer(conn, off_b_2, pid_b_after, "s_kaspi", "ch_kaspi", now2)
+            upsert_showcase_offer(conn, off_ctrl_2, pid_ctrl_after, "s_kaspi", "ch_kaspi", now2)
+            conn.commit()
+
+            offers_map = dict(conn.execute("SELECT id, product_id FROM offers").fetchall())
+            self.assertEqual(offers_map[oid_a], pid_b)
+            self.assertEqual(offers_map[oid_b], pid_b)
+            self.assertEqual(offers_map[oid_ctrl], pid_ctrl)
+
+            hist_cols = {r[1] for r in conn.execute("PRAGMA table_info(offer_price_history)").fetchall()}
+            if "product_id" in hist_cols:
+                hist_a = conn.execute(
+                    "SELECT product_id, price FROM offer_price_history WHERE offer_id = ? ORDER BY observed_at",
+                    (oid_a,),
+                ).fetchall()
+                self.assertEqual(len(hist_a), 2)
+                self.assertTrue(all(r[0] == pid_b for r in hist_a))
+                self.assertEqual(hist_a[-1][1], 379990.0)
+                hist_ctrl = conn.execute(
+                    "SELECT product_id FROM offer_price_history WHERE offer_id = ?",
+                    (oid_ctrl,),
+                ).fetchall()
+                self.assertTrue(all(r[0] == pid_ctrl for r in hist_ctrl))
+        finally:
+            conn.close()
+
     def test_mm04_ambiguous_title_without_confirmed_key_marks_ambiguity_and_hides_wrong_card(self):
         """Регрессия MM-04: при двух карточках с одинаковым заголовком и без подтверждённого ключа
         API обозначает неоднозначность (ambiguous_title) и не подставляет случайную карточку."""
