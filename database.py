@@ -3159,11 +3159,13 @@ def resolve_disputed_pair_human(
     decision: str,
     reviewer: str = "human",
     notes: str = "",
+    primary_side: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Решение спорной пары оператором: перенос, закрепление ключа, вердикт и статус одной транзакцией (MM-03).
 
     - 'same': один товар. Группа второго ключа переходит целиком, поэтому при противоречии остальных участников
       решение отклоняется без изменений и возвращает их список (MM-01). Перенесённые ключи закрепляются.
+      Необязательный `primary_side` ('a' | 'b') задаёт, чей канонический ключ остаётся основной карточкой.
     - 'different': разные товары. При общем ключе второе название получает собственный, разные ключи остаются.
       Ключи обоих закрепляются: ни пересборка, ни новые поля их не сведут (MM-02, MMR-02).
     - 'skip' / 'skipped': отложить без изменения ключей.
@@ -3173,12 +3175,17 @@ def resolve_disputed_pair_human(
     decision = (decision or "").strip().lower()
     if decision not in ("same", "different", "skip", "skipped"):
         return {"ok": False, "error": f"Недопустимое решение: {decision}. Допустимы: same, different, skip"}
+    norm_primary = str(primary_side or "").strip().lower() or None
+    if norm_primary not in (None, "a", "b"):
+        return {"ok": False, "error": f"Недопустимая основная карточка: {primary_side}. Допустимы: a, b"}
     import product_key
 
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")                     # чтение и запись — под одной блокировкой писателя
         try:
-            result = _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, product_key)
+            result = _resolve_disputed_pair_conn(
+                conn, pair_hash, decision, reviewer, notes, product_key, primary_side=norm_primary
+            )
             conn.commit() if result["ok"] else conn.rollback()
             return result
         except BaseException:
@@ -3186,7 +3193,7 @@ def resolve_disputed_pair_human(
             raise
 
 
-def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, product_key) -> Dict[str, Any]:
+def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, product_key, primary_side=None) -> Dict[str, Any]:
     row = conn.execute("SELECT title_a, title_b, status FROM disputed_product_pairs WHERE pair_hash = ?", (pair_hash,)).fetchone()
     if not row:
         return {"ok": False, "error": f"Спорная пара с хэшем {pair_hash} не найдена"}
@@ -3218,8 +3225,13 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
             return {"ok": False, "error": "В группах есть другие товары, которые противоречат этому решению",
                     "conflicts": conflicts}
         pool = [k for k in (key_a, key_b) if k]
-        common_key = sorted(set(pool), key=lambda k: (0 if k.startswith("k2:") else 1, 0 if product_key._variants_of(k) else 1,
-                                                      len(k), k))[0] if pool else (own_a or own_b or f"k2:human:{pair_hash[:16]}")
+        if primary_side == "a":
+            common_key = key_a or own_a or key_b or own_b or f"k2:human:{pair_hash[:16]}"
+        elif primary_side == "b":
+            common_key = key_b or own_b or key_a or own_a or f"k2:human:{pair_hash[:16]}"
+        else:
+            common_key = sorted(set(pool), key=lambda k: (0 if k.startswith("k2:") else 1, 0 if product_key._variants_of(k) else 1,
+                                                          len(k), k))[0] if pool else (own_a or own_b or f"k2:human:{pair_hash[:16]}")
         moved = {title_a: common_key, title_b: common_key}
         for other in set(pool) - {common_key}:
             moved.update({r[0]: common_key for r in conn.execute("SELECT title FROM title_canonical_cache WHERE canonical_key = ?", (other,))})
@@ -3228,7 +3240,15 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
         rekey_titles_conn(conn, moved)
         save_pair_verdict(pair_hash, title_a, title_b, _human_verdict("same", reviewer, notes), model=f"human:{reviewer}", conn=conn)
         set_status("resolved", "human_same")
-        return {"ok": True, "decision": "same", "pair_hash": pair_hash, "canonical_key": common_key, "titles_updated": len(moved)}
+        resolved_primary = primary_side or ("a" if common_key == key_a else ("b" if common_key == key_b else None))
+        return {
+            "ok": True,
+            "decision": "same",
+            "pair_hash": pair_hash,
+            "canonical_key": common_key,
+            "primary_side": resolved_primary,
+            "titles_updated": len(moved),
+        }
 
     split_info = None
     # Закрепляются обе стороны: новые поля или правила могут свести собственные ключи и при разных ключах сейчас (MMR-02)

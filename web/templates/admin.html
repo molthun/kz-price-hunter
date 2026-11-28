@@ -295,8 +295,12 @@
     .matching-badge.different {color:#dc2626;border-color:rgba(220,38,38,.4);}
     .matching-badge.reason {font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:500;color:var(--muted);}
     .matching-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
-    .matching-side {border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--card);display:flex;flex-direction:column;gap:8px;min-width:0;}
+    .matching-side {border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--card);display:flex;flex-direction:column;gap:8px;min-width:0;transition:border-color .15s;}
+    .matching-side.is-primary {border-color:var(--primary);box-shadow:0 0 0 1px var(--primary);}
+    .matching-side-head {display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
     .matching-side-label {font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+    .matching-primary-pick {display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;color:var(--text);cursor:pointer;min-height:32px;}
+    .matching-primary-pick input {width:18px;min-height:18px;height:18px;margin:0;flex-shrink:0;}
     .matching-photo-box {width:100%;height:180px;border:1px solid var(--border);border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;}
     .matching-photo-box img {max-width:100%;max-height:100%;object-fit:contain;display:block;}
     .matching-no-photo {font-size:.82rem;color:var(--muted);}
@@ -2111,14 +2115,51 @@
     });
   }
 
-  function matchingBuildSide(label, title, otherTitle, keyVal, fields, offers, card, sameKey) {
-    const side = document.createElement('div');
-    side.className = 'matching-side';
+  function matchingDefaultPrimarySide(item) {
+    const score = (card, keyVal, offers) => {
+      const c = card && typeof card === 'object' ? card : {};
+      let s = 0;
+      if (keyVal) s += 4;
+      if (c.match_status === 'canonical_key') s += 4;
+      if (c.image_url) s += 2;
+      if (c.description) s += 1;
+      const offCount = Array.isArray(c.offers) ? c.offers.length : (Array.isArray(offers) ? offers.length : 0);
+      s += Math.min(offCount, 3);
+      return s;
+    };
+    const scoreA = score(item.card_a, item.key_a, item.offers_a);
+    const scoreB = score(item.card_b, item.key_b, item.offers_b);
+    return scoreB > scoreA ? 'b' : 'a';
+  }
 
+  function matchingBuildSide(label, title, otherTitle, keyVal, fields, offers, card, sameKey, primaryCfg) {
+    const side = document.createElement('div');
+    side.className = 'matching-side' + (primaryCfg && primaryCfg.checked ? ' is-primary' : '');
+    if (primaryCfg && primaryCfg.side) side.setAttribute('data-matching-side', primaryCfg.side);
+
+    const headRow = document.createElement('div');
+    headRow.className = 'matching-side-head';
     const lbl = document.createElement('div');
     lbl.className = 'matching-side-label';
     lbl.textContent = label;
-    side.appendChild(lbl);
+    headRow.appendChild(lbl);
+
+    if (primaryCfg) {
+      const pick = document.createElement('label');
+      pick.className = 'matching-primary-pick';
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'matching_primary_' + primaryCfg.pairHash;
+      radio.value = primaryCfg.side;
+      radio.checked = Boolean(primaryCfg.checked);
+      radio.setAttribute('data-matching-primary', primaryCfg.side);
+      radio.onchange = () => { if (primaryCfg.onSelect) primaryCfg.onSelect(primaryCfg.side); };
+      const txt = document.createElement('span');
+      txt.textContent = 'Основная карточка';
+      pick.append(radio, txt);
+      headRow.appendChild(pick);
+    }
+    side.appendChild(headRow);
 
     const c = card && typeof card === 'object' ? card : {};
     const matchStatus = String(c.match_status || '');
@@ -2306,8 +2347,25 @@
 
     const grid = document.createElement('div');
     grid.className = 'matching-grid';
-    grid.appendChild(matchingBuildSide('Товар 1', item.title_a, item.title_b, item.key_a, item.fields_a, item.offers_a, item.card_a, item.same_key));
-    grid.appendChild(matchingBuildSide('Товар 2', item.title_b, item.title_a, item.key_b, item.fields_b, item.offers_b, item.card_b, item.same_key));
+    let selectedPrimary = matchingDefaultPrimarySide(item);
+    const canChoosePrimary = item.status !== 'resolved' && !item.same_key;
+    let sideAEl = null;
+    let sideBEl = null;
+    const onSelectPrimary = (sideKey) => {
+      selectedPrimary = sideKey;
+      if (sideAEl) sideAEl.className = 'matching-side' + (sideKey === 'a' ? ' is-primary' : '');
+      if (sideBEl) sideBEl.className = 'matching-side' + (sideKey === 'b' ? ' is-primary' : '');
+    };
+    sideAEl = matchingBuildSide(
+      'Товар 1', item.title_a, item.title_b, item.key_a, item.fields_a, item.offers_a, item.card_a, item.same_key,
+      canChoosePrimary ? { pairHash: ph, side: 'a', checked: selectedPrimary === 'a', onSelect: onSelectPrimary } : null
+    );
+    sideBEl = matchingBuildSide(
+      'Товар 2', item.title_b, item.title_a, item.key_b, item.fields_b, item.offers_b, item.card_b, item.same_key,
+      canChoosePrimary ? { pairHash: ph, side: 'b', checked: selectedPrimary === 'b', onSelect: onSelectPrimary } : null
+    );
+    grid.appendChild(sideAEl);
+    grid.appendChild(sideBEl);
     card.appendChild(grid);
 
     const keyStatus = document.createElement('div');
@@ -2357,7 +2415,7 @@
     sameBtn.textContent = 'Склеить (один товар)';
     sameBtn.setAttribute('data-matching-action', 'same');
     sameBtn.setAttribute('data-pair-hash', ph);
-    sameBtn.onclick = () => submitAdminMatchingVerdict(ph, 'same', noteInput.value, feedback, [sameBtn, diffBtn, skipBtn]);
+    sameBtn.onclick = () => submitAdminMatchingVerdict(ph, 'same', noteInput.value, feedback, [sameBtn, diffBtn, skipBtn], canChoosePrimary ? selectedPrimary : '');
 
     const diffBtn = document.createElement('button');
     diffBtn.type = 'button';
@@ -2415,7 +2473,7 @@
     }
   }
 
-  async function submitAdminMatchingVerdict(pairHash, decision, rawNotes, feedbackEl, buttons) {
+  async function submitAdminMatchingVerdict(pairHash, decision, rawNotes, feedbackEl, buttons, primarySide) {
     const notes = String(rawNotes || '').trim();
     (buttons || []).forEach(b => { if (b) b.disabled = true; });
     if (feedbackEl) {
@@ -2423,10 +2481,14 @@
       feedbackEl.textContent = 'Сохраняем решение…';
     }
     try {
+      const payload = { pair_hash: pairHash, decision, notes };
+      if (decision === 'same' && (primarySide === 'a' || primarySide === 'b')) {
+        payload.primary_side = primarySide;
+      }
       const res = await fetch('/api/admin/matching/verdict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pair_hash: pairHash, decision, notes }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

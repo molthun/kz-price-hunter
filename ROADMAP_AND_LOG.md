@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.70.0: Выбор основной карточки при ручном схлопывании дублей и включение `tests/admin/` в `unittest discover`
+
+- `database.py`, `web/server.py`, `web/templates/admin.html`: добавлен выбор основной карточки (`primary_side: 'a' | 'b'`) в `/admin#matchingTool` и `POST /api/admin/matching/verdict`; добавлен `tests/admin/__init__.py` для автоматического обнаружения тестов админки в CI.
+- Тесты: расширены `tests/admin/test_admin_manual_merge_cards.py` (7/7) и `tests/frontend/test_frontend_admin_matching.cjs` (8/8).
+
 ## 28.11.2026 — 6.69.2: Исключение неподтверждённых legacy-предложений без ключа из привязанной карточки (остаток MM-04)
 
 - `database.py`: в `get_product_cards_for_titles()` legacy-строки `products` допускаются в привязанную каноническую карточку только при точном совпадении `canonical_key`; добавлена регрессия в `tests/admin/test_admin_manual_merge_cards.py`.

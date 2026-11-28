@@ -28,6 +28,7 @@ const code = [
   extractFn(html, 'matchingSafeUrl'),
   extractFn(html, 'matchingFormatPrice'),
   extractFn(html, 'matchingRenderDiffTitle'),
+  extractFn(html, 'matchingDefaultPrimarySide'),
   extractFn(html, 'matchingBuildSide'),
   extractFn(html, 'renderMatchingCard'),
   extractFn(html, 'loadAdminMatchingWebHelp'),
@@ -184,7 +185,7 @@ async function runTests() {
     const postCall = calls.find((c) => c.url === '/api/admin/matching/verdict');
     assert.ok(postCall);
     assert.equal(postCall.method, 'POST');
-    assert.deepEqual(postCall.body, { pair_hash: 'ph_merge', decision: 'same', notes: 'Одинаковая модель' });
+    assert.deepEqual(postCall.body, { pair_hash: 'ph_merge', decision: 'same', notes: 'Одинаковая модель', primary_side: 'a' });
     assert.ok(calls.some((c) => c.url.startsWith('/api/admin/matching/disputed?')));
     passed++;
   }
@@ -318,7 +319,52 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`PASS (${passed}/7) test_frontend_admin_matching.cjs`);
+  // 8. v6.70.0: primary card selector switches primary_side to 'b', highlights active side, and omits primary_side for 'different'
+  {
+    const calls = [];
+    const h = createHarness(async (url, opts) => {
+      calls.push({ url, method: (opts && opts.method) || 'GET', body: opts && opts.body ? JSON.parse(opts.body) : null });
+      if (url.startsWith('/api/admin/matching/stats')) {
+        return { ok: true, status: 200, json: async () => ({ status: 'ok', stats: { pending: 0, human_same: 1, human_different: 0, total: 1 } }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ status: 'ok', ok: true, items: [], total: 0 }) };
+    });
+    const card = h.ctx.renderMatchingCard({
+      pair_hash: 'ph_prim',
+      status: 'pending',
+      same_key: false,
+      title_a: 'Карточка 1',
+      title_b: 'Карточка 2',
+      key_a: 'k_a',
+      key_b: 'k_b',
+      card_a: { match_status: 'canonical_key', image_url: 'https://a.test/1.jpg', offers: [{ shop: 'A', current_price: 100 }] },
+      card_b: { match_status: 'canonical_key', image_url: 'https://b.test/1.jpg', offers: [{ shop: 'B', current_price: 100 }] },
+    });
+    const radioB = findAll(card, (n) => n.getAttribute && n.getAttribute('data-matching-primary') === 'b')[0];
+    const sideA = findAll(card, (n) => n.getAttribute && n.getAttribute('data-matching-side') === 'a')[0];
+    const sideB = findAll(card, (n) => n.getAttribute && n.getAttribute('data-matching-side') === 'b')[0];
+    assert.ok(radioB);
+    assert.ok(sideA.className.includes('is-primary'));
+    assert.ok(!sideB.className.includes('is-primary'));
+
+    radioB.checked = true;
+    radioB.onchange();
+    assert.ok(!sideA.className.includes('is-primary'));
+    assert.ok(sideB.className.includes('is-primary'));
+
+    const sameBtn = findAll(card, (n) => n.getAttribute && n.getAttribute('data-matching-action') === 'same')[0];
+    await sameBtn.onclick();
+    const sameCall = calls.find((c) => c.url === '/api/admin/matching/verdict' && c.body.decision === 'same');
+    assert.equal(sameCall.body.primary_side, 'b');
+
+    const diffBtn = findAll(card, (n) => n.getAttribute && n.getAttribute('data-matching-action') === 'different')[0];
+    await diffBtn.onclick();
+    const diffCall = calls.find((c) => c.url === '/api/admin/matching/verdict' && c.body.decision === 'different');
+    assert.equal('primary_side' in diffCall.body, false);
+    passed++;
+  }
+
+  console.log(`PASS (${passed}/8) test_frontend_admin_matching.cjs`);
 }
 
 runTests().catch((err) => {

@@ -366,6 +366,76 @@ class AdminManualMergeCardsTest(unittest.TestCase):
         self.assertNotIn("https://example.test/fake.jpg", card["images"])
         self.assertEqual(card["description"], "")
 
+    def test_primary_side_selection_chooses_surviving_canonical_key_for_same_verdict(self):
+        """v6.70.0: оператор может явно выбрать основную карточку ('a' или 'b') при склейке same."""
+        # Канонический порядок в enqueue_disputed_pair: title_a < title_b
+        title_a = "A_Card Sony WH-1000XM5 Black"
+        title_b = "B_Card Sony WH-1000XM5 Черный"
+        key_a = "k2:sony:wh1000xm5:aaa_longer_key"
+        key_b = "k2:sony:wh1000xm5:bbb_longer_key_2"
+
+        database.save_cached_canonical_key(title_a, key_a)
+        database.save_cached_canonical_key(title_b, key_b)
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO products (id, url, shop, category, title, first_seen_price, current_price, old_price_on_site, min_price, max_price, canonical_key) "
+                "VALUES ('p_a', 'https://shop1.kz/xm5', 'Shop1', 'headphones', ?, 150000, 150000, 0, 150000, 150000, ?)",
+                (title_a, key_a),
+            )
+            conn.execute(
+                "INSERT INTO products (id, url, shop, category, title, first_seen_price, current_price, old_price_on_site, min_price, max_price, canonical_key) "
+                "VALUES ('p_b', 'https://shop2.kz/xm5', 'Shop2', 'headphones', ?, 155000, 155000, 0, 155000, 155000, ?)",
+                (title_b, key_b),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        database.enqueue_disputed_pair(title_a, title_b, "primary_side_b_test", force=True)
+        ph = database.pair_hash(title_a, title_b)
+
+        # Недопустимое значение primary_side отклоняется
+        bad = database.resolve_disputed_pair_human(ph, "same", "admin", "bad", primary_side="z")
+        self.assertFalse(bad["ok"])
+
+        # Выбираем основную карточку 'b' (даже несмотря на то, что key_a короче и раньше по алфавиту)
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", "выбрана карточка 2", primary_side="b")
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["canonical_key"], key_b)
+        self.assertEqual(res["primary_side"], "b")
+
+        keys_after = database.get_cached_canonical_keys_batch([title_a, title_b])
+        self.assertEqual(keys_after[title_a], key_b)
+        self.assertEqual(keys_after[title_b], key_b)
+
+        conn = database.get_connection()
+        try:
+            prod_keys = dict(conn.execute("SELECT id, canonical_key FROM products WHERE id IN ('p_a', 'p_b')").fetchall())
+        finally:
+            conn.close()
+        self.assertEqual(prod_keys["p_a"], key_b)
+        self.assertEqual(prod_keys["p_b"], key_b)
+
+    def test_primary_side_a_overrides_shorter_key_b(self):
+        title_a = "A_Card Dyson Supersonic HD07"
+        title_b = "B_Card Фен Dyson HD07"
+        key_a = "k2:dyson:supersonic:hd07_long_key"
+        key_b = "k2:dyson:hd07"
+
+        database.save_cached_canonical_key(title_a, key_a)
+        database.save_cached_canonical_key(title_b, key_b)
+        database.enqueue_disputed_pair(title_a, title_b, "primary_side_a_test", force=True)
+        ph = database.pair_hash(title_a, title_b)
+
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", "выбрана карточка 1", primary_side="a")
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["canonical_key"], key_a)
+        self.assertEqual(res["primary_side"], "a")
+        keys_after = database.get_cached_canonical_keys_batch([title_a, title_b])
+        self.assertEqual(keys_after[title_a], key_a)
+        self.assertEqual(keys_after[title_b], key_a)
+
     def test_mm04_ambiguous_title_without_confirmed_key_marks_ambiguity_and_hides_wrong_card(self):
         """Регрессия MM-04: при двух карточках с одинаковым заголовком и без подтверждённого ключа
         API обозначает неоднозначность (ambiguous_title) и не подставляет случайную карточку."""

@@ -6252,16 +6252,26 @@ async def admin_matching_verdict_handler(request):
     pair_hash = str(body.get("pair_hash") or "").strip()
     decision = str(body.get("decision") or "").strip()
     notes = str(body.get("notes") or body.get("reason") or "").strip()
+    primary_side = str(body.get("primary_side") or "").strip().lower()
 
     if not pair_hash:
         return web.json_response({"status": "error", "message": "Параметр pair_hash обязателен"}, status=400)
     if decision not in ("same", "different", "skip", "skipped"):
         return web.json_response({"status": "error", "message": "Недопустимое решение (допустимо: same, different, skip)"}, status=400)
+    if primary_side not in ("", "a", "b"):
+        return web.json_response({"status": "error", "message": "Недопустимое значение primary_side (допустимо: a, b)"}, status=400)
 
     user = request.get("user") or {}
     reviewer = user.get("username") or user.get("first_name") or (f"user_{user.get('id')}" if user.get("id") else "admin")
 
-    res = await asyncio.to_thread(database.resolve_disputed_pair_human, pair_hash, decision, reviewer, notes)
+    res = await asyncio.to_thread(
+        database.resolve_disputed_pair_human,
+        pair_hash,
+        decision,
+        reviewer,
+        notes,
+        primary_side or None,
+    )
     if not res.get("ok"):
         return web.json_response({"status": "error", "message": res.get("error") or "Ошибка сохранения решения",
                                   "conflicts": res.get("conflicts") or []}, status=400)
