@@ -1384,6 +1384,126 @@ class AdminManualMergeCardsTest(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_mm11_offer_pin_scoped_to_exact_channel_offer_id_does_not_affect_other_seller_same_sku(self):
+        """Регрессия MM-11: два продавца и два канала с одинаковым external_sku (разные URL и offer_id).
+        Склейка карточки первого продавца с selected сохраняет его предложение и новую цену 9000 ₸ на selected,
+        а обход второго канала с тем же SKU записывает светильник и 12000 ₸ строго на его исходную карточку."""
+        from domain.channel_sync import match_or_create_canonical_product, upsert_showcase_offer
+        from scrapers.showcase_scanners import ShowcaseOffer
+
+        shared_sku = "SKU-SHARED-777"
+        ceramic_title = "Керамический набор посуды 12 предметов"
+        lamp_title = "Светильник настольный LED Classic"
+        now1 = "2026-11-28T08:00:00Z"
+        now2 = "2026-11-28T09:00:00Z"
+
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_mm11_1', 'SellerOne', 'sellerone', 4.9, 'kaspi.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_mm11_2', 'SellerTwo', 'sellertwo', 4.8, 'kaspi.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_mm11_1', 's_mm11_1', 'kaspi', 'SellerOne', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_mm11_2', 's_mm11_2', 'kaspi', 'SellerTwo', '2026-11-28')"
+            )
+
+            off_ceramic_1 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_1",
+                external_sku=shared_sku, title=ceramic_title, price=11000.0,
+                url="https://kaspi.kz/shop/p/ceramic-set-1", category="home", city="Алматы",
+            )
+            off_lamp_1 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_2",
+                external_sku=shared_sku, title=lamp_title, price=14000.0,
+                url="https://kaspi.kz/shop/p/desk-lamp-2", category="lighting", city="Астана",
+            )
+
+            pid_ceramic, _ = match_or_create_canonical_product(conn, off_ceramic_1, now1, channel_id="ch_mm11_1")
+            oid_ceramic = upsert_showcase_offer(conn, off_ceramic_1, pid_ceramic, "s_mm11_1", "ch_mm11_1", now1)
+
+            pid_lamp, _ = match_or_create_canonical_product(conn, off_lamp_1, now1, channel_id="ch_mm11_2")
+            oid_lamp = upsert_showcase_offer(conn, off_lamp_1, pid_lamp, "s_mm11_2", "ch_mm11_2", now1)
+            self.assertNotEqual(oid_ceramic, oid_lamp)
+            self.assertNotEqual(pid_ceramic, pid_lamp)
+
+            ProductRepository(conn).save_or_update(CanonicalProduct(
+                id="selected", canonical_key="k2:ceramic:selected", title=ceramic_title, category="home",
+            ))
+            conn.commit()
+        finally:
+            conn.close()
+
+        # Склеиваем только карточку керамического набора с selected
+        self.assertTrue(database.enqueue_disputed_pair(
+            ceramic_title, ceramic_title, "mm11_merge", force=True,
+            product_id_a=pid_ceramic, product_id_b="selected",
+        ))
+        ph = database.disputed_pair_hash(ceramic_title, ceramic_title, pid_ceramic, "selected")
+        pair_item = database.get_disputed_product_pairs(status="pending", limit=20, offset=0)["items"][0]
+        selected_side = "a" if pair_item["product_id_a"] == "selected" else "b"
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", "merge ceramic to selected", primary_side=selected_side)
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["primary_product_id"], "selected")
+
+        # Повторный обход обоих каналов: первый с 9000 ₸, второй (тот же SKU, другой канал/URL) с 12000 ₸
+        conn = database.get_connection()
+        try:
+            off_ceramic_2 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_1",
+                external_sku=shared_sku, title=ceramic_title, price=9000.0,
+                url="https://kaspi.kz/shop/p/ceramic-set-1", category="home", city="Алматы",
+            )
+            off_lamp_2 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_2",
+                external_sku=shared_sku, title=lamp_title, price=12000.0,
+                url="https://kaspi.kz/shop/p/desk-lamp-2", category="lighting", city="Астана",
+            )
+
+            pid_ceramic_after, _ = match_or_create_canonical_product(conn, off_ceramic_2, now2, channel_id="ch_mm11_1")
+            self.assertEqual(pid_ceramic_after, "selected")
+            upsert_showcase_offer(conn, off_ceramic_2, pid_ceramic_after, "s_mm11_1", "ch_mm11_1", now2)
+
+            # Проверяем и с channel_id, и при прямом вызове без channel_id
+            pid_lamp_after_no_ch, _ = match_or_create_canonical_product(conn, off_lamp_2, now2)
+            self.assertEqual(pid_lamp_after_no_ch, pid_lamp, "Прямой вызов без channel_id не должен применять чужой пин по SKU")
+            pid_lamp_after, _ = match_or_create_canonical_product(conn, off_lamp_2, now2, channel_id="ch_mm11_2")
+            self.assertEqual(pid_lamp_after, pid_lamp, "Обход второго канала с тем же SKU не должен уводить светильник на selected")
+            upsert_showcase_offer(conn, off_lamp_2, pid_lamp_after, "s_mm11_2", "ch_mm11_2", now2)
+            conn.commit()
+
+            offers_map = dict(conn.execute("SELECT id, product_id FROM offers").fetchall())
+            self.assertEqual(offers_map[oid_ceramic], "selected")
+            self.assertEqual(offers_map[oid_lamp], pid_lamp)
+
+            hist_cols = {r[1] for r in conn.execute("PRAGMA table_info(offer_price_history)").fetchall()}
+            if "product_id" in hist_cols:
+                hist_ceramic = conn.execute(
+                    "SELECT product_id, price FROM offer_price_history WHERE offer_id = ? ORDER BY observed_at",
+                    (oid_ceramic,),
+                ).fetchall()
+                self.assertEqual(len(hist_ceramic), 2)
+                self.assertTrue(all(r[0] == "selected" for r in hist_ceramic))
+                self.assertEqual(hist_ceramic[-1][1], 9000.0)
+
+                hist_lamp = conn.execute(
+                    "SELECT product_id, price FROM offer_price_history WHERE offer_id = ? ORDER BY observed_at",
+                    (oid_lamp,),
+                ).fetchall()
+                self.assertEqual(len(hist_lamp), 2)
+                self.assertTrue(all(r[0] == pid_lamp for r in hist_lamp))
+                self.assertEqual(hist_lamp[-1][1], 12000.0)
+        finally:
+            conn.close()
+
 
 if __name__ == "__main__":
     unittest.main()

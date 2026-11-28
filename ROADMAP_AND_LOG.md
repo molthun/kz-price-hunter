@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.71.3: Строгая привязка пина витринного предложения по фактическому `channel_id` / `offer_id` (приёмка Codex MM-11)
+
+- `domain/channel_sync.py`: `_lookup_pinned_offer_product()` проверяет `offer_product_pins` строго по точному `offer_id = showcase_offer_id(channel_id, external_sku, url)` (без глобального fallback по SKU/URL/типу канала); `sync_channel_showcase()` передаёт `channel_id=ch_id` в `match_or_create_canonical_product()`.
+- Тесты: добавлена регрессия `MM-11` в `tests/admin/test_admin_manual_merge_cards.py` (22/22).
+
 ## 28.11.2026 — 6.71.2: Независимость пар по ID и устойчивость склейки одноимённых карточек при обходе витрин (приёмка Codex MM-10)
 
 - `database.py`, `domain/channel_sync.py`: `disputed_pair_hash()` различает пары по выбранным `product_id` при любом сочетании заголовков; добавлены `offer_product_pins` и `_lookup_pinned_offer_product()` для сохранения результата ручной склейки V2 при повторном обходе витрин даже при совпадающих названиях карточек.

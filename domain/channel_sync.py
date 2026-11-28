@@ -56,56 +56,48 @@ def _lookup_pinned_key(conn, *titles: str) -> Optional[str]:
     return None
 
 
-def _lookup_pinned_offer_product(conn, offer: ShowcaseOffer) -> Optional[str]:
-    """Возвращает закреплённый оператором product_id для конкретного витринного предложения
-    из offer_product_pins (MM-10), чтобы склейка переживала повторный обход даже при
-    совпадающих названиях нескольких карточек."""
+def _lookup_pinned_offer_product(
+    conn,
+    offer: ShowcaseOffer,
+    channel_id: Optional[str] = None,
+) -> Optional[str]:
+    """Возвращает закреплённый оператором product_id только для подтверждённой идентичности
+    конкретного витринного предложения из offer_product_pins (MM-10/MM-11).
+
+    - Если передан фактический channel_id, проверяется строго тот же offer_id =
+      showcase_offer_id(channel_id, external_sku, url), который использует upsert_showcase_offer.
+    - Без channel_id (совместимость прямых вызовов) допускается только точное уникальное
+      совпадение одновременно по непустым external_sku и url; глобальный поиск по одному SKU,
+      одному URL или типу канала запрещён.
+    """
+    ch_id = str(channel_id or "").strip()
     sku = str(getattr(offer, "external_sku", "") or "").strip()
     url = str(getattr(offer, "url", "") or "").strip()
-    mp = str(getattr(offer, "marketplace", "") or "").strip().lower()
-    if not sku and not url:
-        return None
 
-    def _verify_unique(rows) -> Optional[str]:
-        targets = sorted({str(r[0]).strip() for r in rows if r and r[0]})
-        if len(targets) != 1:
+    def _verify_pid(pid: Any) -> Optional[str]:
+        s = str(pid or "").strip()
+        if not s:
             return None
-        pid = targets[0]
-        exists = conn.execute("SELECT id FROM canonical_products WHERE id = ?", (pid,)).fetchone()
+        exists = conn.execute("SELECT id FROM canonical_products WHERE id = ?", (s,)).fetchone()
         return exists[0] if exists and exists[0] else None
 
     try:
+        if ch_id:
+            offer_id = showcase_offer_id(ch_id, sku, url)
+            row = conn.execute(
+                "SELECT target_product_id FROM offer_product_pins WHERE offer_id = ?",
+                (offer_id,),
+            ).fetchone()
+            return _verify_pid(row[0]) if row else None
+
         if sku and url:
-            pid = _verify_unique(conn.execute(
+            rows = conn.execute(
                 "SELECT DISTINCT target_product_id FROM offer_product_pins WHERE external_sku = ? AND url = ?",
                 (sku, url),
-            ).fetchall())
-            if pid:
-                return pid
-        if url:
-            pid = _verify_unique(conn.execute(
-                "SELECT DISTINCT target_product_id FROM offer_product_pins WHERE url = ?",
-                (url,),
-            ).fetchall())
-            if pid:
-                return pid
-        if sku and mp:
-            pid = _verify_unique(conn.execute(
-                """SELECT DISTINCT p.target_product_id
-                   FROM offer_product_pins p
-                   JOIN channels c ON c.id = p.channel_id
-                   WHERE p.external_sku = ? AND LOWER(COALESCE(c.channel_type, '')) = ?""",
-                (sku, mp),
-            ).fetchall())
-            if pid:
-                return pid
-        if sku:
-            pid = _verify_unique(conn.execute(
-                "SELECT DISTINCT target_product_id FROM offer_product_pins WHERE external_sku = ?",
-                (sku,),
-            ).fetchall())
-            if pid:
-                return pid
+            ).fetchall()
+            targets = sorted({str(r[0]).strip() for r in rows if r and r[0]})
+            if len(targets) == 1:
+                return _verify_pid(targets[0])
     except Exception:
         return None
     return None
@@ -115,11 +107,12 @@ def match_or_create_canonical_product(
     conn,
     offer: ShowcaseOffer,
     now_iso: str,
+    channel_id: Optional[str] = None,
 ) -> Tuple[str, bool]:
     """Находит существующий товар или создаёт новый в canonical_products."""
-    # 0a. Точный пин конкретного витринного предложения (MM-10): переживает повторный обход
-    # даже при совпадающих названиях нескольких карточек, не затрагивая посторонние карточки.
-    pinned_offer_pid = _lookup_pinned_offer_product(conn, offer)
+    # 0a. Точный пин конкретного витринного предложения (MM-10/MM-11): переживает повторный обход
+    # даже при совпадающих названиях нескольких карточек, не затрагивая другие каналы и SKU.
+    pinned_offer_pid = _lookup_pinned_offer_product(conn, offer, channel_id=channel_id)
     if pinned_offer_pid:
         return pinned_offer_pid, False
 
@@ -220,6 +213,10 @@ def upsert_showcase_offer(
 ) -> str:
     """Добавляет или обновляет предложение продавца в таблице offers."""
     offer_id = showcase_offer_id(channel_id, offer.external_sku, offer.url)
+    # Если для этого точного offer_id есть подтверждённый пин ручной склейки, сохраняем его (MM-11)
+    pinned_pid = _lookup_pinned_offer_product(conn, offer, channel_id=channel_id)
+    if pinned_pid:
+        product_id = pinned_pid
     avail = "in_stock" if offer.in_stock else "out_of_stock"
     from content_retention import source_free
     clean_raw = source_free(offer.raw_data or {})
@@ -481,7 +478,7 @@ async def sync_channel_showcase(
 
     for off in offers:
         try:
-            prod_id, is_new = match_or_create_canonical_product(conn, off, now_iso)
+            prod_id, is_new = match_or_create_canonical_product(conn, off, now_iso, channel_id=ch_id)
             if is_new:
                 new_products_count += 1
             offer_id = upsert_showcase_offer(conn, off, prod_id, seller_id, ch_id, now_iso)
