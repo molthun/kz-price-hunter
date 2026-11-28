@@ -747,6 +747,150 @@ class AdminManualMergeCardsTest(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_mm07_partial_rekey_alias_does_not_redirect_unpinned_showcase_offer(self):
+        """Регрессия MM-07: частичный перенос другого названия через rekey_titles_conn (с записью identity_aliases)
+        не должен уводить незакреплённое витринное предложение и его новую цену на чужую карточку."""
+        from domain.channel_sync import match_or_create_canonical_product, upsert_showcase_offer
+        from scrapers.showcase_scanners import ShowcaseOffer
+
+        title_showcase = "Блендер Braun MultiQuick 5 Витрина"
+        title_legacy = "Погружной блендер Braun MQ5 Старое название"
+        now1 = "2026-11-28T06:00:00Z"
+        now2 = "2026-11-28T07:00:00Z"
+
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_mm07', 'KaspiStore', 'kaspistore', 4.9, 'kaspi.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_mm07', 's_mm07', 'kaspi', 'KaspiStore', '2026-11-28')"
+            )
+
+            off_1 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_mm07",
+                external_sku="sku_mm07_sh", title=title_showcase, price=35000.0,
+                url="https://kaspi.kz/shop/p/mm07", category="kitchen", city="Алматы",
+            )
+            pid_orig, _ = match_or_create_canonical_product(conn, off_1, now1)
+            oid_sh = upsert_showcase_offer(conn, off_1, pid_orig, "s_mm07", "ch_mm07", now1)
+            key_orig = conn.execute("SELECT canonical_key FROM canonical_products WHERE id = ?", (pid_orig,)).fetchone()[0]
+
+            # Старое предложение с другим названием на той же исходной карточке pid_orig
+            conn.execute(
+                "INSERT INTO products (id, url, shop, category, title, first_seen_price, current_price, old_price_on_site, min_price, max_price, canonical_key) "
+                "VALUES ('leg_mm07', 'https://old.kz/mq5', 'OldShop', 'kitchen', ?, 34000, 34000, 0, 34000, 34000, ?)",
+                (title_legacy, key_orig),
+            )
+            OfferRepository(conn).save_or_update(Offer(
+                id="off_leg_mm07", product_id=pid_orig, seller_id="s_mm07", channel_id="ch_mm07",
+                external_sku="sku_leg_mm07", url="https://old.kz/mq5", price=34000.0, condition="NEW", city="Алматы",
+            ))
+
+            # Штатный частичный перенос ТОЛЬКО title_legacy на другой ключ (создаёт исторические identity_aliases)
+            database.rekey_titles_conn(conn, {title_legacy: "k2:braun:mq5:other_split"})
+            conn.commit()
+
+            # Убеждаемся, что алиасы от частичного переноса действительно записались
+            aliases = conn.execute("SELECT kind, old_id, new_id FROM identity_aliases WHERE old_id IN (?, ?)", (pid_orig, key_orig)).fetchall()
+            self.assertGreaterEqual(len(aliases), 1)
+
+            # Повторный обход витринного предложения с новой ценой — оно НЕ имеет пина и должно остаться на pid_orig
+            off_2 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_mm07",
+                external_sku="sku_mm07_sh", title=title_showcase, price=33000.0,
+                url="https://kaspi.kz/shop/p/mm07", category="kitchen", city="Алматы",
+            )
+            pid_after, _ = match_or_create_canonical_product(conn, off_2, now2)
+            self.assertEqual(pid_after, pid_orig, "Исторический алиас частичного переноса не должен уводить витрину на чужой ID")
+            upsert_showcase_offer(conn, off_2, pid_after, "s_mm07", "ch_mm07", now2)
+            conn.commit()
+
+            cur_pid = conn.execute("SELECT product_id FROM offers WHERE id = ?", (oid_sh,)).fetchone()[0]
+            self.assertEqual(cur_pid, pid_orig)
+            hist_cols = {r[1] for r in conn.execute("PRAGMA table_info(offer_price_history)").fetchall()}
+            if "product_id" in hist_cols:
+                hist = conn.execute(
+                    "SELECT product_id, price FROM offer_price_history WHERE offer_id = ? ORDER BY observed_at",
+                    (oid_sh,),
+                ).fetchall()
+                self.assertEqual(len(hist), 2)
+                self.assertTrue(all(r[0] == pid_orig for r in hist))
+                self.assertEqual(hist[-1][1], 33000.0)
+        finally:
+            conn.close()
+
+    def test_mm07_current_pin_takes_priority_over_historical_identity_aliases(self):
+        """Регрессия MM-07: актуальный пин в title_key_pins имеет приоритет над историческими identity_aliases."""
+        from domain.channel_sync import match_or_create_canonical_product, upsert_showcase_offer
+        from scrapers.showcase_scanners import ShowcaseOffer
+
+        title_a = "A_Тостер Philips HD2581"
+        title_b = "B_Филипс Тостер 2581"
+        now1 = "2026-11-28T06:00:00Z"
+        now2 = "2026-11-28T07:00:00Z"
+
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_pin', 'KaspiStore', 'kaspistore', 4.9, 'kaspi.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_pin', 's_pin', 'kaspi', 'KaspiStore', '2026-11-28')"
+            )
+            off_a = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_pin",
+                external_sku="sku_pin_a", title=title_a, price=19000.0,
+                url="https://kaspi.kz/shop/p/pin_a", category="kitchen", city="Алматы",
+            )
+            off_b = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_pin",
+                external_sku="sku_pin_b", title=title_b, price=18500.0,
+                url="https://kaspi.kz/shop/p/pin_b", category="kitchen", city="Алматы",
+            )
+            pid_a, _ = match_or_create_canonical_product(conn, off_a, now1)
+            pid_b, _ = match_or_create_canonical_product(conn, off_b, now1)
+            oid_a = upsert_showcase_offer(conn, off_a, pid_a, "s_pin", "ch_pin", now1)
+            upsert_showcase_offer(conn, off_b, pid_b, "s_pin", "ch_pin", now1)
+            key_a = conn.execute("SELECT canonical_key FROM canonical_products WHERE id = ?", (pid_a,)).fetchone()[0]
+            key_b = conn.execute("SELECT canonical_key FROM canonical_products WHERE id = ?", (pid_b,)).fetchone()[0]
+
+            # Создаём постороннюю историческую цель и исторические алиасы от key_b / pid_b к ней
+            ProductRepository(conn).save_or_update(CanonicalProduct(
+                id="prod_stale_alias", canonical_key="k2:stale:alias", title="Старая посторонняя карточка", category="kitchen",
+            ))
+            conn.execute("INSERT OR IGNORE INTO identity_aliases (kind, old_id, new_id) VALUES ('key', ?, 'k2:stale:alias')", (key_b,))
+            conn.execute("INSERT OR IGNORE INTO identity_aliases (kind, old_id, new_id) VALUES ('product', ?, 'prod_stale_alias')", (pid_b,))
+            conn.commit()
+        finally:
+            conn.close()
+
+        database.save_cached_canonical_key(title_a, key_a)
+        database.save_cached_canonical_key(title_b, key_b)
+        database.enqueue_disputed_pair(title_a, title_b, "mm07_pin_prio", force=True)
+        ph = database.pair_hash(title_a, title_b)
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", "pin to b", primary_side="b")
+        self.assertTrue(res["ok"])
+
+        conn = database.get_connection()
+        try:
+            off_a_2 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_pin",
+                external_sku="sku_pin_a", title=title_a, price=17900.0,
+                url="https://kaspi.kz/shop/p/pin_a", category="kitchen", city="Алматы",
+            )
+            pid_after, _ = match_or_create_canonical_product(conn, off_a_2, now2)
+            self.assertEqual(pid_after, pid_b, "Актуальный пин title_key_pins должен побеждать исторический identity_aliases")
+            upsert_showcase_offer(conn, off_a_2, pid_after, "s_pin", "ch_pin", now2)
+            conn.commit()
+            self.assertEqual(conn.execute("SELECT product_id FROM offers WHERE id = ?", (oid_a,)).fetchone()[0], pid_b)
+        finally:
+            conn.close()
+
     def test_mm04_ambiguous_title_without_confirmed_key_marks_ambiguity_and_hides_wrong_card(self):
         """Регрессия MM-04: при двух карточках с одинаковым заголовком и без подтверждённого ключа
         API обозначает неоднозначность (ambiguous_title) и не подставляет случайную карточку."""

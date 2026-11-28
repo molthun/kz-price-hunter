@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.70.3: Привязка витрины строго по `title_key_pins` без редиректа по историческим `identity_aliases` (приёмка Codex MM-07)
+
+- `domain/channel_sync.py`: `match_or_create_canonical_product()` использует только `_lookup_pinned_key()` (`title_key_pins`) и не перенаправляет витрину по историческим `identity_aliases`, исключая ложный увод незакреплённой витрины при частичном переносе другого названия.
+- Тесты: добавлены 2 регрессии `MM-07` в `tests/admin/test_admin_manual_merge_cards.py` (13/13).
+
 ## 28.11.2026 — 6.70.2: Устойчивость ручной склейки V2 при повторном обходе витрин (приёмка Codex MM-06)
 
 - `domain/channel_sync.py`: `match_or_create_canonical_product()` учитывает `title_key_pins` и цепочки `identity_aliases` (`key` / `product`), сохраняя выбранный оператором `canonical_products.id` при повторной записи витринных предложений и новых цен.
