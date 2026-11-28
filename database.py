@@ -3193,6 +3193,89 @@ def resolve_disputed_pair_human(
             raise
 
 
+def _merge_v2_canonical_products_conn(
+    conn,
+    common_key: str,
+    source_keys: Iterable[str],
+    now: str,
+) -> Dict[str, Any]:
+    """Переносит V2-предложения, историю цен, размеры, наблюдения и избранное со склеиваемых ключей на common_key (MM-05)."""
+    res = {"primary_product_id": None, "offers_moved": 0, "history_moved": 0, "sizes_moved": 0, "favorites_moved": 0}
+    if not (_has_table(conn, "canonical_products") and _has_table(conn, "offers")):
+        return res
+
+    target_row = conn.execute(
+        "SELECT id FROM canonical_products WHERE canonical_key = ?",
+        (common_key,),
+    ).fetchone()
+    target_pid = target_row[0] if target_row else None
+    history_cols = _columns(conn, "offer_price_history") if _has_table(conn, "offer_price_history") else set()
+    has_sizes = _has_table(conn, "offer_sizes")
+    has_favorites = _has_table(conn, "user_favorites") and "canonical_product_id" in _columns(conn, "user_favorites")
+    has_aliases = _has_table(conn, "identity_aliases")
+    aliases: List[Tuple[str, str, str]] = []
+
+    for old_key in sorted({k for k in source_keys if k and k != common_key}):
+        old_row = conn.execute(
+            "SELECT id FROM canonical_products WHERE canonical_key = ?",
+            (old_key,),
+        ).fetchone()
+        if not old_row:
+            continue
+        old_pid = old_row[0]
+        if target_pid is None:
+            conn.execute(
+                "UPDATE canonical_products SET canonical_key = ?, updated_at = ? WHERE id = ?",
+                (common_key, now, old_pid),
+            )
+            target_pid = old_pid
+            aliases.append(("key", old_key, common_key))
+            continue
+        if old_pid == target_pid:
+            continue
+
+        offer_ids = [r[0] for r in conn.execute("SELECT id FROM offers WHERE product_id = ?", (old_pid,)).fetchall()]
+        if offer_ids:
+            cur_off = conn.execute(
+                "UPDATE offers SET product_id = ?, updated_at = ? WHERE product_id = ?",
+                (target_pid, now, old_pid),
+            )
+            res["offers_moved"] += cur_off.rowcount
+            if "product_id" in history_cols:
+                cur_hist = conn.execute(
+                    """UPDATE offer_price_history
+                       SET product_id = ?
+                       WHERE product_id = ?
+                         AND offer_id IN (SELECT value FROM json_each(?))""",
+                    (target_pid, old_pid, json.dumps(offer_ids, ensure_ascii=False)),
+                )
+                res["history_moved"] += cur_hist.rowcount
+        if has_sizes:
+            cur_sz = conn.execute(
+                "UPDATE offer_sizes SET product_id = ?, updated_at = ? WHERE product_id = ?",
+                (target_pid, now, old_pid),
+            )
+            res["sizes_moved"] += cur_sz.rowcount
+        _move_watch_state(conn, old_pid, target_pid)
+        if has_favorites:
+            cur_fav = conn.execute(
+                "UPDATE user_favorites SET canonical_product_id = ? WHERE canonical_product_id = ?",
+                (target_pid, old_pid),
+            )
+            res["favorites_moved"] += cur_fav.rowcount
+        conn.execute("UPDATE canonical_products SET title_offer_id = NULL WHERE id = ?", (old_pid,))
+        aliases.append(("product", old_pid, target_pid))
+        aliases.append(("key", old_key, common_key))
+
+    if aliases and has_aliases:
+        conn.executemany(
+            "INSERT OR IGNORE INTO identity_aliases (kind, old_id, new_id) VALUES (?, ?, ?)",
+            list(dict.fromkeys(aliases)),
+        )
+    res["primary_product_id"] = target_pid
+    return res
+
+
 def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, product_key, primary_side=None) -> Dict[str, Any]:
     row = conn.execute("SELECT title_a, title_b, status FROM disputed_product_pairs WHERE pair_hash = ?", (pair_hash,)).fetchone()
     if not row:
@@ -3220,6 +3303,45 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
     key_a, key_b, own_a, own_b = cached_key(title_a), cached_key(title_b), own_key(title_a), own_key(title_b)
 
     if decision == "same":
+        # Проверка неоднозначной привязки V2 до любых изменений (MM-05)
+        has_v2_cp = _has_table(conn, "canonical_products")
+        v2_source_keys: List[str] = []
+        if has_v2_cp:
+            for side_title, side_key in ((title_a, key_a), (title_b, key_b)):
+                if side_key:
+                    cp_by_key = conn.execute(
+                        "SELECT id FROM canonical_products WHERE canonical_key = ?",
+                        (side_key,),
+                    ).fetchone()
+                    if not cp_by_key:
+                        other_same_title = conn.execute(
+                            "SELECT id, canonical_key FROM canonical_products WHERE title = ?",
+                            (side_title,),
+                        ).fetchall()
+                        if other_same_title:
+                            return {
+                                "ok": False,
+                                "error": (
+                                    f"Неоднозначная привязка для «{side_title}»: карточка с ключом {side_key} не найдена в каталоге V2, "
+                                    f"но найдены другие карточки с тем же названием ({len(other_same_title)}). Пара оставлена на проверке."
+                                ),
+                            }
+                else:
+                    same_title_rows = conn.execute(
+                        "SELECT id, canonical_key FROM canonical_products WHERE title = ?",
+                        (side_title,),
+                    ).fetchall()
+                    if len(same_title_rows) > 1:
+                        return {
+                            "ok": False,
+                            "error": (
+                                f"Неоднозначная привязка для «{side_title}»: найдено {len(same_title_rows)} разных карточек с этим названием "
+                                "без подтверждённого канонического ключа. Пара оставлена на проверке."
+                            ),
+                        }
+                    if len(same_title_rows) == 1 and same_title_rows[0][1]:
+                        v2_source_keys.append(str(same_title_rows[0][1]))
+
         conflicts = _group_conflicts_conn(conn, title_a, title_b, key_a, key_b) if key_a != key_b else []
         if conflicts:
             return {"ok": False, "error": "В группах есть другие товары, которые противоречат этому решению",
@@ -3238,6 +3360,8 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
             moved.update({title: common_key for title in _social_titles_with_key_conn(conn, other)})
         _pin_title_keys_conn(conn, moved, pair_hash)
         rekey_titles_conn(conn, moved)
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        v2_merge = _merge_v2_canonical_products_conn(conn, common_key, list(set(pool) | set(v2_source_keys)), now_iso)
         save_pair_verdict(pair_hash, title_a, title_b, _human_verdict("same", reviewer, notes), model=f"human:{reviewer}", conn=conn)
         set_status("resolved", "human_same")
         resolved_primary = primary_side or ("a" if common_key == key_a else ("b" if common_key == key_b else None))
@@ -3247,6 +3371,8 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
             "pair_hash": pair_hash,
             "canonical_key": common_key,
             "primary_side": resolved_primary,
+            "primary_product_id": v2_merge.get("primary_product_id"),
+            "v2_offers_moved": v2_merge.get("offers_moved", 0),
             "titles_updated": len(moved),
         }
 

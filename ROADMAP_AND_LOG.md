@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.70.1: Транзакционный перенос предложений, истории, размеров и избранного V2 при склейке (приёмка Codex MM-05)
+
+- `database.py`: `_merge_v2_canonical_products_conn()` переносит `offers`, `offer_price_history`, `offer_sizes`, `watch_state`, `user_favorites` и `identity_aliases` на выбранную основную карточку V2 даже без legacy-строк `products`; при неоднозначной V2-привязке пара остаётся в `pending` с явным объяснением.
+- Тесты: расширен `tests/admin/test_admin_manual_merge_cards.py` (10/10).
+
 ## 28.11.2026 — 6.70.0: Выбор основной карточки при ручном схлопывании дублей и включение `tests/admin/` в `unittest discover`
 
 - `database.py`, `web/server.py`, `web/templates/admin.html`: добавлен выбор основной карточки (`primary_side: 'a' | 'b'`) в `/admin#matchingTool` и `POST /api/admin/matching/verdict`; добавлен `tests/admin/__init__.py` для автоматического обнаружения тестов админки в CI.

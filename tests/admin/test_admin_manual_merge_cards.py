@@ -436,6 +436,199 @@ class AdminManualMergeCardsTest(unittest.TestCase):
         self.assertEqual(keys_after[title_a], key_a)
         self.assertEqual(keys_after[title_b], key_a)
 
+    def _seed_v2_only_pair_with_control(self):
+        """Создаёт 2 карточки V2 с предложениями, историей цен, размерами, избранным и контрольную постороннюю карточку (без legacy products)."""
+        title_a = "Apple iPhone 15 128 ГБ Черный"
+        title_b = "Смартфон Apple iPhone 15 128GB Black"
+        title_ctrl = "Смартфон Samsung Galaxy S24 Ultra 256GB"
+        key_a = "apple_iphone_15_128_black_a"
+        key_b = "apple_iphone_15_128_black_b"
+        key_ctrl = "samsung_s24_ultra_256"
+
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_a', 'Technodom', 'technodom', 4.8, 'technodom.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_b', 'Mechta', 'mechta', 4.7, 'mechta.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_a', 's_a', 'website', 'Technodom', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_b', 's_b', 'website', 'Mechta', '2026-11-28')"
+            )
+            pr = ProductRepository(conn)
+            orf = OfferRepository(conn)
+
+            pr.save_or_update(CanonicalProduct(
+                id="prod_a", canonical_key=key_a, title=title_a, category="phones", brand="Apple", model="iPhone 15",
+            ))
+            pr.save_or_update(CanonicalProduct(
+                id="prod_b", canonical_key=key_b, title=title_b, category="phones", brand="Apple", model="iPhone 15",
+            ))
+            pr.save_or_update(CanonicalProduct(
+                id="prod_ctrl", canonical_key=key_ctrl, title=title_ctrl, category="phones", brand="Samsung", model="S24 Ultra",
+            ))
+
+            orf.save_or_update(Offer(
+                id="off_a", product_id="prod_a", seller_id="s_a", channel_id="ch_a",
+                external_sku="sku_a", url="https://technodom.kz/a", price=389990.0, condition="NEW", city="Алматы",
+            ))
+            orf.save_or_update(Offer(
+                id="off_b", product_id="prod_b", seller_id="s_b", channel_id="ch_b",
+                external_sku="sku_b", url="https://mechta.kz/b", price=384990.0, condition="NEW", city="Астана",
+            ))
+            orf.save_or_update(Offer(
+                id="off_ctrl", product_id="prod_ctrl", seller_id="s_a", channel_id="ch_a",
+                external_sku="sku_ctrl", url="https://technodom.kz/ctrl", price=599990.0, condition="NEW", city="Алматы",
+            ))
+
+            # История цен V2
+            hist_cols = {r[1] for r in conn.execute("PRAGMA table_info(offer_price_history)").fetchall()}
+            if "product_id" in hist_cols:
+                conn.execute(
+                    "INSERT INTO offer_price_history (offer_id, product_id, price, old_price, observed_at) VALUES ('off_a', 'prod_a', 399990, 419990, '2026-11-27T10:00:00Z')"
+                )
+                conn.execute(
+                    "INSERT INTO offer_price_history (offer_id, product_id, price, old_price, observed_at) VALUES ('off_b', 'prod_b', 394990, 409990, '2026-11-27T10:00:00Z')"
+                )
+                conn.execute(
+                    "INSERT INTO offer_price_history (offer_id, product_id, price, old_price, observed_at) VALUES ('off_ctrl', 'prod_ctrl', 609990, 629990, '2026-11-27T10:00:00Z')"
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO offer_price_history (offer_id, price, old_price, observed_at) VALUES ('off_a', 399990, 419990, '2026-11-27T10:00:00Z')"
+                )
+                conn.execute(
+                    "INSERT INTO offer_price_history (offer_id, price, old_price, observed_at) VALUES ('off_b', 394990, 409990, '2026-11-27T10:00:00Z')"
+                )
+                conn.execute(
+                    "INSERT INTO offer_price_history (offer_id, price, old_price, observed_at) VALUES ('off_ctrl', 609990, 629990, '2026-11-27T10:00:00Z')"
+                )
+
+            # Размеры и избранное
+            conn.execute("INSERT INTO offer_sizes (offer_id, product_id, size, updated_at) VALUES ('off_a', 'prod_a', '128', '2026-11-28')")
+            conn.execute("INSERT INTO offer_sizes (offer_id, product_id, size, updated_at) VALUES ('off_b', 'prod_b', '128', '2026-11-28')")
+            conn.execute("INSERT INTO offer_sizes (offer_id, product_id, size, updated_at) VALUES ('off_ctrl', 'prod_ctrl', '256', '2026-11-28')")
+            conn.execute(
+                "INSERT INTO user_favorites (user_id, item_id, canonical_product_id, title, shop, saved_price, saved_at) "
+                "VALUES (1, 'fav_a', 'prod_a', ?, 'Technodom', 389990, '2026-11-28T00:00:00Z')",
+                (title_a,),
+            )
+            conn.execute(
+                "INSERT INTO user_favorites (user_id, item_id, canonical_product_id, title, shop, saved_price, saved_at) "
+                "VALUES (2, 'fav_b', 'prod_b', ?, 'Mechta', 384990, '2026-11-28T00:00:00Z')",
+                (title_b,),
+            )
+            conn.execute(
+                "INSERT INTO user_favorites (user_id, item_id, canonical_product_id, title, shop, saved_price, saved_at) "
+                "VALUES (3, 'fav_ctrl', 'prod_ctrl', ?, 'Technodom', 599990, '2026-11-28T00:00:00Z')",
+                (title_ctrl,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        database.save_cached_canonical_key(title_a, key_a)
+        database.save_cached_canonical_key(title_b, key_b)
+        database.save_cached_canonical_key(title_ctrl, key_ctrl)
+        database.enqueue_disputed_pair(title_a, title_b, "mm05_v2_only", force=True)
+        return database.pair_hash(title_a, title_b), key_a, key_b
+
+    def test_mm05_v2_merge_primary_b_moves_offers_history_sizes_favorites_and_keeps_control(self):
+        ph, key_a, key_b = self._seed_v2_only_pair_with_control()
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", "choose b", primary_side="b")
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["canonical_key"], key_b)
+        self.assertEqual(res["primary_side"], "b")
+        self.assertEqual(res["primary_product_id"], "prod_b")
+        self.assertEqual(res["v2_offers_moved"], 1)
+
+        conn = database.get_connection()
+        try:
+            offers = dict(conn.execute("SELECT id, product_id FROM offers").fetchall())
+            self.assertEqual(offers["off_a"], "prod_b")
+            self.assertEqual(offers["off_b"], "prod_b")
+            self.assertEqual(offers["off_ctrl"], "prod_ctrl")
+
+            hist_cols = {r[1] for r in conn.execute("PRAGMA table_info(offer_price_history)").fetchall()}
+            if "product_id" in hist_cols:
+                hist = dict(conn.execute("SELECT offer_id, product_id FROM offer_price_history").fetchall())
+                self.assertEqual(hist["off_a"], "prod_b")
+                self.assertEqual(hist["off_b"], "prod_b")
+                self.assertEqual(hist["off_ctrl"], "prod_ctrl")
+
+            sizes = dict(conn.execute("SELECT offer_id, product_id FROM offer_sizes").fetchall())
+            self.assertEqual(sizes["off_a"], "prod_b")
+            self.assertEqual(sizes["off_b"], "prod_b")
+            self.assertEqual(sizes["off_ctrl"], "prod_ctrl")
+
+            favs = dict(conn.execute("SELECT item_id, canonical_product_id FROM user_favorites").fetchall())
+            self.assertEqual(favs["fav_a"], "prod_b")
+            self.assertEqual(favs["fav_b"], "prod_b")
+            self.assertEqual(favs["fav_ctrl"], "prod_ctrl")
+
+            aliases = {tuple(r) for r in conn.execute("SELECT kind, old_id, new_id FROM identity_aliases").fetchall()}
+            self.assertIn(("product", "prod_a", "prod_b"), aliases)
+            self.assertIn(("key", key_a, key_b), aliases)
+        finally:
+            conn.close()
+
+    def test_mm05_v2_merge_primary_a_moves_offers_history_sizes_favorites_and_keeps_control(self):
+        ph, key_a, key_b = self._seed_v2_only_pair_with_control()
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", "choose a", primary_side="a")
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["canonical_key"], key_a)
+        self.assertEqual(res["primary_side"], "a")
+        self.assertEqual(res["primary_product_id"], "prod_a")
+        self.assertEqual(res["v2_offers_moved"], 1)
+
+        conn = database.get_connection()
+        try:
+            offers = dict(conn.execute("SELECT id, product_id FROM offers").fetchall())
+            self.assertEqual(offers["off_a"], "prod_a")
+            self.assertEqual(offers["off_b"], "prod_a")
+            self.assertEqual(offers["off_ctrl"], "prod_ctrl")
+
+            sizes = dict(conn.execute("SELECT offer_id, product_id FROM offer_sizes").fetchall())
+            self.assertEqual(sizes["off_b"], "prod_a")
+            self.assertEqual(sizes["off_ctrl"], "prod_ctrl")
+
+            favs = dict(conn.execute("SELECT item_id, canonical_product_id FROM user_favorites").fetchall())
+            self.assertEqual(favs["fav_b"], "prod_a")
+            self.assertEqual(favs["fav_ctrl"], "prod_ctrl")
+
+            aliases = {tuple(r) for r in conn.execute("SELECT kind, old_id, new_id FROM identity_aliases").fetchall()}
+            self.assertIn(("product", "prod_b", "prod_a"), aliases)
+            self.assertIn(("key", key_b, key_a), aliases)
+        finally:
+            conn.close()
+
+    def test_mm05_ambiguous_v2_binding_refuses_merge_and_leaves_pair_pending(self):
+        title_ambig = "Samsung Galaxy S24"
+        title_other = "Смартфон Samsung S24"
+        conn = database.get_connection()
+        try:
+            pr = ProductRepository(conn)
+            pr.save_or_update(CanonicalProduct(id="p1", canonical_key="s24_128", title=title_ambig, category="phones"))
+            pr.save_or_update(CanonicalProduct(id="p2", canonical_key="s24_256", title=title_ambig, category="phones"))
+            conn.commit()
+        finally:
+            conn.close()
+
+        database.enqueue_disputed_pair(title_ambig, title_other, "mm05_ambig", force=True)
+        ph = database.pair_hash(title_ambig, title_other)
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", "try merge", primary_side="a")
+        self.assertFalse(res["ok"])
+        self.assertIn("Неоднозначная привязка", res["error"])
+        self.assertEqual(database.get_disputed_pair_status(ph), "pending")
+
     def test_mm04_ambiguous_title_without_confirmed_key_marks_ambiguity_and_hides_wrong_card(self):
         """Регрессия MM-04: при двух карточках с одинаковым заголовком и без подтверждённого ключа
         API обозначает неоднозначность (ambiguous_title) и не подставляет случайную карточку."""
