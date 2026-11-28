@@ -891,6 +891,67 @@ class AdminManualMergeCardsTest(unittest.TestCase):
         finally:
             conn.close()
 
+    def _assert_mm08_uncached_primary_side(self, chosen_side: str):
+        ph, key_a, key_b = self._seed_v2_only_pair_with_control()
+        # Удаляем из title_canonical_cache ключ выбранной стороны (как при unique_title без кэша)
+        title_to_uncache = "Apple iPhone 15 128 ГБ Черный" if chosen_side == "a" else "Смартфон Apple iPhone 15 128GB Black"
+        expected_pid = "prod_a" if chosen_side == "a" else "prod_b"
+        expected_key = key_a if chosen_side == "a" else key_b
+
+        conn = database.get_connection()
+        try:
+            conn.execute("DELETE FROM title_canonical_cache WHERE title = ?", (title_to_uncache,))
+            conn.commit()
+        finally:
+            conn.close()
+
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", f"choose uncached {chosen_side}", primary_side=chosen_side)
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["primary_side"], chosen_side)
+        self.assertEqual(res["canonical_key"], expected_key)
+        self.assertEqual(res["primary_product_id"], expected_pid)
+
+        conn = database.get_connection()
+        try:
+            offers = dict(conn.execute("SELECT id, product_id FROM offers").fetchall())
+            self.assertEqual(offers["off_a"], expected_pid)
+            self.assertEqual(offers["off_b"], expected_pid)
+            self.assertEqual(offers["off_ctrl"], "prod_ctrl")
+            hist_cols = {r[1] for r in conn.execute("PRAGMA table_info(offer_price_history)").fetchall()}
+            if "product_id" in hist_cols:
+                hist = dict(conn.execute("SELECT offer_id, product_id FROM offer_price_history").fetchall())
+                self.assertEqual(hist["off_a"], expected_pid)
+                self.assertEqual(hist["off_b"], expected_pid)
+                self.assertEqual(hist["off_ctrl"], "prod_ctrl")
+        finally:
+            conn.close()
+
+    def test_mm08_uncached_primary_side_a_preserves_prod_a(self):
+        self._assert_mm08_uncached_primary_side("a")
+
+    def test_mm08_uncached_primary_side_b_preserves_prod_b(self):
+        self._assert_mm08_uncached_primary_side("b")
+
+    def test_mm08_unconfirmable_primary_side_refused_and_kept_pending(self):
+        title_a = "A_Неизвестная карточка без V2"
+        title_b = "B_Подтверждённая карточка V2"
+        conn = database.get_connection()
+        try:
+            ProductRepository(conn).save_or_update(CanonicalProduct(
+                id="prod_only_b", canonical_key="k2:only_b", title=title_b, category="phones",
+            ))
+            conn.commit()
+        finally:
+            conn.close()
+        database.save_cached_canonical_key(title_b, "k2:only_b")
+        database.enqueue_disputed_pair(title_a, title_b, "mm08_unconfirmable", force=True)
+        ph = database.pair_hash(title_a, title_b)
+
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", "choose unconfirmed a", primary_side="a")
+        self.assertFalse(res["ok"])
+        self.assertIn("Не удалось подтвердить основную карточку", res["error"])
+        self.assertEqual(database.get_disputed_pair_status(ph), "pending")
+
     def test_mm04_ambiguous_title_without_confirmed_key_marks_ambiguity_and_hides_wrong_card(self):
         """Регрессия MM-04: при двух карточках с одинаковым заголовком и без подтверждённого ключа
         API обозначает неоднозначность (ambiguous_title) и не подставляет случайную карточку."""

@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.70.4: Сохранение выбранной основной карточки без кэшированного ключа (приёмка Codex MM-08)
+
+- `database.py`: `_resolve_disputed_pair_conn()` использует подтверждённый V2-ключ по уникальному заголовку (`eff_key_a` / `eff_key_b`) при выборе `primary_side` и отказывает с сохранением `pending`, если выбранную сторону нельзя подтвердить.
+- Тесты: добавлены 3 регрессии `MM-08` в `tests/admin/test_admin_manual_merge_cards.py` (16/16).
+
 ## 28.11.2026 — 6.70.3: Привязка витрины строго по `title_key_pins` без редиректа по историческим `identity_aliases` (приёмка Codex MM-07)
 
 - `domain/channel_sync.py`: `match_or_create_canonical_product()` использует только `_lookup_pinned_key()` (`title_key_pins`) и не перенаправляет витрину по историческим `identity_aliases`, исключая ложный увод незакреплённой витрины при частичном переносе другого названия.

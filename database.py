@@ -3303,17 +3303,22 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
     key_a, key_b, own_a, own_b = cached_key(title_a), cached_key(title_b), own_key(title_a), own_key(title_b)
 
     if decision == "same":
-        # Проверка неоднозначной привязки V2 до любых изменений (MM-05)
+        # Проверка неоднозначной привязки V2 и сбор подтверждённых карточек до любых изменений (MM-05/MM-08)
         has_v2_cp = _has_table(conn, "canonical_products")
         v2_source_keys: List[str] = []
+        side_v2_key: Dict[str, str] = {}
+        side_v2_pid: Dict[str, str] = {}
         if has_v2_cp:
-            for side_title, side_key in ((title_a, key_a), (title_b, key_b)):
+            for side_code, side_title, side_key in (("a", title_a, key_a), ("b", title_b, key_b)):
                 if side_key:
                     cp_by_key = conn.execute(
-                        "SELECT id FROM canonical_products WHERE canonical_key = ?",
+                        "SELECT id, canonical_key FROM canonical_products WHERE canonical_key = ?",
                         (side_key,),
                     ).fetchone()
-                    if not cp_by_key:
+                    if cp_by_key:
+                        side_v2_pid[side_code] = cp_by_key[0]
+                        side_v2_key[side_code] = str(cp_by_key[1] or side_key).strip()
+                    else:
                         other_same_title = conn.execute(
                             "SELECT id, canonical_key FROM canonical_products WHERE title = ?",
                             (side_title,),
@@ -3340,17 +3345,33 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
                             ),
                         }
                     if len(same_title_rows) == 1 and same_title_rows[0][1]:
-                        v2_source_keys.append(str(same_title_rows[0][1]))
+                        ukey = str(same_title_rows[0][1]).strip()
+                        side_v2_pid[side_code] = same_title_rows[0][0]
+                        side_v2_key[side_code] = ukey
+                        v2_source_keys.append(ukey)
 
-        conflicts = _group_conflicts_conn(conn, title_a, title_b, key_a, key_b) if key_a != key_b else []
+        eff_key_a = key_a or side_v2_key.get("a")
+        eff_key_b = key_b or side_v2_key.get("b")
+
+        conflicts = _group_conflicts_conn(conn, title_a, title_b, eff_key_a, eff_key_b) if eff_key_a != eff_key_b else []
         if conflicts:
             return {"ok": False, "error": "В группах есть другие товары, которые противоречат этому решению",
                     "conflicts": conflicts}
-        pool = [k for k in (key_a, key_b) if k]
+        pool = [k for k in (eff_key_a, eff_key_b) if k]
         if primary_side == "a":
-            common_key = key_a or own_a or key_b or own_b or f"k2:human:{pair_hash[:16]}"
+            if has_v2_cp and side_v2_pid.get("b") and not (eff_key_a or own_a):
+                return {
+                    "ok": False,
+                    "error": f"Не удалось подтвердить основную карточку для «{title_a}»: канонический ключ не найден. Пара оставлена на проверке.",
+                }
+            common_key = eff_key_a or own_a or eff_key_b or own_b or f"k2:human:{pair_hash[:16]}"
         elif primary_side == "b":
-            common_key = key_b or own_b or key_a or own_a or f"k2:human:{pair_hash[:16]}"
+            if has_v2_cp and side_v2_pid.get("a") and not (eff_key_b or own_b):
+                return {
+                    "ok": False,
+                    "error": f"Не удалось подтвердить основную карточку для «{title_b}»: канонический ключ не найден. Пара оставлена на проверке.",
+                }
+            common_key = eff_key_b or own_b or eff_key_a or own_a or f"k2:human:{pair_hash[:16]}"
         else:
             common_key = sorted(set(pool), key=lambda k: (0 if k.startswith("k2:") else 1, 0 if product_key._variants_of(k) else 1,
                                                           len(k), k))[0] if pool else (own_a or own_b or f"k2:human:{pair_hash[:16]}")
@@ -3364,7 +3385,7 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
         v2_merge = _merge_v2_canonical_products_conn(conn, common_key, list(set(pool) | set(v2_source_keys)), now_iso)
         save_pair_verdict(pair_hash, title_a, title_b, _human_verdict("same", reviewer, notes), model=f"human:{reviewer}", conn=conn)
         set_status("resolved", "human_same")
-        resolved_primary = primary_side or ("a" if common_key == key_a else ("b" if common_key == key_b else None))
+        resolved_primary = primary_side or ("a" if common_key == eff_key_a else ("b" if common_key == eff_key_b else None))
         return {
             "ok": True,
             "decision": "same",
