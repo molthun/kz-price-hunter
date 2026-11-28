@@ -1399,6 +1399,19 @@ def _create_schema(cursor) -> None:
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_obs_product ON price_observations(product_id, observed_at)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_obs_time ON price_observations(observed_at)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_product_sources_shop_url ON product_sources(shop_key, source_url, active)")
+    # Точечные пины конкретных витринных предложений при ручной склейке V2 (MM-10)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS offer_product_pins (
+            offer_id TEXT PRIMARY KEY,
+            channel_id TEXT,
+            external_sku TEXT,
+            url TEXT,
+            target_product_id TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_offer_product_pins_url ON offer_product_pins(url)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_offer_product_pins_sku ON offer_product_pins(external_sku)")
 
     # Полнотекстовый индекс FTS5; перестраивается миграцией, а не при каждом старте
     cursor.execute("""
@@ -2586,8 +2599,10 @@ def disputed_pair_hash(
     pa = str(product_id_a or "").strip()
     pb = str(product_id_b or "").strip()
     (first_t, first_p), (second_t, second_p) = sorted([(ta, pa), (tb, pb)], key=lambda x: (x[0], x[1]))
-    if first_t == second_t and first_p and second_p and first_p != second_p:
-        return hashlib.sha256(f"pid:{first_p}\x00{second_p}".encode("utf-8")).hexdigest()[:32]
+    if first_p or second_p:
+        return hashlib.sha256(
+            f"pid:{first_t}\x00{first_p}\x00{second_t}\x00{second_p}".encode("utf-8")
+        ).hexdigest()[:32]
     return pair_hash(first_t, second_t)
 
 
@@ -3466,6 +3481,7 @@ def _merge_v2_canonical_products_conn(
     has_sizes = _has_table(conn, "offer_sizes")
     has_favorites = _has_table(conn, "user_favorites") and "canonical_product_id" in _columns(conn, "user_favorites")
     has_aliases = _has_table(conn, "identity_aliases")
+    has_offer_pins = _has_table(conn, "offer_product_pins")
     aliases: List[Tuple[str, str, str]] = []
 
     for old_key in sorted({k for k in source_keys if k and k != common_key}):
@@ -3487,13 +3503,29 @@ def _merge_v2_canonical_products_conn(
         if old_pid == target_pid:
             continue
 
-        offer_ids = [r[0] for r in conn.execute("SELECT id FROM offers WHERE product_id = ?", (old_pid,)).fetchall()]
+        offer_rows = conn.execute(
+            "SELECT id, channel_id, external_sku, url FROM offers WHERE product_id = ?",
+            (old_pid,),
+        ).fetchall()
+        offer_ids = [r[0] for r in offer_rows]
         if offer_ids:
             cur_off = conn.execute(
                 "UPDATE offers SET product_id = ?, updated_at = ? WHERE product_id = ?",
                 (target_pid, now, old_pid),
             )
             res["offers_moved"] += cur_off.rowcount
+            if has_offer_pins:
+                conn.executemany(
+                    """INSERT INTO offer_product_pins (offer_id, channel_id, external_sku, url, target_product_id, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(offer_id) DO UPDATE SET
+                           channel_id = COALESCE(NULLIF(excluded.channel_id, ''), offer_product_pins.channel_id),
+                           external_sku = COALESCE(NULLIF(excluded.external_sku, ''), offer_product_pins.external_sku),
+                           url = COALESCE(NULLIF(excluded.url, ''), offer_product_pins.url),
+                           target_product_id = excluded.target_product_id,
+                           updated_at = excluded.updated_at""",
+                    [(r[0], r[1] or "", r[2] or "", r[3] or "", target_pid, now) for r in offer_rows],
+                )
             if "product_id" in history_cols:
                 cur_hist = conn.execute(
                     """UPDATE offer_price_history
@@ -3503,6 +3535,11 @@ def _merge_v2_canonical_products_conn(
                     (target_pid, old_pid, json.dumps(offer_ids, ensure_ascii=False)),
                 )
                 res["history_moved"] += cur_hist.rowcount
+        if has_offer_pins:
+            conn.execute(
+                "UPDATE offer_product_pins SET target_product_id = ?, updated_at = ? WHERE target_product_id = ?",
+                (target_pid, now, old_pid),
+            )
         if has_sizes:
             cur_sz = conn.execute(
                 "UPDATE offer_sizes SET product_id = ?, updated_at = ? WHERE product_id = ?",

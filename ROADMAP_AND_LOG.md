@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 28.11.2026 — 6.71.2: Независимость пар по ID и устойчивость склейки одноимённых карточек при обходе витрин (приёмка Codex MM-10)
+
+- `database.py`, `domain/channel_sync.py`: `disputed_pair_hash()` различает пары по выбранным `product_id` при любом сочетании заголовков; добавлены `offer_product_pins` и `_lookup_pinned_offer_product()` для сохранения результата ручной склейки V2 при повторном обходе витрин даже при совпадающих названиях карточек.
+- Тесты: расширен `tests/admin/test_admin_manual_merge_cards.py` (21/21).
+
 ## 28.11.2026 — 6.71.1: Сквозная передача `product_id` при подборе и склейке дублей (приёмка Codex MM-09)
 
 - `database.py`, `web/server.py`, `web/templates/admin.html`: добавлены `product_id_a` / `product_id_b` в `disputed_product_pairs`, `disputed_pair_hash()`, `get_product_cards_by_ids()`, прямая привязка по ID в `_resolve_disputed_pair_conn()` (без задевания посторонних карточек с тем же названием) и передача выбранных ID из каталожного подбора в `POST /api/admin/matching/enqueue`.

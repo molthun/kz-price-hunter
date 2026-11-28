@@ -1254,6 +1254,136 @@ class AdminManualMergeCardsTest(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_mm10_concurrent_pending_pairs_with_same_titles_different_ids_do_not_overwrite(self):
+        """Регрессия MM-10: две одновременно ожидающие пары с одинаковым набором заголовков
+        (p_ac1 + p_ac2 и p_ac1_second + p_ac2) должны иметь разные pair_hash и сосуществовать в очереди,
+        при сохранении совместимости хэша для пар без ID."""
+        title_ambig = "Кондиционер LG Dualcool P09EP2"
+        title_other = "Сплит-система LG P09EP2 Dualcool"
+        conn = database.get_connection()
+        try:
+            pr = ProductRepository(conn)
+            pr.save_or_update(CanonicalProduct(id="p_ac1", canonical_key="k2:lg:v1", title=title_ambig, category="air_conditioners"))
+            pr.save_or_update(CanonicalProduct(id="p_ac1_second", canonical_key="k2:lg:v2", title=title_ambig, category="air_conditioners"))
+            pr.save_or_update(CanonicalProduct(id="p_ac2", canonical_key="k2:lg:other", title=title_other, category="air_conditioners"))
+            conn.commit()
+        finally:
+            conn.close()
+
+        # Совместимость для пар без ID
+        self.assertEqual(
+            database.disputed_pair_hash(title_ambig, title_other),
+            database.pair_hash(title_ambig, title_other),
+        )
+
+        ok1 = database.enqueue_disputed_pair(title_ambig, title_other, "mm10_pair1", force=True, product_id_a="p_ac1", product_id_b="p_ac2")
+        ok2 = database.enqueue_disputed_pair(title_ambig, title_other, "mm10_pair2", force=True, product_id_a="p_ac1_second", product_id_b="p_ac2")
+        self.assertTrue(ok1)
+        self.assertTrue(ok2)
+
+        ph1 = database.disputed_pair_hash(title_ambig, title_other, "p_ac1", "p_ac2")
+        ph2 = database.disputed_pair_hash(title_ambig, title_other, "p_ac1_second", "p_ac2")
+        self.assertNotEqual(ph1, ph2)
+
+        data = database.get_disputed_product_pairs(status="pending", limit=20, offset=0)
+        self.assertEqual(data["total"], 2)
+        by_hash = {it["pair_hash"]: it for it in data["items"]}
+        self.assertIn(ph1, by_hash)
+        self.assertIn(ph2, by_hash)
+        self.assertEqual(by_hash[ph1]["product_id_a"], "p_ac1")
+        self.assertEqual(by_hash[ph1]["product_id_b"], "p_ac2")
+        self.assertEqual(by_hash[ph2]["product_id_a"], "p_ac1_second")
+        self.assertEqual(by_hash[ph2]["product_id_b"], "p_ac2")
+
+    def test_mm10_same_title_three_cards_merge_survives_showcase_rescan_without_affecting_third(self):
+        """Регрессия MM-10: при трёх одноимённых V2-карточках (исходная витринная + selected + third)
+        склейка исходной витринной карточки в selected переживает повторный обход витрины с новой ценой 9000 ₸,
+        а третья одноимённая карточка и её предложение остаются без изменений."""
+        from domain.channel_sync import match_or_create_canonical_product, upsert_showcase_offer
+        from scrapers.showcase_scanners import ShowcaseOffer
+
+        same_title = "Кондиционер LG Dualcool P09EP2"
+        now1 = "2026-11-28T08:00:00Z"
+        now2 = "2026-11-28T09:00:00Z"
+
+        conn = database.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sellers (id, name, slug, rating, domain, is_active, metadata_json, created_at, updated_at) "
+                "VALUES ('s_mm10', 'KaspiStore', 'kaspistore', 4.9, 'kaspi.kz', 1, '{}', '2026-11-28', '2026-11-28')"
+            )
+            conn.execute(
+                "INSERT INTO channels (id, seller_id, channel_type, name, created_at) "
+                "VALUES ('ch_mm10', 's_mm10', 'kaspi', 'KaspiStore', '2026-11-28')"
+            )
+
+            off_1 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_mm10",
+                external_sku="sku_mm10_sh", title=same_title, price=12000.0,
+                url="https://kaspi.kz/shop/p/mm10_sh", category="air_conditioners", city="Алматы",
+            )
+            pid_src, _ = match_or_create_canonical_product(conn, off_1, now1)
+            oid_sh = upsert_showcase_offer(conn, off_1, pid_src, "s_mm10", "ch_mm10", now1)
+
+            pr = ProductRepository(conn)
+            orf = OfferRepository(conn)
+            pr.save_or_update(CanonicalProduct(
+                id="selected", canonical_key="k2:lg:mm10_selected", title=same_title, category="air_conditioners",
+            ))
+            pr.save_or_update(CanonicalProduct(
+                id="third", canonical_key="k2:lg:mm10_third", title=same_title, category="air_conditioners",
+            ))
+            orf.save_or_update(Offer(
+                id="off_third", product_id="third", seller_id="s_mm10", channel_id="ch_mm10",
+                external_sku="sku_mm10_third", url="https://kaspi.kz/shop/p/mm10_third",
+                price=15000.0, condition="NEW", city="Астана",
+            ))
+            conn.commit()
+        finally:
+            conn.close()
+
+        ok = database.enqueue_disputed_pair(
+            same_title, same_title, "mm10_showcase_same_title", force=True,
+            product_id_a=pid_src, product_id_b="selected",
+        )
+        self.assertTrue(ok)
+        ph = database.disputed_pair_hash(same_title, same_title, pid_src, "selected")
+        pair_item = database.get_disputed_product_pairs(status="pending", limit=20, offset=0)["items"][0]
+        selected_side = "a" if pair_item["product_id_a"] == "selected" else "b"
+
+        res = database.resolve_disputed_pair_human(ph, "same", "admin", "merge to selected", primary_side=selected_side)
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["primary_product_id"], "selected")
+
+        # Повторный обход витрины с новой ценой 9000 ₸
+        conn = database.get_connection()
+        try:
+            off_2 = ShowcaseOffer(
+                marketplace="kaspi", merchant_id="m_mm10",
+                external_sku="sku_mm10_sh", title=same_title, price=9000.0,
+                url="https://kaspi.kz/shop/p/mm10_sh", category="air_conditioners", city="Алматы",
+            )
+            pid_after, _ = match_or_create_canonical_product(conn, off_2, now2)
+            self.assertEqual(pid_after, "selected", "Повторный обход витрины должен сохранять привязку предложения к selected")
+            upsert_showcase_offer(conn, off_2, pid_after, "s_mm10", "ch_mm10", now2)
+            conn.commit()
+
+            offers_map = dict(conn.execute("SELECT id, product_id FROM offers").fetchall())
+            self.assertEqual(offers_map[oid_sh], "selected")
+            self.assertEqual(offers_map["off_third"], "third", "Третья одноимённая карточка должна остаться без изменений")
+
+            hist_cols = {r[1] for r in conn.execute("PRAGMA table_info(offer_price_history)").fetchall()}
+            if "product_id" in hist_cols:
+                hist = conn.execute(
+                    "SELECT product_id, price FROM offer_price_history WHERE offer_id = ? ORDER BY observed_at",
+                    (oid_sh,),
+                ).fetchall()
+                self.assertEqual(len(hist), 2)
+                self.assertTrue(all(r[0] == "selected" for r in hist))
+                self.assertEqual(hist[-1][1], 9000.0)
+        finally:
+            conn.close()
+
 
 if __name__ == "__main__":
     unittest.main()

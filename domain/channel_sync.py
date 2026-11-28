@@ -56,12 +56,73 @@ def _lookup_pinned_key(conn, *titles: str) -> Optional[str]:
     return None
 
 
+def _lookup_pinned_offer_product(conn, offer: ShowcaseOffer) -> Optional[str]:
+    """Возвращает закреплённый оператором product_id для конкретного витринного предложения
+    из offer_product_pins (MM-10), чтобы склейка переживала повторный обход даже при
+    совпадающих названиях нескольких карточек."""
+    sku = str(getattr(offer, "external_sku", "") or "").strip()
+    url = str(getattr(offer, "url", "") or "").strip()
+    mp = str(getattr(offer, "marketplace", "") or "").strip().lower()
+    if not sku and not url:
+        return None
+
+    def _verify_unique(rows) -> Optional[str]:
+        targets = sorted({str(r[0]).strip() for r in rows if r and r[0]})
+        if len(targets) != 1:
+            return None
+        pid = targets[0]
+        exists = conn.execute("SELECT id FROM canonical_products WHERE id = ?", (pid,)).fetchone()
+        return exists[0] if exists and exists[0] else None
+
+    try:
+        if sku and url:
+            pid = _verify_unique(conn.execute(
+                "SELECT DISTINCT target_product_id FROM offer_product_pins WHERE external_sku = ? AND url = ?",
+                (sku, url),
+            ).fetchall())
+            if pid:
+                return pid
+        if url:
+            pid = _verify_unique(conn.execute(
+                "SELECT DISTINCT target_product_id FROM offer_product_pins WHERE url = ?",
+                (url,),
+            ).fetchall())
+            if pid:
+                return pid
+        if sku and mp:
+            pid = _verify_unique(conn.execute(
+                """SELECT DISTINCT p.target_product_id
+                   FROM offer_product_pins p
+                   JOIN channels c ON c.id = p.channel_id
+                   WHERE p.external_sku = ? AND LOWER(COALESCE(c.channel_type, '')) = ?""",
+                (sku, mp),
+            ).fetchall())
+            if pid:
+                return pid
+        if sku:
+            pid = _verify_unique(conn.execute(
+                "SELECT DISTINCT target_product_id FROM offer_product_pins WHERE external_sku = ?",
+                (sku,),
+            ).fetchall())
+            if pid:
+                return pid
+    except Exception:
+        return None
+    return None
+
+
 def match_or_create_canonical_product(
     conn,
     offer: ShowcaseOffer,
     now_iso: str,
 ) -> Tuple[str, bool]:
     """Находит существующий товар или создаёт новый в canonical_products."""
+    # 0a. Точный пин конкретного витринного предложения (MM-10): переживает повторный обход
+    # даже при совпадающих названиях нескольких карточек, не затрагивая посторонние карточки.
+    pinned_offer_pid = _lookup_pinned_offer_product(conn, offer)
+    if pinned_offer_pid:
+        return pinned_offer_pid, False
+
     # Ключ и ID считаются от названия витрины как прежде: резервный ключ — хэш названия, и его
     # смена после раскрытия HTML-сущностей отделила бы уже записанный товар (6.62.1). Хранится и
     # сверяется читаемое название.
